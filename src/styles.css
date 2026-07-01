@@ -1,0 +1,640 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #eef2ff;
+  background: #090914;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 124, 189, 0.18), transparent 28%),
+    radial-gradient(circle at 86% 8%, rgba(96, 240, 219, 0.13), transparent 26%),
+    linear-gradient(145deg, #090914 0%, #101326 42%, #12101d 100%);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 12px;
+}
+
+.topbar,
+.market-strip,
+.panel {
+  border: 1px solid rgba(170, 185, 255, 0.15);
+  background: rgba(13, 16, 33, 0.86);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.topbar {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #16131f;
+  background: linear-gradient(135deg, #35e6ad, #ffd36e 52%, #ff7cbd);
+}
+
+.brand strong,
+.brand small {
+  display: block;
+  line-height: 1.1;
+}
+
+.brand small,
+.metric span,
+.panel-title button,
+.book-head,
+.risk-lines,
+.balance-tile small {
+  color: #8f97bb;
+}
+
+nav,
+.top-actions,
+.tabs,
+.intervals,
+.chart-tools,
+.panel-title,
+.side-switch,
+.segmented,
+.percent-row,
+.form-row,
+.check-row {
+  display: flex;
+  align-items: center;
+}
+
+nav {
+  gap: 4px;
+}
+
+nav button,
+.top-actions button,
+.tabs button,
+.intervals button,
+.chart-tools button,
+.panel-title button,
+.segmented button,
+.percent-row button {
+  min-height: 32px;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: rgba(143, 151, 187, 0.08);
+}
+
+nav button.active,
+.tabs button.active,
+.intervals button.active,
+.segmented button.active,
+.percent-row button.active {
+  color: #15131c;
+  background: #ffd36e;
+}
+
+.top-actions {
+  gap: 8px;
+}
+
+.wallet,
+.panel-title button,
+.tabs button {
+  gap: 6px;
+}
+
+.menu {
+  display: none;
+}
+
+.market-strip {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.3fr) repeat(7, minmax(116px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.symbol-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.symbol-select select,
+.field input,
+.form-row select {
+  width: 100%;
+  border: 1px solid rgba(170, 185, 255, 0.16);
+  border-radius: 6px;
+  color: #eef2ff;
+  background: rgba(4, 6, 17, 0.72);
+  outline: none;
+}
+
+.symbol-select select {
+  height: 38px;
+  padding: 0 8px;
+  font-weight: 700;
+}
+
+.metric {
+  min-width: 116px;
+}
+
+.metric span,
+.metric strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.metric strong {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.tone-up {
+  color: #35e6ad !important;
+}
+
+.tone-down {
+  color: #ff6b9a !important;
+}
+
+.tone-neutral {
+  color: #ffd36e !important;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) 300px 320px;
+  gap: 10px;
+  align-items: start;
+}
+
+.left-stack,
+.middle-stack,
+.right-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.panel {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chart-panel {
+  min-height: 520px;
+}
+
+.chart-toolbar,
+.panel-title {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(170, 185, 255, 0.11);
+}
+
+.chart-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.tabs,
+.intervals,
+.chart-tools {
+  gap: 6px;
+}
+
+.intervals {
+  justify-content: center;
+}
+
+.chart-canvas {
+  height: 468px;
+  width: 100%;
+}
+
+.panel-title {
+  justify-content: space-between;
+}
+
+.panel-title span,
+.panel-title button {
+  display: flex;
+  align-items: center;
+}
+
+.panel-title span {
+  gap: 7px;
+  font-weight: 700;
+}
+
+.book-head,
+.book-row,
+.trade-row {
+  display: grid;
+  grid-template-columns: 1fr 0.86fr 0.86fr;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.book-head {
+  height: 30px;
+}
+
+.book-row,
+.trade-row {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+
+.book-row i {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  bottom: 2px;
+  opacity: 0.14;
+}
+
+.book-row span,
+.trade-row span {
+  position: relative;
+  z-index: 1;
+}
+
+.book-row.ask i {
+  background: #ff6b9a;
+}
+
+.book-row.bid i {
+  background: #35e6ad;
+}
+
+.book-row.ask span:first-of-type,
+.trade-row.sell span:first-child {
+  color: #ff6b9a;
+}
+
+.book-row.bid span:first-of-type,
+.trade-row.buy span:first-child {
+  color: #35e6ad;
+}
+
+.mid-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 10px;
+  border-block: 1px solid rgba(170, 185, 255, 0.11);
+}
+
+.mid-price strong {
+  color: #ffd36e;
+  font-size: 20px;
+}
+
+.mid-price small {
+  color: #8f97bb;
+}
+
+.trades-list {
+  max-height: 390px;
+  overflow: hidden;
+}
+
+.trade-form {
+  padding-bottom: 10px;
+}
+
+.side-switch {
+  gap: 8px;
+  padding: 10px;
+}
+
+.side-switch button {
+  flex: 1;
+  height: 38px;
+  border-radius: 6px;
+  background: rgba(143, 151, 187, 0.08);
+}
+
+.side-switch .buy.active,
+.submit.buy {
+  color: #061711;
+  background: linear-gradient(135deg, #35e6ad, #9df8d9);
+}
+
+.side-switch .sell.active,
+.submit.sell {
+  color: #210813;
+  background: linear-gradient(135deg, #ff6b9a, #ffc1d6);
+}
+
+.segmented,
+.percent-row {
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.segmented button,
+.percent-row button {
+  flex: 1;
+  padding-inline: 6px;
+  font-size: 12px;
+}
+
+.field,
+.form-row,
+.check-row,
+.order-preview {
+  margin: 0 10px 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: #8f97bb;
+  font-size: 12px;
+}
+
+.field input {
+  height: 40px;
+  padding: 0 10px;
+  color: #eef2ff;
+}
+
+.slider-field input {
+  accent-color: #ffd36e;
+}
+
+.form-row,
+.check-row {
+  justify-content: space-between;
+  color: #c8d0f4;
+  font-size: 13px;
+}
+
+.form-row select {
+  width: 96px;
+  height: 30px;
+  padding-inline: 8px;
+}
+
+.check-row {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.check-row input {
+  accent-color: #35e6ad;
+}
+
+.order-preview {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 211, 110, 0.08);
+  color: #8f97bb;
+  font-size: 12px;
+}
+
+.order-preview span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.order-preview b {
+  color: #eef2ff;
+}
+
+.submit {
+  width: calc(100% - 20px);
+  height: 42px;
+  margin: 0 10px;
+  border-radius: 7px;
+  font-weight: 800;
+}
+
+.risk-card {
+  padding-bottom: 10px;
+}
+
+.risk-meter {
+  height: 10px;
+  margin: 14px 10px;
+  border-radius: 999px;
+  background: rgba(143, 151, 187, 0.12);
+  overflow: hidden;
+}
+
+.risk-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #35e6ad, #ffd36e);
+}
+
+.risk-lines {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.risk-lines span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.account-panel,
+.orders-dock {
+  min-height: 220px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.balance-tile {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(170, 185, 255, 0.12);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 124, 189, 0.10), rgba(53, 230, 173, 0.07));
+}
+
+.balance-tile span {
+  color: #8f97bb;
+  font-size: 12px;
+}
+
+.balance-tile strong {
+  font-size: 20px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+  font-size: 12px;
+}
+
+th,
+td {
+  height: 34px;
+  padding: 0 10px;
+  border-top: 1px solid rgba(170, 185, 255, 0.09);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  color: #8f97bb;
+  font-weight: 500;
+}
+
+.orders-dock {
+  margin-top: 10px;
+}
+
+@media (max-width: 1240px) {
+  .workspace {
+    grid-template-columns: minmax(420px, 1fr) 280px;
+  }
+
+  .right-stack {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    padding: 8px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  nav,
+  .top-actions button:not(.wallet):not(.menu) {
+    display: none;
+  }
+
+  .menu {
+    display: grid;
+    place-items: center;
+  }
+
+  .market-strip,
+  .workspace,
+  .right-stack,
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .intervals {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .chart-panel {
+    min-height: 420px;
+  }
+
+  .chart-canvas {
+    height: 360px;
+  }
+}
+
+@media (max-width: 520px) {
+  .wallet {
+    width: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .middle-stack,
+  .right-stack,
+  .orders-dock {
+    margin-top: 10px;
+  }
+
+  .tabs,
+  .segmented,
+  .percent-row {
+    overflow-x: auto;
+  }
+
+  .tabs button,
+  .segmented button,
+  .percent-row button {
+    flex: 0 0 auto;
+  }
+}
