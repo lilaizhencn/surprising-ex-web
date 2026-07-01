@@ -300,13 +300,11 @@ function ContractTradingPage({ contractMarket }: { contractMarket: ContractMarke
 
   return (
     <>
-      <section className="kawaii-banner">
+      <section className="kawaii-banner" style={{ backgroundImage: `linear-gradient(90deg, rgba(20, 8, 31, 0.94) 0%, rgba(20, 8, 31, 0.76) 46%, rgba(20, 8, 31, 0.18) 100%), url(${animeTraderVisual})` }}>
         <div className="banner-copy">
-          <span className="eyebrow"><WandSparkles size={15} />{contractMarket === "usdt" ? "U本位永续 · 默认交易区" : "币本位永续 · 即将开放更多标的"}</span>
           <h1>Surprising EX 合约交易工作台</h1>
-          <p>甜酷二次元风格的专业交易界面，保留盘口、K线、资金费率、持仓风控和模拟委托，让上线后能平滑接入真实后端。</p>
+          <p>{contractMarket === "usdt" ? "U本位永续合约" : "币本位永续合约"}，保留盘口、K线、资金费率、持仓风控和模拟委托，让上线后能平滑接入真实后端。</p>
         </div>
-        <img src={animeTraderVisual} alt="Surprising EX anime trading visual" />
       </section>
 
       <section className="market-strip">
