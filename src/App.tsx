@@ -2,41 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
-  Bot,
   BookOpen,
   CandlestickChart,
   ChevronDown,
   CircleDollarSign,
   Cpu,
   Crosshair,
-  Download,
   Gauge,
-  Gift,
-  GraduationCap,
   Heart,
   HelpCircle,
-  Languages,
   LineChart,
   Maximize2,
   MoonStar,
-  Network,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Star,
   TrendingUp,
-  Upload,
-  UserRound,
   WalletCards,
   Zap
 } from "lucide-react";
 import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, type IChartApi, type UTCTimestamp } from "lightweight-charts";
 import { balances, buildCandles, buildOrderBook, buildTrades, markets, openOrders as seededOpenOrders, positions as seededPositions } from "./mockData";
 import type { Candle, OpenOrder, OrderBookLevel, OrderType, Side, TimeInForce, TradePrint } from "./types";
-import assistantVisual from "./assets/ai-assistant-keyvisual.webp";
 
-type Page = "futures" | "spot" | "options" | "mechanism" | "academy";
 type MarginMode = "isolated" | "cross";
 type AdvancedOrder = "normal" | "plan" | "conditional" | "tpsl" | "trailing";
 
@@ -113,34 +103,29 @@ function KlineChart({ candles, mode }: { candles: Candle[]; mode: string }) {
   return <div id="kline-chart" className="chart-canvas" />;
 }
 
-function TopNavigation({ page, setPage }: { page: Page; setPage: (page: Page) => void }) {
+function TopNavigation() {
   return (
     <header className="topbar">
-      <button className="brand" onClick={() => setPage("futures")}>
+      <button className="brand">
         <span className="brand-mark"><Sparkles size={15} /><b>SX</b></span>
         <span><strong>Surprising EX</strong><small>Anime Cyber Derivatives</small></span>
       </button>
       <nav className="global-nav">
         <div className="contract-nav">
-          <button className={page === "futures" ? "active" : ""} onClick={() => setPage("futures")}>永续合约 <ChevronDown size={14} /></button>
+          <button className="active">永续合约 <ChevronDown size={14} /></button>
           <div className="contract-menu">
             <button className="active"><strong>U本位永续</strong><span>USDT 保证金，默认交易区</span></button>
             <button><strong>币本位永续</strong><span>币本位保证金，专业用户</span></button>
           </div>
         </div>
-        <button className={page === "spot" ? "active" : ""} onClick={() => setPage("spot")}>现货</button>
-        <button className={page === "options" ? "active" : ""} onClick={() => setPage("options")}>期权</button>
-        <button className={page === "mechanism" ? "active" : ""} onClick={() => setPage("mechanism")}>合约机制</button>
-        <button className={page === "academy" ? "active" : ""} onClick={() => setPage("academy")}>小白教程</button>
+        <button>合约机制</button>
+        <button>资金费率</button>
+        <button>风险说明</button>
       </nav>
       <div className="top-actions">
-        <button><Upload size={15} />充值</button>
-        <button><Download size={15} />提现</button>
         <button><WalletCards size={15} />划转</button>
-        <button><Bell size={15} /></button>
-        <button><Languages size={15} />ZH</button>
+        <button><Bell size={15} />通知</button>
         <button><MoonStar size={15} /></button>
-        <button className="vip"><UserRound size={15} />VIP 3</button>
       </div>
     </header>
   );
@@ -148,9 +133,9 @@ function TopNavigation({ page, setPage }: { page: Page; setPage: (page: Page) =>
 
 function SideRail() {
   const items = [
-    ["收藏", Star], ["行情", TrendingUp], ["现货", CircleDollarSign], ["永续合约", CandlestickChart],
-    ["模拟交易", Cpu], ["策略交易", Zap], ["排行榜", Activity], ["公告", Bell],
-    ["活动中心", Gift], ["邀请返佣", Heart], ["资产中心", WalletCards], ["API管理", Network], ["帮助中心", HelpCircle]
+    ["收藏", Star], ["合约行情", TrendingUp], ["永续合约", CandlestickChart],
+    ["模拟合约", Cpu], ["策略合约", Zap], ["排行榜", Activity],
+    ["合约订单", BookOpen], ["资产保证金", WalletCards], ["风险帮助", HelpCircle]
   ] as const;
   return (
     <aside className="side-rail">
@@ -182,7 +167,7 @@ function MarketHeader({ price, change }: { price: number; change: number }) {
 function OrderBook({ asks, bids, mid }: { asks: OrderBookLevel[]; bids: OrderBookLevel[]; mid: number }) {
   const maxTotal = Math.max(...asks.map((level) => level.total), ...bids.map((level) => level.total));
   const rows = (levels: OrderBookLevel[], side: "ask" | "bid") => levels.slice(0, 9).map((level) => (
-    <div className={`book-row ${side} flash`} key={`${side}-${level.price}-${level.quantity}`}>
+    <div className={`book-row ${side}`} key={`${side}-${level.price}-${level.quantity}`}>
       <i style={{ width: `${(level.total / maxTotal) * 100}%` }} />
       <span>{precise.format(level.price)}</span><span>{level.quantity}</span><span>{level.total}</span>
     </div>
@@ -206,7 +191,7 @@ function TradesTape({ trades }: { trades: TradePrint[] }) {
       <div className="book-head"><span>价格</span><span>数量</span><span>时间</span></div>
       <div className="trades-list">
         {trades.slice(0, 14).map((trade) => (
-          <div className={`trade-row ${trade.side} flash`} key={trade.id}>
+          <div className={`trade-row ${trade.side}`} key={trade.id}>
             <span>{precise.format(trade.price)}</span><span>{trade.quantity}</span><span>{trade.time}</span>
           </div>
         ))}
@@ -332,20 +317,6 @@ function AccountSummary() {
   );
 }
 
-function Assistant() {
-  const [open, setOpen] = useState(false);
-  const prompts = ["解释当前资金费率", "帮我计算强平风险", "新手用逐仓还是全仓？", "推荐止盈止损思路"];
-  return (
-    <aside className={`ai-assistant ${open ? "open" : ""}`}>
-      <button className="assistant-avatar" onClick={() => setOpen((value) => !value)}>
-        <img src={assistantVisual} alt="Surprising EX AI assistant" />
-        <span><Bot size={16} />AI</span>
-      </button>
-      {open && <div className="assistant-panel"><strong>Seraphina 智能交易助手</strong><p>我可以解释资金费率、逐仓全仓、爆仓原因，并根据你的仓位给出风险提示。</p>{prompts.map((item) => <button key={item}>{item}</button>)}</div>}
-    </aside>
-  );
-}
-
 function FuturesPage() {
   const [price, setPrice] = useState(markets[0].lastPrice);
   const [change, setChange] = useState(markets[0].change24h);
@@ -383,43 +354,17 @@ function FuturesPage() {
   );
 }
 
-function ContentPage({ page }: { page: Page }) {
-  const isAcademy = page === "academy";
-  const items = isAcademy
-    ? [["永续合约是什么", "没有到期日，通过资金费率让合约价格围绕指数价运行。"], ["逐仓与全仓", "逐仓限制单仓风险，全仓共享账户保证金。新手优先逐仓低杠杆。"], ["标记价格", "强平通常看标记价格，避免短时插针导致异常风险。"], ["只减仓", "只会减少现有仓位，不会反向开仓，是风控必备开关。"]]
-    : [["合约配置", "Instrument 服务维护 symbol、精度、状态、风险限额和杠杆规则。"], ["价格链路", "Index Price 聚合外部报价，Mark Price 负责风控和 PnL。"], ["撮合链路", "Order 服务接收委托，Matching 服务按 symbol 分区撮合。"], ["风控安全网", "Risk、Liquidation、Insurance、ADL 共同处理强平、穿仓和自动减仓。"]];
-  return (
-    <section className="content-page">
-      <div className="page-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(13,8,24,.95), rgba(13,8,24,.48)), url(${assistantVisual})` }}>
-        <span className="eyebrow">{isAcademy ? <GraduationCap size={15} /> : <Network size={15} />}{isAcademy ? "小白合约教程" : "平台合约运行机制"}</span>
-        <h1>{isAcademy ? "先学会活下来，再追求收益" : "从下单到风控的永续合约生命线"}</h1>
-        <p>{isAcademy ? "把新手最容易踩坑的地方做成可扫读课程。" : "按照后端微服务设计整理，让用户理解真实交易链路。"}</p>
-      </div>
-      <div className="learn-grid">{items.map(([title, body]) => <article className="panel learn-card" key={title}><h2>{title}</h2><p>{body}</p></article>)}</div>
-    </section>
-  );
-}
-
-function Placeholder({ label }: { label: string }) {
-  return <section className="content-page"><div className="page-hero"><span className="eyebrow"><Sparkles size={15} />产品矩阵</span><h1>{label}</h1><p>页面入口已预留，当前主产品为 U 本位永续合约。后续可复用行情、账户、资产和 AI 助手能力。</p></div></section>;
-}
-
 function App() {
-  const [page, setPage] = useState<Page>("futures");
   return (
     <main className="app-shell">
       <div className="ambient"><i /><i /><i /></div>
-      <TopNavigation page={page} setPage={setPage} />
+      <TopNavigation />
       <div className="layout-shell">
         <SideRail />
         <div className="main-surface">
-          {page === "futures" && <FuturesPage />}
-          {page === "spot" && <Placeholder label="现货交易" />}
-          {page === "options" && <Placeholder label="期权交易" />}
-          {(page === "mechanism" || page === "academy") && <ContentPage page={page} />}
+          <FuturesPage />
         </div>
       </div>
-      <Assistant />
     </main>
   );
 }
