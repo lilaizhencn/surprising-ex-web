@@ -45,13 +45,13 @@ input, select { outline: none; }
 
 .ambient i {
   position: fixed;
-  width: 260px;
-  height: 260px;
+  width: 220px;
+  height: 220px;
   border-radius: 999px;
   filter: blur(34px);
   opacity: .32;
   pointer-events: none;
-  animation: floatGlow 12s ease-in-out infinite;
+  animation: floatGlow 18s ease-in-out infinite;
 }
 
 .ambient i:nth-child(1) { left: 8%; top: 10%; background: #ff5db1; }
@@ -66,7 +66,7 @@ input, select { outline: none; }
   border: 1px solid rgba(197, 217, 255, .16);
   background: linear-gradient(135deg, rgba(20, 20, 40, .82), rgba(16, 12, 32, .74));
   box-shadow: 0 20px 60px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .06);
-  backdrop-filter: blur(22px);
+  backdrop-filter: blur(10px);
 }
 
 .topbar {
@@ -138,15 +138,27 @@ td button {
   min-height: 32px;
   border-radius: 7px;
   padding: 0 10px;
-  background: rgba(255, 255, 255, .07);
-  transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+  border: 1px solid rgba(255, 180, 228, .08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .045)),
+    rgba(255, 255, 255, .055);
+  transition: transform .14s ease, background .14s ease, box-shadow .14s ease, border-color .14s ease;
   white-space: nowrap;
 }
 
-button:hover { transform: translateY(-1px); box-shadow: 0 0 18px rgba(103, 218, 255, .18); }
+button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 132, 204, .45);
+  box-shadow: 0 0 0 1px rgba(255, 132, 204, .14), 0 0 18px rgba(103, 218, 255, .20);
+}
+button:active { transform: translateY(0) scale(.98); }
 .active, .global-nav button.active, .tabs button.active, .intervals button.active, .segmented button.active, .mode-switch button.active, .dock-tabs button.active {
   color: #170817;
-  background: linear-gradient(135deg, #ff83c8, #ffe27a);
+  border-color: rgba(255, 226, 122, .42);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,.65), transparent 26%),
+    linear-gradient(135deg, #ff83c8, #ffe27a);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.42), 0 0 18px rgba(255, 131, 200, .34);
 }
 
 .contract-nav > button { display: inline-flex; align-items: center; gap: 4px; }
@@ -306,6 +318,13 @@ button:hover { transform: translateY(-1px); box-shadow: 0 0 18px rgba(103, 218, 
   color: #f7f2ff;
   background: rgba(6, 8, 20, .72);
 }
+
+.field select {
+  cursor: pointer;
+  appearance: auto;
+  position: relative;
+  z-index: 4;
+}
 .slider-field input { accent-color: #ff83c8; }
 .slider-field b { float: right; }
 .risk-low { color: #60f6d2; }
@@ -355,9 +374,9 @@ td button { min-height: 26px; margin-right: 5px; }
 
 .ai-assistant {
   position: fixed;
-  right: 20px;
+  right: 380px;
   bottom: 18px;
-  z-index: 60;
+  z-index: 6;
   display: grid;
   justify-items: end;
   gap: 10px;
@@ -371,7 +390,7 @@ td button { min-height: 26px; margin-right: 5px; }
   overflow: hidden;
   background: rgba(255,255,255,.08);
   box-shadow: 0 0 34px rgba(255, 131, 200, .38);
-  animation: breathe 3s ease-in-out infinite;
+  animation: breathe 4.5s ease-in-out infinite;
 }
 .assistant-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: 68% 20%; transition: transform .22s ease; }
 .assistant-avatar:hover img { transform: scale(1.06); }
@@ -382,7 +401,7 @@ td button { min-height: 26px; margin-right: 5px; }
   border: 1px solid rgba(197, 217, 255, .20);
   border-radius: 8px;
   background: rgba(16, 12, 32, .92);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(10px);
   box-shadow: 0 20px 60px rgba(0,0,0,.4);
 }
 .assistant-panel p { color: #c9c7e7; line-height: 1.6; }
@@ -424,6 +443,7 @@ td button { min-height: 26px; margin-right: 5px; }
   .right-trade-stack { grid-column: auto; grid-row: auto; }
   .market-stack { grid-column: auto; grid-template-columns: 1fr 1fr; }
   .learn-grid { grid-template-columns: repeat(2, 1fr); }
+  .ai-assistant { right: 20px; }
 }
 
 @media (max-width: 860px) {

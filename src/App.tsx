@@ -12,7 +12,6 @@ import {
   Download,
   Gauge,
   Gift,
-  Globe2,
   GraduationCap,
   Heart,
   HelpCircle,
@@ -21,7 +20,6 @@ import {
   Maximize2,
   MoonStar,
   Network,
-  Radio,
   Search,
   Settings,
   ShieldCheck,
@@ -36,7 +34,7 @@ import {
 import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, type IChartApi, type UTCTimestamp } from "lightweight-charts";
 import { balances, buildCandles, buildOrderBook, buildTrades, markets, openOrders as seededOpenOrders, positions as seededPositions } from "./mockData";
 import type { Candle, OpenOrder, OrderBookLevel, OrderType, Side, TimeInForce, TradePrint } from "./types";
-import assistantVisual from "./assets/ai-assistant-keyvisual.png";
+import assistantVisual from "./assets/ai-assistant-keyvisual.webp";
 
 type Page = "futures" | "spot" | "options" | "mechanism" | "academy";
 type MarginMode = "isolated" | "cross";
