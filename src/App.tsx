@@ -7,21 +7,32 @@ import {
   ChevronDown,
   CircleDollarSign,
   Crosshair,
+  Gem,
   Gauge,
+  GraduationCap,
+  Heart,
   History,
+  Layers,
   LineChart,
   LockKeyhole,
   Menu,
   MoonStar,
+  Network,
   Settings,
   ShieldCheck,
   Sparkles,
+  WandSparkles,
   WalletCards,
   X
 } from "lucide-react";
 import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, type IChartApi, type UTCTimestamp } from "lightweight-charts";
 import { balances, buildCandles, buildOrderBook, buildTrades, markets, openOrders as seededOpenOrders, positions } from "./mockData";
 import type { Candle, OpenOrder, OrderBookLevel, OrderType, Side, TimeInForce, TradePrint } from "./types";
+import animeTraderVisual from "./assets/anime-trader-keyvisual.png";
+
+type Page = "contracts" | "spot" | "options" | "mechanism" | "academy";
+type ContractMarket = "usdt" | "coin";
+type MarginMode = "isolated" | "cross";
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const precise = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,18 +59,18 @@ function KlineChart({ candles }: { candles: Candle[] }) {
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#8f97bb",
+        textColor: "#b9b6dc",
         attributionLogo: false
       },
       grid: {
-        vertLines: { color: "rgba(119, 134, 193, 0.10)" },
-        horzLines: { color: "rgba(119, 134, 193, 0.10)" }
+        vertLines: { color: "rgba(255, 143, 201, 0.10)" },
+        horzLines: { color: "rgba(116, 238, 226, 0.10)" }
       },
       rightPriceScale: {
-        borderColor: "rgba(148, 163, 184, 0.18)"
+        borderColor: "rgba(255, 196, 226, 0.18)"
       },
       timeScale: {
-        borderColor: "rgba(148, 163, 184, 0.18)",
+        borderColor: "rgba(255, 196, 226, 0.18)",
         timeVisible: true,
         secondsVisible: false
       },
@@ -69,31 +80,31 @@ function KlineChart({ candles }: { candles: Candle[] }) {
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#35e6ad",
-      downColor: "#ff6b9a",
-      borderUpColor: "#35e6ad",
-      borderDownColor: "#ff6b9a",
-      wickUpColor: "#35e6ad",
-      wickDownColor: "#ff6b9a"
+      upColor: "#5df6cf",
+      downColor: "#ff6fae",
+      borderUpColor: "#5df6cf",
+      borderDownColor: "#ff6fae",
+      wickUpColor: "#5df6cf",
+      wickDownColor: "#ff6fae"
     });
     candleSeries.setData(candles.map(({ time, open, high, low, close }) => ({ time: time as UTCTimestamp, open, high, low, close })));
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "",
-      color: "rgba(151, 121, 255, 0.35)"
+      color: "rgba(255, 143, 201, 0.36)"
     });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
     volumeSeries.setData(
       candles.map((item) => ({
         time: item.time as UTCTimestamp,
         value: item.volume,
-        color: item.close >= item.open ? "rgba(53, 230, 173, 0.35)" : "rgba(255, 107, 154, 0.35)"
+        color: item.close >= item.open ? "rgba(93, 246, 207, 0.38)" : "rgba(255, 111, 174, 0.38)"
       }))
     );
 
     const markSeries = chart.addSeries(LineSeries, {
-      color: "#ffd36e",
+      color: "#ffe58a",
       lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false
@@ -169,6 +180,7 @@ function TradingForm({ symbol, markPrice, onPlaceOrder }: { symbol: string; mark
   const [side, setSide] = useState<Side>("buy");
   const [type, setType] = useState<OrderType>("LIMIT");
   const [timeInForce, setTimeInForce] = useState<TimeInForce>("GTC");
+  const [marginMode, setMarginMode] = useState<MarginMode>("isolated");
   const [price, setPrice] = useState(markPrice.toFixed(2));
   const [size, setSize] = useState("0.10");
   const [leverage, setLeverage] = useState(20);
@@ -178,7 +190,7 @@ function TradingForm({ symbol, markPrice, onPlaceOrder }: { symbol: string; mark
   useEffect(() => setPrice(markPrice.toFixed(2)), [markPrice]);
 
   const notional = Number(price || markPrice) * Number(size || 0);
-  const margin = notional / leverage;
+  const margin = marginMode === "cross" ? notional / leverage * 0.92 : notional / leverage;
 
   function placeOrder() {
     onPlaceOrder({
@@ -200,9 +212,13 @@ function TradingForm({ symbol, markPrice, onPlaceOrder }: { symbol: string; mark
         <span><CircleDollarSign size={16} />下单</span>
         <button><ShieldCheck size={14} />模拟撮合</button>
       </div>
+      <div className="mode-switch">
+        <button className={marginMode === "isolated" ? "active" : ""} onClick={() => setMarginMode("isolated")}>逐仓</button>
+        <button className={marginMode === "cross" ? "active" : ""} onClick={() => setMarginMode("cross")}>全仓</button>
+      </div>
       <div className="side-switch">
-        <button className={side === "buy" ? "active buy" : ""} onClick={() => setSide("buy")}>开多</button>
-        <button className={side === "sell" ? "active sell" : ""} onClick={() => setSide("sell")}>开空</button>
+        <button className={side === "buy" ? "active buy" : ""} onClick={() => setSide("buy")}>买入 / 开多</button>
+        <button className={side === "sell" ? "active sell" : ""} onClick={() => setSide("sell")}>卖出 / 开空</button>
       </div>
       <div className="segmented">
         {(["LIMIT", "MARKET", "POST_ONLY"] as OrderType[]).map((item) => (
@@ -241,13 +257,40 @@ function TradingForm({ symbol, markPrice, onPlaceOrder }: { symbol: string; mark
       <div className="order-preview">
         <span>委托价值 <b>{formatCompact(notional)} USDT</b></span>
         <span>预估保证金 <b>{nf.format(margin)} USDT</b></span>
+        <span>保证金模式 <b>{marginMode === "isolated" ? "逐仓，风险限定在单仓" : "全仓，共享账户可用余额"}</b></span>
       </div>
-      <button className={`submit ${side}`} onClick={placeOrder}>{side === "buy" ? "买入 / 开多" : "卖出 / 开空"}</button>
+      <button className={`submit ${side}`} onClick={placeOrder}>{side === "buy" ? "确认买入" : "确认卖出"}</button>
     </section>
   );
 }
 
-function App() {
+function TopNav({ page, contractMarket, onPageChange, onContractMarketChange }: { page: Page; contractMarket: ContractMarket; onPageChange: (page: Page) => void; onContractMarketChange: (market: ContractMarket) => void }) {
+  return (
+    <nav className="main-nav">
+      <div className="nav-item contract-nav">
+        <button className={page === "contracts" ? "active" : ""} onClick={() => onPageChange("contracts")}>
+          合约 <ChevronDown size={14} />
+        </button>
+        <div className="contract-menu">
+          <button className={contractMarket === "usdt" ? "active" : ""} onClick={() => { onContractMarketChange("usdt"); onPageChange("contracts"); }}>
+            <strong>U本位合约</strong>
+            <span>以 USDT 计价和结算，默认交易区</span>
+          </button>
+          <button className={contractMarket === "coin" ? "active" : ""} onClick={() => { onContractMarketChange("coin"); onPageChange("contracts"); }}>
+            <strong>币本位合约</strong>
+            <span>以标的币计价，适合币本位持仓</span>
+          </button>
+        </div>
+      </div>
+      <button className={page === "spot" ? "active" : ""} onClick={() => onPageChange("spot")}>现货</button>
+      <button className={page === "options" ? "active" : ""} onClick={() => onPageChange("options")}>期权</button>
+      <button className={page === "mechanism" ? "active" : ""} onClick={() => onPageChange("mechanism")}>合约机制</button>
+      <button className={page === "academy" ? "active" : ""} onClick={() => onPageChange("academy")}>小白教程</button>
+    </nav>
+  );
+}
+
+function ContractTradingPage({ contractMarket }: { contractMarket: ContractMarket }) {
   const [marketIndex, setMarketIndex] = useState(0);
   const [orders, setOrders] = useState(seededOpenOrders);
   const activeMarket = markets[marketIndex];
@@ -256,28 +299,15 @@ function App() {
   const trades = useMemo(() => buildTrades(activeMarket.lastPrice), [activeMarket.lastPrice]);
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark"><Sparkles size={18} /></span>
-          <div>
-            <strong>Surprising EX</strong>
-            <small>Perpetual Futures</small>
-          </div>
+    <>
+      <section className="kawaii-banner">
+        <div className="banner-copy">
+          <span className="eyebrow"><WandSparkles size={15} />{contractMarket === "usdt" ? "U本位永续 · 默认交易区" : "币本位永续 · 即将开放更多标的"}</span>
+          <h1>Surprising EX 合约交易工作台</h1>
+          <p>甜酷二次元风格的专业交易界面，保留盘口、K线、资金费率、持仓风控和模拟委托，让上线后能平滑接入真实后端。</p>
         </div>
-        <nav>
-          <button className="active">合约</button>
-          <button>资产</button>
-          <button>策略</button>
-          <button>风控</button>
-        </nav>
-        <div className="top-actions">
-          <button><Bell size={16} /></button>
-          <button><Settings size={16} /></button>
-          <button className="wallet"><WalletCards size={16} />连接钱包</button>
-          <button className="menu"><Menu size={18} /></button>
-        </div>
-      </header>
+        <img src={animeTraderVisual} alt="Surprising EX anime trading visual" />
+      </section>
 
       <section className="market-strip">
         <div className="symbol-select">
@@ -403,6 +433,114 @@ function App() {
           </table>
         </div>
       </section>
+    </>
+  );
+}
+
+function PlaceholderPage({ title, description }: { title: string; description: string }) {
+  return (
+    <section className="content-page placeholder-page">
+      <div className="page-hero">
+        <span className="eyebrow"><Sparkles size={15} />产品规划</span>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      <div className="empty-state panel">
+        <Gem size={34} />
+        <strong>当前主推永续合约</strong>
+        <span>页面路由和菜单已经预留，后续接入现货或期权后，可以复用当前的行情、账户和风控组件体系。</span>
+      </div>
+    </section>
+  );
+}
+
+function MechanismPage() {
+  const cards = [
+    ["合约配置", "Instrument 服务维护 symbol、合约类型、状态、价格精度、数量精度、风险限额和杠杆规则。前端会从 /api/v1/instruments/list 拉取可交易标的。"],
+    ["指数价与标记价", "Index Price 聚合外部现货报价，Mark Price 结合基差窗口计算标记价格，用于未实现盈亏、强平触发和前端风险提示。"],
+    ["订单链路", "Order 服务接收下单、撤单、查询开放委托；Matching 服务按 symbol 分区撮合并生成成交、盘口快照和深度事件。"],
+    ["K线与实时频道", "Candlestick 服务消费成交事件聚合 K线；WebSocket 支持 candles、trades、depth、mark、funding、orders、positions 等频道。"],
+    ["保证金与仓位", "Account 服务维护余额、仓位、手续费、PnL 结算和只减仓订单修剪，前端下单区已预留逐仓/全仓模式。"],
+    ["强平、保险基金、ADL", "Risk、Liquidation、Insurance、ADL 模块负责风险检查、强平订单、穿仓覆盖和自动减仓队列，是生产级永续系统的安全网。"]
+  ];
+
+  return (
+    <section className="content-page">
+      <div className="page-hero mechanism-hero">
+        <span className="eyebrow"><Network size={15} />平台合约运行机制</span>
+        <h1>从下单到风控的永续合约生命线</h1>
+        <p>内容按照后端微服务设计整理，方便用户理解 Surprising EX 如何处理合约配置、行情、撮合、账户、强平和实时推送。</p>
+      </div>
+      <div className="mechanism-grid">
+        {cards.map(([title, body]) => (
+          <article className="learn-card panel" key={title}>
+            <span className="card-icon"><Layers size={18} /></span>
+            <h2>{title}</h2>
+            <p>{body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AcademyPage() {
+  const lessons = [
+    ["1. 永续合约是什么", "它没有到期日，价格围绕指数价运行，通过资金费率让多空双方周期性支付费用，使合约价格贴近现货价格。"],
+    ["2. U本位和币本位", "U本位用 USDT 做保证金和结算，更适合新手理解收益；币本位用标的币结算，适合已有币本位资产的人。"],
+    ["3. 逐仓和全仓", "逐仓把风险限定在单个仓位，全仓会共享账户可用余额。新手建议先用逐仓和低杠杆练习。"],
+    ["4. 标记价格很重要", "强平通常参考标记价格而不是最新成交价，这可以减少盘口短时插针造成的异常强平。"],
+    ["5. 只减仓和止损", "只减仓订单只会减少现有仓位，不会反向开仓。新手每次开仓前都应该先想好止损位置。"],
+    ["6. 资金费率", "资金费率为正时，多头通常付给空头；为负时，空头通常付给多头。持仓跨资金费率时间点前要看清费率。"]
+  ];
+
+  return (
+    <section className="content-page">
+      <div className="page-hero academy-hero">
+        <span className="eyebrow"><GraduationCap size={15} />小白合约教程</span>
+        <h1>先学会活下来，再追求收益</h1>
+        <p>面向第一次接触永续合约的用户，把高频踩坑点做成可扫读的课程卡片。</p>
+      </div>
+      <div className="lesson-list">
+        {lessons.map(([title, body]) => (
+          <article className="lesson panel" key={title}>
+            <h2>{title}</h2>
+            <p>{body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState<Page>("contracts");
+  const [contractMarket, setContractMarket] = useState<ContractMarket>("usdt");
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <button className="brand" onClick={() => setPage("contracts")} aria-label="Surprising EX 首页">
+          <span className="brand-mark"><Heart size={13} /><span>SX</span></span>
+          <div>
+            <strong>Surprising EX</strong>
+            <small>Kawaii Futures</small>
+          </div>
+        </button>
+        <TopNav page={page} contractMarket={contractMarket} onPageChange={setPage} onContractMarketChange={setContractMarket} />
+        <div className="top-actions">
+          <button><Bell size={16} /></button>
+          <button><Settings size={16} /></button>
+          <button className="wallet"><WalletCards size={16} />连接钱包</button>
+          <button className="menu"><Menu size={18} /></button>
+        </div>
+      </header>
+
+      {page === "contracts" && <ContractTradingPage contractMarket={contractMarket} />}
+      {page === "spot" && <PlaceholderPage title="现货交易" description="现货页面已在导航中预留，当前产品阶段主交易入口仍是永续合约。" />}
+      {page === "options" && <PlaceholderPage title="期权交易" description="期权页面已在导航中预留，后续可以加入期权链、波动率、希腊值和组合保证金。" />}
+      {page === "mechanism" && <MechanismPage />}
+      {page === "academy" && <AcademyPage />}
     </main>
   );
 }
