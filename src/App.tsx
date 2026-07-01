@@ -177,11 +177,6 @@ function MarketHeader({ price, change }: { price: number; change: number }) {
       <Metric label="指数价格" value={precise.format(price * 0.9996)} />
       <Metric label="标记价格" value={precise.format(price * 0.9998)} tone="gold" />
       <Metric label="资金费率" value="0.0108% / 05:42:18" tone="up" />
-      <div className="status-pills">
-        <span><Radio size={13} />WebSocket 正常</span>
-        <span><Globe2 size={13} />21ms</span>
-        <span><ShieldCheck size={13} />系统稳定</span>
-      </div>
     </section>
   );
 }
@@ -264,7 +259,14 @@ function OrderTicket({ price, onOrder }: { price: number; onOrder: (order: OpenO
       {toast && <div className="toast"><Sparkles size={14} />{toast}<button onClick={() => setToast("")}>知道了</button></div>}
       <div className="mode-switch"><button className={marginMode === "isolated" ? "active" : ""} onClick={() => setMarginMode("isolated")}>逐仓</button><button className={marginMode === "cross" ? "active" : ""} onClick={() => setMarginMode("cross")}>全仓</button></div>
       <div className="side-switch"><button className={side === "buy" ? "active buy" : ""} onClick={() => setSide("buy")}>买入 / 开多</button><button className={side === "sell" ? "active sell" : ""} onClick={() => setSide("sell")}>卖出 / 开空</button></div>
-      <div className="segmented">{(["LIMIT", "MARKET", "POST_ONLY"] as OrderType[]).map((item) => <button className={type === item ? "active" : ""} key={item} onClick={() => setType(item)}>{item}</button>)}</div>
+      <label className="field">
+        <span>下单类型</span>
+        <select value={type} onChange={(event) => setType(event.target.value as OrderType)}>
+          <option value="LIMIT">LIMIT</option>
+          <option value="MARKET">MARKET</option>
+          <option value="POST_ONLY">POST_ONLY</option>
+        </select>
+      </label>
       <div className="segmented small">{(["normal", "plan", "conditional", "tpsl", "trailing"] as AdvancedOrder[]).map((item) => <button className={advanced === item ? "active" : ""} key={item} onClick={() => setAdvanced(item)}>{({ normal: "普通", plan: "计划", conditional: "条件", tpsl: "止盈止损", trailing: "追踪" } as Record<AdvancedOrder, string>)[item]}</button>)}</div>
       <label className="field"><span>价格 USDT</span><input disabled={type === "MARKET"} value={orderPrice} onChange={(event) => setOrderPrice(event.target.value)} /></label>
       <label className="field"><span>数量 BTC</span><input value={size} onChange={(event) => setSize(event.target.value)} /></label>
@@ -320,16 +322,14 @@ function PositionsDock({ price, orders }: { price: number; orders: OpenOrder[] }
   );
 }
 
-function AssetsAndMarket() {
+function AccountSummary() {
   const rows = [
-    ["账户总资产", "48,250.42 USDT"], ["可用余额", "37,212.66 USDT"], ["保证金余额", "11,037.76 USDT"], ["未实现盈亏", "+1,842.28 USDT"],
-    ["保险基金", "128.4M USDT"], ["多空比", "1.18"], ["恐慌贪婪", "72 贪婪"], ["热点币种", "BTC / ETH / SOL"]
+    ["账户总资产", "48,250.42"], ["可用余额", "37,212.66"], ["保证金", "11,037.76"], ["未实现盈亏", "+1,842.28"]
   ];
   return (
-    <section className="panel asset-market">
-      <div className="panel-title"><span><Gauge size={16} />资产与市场信息</span><button>资金划转</button></div>
-      <div className="asset-grid">{rows.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
-      <div className="curve"><i /><i /><i /><i /><i /><i /><i /></div>
+    <section className="panel account-summary">
+      <div className="panel-title"><span><WalletCards size={16} />账户资产</span><button>划转</button></div>
+      <div className="account-summary-grid">{rows.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong><small>USDT</small></div>)}</div>
     </section>
   );
 }
@@ -374,9 +374,11 @@ function FuturesPage() {
     <>
       <MarketHeader price={price} change={change} />
       <section className="trade-grid">
-        <div className="center-stack"><ChartWorkstation candles={candles} indicator={indicator} setIndicator={setIndicator} /><AssetsAndMarket /></div>
-        <div className="market-stack"><OrderBook asks={book.asks} bids={book.bids} mid={price} /><TradesTape trades={trades} /></div>
-        <OrderTicket price={price} onOrder={(order) => setOrders((current) => [order, ...current])} />
+        <div className="left-trade-stack">
+          <div className="center-stack"><ChartWorkstation candles={candles} indicator={indicator} setIndicator={setIndicator} /></div>
+          <div className="market-stack"><OrderBook asks={book.asks} bids={book.bids} mid={price} /><TradesTape trades={trades} /></div>
+        </div>
+        <div className="right-trade-stack"><AccountSummary /><OrderTicket price={price} onOrder={(order) => setOrders((current) => [order, ...current])} /></div>
       </section>
       <PositionsDock price={price} orders={orders} />
     </>
