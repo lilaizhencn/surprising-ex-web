@@ -2,6 +2,12 @@ import type { Balance, CandlePoint, Market, OpenOrder, OrderBookLevel, Position,
 
 const now = Math.floor(Date.now() / 1000);
 
+function nextFundingTimeIso(intervalHours: number): string {
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  return new Date(nowMs + (intervalMs - (nowMs % intervalMs))).toISOString();
+}
+
 export const fallbackMarkets: Market[] = [
   {
     symbol: "BTC-USDT",
@@ -32,6 +38,7 @@ export const fallbackMarkets: Market[] = [
     userOpenInterestLimitRatePpm: 300_000,
     userOpenInterestLimitFloorUnits: 25_000_000_000_000,
     fundingIntervalHours: 8,
+    nextFundingTime: nextFundingTimeIso(8),
     fundingRateCapPpm: 7_500,
     fundingRateFloorPpm: -7_500,
     impactNotionalUnits: 1_000_000_000_000,
@@ -74,6 +81,7 @@ export const fallbackMarkets: Market[] = [
     userOpenInterestLimitRatePpm: 300_000,
     userOpenInterestLimitFloorUnits: 25_000_000_000_000,
     fundingIntervalHours: 8,
+    nextFundingTime: nextFundingTimeIso(8),
     fundingRateCapPpm: 7_500,
     fundingRateFloorPpm: -7_500,
     impactNotionalUnits: 1_000_000_000_000,
@@ -119,6 +127,7 @@ export const fallbackMarkets: Market[] = [
     userOpenInterestLimitRatePpm: 300_000,
     userOpenInterestLimitFloorUnits: 10_000_000_000_000,
     fundingIntervalHours: 8,
+    nextFundingTime: nextFundingTimeIso(8),
     fundingRateCapPpm: 7_500,
     fundingRateFloorPpm: -7_500,
     impactNotionalUnits: 500_000_000_000,
@@ -164,6 +173,7 @@ export const fallbackMarkets: Market[] = [
     userOpenInterestLimitRatePpm: 300_000,
     userOpenInterestLimitFloorUnits: 8_000_000_000_000,
     fundingIntervalHours: 8,
+    nextFundingTime: nextFundingTimeIso(8),
     fundingRateCapPpm: 7_500,
     fundingRateFloorPpm: -7_500,
     impactNotionalUnits: 350_000_000_000,

@@ -26,10 +26,11 @@ import {
   ColorType,
   createChart,
   HistogramSeries,
+  type AutoscaleInfo,
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadOpenOrders, loadOrderBook, loadPositions, login, placeOrder, register } from "./api/surprising";
+import { cancelOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOrderBook, loadPositions, login, placeOrder, register } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
@@ -41,6 +42,11 @@ type AuthMode = "login" | "register";
 type Page = "trade" | "rules";
 type ThemeMode = "dark" | "light";
 type PickedPrice = { value: number; nonce: number };
+const KLINE_PERIODS = ["1m", "5m", "15m", "1h"] as const;
+const KLINE_VISIBLE_BARS = 48;
+const ORDER_BOOK_SIDE_ROWS = 6;
+const ORDER_BOOK_PRECISIONS = [0.1, 1, 10, 50, 100] as const;
+const TRADE_TAPE_ROWS = 15;
 
 const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches"]);
 const THEME_KEY = "surprising-ex.theme";
@@ -65,10 +71,13 @@ export default function App() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [page, setPage] = useState<Page>("trade");
   const [productMode, setProductMode] = useState<ProductMode>("linear");
+  const [klinePeriod, setKlinePeriod] = useState<string>("1m");
   const [theme, setTheme] = useState<ThemeMode>(() => localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
   const [pickedPrice, setPickedPrice] = useState<PickedPrice | null>(null);
   const lastPrivateEventRef = useRef("");
+  const marketDataRequestRef = useRef(0);
 
   const visibleMarkets = useMemo(
     () => markets.filter((market) => marketProduct(market) === productMode),
@@ -80,7 +89,7 @@ export default function App() {
     [markets, symbol, visibleMarkets]
   );
   const activeProductMode = selectedMarket ? marketProduct(selectedMarket) : productMode;
-  const realtime = useRealtime(session, symbol, activeProductMode);
+  const realtime = useRealtime(session, symbol, activeProductMode, klinePeriod);
 
   const tradeRecords = useMemo(
     () => buildTradeRecords(realtime.events, session?.user.userId, symbol, selectedMarket?.lastPriceTicks ?? 65000),
@@ -100,6 +109,11 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!visibleMarkets.length) return;
     if (!visibleMarkets.some((market) => market.symbol === symbol)) {
       setSymbol(visibleMarkets[0].symbol);
@@ -113,7 +127,12 @@ export default function App() {
       setMarkets((current) => {
         const exists = current.some((market) => market.symbol === instrument.symbol);
         if (!exists) return [instrument, ...current];
-        return current.map((market) => market.symbol === instrument.symbol ? { ...market, ...instrument } : market);
+        return current.map((market) => market.symbol === instrument.symbol ? {
+          ...market,
+          ...instrument,
+          nextFundingTime: instrument.nextFundingTime ?? market.nextFundingTime,
+          timeUntilFundingSeconds: instrument.timeUntilFundingSeconds ?? market.timeUntilFundingSeconds
+        } : market);
       });
     });
     return () => {
@@ -123,7 +142,7 @@ export default function App() {
 
   useEffect(() => {
     void refreshMarketData();
-  }, [symbol]);
+  }, [klinePeriod, symbol]);
 
   useEffect(() => {
     if (session) void refreshPrivateData(session);
@@ -155,7 +174,7 @@ export default function App() {
       return;
     }
 
-    if (event.channel === "candles" && String(data.period ?? event.period ?? "1m") === "1m") {
+    if (event.channel === "candles" && String(data.period ?? event.period ?? "1m") === klinePeriod) {
       const candle = toCandlePoint(data);
       if (candle) {
         setCandles((current) => upsertCandle(current, candle));
@@ -186,20 +205,20 @@ export default function App() {
       patchMarket(eventSymbol, {
         ...(markPriceTicks > 0 ? { markPriceTicks } : {}),
         ...(indexPriceTicks > 0 ? { indexPriceTicks } : {}),
-        ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {})
+        ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
+        ...fundingTimingPatch(data)
       });
       return;
     }
 
     if (event.channel === "funding") {
       const fundingRatePpm = asRatePpm(data.fundingRatePpm ?? data.fundingRate);
-      const fundingIntervalHours = asNumber(data.fundingIntervalHours);
       patchMarket(eventSymbol, {
         ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
-        ...(fundingIntervalHours > 0 ? { fundingIntervalHours } : {})
+        ...fundingTimingPatch(data)
       });
     }
-  }, [realtime.events, symbol]);
+  }, [klinePeriod, realtime.events, symbol]);
 
   function patchMarket(targetSymbol: string, patch: Partial<Market>) {
     if (!targetSymbol) return;
@@ -224,17 +243,30 @@ export default function App() {
     setPickedPrice({ value: priceTicks, nonce: Date.now() });
   }
 
-  async function refreshMarketData() {
+  async function refreshMarketData(targetSymbol = symbol, targetPeriod = klinePeriod) {
+    const requestId = marketDataRequestRef.current + 1;
+    marketDataRequestRef.current = requestId;
+    const targetMarket = markets.find((market) => market.symbol === targetSymbol);
+    const shouldLoadMarkPrice = targetMarket ? marketProduct(targetMarket) !== "spot" : productMode !== "spot";
     setLoading(true);
     try {
-      const [nextCandles, book] = await Promise.all([loadCandles(symbol), loadOrderBook(symbol)]);
+      const [nextCandles, book, markPrice] = await Promise.all([
+        loadCandles(targetSymbol, targetPeriod),
+        loadOrderBook(targetSymbol),
+        shouldLoadMarkPrice ? loadMarkPrice(targetSymbol) : Promise.resolve(null)
+      ]);
+      if (requestId !== marketDataRequestRef.current) return;
       setCandles(nextCandles);
       setBids(book.bids);
       setAsks(book.asks);
+      if (markPrice) patchMarket(targetSymbol, markPrice);
     } catch (error) {
+      if (requestId !== marketDataRequestRef.current) return;
       setNotice(error instanceof Error ? error.message : "行情同步失败");
     } finally {
-      setLoading(false);
+      if (requestId === marketDataRequestRef.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -323,19 +355,27 @@ export default function App() {
         <div className="terminal-grid">
           <MarketRail productMode={productMode} markets={visibleMarkets} symbol={symbol} onSelect={setSymbol} />
           <section className="workspace">
-            <MarketHeader market={selectedMarket} loading={loading} onInfo={() => setInstrumentInfoOpen(true)} />
+            <MarketHeader market={selectedMarket} loading={loading} nowMs={nowMs} onInfo={() => setInstrumentInfoOpen(true)} />
             <div className="main-grid">
               <section className="chart-panel panel">
                 <div className="panel-title">
                   <span><CandlestickChart size={16} />K线</span>
                   <div className="segmented">
-                    {["1m", "5m", "15m", "1h"].map((period) => <button className={period === "1m" ? "active" : ""} key={period}>{period}</button>)}
+                    {KLINE_PERIODS.map((period) => (
+                      <button
+                        className={period === klinePeriod ? "active" : ""}
+                        key={period}
+                        type="button"
+                        onClick={() => setKlinePeriod(period)}
+                      >
+                        {period}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <KlineChart candles={candles} />
               </section>
               <OrderBook asks={asks} bids={bids} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
-              <OrderTicket productMode={productMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
             </div>
             <BottomDeck
               productMode={productMode}
@@ -349,6 +389,7 @@ export default function App() {
           </section>
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
+            <OrderTicket productMode={productMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
           </aside>
         </div>
       )}
@@ -476,7 +517,7 @@ function MarketRail({ productMode, markets, symbol, onSelect }: { productMode: P
       <div className="rail-search"><Search size={14} /><span>搜索{PRODUCT_META[productMode].shortLabel}</span></div>
       {markets.length === 0 && <p className="empty rail-empty">暂无{PRODUCT_META[productMode].label}市场</p>}
       {markets.map((market) => (
-        <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} onClick={() => onSelect(market.symbol)}>
+        <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${market.displayName}`} onClick={() => onSelect(market.symbol)}>
           <span><Star size={13} />{market.symbol}</span>
           <strong>{displayPrice(market.lastPriceTicks)}</strong>
           <small className={market.change24hPpm >= 0 ? "up" : "down"}>{displayPpm(market.change24hPpm)}</small>
@@ -487,19 +528,20 @@ function MarketRail({ productMode, markets, symbol, onSelect }: { productMode: P
   );
 }
 
-function MarketHeader({ market, loading, onInfo }: { market?: Market; loading: boolean; onInfo: () => void }) {
+function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loading: boolean; nowMs: number; onInfo: () => void }) {
   if (!market) return null;
   const product = marketProduct(market);
   const isSpot = product === "spot";
+  const fundingTone = market.fundingRatePpm >= 0 ? "up" : "down";
   return (
     <section className={loading ? "market-header syncing" : "market-header"}>
-      <div className="pair-title">
+      <div className="pair-title" title={`${market.symbol} ${market.displayName}`}>
         <Flame size={16} />
         <strong>{market.displayName}</strong>
         <span>{isSpot ? PRODUCT_META[product].shortLabel : `${market.maxLeverage}x`}</span>
         <button className="mini-icon-button" onClick={onInfo} aria-label="产品配置"><Info size={14} /></button>
       </div>
-      <Metric label="最新" value={displayPrice(market.lastPriceTicks)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
+      <Metric label="最新" value={priceWithQuote(market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       <Metric label="24H" value={displayPpm(market.change24hPpm)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       {isSpot ? (
         <>
@@ -509,9 +551,10 @@ function MarketHeader({ market, loading, onInfo }: { market?: Market; loading: b
         </>
       ) : (
         <>
-          <Metric label="标记" value={displayPrice(market.markPriceTicks)} tone="gold" />
-          <Metric label="指数" value={displayPrice(market.indexPriceTicks)} />
-          <Metric label="资金" value={displayPpm(market.fundingRatePpm, 4)} tone="up" />
+          <Metric label="标记" value={priceWithQuote(market.markPriceTicks, market.quoteAsset)} tone="gold" />
+          <Metric label="指数" value={priceWithQuote(market.indexPriceTicks, market.quoteAsset)} />
+          <Metric label="资金费率" value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
+          <Metric label="结算倒计时" value={formatFundingCountdown(market, nowMs)} tone="gold" />
         </>
       )}
       <Metric label="24H量" value={compact(market.volume24hUnits)} />
@@ -523,10 +566,15 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   return <div className="metric"><span>{label}</span><strong className={tone ? `tone-${tone}` : ""}>{value}</strong></div>;
 }
 
+function priceWithQuote(priceTicks: number, quoteAsset?: string): string {
+  return `${displayPrice(priceTicks)} ${quoteAsset ?? ""}`.trim();
+}
+
 function KlineChart({ candles }: { candles: CandlePoint[] }) {
   useEffect(() => {
     const element = document.getElementById("kline-chart");
     if (!element || !candles.length) return;
+    const visiblePriceRange = candlePriceRange(candles.slice(-KLINE_VISIBLE_BARS));
     const chart: IChartApi = createChart(element, {
       autoSize: true,
       layout: {
@@ -539,7 +587,10 @@ function KlineChart({ candles }: { candles: CandlePoint[] }) {
         horzLines: { color: "rgba(255, 122, 210, 0.08)" }
       },
       timeScale: { timeVisible: true, secondsVisible: false },
-      rightPriceScale: { borderColor: "rgba(255,255,255,.12)" }
+      rightPriceScale: {
+        borderColor: "rgba(255,255,255,.12)",
+        scaleMargins: { top: 0.04, bottom: 0.18 }
+      }
     });
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#45f5c8",
@@ -547,7 +598,21 @@ function KlineChart({ candles }: { candles: CandlePoint[] }) {
       borderUpColor: "#45f5c8",
       borderDownColor: "#ff5f9e",
       wickUpColor: "#45f5c8",
-      wickDownColor: "#ff5f9e"
+      wickDownColor: "#ff5f9e",
+      autoscaleInfoProvider: (baseImplementation: () => AutoscaleInfo | null) => {
+        const base = baseImplementation();
+        if (!visiblePriceRange) return base;
+        const rawRange = visiblePriceRange.max - visiblePriceRange.min;
+        const targetRange = Math.max(rawRange, visiblePriceRange.center * 0.00003, 1);
+        const padding = Math.max(targetRange * 0.12, 0.1);
+        return {
+          priceRange: {
+            minValue: visiblePriceRange.center - targetRange / 2 - padding,
+            maxValue: visiblePriceRange.center + targetRange / 2 + padding
+          },
+          margins: { above: 8, below: 8 }
+        };
+      }
     });
     candleSeries.setData(candles.map((item) => ({
       time: item.time as UTCTimestamp,
@@ -556,28 +621,53 @@ function KlineChart({ candles }: { candles: CandlePoint[] }) {
       low: item.low,
       close: item.close
     })));
-    const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "" });
-    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+    const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "volume" });
+    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     volumeSeries.setData(candles.map((item) => ({
       time: item.time as UTCTimestamp,
       value: item.volume,
       color: item.close >= item.open ? "rgba(69,245,200,.28)" : "rgba(255,95,158,.28)"
     })));
-    chart.timeScale().fitContent();
+    if (candles.length > KLINE_VISIBLE_BARS) {
+      chart.timeScale().setVisibleLogicalRange({ from: candles.length - KLINE_VISIBLE_BARS, to: candles.length + 3 });
+    } else {
+      chart.timeScale().fitContent();
+    }
     return () => chart.remove();
   }, [candles]);
   return <div id="kline-chart" className="chart-canvas" />;
 }
 
+function candlePriceRange(candles: CandlePoint[]): { min: number; max: number; center: number } | null {
+  const values = candles.flatMap((item) => [item.open, item.high, item.low, item.close])
+    .filter((value) => Number.isFinite(value) && value > 0);
+  if (!values.length) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return { min, max, center: (min + max) / 2 };
+}
+
 function OrderBook({ asks, bids, mid, onPickPrice }: { asks: OrderBookLevel[]; bids: OrderBookLevel[]; mid: number; onPickPrice: (priceTicks: number) => void }) {
-  const max = Math.max(1, ...asks.map((item) => item.totalSteps), ...bids.map((item) => item.totalSteps));
+  const [precision, setPrecision] = useState<number>(ORDER_BOOK_PRECISIONS[0]);
+  const groupedAsks = useMemo(() => groupOrderBookLevels(asks, "ask", precision, ORDER_BOOK_SIDE_ROWS), [asks, precision]);
+  const groupedBids = useMemo(() => groupOrderBookLevels(bids, "bid", precision, ORDER_BOOK_SIDE_ROWS), [bids, precision]);
+  const max = Math.max(1, ...groupedAsks.map((item) => item.totalSteps), ...groupedBids.map((item) => item.totalSteps));
+  const nextPrecision = () => {
+    setPrecision((current) => {
+      const index = ORDER_BOOK_PRECISIONS.findIndex((item) => item === current);
+      return ORDER_BOOK_PRECISIONS[(index + 1) % ORDER_BOOK_PRECISIONS.length];
+    });
+  };
   return (
     <section className="panel orderbook">
-      <div className="panel-title"><span><BookOpen size={16} />盘口</span><button>0.1</button></div>
+      <div className="panel-title">
+        <span><BookOpen size={16} />盘口</span>
+        <button type="button" onClick={nextPrecision} title="切换盘口精度">{formatPrecision(precision)}</button>
+      </div>
       <div className="book-head"><span>价格</span><span>数量</span><span>累计</span></div>
-      {[...asks].reverse().slice(0, 10).map((level) => <BookRow key={`a-${level.priceTicks}`} level={level} max={max} side="ask" onPickPrice={onPickPrice} />)}
-      <button className="mid-price" onClick={() => onPickPrice(mid)}><strong>{displayPrice(mid)}</strong><span>Mark synced</span></button>
-      {bids.slice(0, 10).map((level) => <BookRow key={`b-${level.priceTicks}`} level={level} max={max} side="bid" onPickPrice={onPickPrice} />)}
+      {[...groupedAsks].reverse().map((level) => <BookRow key={`a-${level.priceTicks}`} level={level} max={max} side="ask" onPickPrice={onPickPrice} />)}
+      <button className="mid-price" onClick={() => onPickPrice(mid)}><strong>{displayPrice(mid)}</strong></button>
+      {groupedBids.map((level) => <BookRow key={`b-${level.priceTicks}`} level={level} max={max} side="bid" onPickPrice={onPickPrice} />)}
     </section>
   );
 }
@@ -642,20 +732,28 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
         <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isSpot ? "买入" : "开多 / 买入"}</button>
         <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isSpot ? "卖出" : "开空 / 卖出"}</button>
       </div>
-      <div className="segmented wide">
-        {orderTypes.map((item) => <button className={orderType === item ? "active" : ""} key={item} onClick={() => setOrderType(item)}>{item}</button>)}
+      <div className={isSpot ? "order-select-row two" : "order-select-row"}>
+        <label className="compact-select">类型
+          <select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}>
+            {orderTypes.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        {!isSpot && (
+          <label className="compact-select">模式
+            <select value={marginMode} onChange={(event) => setMarginMode(event.target.value as MarginMode)}>
+              {(["CROSS", "ISOLATED"] as MarginMode[]).map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+        )}
+        <label className="compact-select">时效
+          <select value={timeInForce} onChange={(event) => setTimeInForce(event.target.value as TimeInForce)}>
+            {tifOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
       </div>
       <label>价格 ticks<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
       <label>数量 steps<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
       {!isSpot && <label>杠杆 <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
-      {!isSpot && (
-        <div className="segmented wide">
-          {(["CROSS", "ISOLATED"] as MarginMode[]).map((item) => <button className={marginMode === item ? "active" : ""} key={item} onClick={() => setMarginMode(item)}>{item}</button>)}
-        </div>
-      )}
-      <div className="segmented wide">
-        {tifOptions.map((item) => <button className={timeInForce === item ? "active" : ""} key={item} onClick={() => setTimeInForce(item)}>{item}</button>)}
-      </div>
       {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />Reduce-only</label>}
       <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />Post-only</label>
       <div className="order-preview">
@@ -793,17 +891,30 @@ function AccountTable({ title, icon, children }: { title: string; icon: ReactNod
 }
 
 function TradesTape({ events, symbol, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; mid: number; onPickPrice: (priceTicks: number) => void }) {
-  const trades = useMemo(() => buildPublicTrades(events, symbol, mid), [events, mid, symbol]);
+  const [trades, setTrades] = useState<TradePrint[]>(() => fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
+
+  useEffect(() => {
+    setTrades(fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
+  }, [symbol]);
+
+  useEffect(() => {
+    const liveTrades = buildPublicTrades(events, symbol, mid, false);
+    if (!liveTrades.length) return;
+    setTrades((current) => mergeTradeTape(liveTrades, current));
+  }, [events, mid, symbol]);
+
   return (
     <section className="panel trades">
       <div className="panel-title"><span><Activity size={16} />最新成交</span><button>WS</button></div>
-      {trades.map((item) => (
-        <button className={`trade-row ${item.side === "BUY" ? "bid" : "ask"}`} key={item.id} onClick={() => onPickPrice(item.priceTicks)}>
-          <span>{displayPrice(item.priceTicks)}</span>
-          <span>{item.quantitySteps}</span>
-          <span>{item.time}</span>
-        </button>
-      ))}
+      <div className="trades-list">
+        {trades.map((item) => (
+          <button className={`trade-row ${item.side === "BUY" ? "bid" : "ask"}`} key={item.id} onClick={() => onPickPrice(item.priceTicks)}>
+            <span>{displayPrice(item.priceTicks)}</span>
+            <span>{item.quantitySteps}</span>
+            <span>{item.time}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -949,14 +1060,28 @@ function estimateNotional(market: Market | undefined, priceTicks: number, quanti
   return priceTicks * quantitySteps * (market?.notionalMultiplierUnits ?? 1);
 }
 
-function buildPublicTrades(events: WsEnvelope[], symbol: string, mid: number): TradePrint[] {
+function buildPublicTrades(events: WsEnvelope[], symbol: string, mid: number, includeFallback = true): TradePrint[] {
   const liveTrades = events
     .filter((event) => event.channel === "trades" && (!event.symbol || event.symbol === symbol))
     .map((event, index) => toTradePrint(event, index, "PUBLIC"))
     .filter((item): item is TradeRecord => Boolean(item))
-    .slice(0, 22);
-  if (liveTrades.length) return liveTrades;
+    .filter((item) => !item.symbol || item.symbol === symbol)
+    .slice(0, TRADE_TAPE_ROWS);
+  if (liveTrades.length || !includeFallback) return liveTrades;
   return fallbackTrades(symbol, mid);
+}
+
+function mergeTradeTape(incoming: TradePrint[], current: TradePrint[]): TradePrint[] {
+  const seen = new Set<string>();
+  const next: TradePrint[] = [];
+  for (const item of [...incoming, ...current]) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    next.push(item);
+    if (next.length >= TRADE_TAPE_ROWS) break;
+  }
+  const unchanged = next.length === current.length && next.every((item, index) => item.id === current[index]?.id);
+  return unchanged ? current : next;
 }
 
 function buildTradeRecords(events: WsEnvelope[], userId: number | undefined, symbol: string, mid: number): TradeRecord[] {
@@ -976,10 +1101,11 @@ function toTradePrint(event: WsEnvelope, index: number, role: TradeRecord["role"
   const quantitySteps = asNumber(data.quantitySteps ?? data.quantity ?? data.baseVolume);
   if (!priceTicks || !quantitySteps) return null;
   const takerSide = String(data.takerSide ?? data.side ?? "BUY").toUpperCase() === "SELL" ? "SELL" : "BUY";
-  const tradeId = String(data.tradeId ?? data.eventId ?? data.id ?? `${event.channel}-${index}`);
+  const symbol = String(data.symbol ?? event.symbol ?? "");
+  const tradeKey = data.tradeId ?? data.eventId ?? data.id ?? event.id ?? `${data.tradeTime ?? event.eventTime ?? index}-${priceTicks}-${quantitySteps}-${takerSide}`;
   return {
-    id: `${event.channel ?? "ws"}-${tradeId}-${index}`,
-    symbol: String(data.symbol ?? event.symbol ?? ""),
+    id: `${event.channel ?? "ws"}-${symbol}-${String(tradeKey)}`,
+    symbol,
     side: takerSide,
     priceTicks,
     quantitySteps,
@@ -1054,6 +1180,29 @@ function withDepthTotals(levels: OrderBookLevel[], side: "bid" | "ask", depth: n
   });
 }
 
+function groupOrderBookLevels(levels: OrderBookLevel[], side: "bid" | "ask", precision: number, depth: number): OrderBookLevel[] {
+  if (precision <= 0) return withDepthTotals(levels, side, depth);
+  const grouped = new Map<number, OrderBookLevel>();
+  for (const level of levels) {
+    const bucket = side === "bid"
+      ? Math.floor(level.priceTicks / precision) * precision
+      : Math.ceil(level.priceTicks / precision) * precision;
+    const priceTicks = Number(bucket.toFixed(8));
+    const current = grouped.get(priceTicks);
+    grouped.set(priceTicks, {
+      priceTicks,
+      quantitySteps: (current?.quantitySteps ?? 0) + Math.max(0, level.quantitySteps),
+      orderCount: (current?.orderCount ?? 0) + Math.max(0, level.orderCount),
+      totalSteps: 0
+    });
+  }
+  return withDepthTotals([...grouped.values()], side, depth);
+}
+
+function formatPrecision(value: number): string {
+  return value < 1 ? value.toFixed(1) : String(value);
+}
+
 function toCandlePoint(data: Record<string, unknown>): CandlePoint | null {
   const openTime = data.openTime ?? data.time;
   const time = typeof openTime === "number"
@@ -1093,11 +1242,86 @@ function asNumber(value: unknown): number {
   return 0;
 }
 
+function asOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
+  }
+  return undefined;
+}
+
 function asRatePpm(value: unknown): number | undefined {
-  const number = asNumber(value);
-  if (!Number.isFinite(number)) return undefined;
-  if (number === 0) return 0;
+  const number = asOptionalNumber(value);
+  if (number === undefined) return undefined;
   return Math.abs(number) <= 1 ? Math.round(number * 1_000_000) : Math.round(number);
+}
+
+function fundingTimingPatch(data: Record<string, unknown>): Partial<Market> {
+  const timeUntilFundingSeconds = asOptionalNumber(
+    data.timeUntilFundingSeconds ??
+    data.timeUntilFunding ??
+    data.secondsUntilFunding ??
+    data.fundingCountdownSeconds ??
+    data.timeUntilSettlementSeconds ??
+    data.secondsUntilSettlement
+  );
+  const nextFundingTime = asTimeString(
+    data.nextFundingTime ??
+    data.fundingTime ??
+    data.nextSettlementTime ??
+    data.settlementTime ??
+    data.settleTime
+  ) ?? (timeUntilFundingSeconds !== undefined && timeUntilFundingSeconds >= 0
+    ? new Date(Date.now() + timeUntilFundingSeconds * 1000).toISOString()
+    : undefined);
+  const fundingIntervalHours = asOptionalNumber(data.fundingIntervalHours ?? data.intervalHours);
+  return {
+    ...(fundingIntervalHours !== undefined && fundingIntervalHours > 0 ? { fundingIntervalHours } : {}),
+    ...(nextFundingTime ? { nextFundingTime } : {}),
+    ...(timeUntilFundingSeconds !== undefined && timeUntilFundingSeconds >= 0 ? { timeUntilFundingSeconds } : {})
+  };
+}
+
+function asTimeString(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return epochToIso(value);
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const trimmed = value.trim();
+  if (/^\d+(\.\d+)?$/.test(trimmed)) return epochToIso(Number(trimmed));
+  const timestamp = Date.parse(trimmed);
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+}
+
+function epochToIso(value: number): string | undefined {
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  const milliseconds = value > 1_000_000_000_000 ? value : value * 1000;
+  return new Date(milliseconds).toISOString();
+}
+
+function formatFundingCountdown(market: Market, nowMs: number): string {
+  const explicitTime = market.nextFundingTime ? Date.parse(market.nextFundingTime) : Number.NaN;
+  const targetMs = Number.isNaN(explicitTime)
+    ? nextFundingBoundaryMs(nowMs, market.fundingIntervalHours ?? 8)
+    : explicitTime;
+  const remainingSeconds = Math.max(0, Math.floor((targetMs - nowMs) / 1000));
+  return formatDuration(remainingSeconds);
+}
+
+function nextFundingBoundaryMs(nowMs: number, intervalHours: number): number {
+  const intervalMs = Math.max(1, intervalHours) * 60 * 60 * 1000;
+  const remainder = nowMs % intervalMs;
+  return nowMs + (remainder === 0 ? intervalMs : intervalMs - remainder);
+}
+
+function formatDuration(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
 }
 
 function formatTime(value: string): string {

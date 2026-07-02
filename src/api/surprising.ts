@@ -49,11 +49,23 @@ interface BackendInstrument {
   fundingIntervalHours?: number;
   fundingRateCapPpm?: number;
   fundingRateFloorPpm?: number;
+  nextFundingTime?: string;
+  timeUntilFundingSeconds?: number;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;
   riskLimitBrackets?: Market["riskLimitBrackets"];
   indexSources?: Market["indexSources"];
+}
+
+interface BackendMarkPrice {
+  symbol: string;
+  markPrice?: string | number;
+  markPriceUnits?: number;
+  indexPrice?: string | number;
+  fundingRate?: string | number;
+  nextFundingTime?: string;
+  timeUntilFundingSeconds?: number;
 }
 
 interface BackendCandle {
@@ -116,9 +128,29 @@ export async function loadInstrumentConfig(symbol: string): Promise<Market> {
   }
 }
 
+export async function loadMarkPrice(symbol: string): Promise<Partial<Market> | null> {
+  try {
+    const response = await request<BackendMarkPrice>(
+      gatewayPath("price-mark", `/latest?symbol=${encodeURIComponent(symbol)}`)
+    );
+    const markPriceTicks = asOptionalNumber(response.markPriceUnits ?? response.markPrice);
+    const indexPriceTicks = asOptionalNumber(response.indexPrice);
+    const fundingRatePpm = asRatePpm(response.fundingRate);
+    return {
+      ...(markPriceTicks !== undefined ? { markPriceTicks } : {}),
+      ...(indexPriceTicks !== undefined ? { indexPriceTicks } : {}),
+      ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
+      ...(response.nextFundingTime ? { nextFundingTime: response.nextFundingTime } : {}),
+      ...(typeof response.timeUntilFundingSeconds === "number" ? { timeUntilFundingSeconds: response.timeUntilFundingSeconds } : {})
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadCandles(symbol: string, period = "1m"): Promise<CandlePoint[]> {
   const end = new Date();
-  const start = new Date(end.getTime() - 4 * 60 * 60 * 1000);
+  const start = new Date(end.getTime() - periodToMilliseconds(period) * 240);
   try {
     const params = new URLSearchParams({
       symbol,
@@ -128,14 +160,7 @@ export async function loadCandles(symbol: string, period = "1m"): Promise<Candle
       limit: "240"
     });
     const response = await request<{ candles: BackendCandle[] }>(gatewayPath("candlestick", `/candles?${params}`));
-    return response.candles.map((item) => ({
-      time: Math.floor(new Date(item.openTime).getTime() / 1000),
-      open: Number(item.openPrice),
-      high: Number(item.highPrice),
-      low: Number(item.lowPrice),
-      close: Number(item.closePrice),
-      volume: Number(item.baseVolume)
-    }));
+    return response.candles.map(toCandlePoint).filter((item): item is CandlePoint => Boolean(item));
   } catch (error) {
     if (!config.enableMockFallback) {
       throw error instanceof Error ? error : new Error("K线后端不可用");
@@ -143,6 +168,39 @@ export async function loadCandles(symbol: string, period = "1m"): Promise<Candle
     const seed = fallbackMarkets.find((market) => market.symbol === symbol)?.lastPriceTicks ?? 65000;
     return fallbackCandles(seed);
   }
+}
+
+function toCandlePoint(item: BackendCandle): CandlePoint | null {
+  const time = Math.floor(new Date(item.openTime).getTime() / 1000);
+  const open = Number(item.openPrice);
+  const high = Number(item.highPrice);
+  const low = Number(item.lowPrice);
+  const close = Number(item.closePrice);
+  const volume = Number(item.baseVolume);
+  if (![time, open, high, low, close].every((value) => Number.isFinite(value) && value > 0)) return null;
+  return {
+    time,
+    open,
+    high: Math.max(open, high, low, close),
+    low: Math.min(open, high, low, close),
+    close,
+    volume: Number.isFinite(volume) && volume > 0 ? volume : 0
+  };
+}
+
+function periodToMilliseconds(period: string): number {
+  const match = /^(\d+)([mhdw])$/.exec(period);
+  if (!match) return 60 * 1000;
+  const value = Number(match[1]);
+  const unit = match[2];
+  const multiplier = unit === "m"
+    ? 60 * 1000
+    : unit === "h"
+      ? 60 * 60 * 1000
+      : unit === "d"
+        ? 24 * 60 * 60 * 1000
+        : 7 * 24 * 60 * 60 * 1000;
+  return Math.max(1, value) * multiplier;
 }
 
 export async function loadOrderBook(symbol: string): Promise<{ bids: OrderBookLevel[]; asks: OrderBookLevel[] }> {
@@ -289,6 +347,8 @@ function toMarket(item: BackendInstrument): Market {
     fundingIntervalHours: item.fundingIntervalHours,
     fundingRateCapPpm: item.fundingRateCapPpm,
     fundingRateFloorPpm: item.fundingRateFloorPpm,
+    nextFundingTime: item.nextFundingTime ?? fallback?.nextFundingTime,
+    timeUntilFundingSeconds: item.timeUntilFundingSeconds ?? fallback?.timeUntilFundingSeconds,
     impactNotionalUnits: item.impactNotionalUnits,
     minValidIndexSources: item.minValidIndexSources,
     status: item.status,
@@ -303,6 +363,21 @@ function toMarket(item: BackendInstrument): Market {
     volume24hUnits: fallback?.volume24hUnits ?? 0,
     maxLeverage: item.maxLeverage ?? Math.max(1, Math.floor((item.maxLeveragePpm ?? 50_000_000) / 1_000_000))
   };
+}
+
+function asOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
+  }
+  return undefined;
+}
+
+function asRatePpm(value: unknown): number | undefined {
+  const number = asOptionalNumber(value);
+  if (number === undefined) return undefined;
+  return Math.abs(number) <= 1 ? Math.round(number * 1_000_000) : Math.round(number);
 }
 
 function displayMarketName(symbol: string, instrumentType?: string, contractType?: string): string {

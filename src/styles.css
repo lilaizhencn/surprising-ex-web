@@ -35,7 +35,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -55,7 +56,17 @@ input {
   padding: 10px 11px;
 }
 
-input:focus {
+select {
+  width: 100%;
+  border: 1px solid rgba(148, 166, 255, .18);
+  border-radius: 8px;
+  background: rgba(8, 10, 24, .78);
+  color: #f8fbff;
+  outline: 0;
+}
+
+input:focus,
+select:focus {
   border-color: rgba(103, 232, 249, .7);
   box-shadow: 0 0 0 3px rgba(103, 232, 249, .1);
 }
@@ -294,8 +305,9 @@ input:focus {
 
 .terminal-grid {
   display: grid;
-  grid-template-columns: 172px minmax(720px, 1fr) 282px;
+  grid-template-columns: 172px minmax(680px, 1fr) 310px;
   gap: 12px;
+  align-items: start;
 }
 
 .market-rail,
@@ -320,6 +332,7 @@ input:focus {
 .market-rail button {
   display: grid;
   gap: 5px;
+  min-width: 0;
   text-align: left;
   padding: 9px 10px;
   border-radius: 8px;
@@ -338,8 +351,17 @@ input:focus {
 
 .market-rail button span {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
+  min-width: 0;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.market-rail button span svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .market-rail small {
@@ -350,6 +372,7 @@ input:focus {
   color: #7f8cc0;
   font-size: 11px;
   font-style: normal;
+  overflow-wrap: anywhere;
 }
 
 .rail-empty {
@@ -367,12 +390,13 @@ input:focus {
 }
 
 .market-header {
-  display: grid;
-  grid-template-columns: minmax(170px, 1.25fr) repeat(6, minmax(92px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 7px;
   padding: 8px;
   margin-bottom: 10px;
   align-items: center;
+  overflow-x: auto;
 }
 
 .market-header.syncing {
@@ -381,18 +405,24 @@ input:focus {
 
 .pair-title {
   gap: 8px;
-  min-width: 0;
+  min-width: max-content;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .pair-title strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
   white-space: nowrap;
   font-size: 14px;
+  line-height: 1.2;
 }
 
 .pair-title span {
+  flex: 0 0 auto;
   padding: 3px 6px;
   border-radius: 6px;
   background: rgba(255, 102, 188, .15);
@@ -400,9 +430,15 @@ input:focus {
   font-size: 11px;
 }
 
+.pair-title .mini-icon-button {
+  flex: 0 0 auto;
+}
+
 .metric {
   min-height: 42px;
-  padding: 6px 8px;
+  min-width: max-content;
+  flex: 0 0 auto;
+  padding: 6px 7px;
   display: grid;
   align-content: center;
   gap: 3px;
@@ -410,11 +446,16 @@ input:focus {
 
 .metric span {
   color: #8e99cc;
-  font-size: 11px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .metric strong {
-  font-size: 13px;
+  min-width: max-content;
+  overflow-wrap: normal;
+  font-size: 12px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .tone-up,
@@ -454,8 +495,9 @@ input:focus {
 
 .main-grid {
   display: grid;
-  grid-template-columns: minmax(440px, 1fr) 250px 300px;
+  grid-template-columns: minmax(420px, 1fr) 248px;
   gap: 12px;
+  align-items: stretch;
 }
 
 .panel {
@@ -481,8 +523,19 @@ input:focus {
   color: #aeb7e6;
 }
 
+.chart-panel {
+  min-height: 360px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.orderbook {
+  min-height: 360px;
+}
+
 .chart-canvas {
-  height: 520px;
+  min-height: 0;
+  height: 100%;
 }
 
 .book-head,
@@ -509,6 +562,19 @@ input:focus {
   color: #7985b8;
   font-size: 12px;
   padding: 4px 0;
+}
+
+.trades-list {
+  height: calc(25px * 15);
+  min-height: calc(25px * 15);
+  display: grid;
+  align-content: start;
+  overflow: hidden;
+}
+
+.trades-list .trade-row {
+  height: 25px;
+  min-height: 25px;
 }
 
 .book-row,
@@ -581,7 +647,8 @@ input:focus {
   color: #67e8f9;
 }
 
-:root[data-theme="light"] input {
+:root[data-theme="light"] input,
+:root[data-theme="light"] select {
   border-color: rgba(87, 106, 168, .22);
   background: rgba(255, 255, 255, .86);
   color: #172033;
@@ -705,7 +772,7 @@ input:focus {
 }
 
 .bottom-deck {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .account-summary {
@@ -776,8 +843,57 @@ input:focus {
 
 .right-stack {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   align-content: start;
+}
+
+.trades {
+  min-height: 0;
+  height: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.right-stack .ticket {
+  padding: 10px;
+}
+
+.right-stack .ticket label {
+  margin-top: 9px;
+}
+
+.order-select-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.order-select-row.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ticket .order-select-row .compact-select {
+  gap: 5px;
+  margin-top: 0;
+  color: #9ba5d6;
+  font-size: 11px;
+}
+
+.order-select-row select {
+  height: 32px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.right-stack .segmented.wide,
+.right-stack .order-preview {
+  margin-top: 8px;
+}
+
+.right-stack .submit-order {
+  margin-top: 12px;
 }
 
 .event-row {
@@ -989,6 +1105,19 @@ button.rules-row:hover {
   .right-stack {
     grid-column: 1 / -1;
     grid-template-columns: 1fr;
+    position: static;
+    height: auto;
+    min-height: 0;
+    align-content: start;
+  }
+
+  .trades {
+    height: auto;
+  }
+
+  .trades-list {
+    height: calc(25px * 15);
+    min-height: calc(25px * 15);
   }
 
   .main-grid {
@@ -997,6 +1126,11 @@ button.rules-row:hover {
 
   .ticket {
     grid-column: 1 / -1;
+  }
+
+  .chart-panel,
+  .orderbook {
+    min-height: 340px;
   }
 }
 
@@ -1032,8 +1166,9 @@ button.rules-row:hover {
     font-size: 24px;
   }
 
-  .chart-canvas {
-    height: 380px;
+  .chart-panel,
+  .orderbook {
+    min-height: 300px;
   }
 
   .toast {

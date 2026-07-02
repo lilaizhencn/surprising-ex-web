@@ -60,6 +60,8 @@ export interface Market {
   fundingIntervalHours?: number;
   fundingRateCapPpm?: number;
   fundingRateFloorPpm?: number;
+  nextFundingTime?: string;
+  timeUntilFundingSeconds?: number;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;
