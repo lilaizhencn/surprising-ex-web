@@ -1,38 +1,40 @@
 # Surprising EX Web
 
-用户交易 Web 终端，独立于后端 `surprising-ex` 仓库。
+[English](README.md) | [简体中文](README_CN.md)
 
-## 功能
+User-facing trading web terminal for Surprising EX, maintained separately from the backend `surprising-ex` repository.
 
-- 用户名 + 密码注册和登录，邮箱字段后端保留但当前不要求输入。
-- JWT access token + refresh token，本地持久化 session。
-- 交易工作台：U本位合约、币本位合约、现货市场列表、K线、盘口、成交、下单、资产、当前委托、合约持仓和风险快照。
-- REST 接入 `surprising-gateway-provider`。
-- WebSocket 接入 `surprising-websocket-provider`，订阅行情和私有推送。
-- 后端不可用时，行情和账户模块进入降级展示；下单不会伪造成交。
+## Features
 
-## 本地开发
+- Username and password registration/login. The backend keeps the email field reserved, but the current flow does not require it.
+- JWT access token and refresh token session persistence.
+- Trading workspace for USDT-margined perpetuals, coin-margined perpetuals, and spot markets: market list, candlesticks, order book, trades, order entry, assets, open orders, contract positions, and risk snapshots.
+- REST integration through `surprising-gateway-provider`.
+- WebSocket integration through `surprising-websocket-provider` for public market data and private account updates.
+- Market and account modules fall back to demo data when the backend is unavailable. Order submission is never faked as filled.
+
+## Local Development
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Vite 默认把 `/api` 代理到 `http://localhost:9094`，所以本地不需要配置 `VITE_API_BASE_URL`。
+Vite proxies `/api` to `http://localhost:9094` by default, so `VITE_API_BASE_URL` is not required for local development.
 
 ```bash
 VITE_WS_BASE_URL=ws://localhost:9093/ws/v1
 ```
 
-## 后端依赖
+## Backend Dependencies
 
-需要启动：
+Required services:
 
-- `surprising-gateway-provider`：认证和 REST gateway
-- `surprising-websocket-provider`：实时推送
-- 行情、交易、账户、风控相关 provider
+- `surprising-gateway-provider`: authentication and REST gateway
+- `surprising-websocket-provider`: realtime fanout
+- Market data, trading, account, and risk providers
 
-核心路径：
+Core paths:
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -46,11 +48,15 @@ VITE_WS_BASE_URL=ws://localhost:9093/ws/v1
 - `/api/v1/gateway/risk`
 - `ws://localhost:9093/ws/v1`
 
-## 部署配置
+## Deployment
 
 ```bash
 VITE_API_BASE_URL=https://api.example.com
 VITE_WS_BASE_URL=wss://ws.example.com/ws/v1
 ```
 
-生产环境应只暴露 gateway 和 websocket，不直接暴露内部 provider。
+Production deployments should expose only the gateway and websocket services, not internal providers.
+
+## License
+
+MIT
