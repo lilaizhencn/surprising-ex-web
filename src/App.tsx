@@ -47,6 +47,7 @@ const KLINE_VISIBLE_BARS = 48;
 const ORDER_BOOK_SIDE_ROWS = 6;
 const ORDER_BOOK_PRECISIONS = [0.1, 1, 10, 50, 100] as const;
 const TRADE_TAPE_ROWS = 15;
+const PRICE_UNIT_SCALE = 100_000_000;
 
 const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches"]);
 const THEME_KEY = "surprising-ex.theme";
@@ -76,7 +77,8 @@ export default function App() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
   const [pickedPrice, setPickedPrice] = useState<PickedPrice | null>(null);
-  const lastPrivateEventRef = useRef("");
+  const processedPrivateEventKeysRef = useRef<Set<string>>(new Set());
+  const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
 
   const visibleMarkets = useMemo(
@@ -149,76 +151,86 @@ export default function App() {
   }, [markets, productMode, session, symbol]);
 
   useEffect(() => {
-    const event = realtime.events[0];
-    if (!session || !event?.channel || !PRIVATE_CHANNELS.has(event.channel)) return;
-    const eventKey = `${event.channel}:${event.eventTime ?? event.id ?? JSON.stringify(event.data).slice(0, 80)}`;
-    if (eventKey === lastPrivateEventRef.current) return;
-    lastPrivateEventRef.current = eventKey;
+    if (!session) return;
+    const privateEvents = nextRealtimeEvents(
+      realtime.events,
+      processedPrivateEventKeysRef,
+      (event) => Boolean(event.channel && PRIVATE_CHANNELS.has(event.channel))
+    );
+    if (!privateEvents.length) return;
     const timer = window.setTimeout(() => void refreshPrivateData(session), 250);
     return () => window.clearTimeout(timer);
   }, [productMode, realtime.events, session, symbol]);
 
   useEffect(() => {
-    const event = realtime.events[0];
-    if (!event?.channel || event.op !== "event") return;
-    const data = asRecord(event.data);
-    if (!data) return;
-    const eventSymbol = String(data.symbol ?? event.symbol ?? "");
-    if (eventSymbol && eventSymbol !== symbol) return;
+    const events = nextRealtimeEvents(
+      realtime.events,
+      processedPublicEventKeysRef,
+      (event) => Boolean(event.channel && event.op === "event" && !PRIVATE_CHANNELS.has(event.channel))
+    );
+    if (!events.length) return;
 
-    if (event.channel === "depth") {
-      const updateType = String(data.updateType ?? "SNAPSHOT").toUpperCase();
-      const depth = asNumber(data.depth) || 40;
-      setBids((current) => applyDepthUpdate(current, data.bids, "bid", updateType, depth));
-      setAsks((current) => applyDepthUpdate(current, data.asks, "ask", updateType, depth));
-      return;
-    }
+    for (const event of events) {
+      const data = asRecord(event.data);
+      if (!data) continue;
+      const eventSymbol = String(data.symbol ?? event.symbol ?? "");
+      if (eventSymbol && eventSymbol !== symbol) continue;
+      const targetSymbol = eventSymbol || symbol;
 
-    if (event.channel === "candles" && String(data.period ?? event.period ?? "1m") === klinePeriod) {
-      const candle = toCandlePoint(data);
-      if (candle) {
-        setCandles((current) => upsertCandle(current, candle));
+      if (event.channel === "depth") {
+        const updateType = String(data.updateType ?? "SNAPSHOT").toUpperCase();
+        const depth = asNumber(data.depth) || 40;
+        setBids((current) => applyDepthUpdate(current, data.bids, "bid", updateType, depth));
+        setAsks((current) => applyDepthUpdate(current, data.asks, "ask", updateType, depth));
+        continue;
       }
-      return;
-    }
 
-    if (event.channel === "trades") {
-      const lastPriceTicks = asNumber(data.priceTicks ?? data.price);
-      if (lastPriceTicks > 0) {
-        patchMarket(eventSymbol, { lastPriceTicks });
+      if (event.channel === "candles" && String(data.period ?? event.period ?? "1m") === klinePeriod) {
+        const candle = toCandlePoint(data);
+        if (candle) {
+          setCandles((current) => upsertCandle(current, candle));
+        }
+        continue;
       }
-      return;
-    }
 
-    if (event.channel === "index") {
-      const indexPriceTicks = asNumber(data.indexPriceTicks ?? data.indexPrice);
-      if (indexPriceTicks > 0) {
-        patchMarket(eventSymbol, { indexPriceTicks });
+      if (event.channel === "trades") {
+        const lastPriceTicks = priceTicksFromPayload(data, selectedMarket, "priceTicks", "price");
+        if (lastPriceTicks > 0) {
+          patchMarket(targetSymbol, { lastPriceTicks });
+        }
+        continue;
       }
-      return;
-    }
 
-    if (event.channel === "mark") {
-      const markPriceTicks = asNumber(data.markPriceTicks ?? data.markPrice);
-      const indexPriceTicks = asNumber(data.indexPriceTicks ?? data.indexPrice);
-      const fundingRatePpm = asRatePpm(data.fundingRatePpm ?? data.fundingRate);
-      patchMarket(eventSymbol, {
-        ...(markPriceTicks > 0 ? { markPriceTicks } : {}),
-        ...(indexPriceTicks > 0 ? { indexPriceTicks } : {}),
-        ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
-        ...fundingTimingPatch(data)
-      });
-      return;
-    }
+      if (event.channel === "index") {
+        const indexPriceTicks = priceTicksFromPayload(data, selectedMarket, "indexPriceTicks", "indexPrice", "indexPriceUnits");
+        if (indexPriceTicks > 0) {
+          patchMarket(targetSymbol, { indexPriceTicks });
+        }
+        continue;
+      }
 
-    if (event.channel === "funding") {
-      const fundingRatePpm = asRatePpm(data.fundingRatePpm ?? data.fundingRate);
-      patchMarket(eventSymbol, {
-        ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
-        ...fundingTimingPatch(data)
-      });
+      if (event.channel === "mark") {
+        const markPriceTicks = priceTicksFromPayload(data, selectedMarket, "markPriceTicks", "markPrice", "markPriceUnits");
+        const indexPriceTicks = priceTicksFromPayload(data, selectedMarket, "indexPriceTicks", "indexPrice", "indexPriceUnits");
+        const fundingRatePpm = asRatePpm(data.fundingRatePpm ?? data.fundingRate);
+        patchMarket(targetSymbol, {
+          ...(markPriceTicks > 0 ? { markPriceTicks } : {}),
+          ...(indexPriceTicks > 0 ? { indexPriceTicks } : {}),
+          ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
+          ...fundingTimingPatch(data)
+        });
+        continue;
+      }
+
+      if (event.channel === "funding") {
+        const fundingRatePpm = asRatePpm(data.fundingRatePpm ?? data.fundingRate);
+        patchMarket(targetSymbol, {
+          ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
+          ...fundingTimingPatch(data)
+        });
+      }
     }
-  }, [klinePeriod, realtime.events, symbol]);
+  }, [klinePeriod, realtime.events, selectedMarket, symbol]);
 
   function patchMarket(targetSymbol: string, patch: Partial<Market>) {
     if (!targetSymbol) return;
@@ -253,7 +265,7 @@ export default function App() {
       const [nextCandles, book, markPrice] = await Promise.all([
         loadCandles(targetSymbol, targetPeriod),
         loadOrderBook(targetSymbol),
-        shouldLoadMarkPrice ? loadMarkPrice(targetSymbol) : Promise.resolve(null)
+        shouldLoadMarkPrice ? loadMarkPrice(targetSymbol, targetMarket) : Promise.resolve(null)
       ]);
       if (requestId !== marketDataRequestRef.current) return;
       setCandles(nextCandles);
@@ -375,7 +387,7 @@ export default function App() {
                 </div>
                 <KlineChart candles={candles} />
               </section>
-              <OrderBook asks={asks} bids={bids} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
+              <OrderBook asks={asks} bids={bids} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
             </div>
             <BottomDeck
               productMode={productMode}
@@ -384,11 +396,12 @@ export default function App() {
               orders={orders}
               trades={tradeRecords}
               market={selectedMarket}
+              markets={markets}
               onCancel={submitCancel}
             />
           </section>
           <aside className="right-stack">
-            <TradesTape events={realtime.events} symbol={symbol} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
+            <TradesTape events={realtime.events} symbol={symbol} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
             <OrderTicket productMode={productMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
           </aside>
         </div>
@@ -519,7 +532,7 @@ function MarketRail({ productMode, markets, symbol, onSelect }: { productMode: P
       {markets.map((market) => (
         <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${market.displayName}`} onClick={() => onSelect(market.symbol)}>
           <span><Star size={13} />{market.symbol}</span>
-          <strong>{displayPrice(market.lastPriceTicks)}</strong>
+          <strong>{displayMarketPrice(market, market.lastPriceTicks)}</strong>
           <small className={market.change24hPpm >= 0 ? "up" : "down"}>{displayPpm(market.change24hPpm)}</small>
           <em>{PRODUCT_META[marketProduct(market)].shortLabel} · {marketProduct(market) === "spot" ? market.quoteAsset : `${market.settleAsset ?? market.quoteAsset} · ${market.maxLeverage}x`}</em>
         </button>
@@ -541,7 +554,7 @@ function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loa
         <span>{isSpot ? PRODUCT_META[product].shortLabel : `${market.maxLeverage}x`}</span>
         <button className="mini-icon-button" onClick={onInfo} aria-label="产品配置"><Info size={14} /></button>
       </div>
-      <Metric label="最新" value={priceWithQuote(market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
+      <Metric label="最新" value={priceWithQuote(market, market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       <Metric label="24H" value={displayPpm(market.change24hPpm)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       {isSpot ? (
         <>
@@ -551,8 +564,8 @@ function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loa
         </>
       ) : (
         <>
-          <Metric label="标记" value={priceWithQuote(market.markPriceTicks, market.quoteAsset)} tone="gold" />
-          <Metric label="指数" value={priceWithQuote(market.indexPriceTicks, market.quoteAsset)} />
+          <Metric label="标记" value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
+          <Metric label="指数" value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
           <Metric label="资金费率" value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
           <Metric label="结算倒计时" value={formatFundingCountdown(market, nowMs)} tone="gold" />
         </>
@@ -566,8 +579,96 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   return <div className="metric"><span>{label}</span><strong className={tone ? `tone-${tone}` : ""}>{value}</strong></div>;
 }
 
-function priceWithQuote(priceTicks: number, quoteAsset?: string): string {
-  return `${displayPrice(priceTicks)} ${quoteAsset ?? ""}`.trim();
+function priceWithQuote(market: Market | undefined, priceTicks: number, quoteAsset?: string): string {
+  return `${displayMarketPrice(market, priceTicks)} ${quoteAsset ?? ""}`.trim();
+}
+
+function displayMarketPrice(market: Market | undefined, priceTicks: number): string {
+  return displayPrice(priceFromTicks(market, priceTicks));
+}
+
+function priceFromTicks(market: Market | undefined, priceTicks: number): number {
+  if (!Number.isFinite(priceTicks)) return 0;
+  const tickUnits = market?.priceTickUnits;
+  if (!tickUnits || tickUnits === 1) return priceTicks;
+  return priceTicks * tickUnits / PRICE_UNIT_SCALE;
+}
+
+function priceToTicks(market: Market | undefined, price: number): number {
+  if (!Number.isFinite(price) || price <= 0) return 0;
+  const tickUnits = market?.priceTickUnits;
+  if (!tickUnits || tickUnits === 1) return price;
+  return Math.round(price * PRICE_UNIT_SCALE / tickUnits);
+}
+
+function priceUnitsToTicks(market: Market | undefined, priceUnits: number): number {
+  if (!Number.isFinite(priceUnits) || priceUnits <= 0) return 0;
+  const tickUnits = market?.priceTickUnits;
+  if (!tickUnits || tickUnits <= 0 || tickUnits === 1) return priceUnits / PRICE_UNIT_SCALE;
+  return Math.round(priceUnits / tickUnits);
+}
+
+function priceTicksFromPayload(
+  data: Record<string, unknown>,
+  market: Market | undefined,
+  tickField: string,
+  priceField: string,
+  unitsField?: string
+): number {
+  const ticks = asOptionalNumber(data[tickField]);
+  if (ticks !== undefined && ticks > 0) return ticks;
+  const units = unitsField ? asOptionalNumber(data[unitsField]) : undefined;
+  if (units !== undefined && units > 0) return priceUnitsToTicks(market, units);
+  const price = asOptionalNumber(data[priceField]);
+  return price === undefined ? 0 : priceToTicks(market, price);
+}
+
+function marketForSymbol(markets: Market[], symbol: string, fallback?: Market): Market | undefined {
+  return markets.find((market) => market.symbol === symbol) ?? (fallback?.symbol === symbol ? fallback : undefined);
+}
+
+function nextRealtimeEvents(
+  events: WsEnvelope[],
+  processedRef: { current: Set<string> },
+  predicate: (event: WsEnvelope) => boolean
+): WsEnvelope[] {
+  const next: WsEnvelope[] = [];
+  for (const event of [...events].reverse()) {
+    if (!predicate(event)) continue;
+    const key = realtimeEventKey(event);
+    if (processedRef.current.has(key)) continue;
+    processedRef.current.add(key);
+    next.push(event);
+  }
+  if (processedRef.current.size > 400) {
+    processedRef.current = new Set([...processedRef.current].slice(-240));
+  }
+  return next;
+}
+
+function realtimeEventKey(event: WsEnvelope): string {
+  const data = asRecord(event.data);
+  const symbol = String(data?.symbol ?? event.symbol ?? "");
+  const period = String(data?.period ?? event.period ?? "");
+  const dataKey = String(
+    data?.tradeId ??
+    data?.eventId ??
+    data?.sequence ??
+    data?.lastSequence ??
+    data?.openTime ??
+    data?.orderId ??
+    data?.positionId ??
+    ""
+  );
+  return [
+    event.op ?? "",
+    event.channel ?? "",
+    symbol,
+    period,
+    event.eventTime ?? "",
+    event.id ?? "",
+    dataKey
+  ].join(":");
 }
 
 function KlineChart({ candles }: { candles: CandlePoint[] }) {
@@ -647,7 +748,7 @@ function candlePriceRange(candles: CandlePoint[]): { min: number; max: number; c
   return { min, max, center: (min + max) / 2 };
 }
 
-function OrderBook({ asks, bids, mid, onPickPrice }: { asks: OrderBookLevel[]; bids: OrderBookLevel[]; mid: number; onPickPrice: (priceTicks: number) => void }) {
+function OrderBook({ asks, bids, market, mid, onPickPrice }: { asks: OrderBookLevel[]; bids: OrderBookLevel[]; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
   const [precision, setPrecision] = useState<number>(ORDER_BOOK_PRECISIONS[0]);
   const groupedAsks = useMemo(() => groupOrderBookLevels(asks, "ask", precision, ORDER_BOOK_SIDE_ROWS), [asks, precision]);
   const groupedBids = useMemo(() => groupOrderBookLevels(bids, "bid", precision, ORDER_BOOK_SIDE_ROWS), [bids, precision]);
@@ -662,21 +763,21 @@ function OrderBook({ asks, bids, mid, onPickPrice }: { asks: OrderBookLevel[]; b
     <section className="panel orderbook">
       <div className="panel-title">
         <span><BookOpen size={16} />盘口</span>
-        <button type="button" onClick={nextPrecision} title="切换盘口精度">{formatPrecision(precision)}</button>
+        <button type="button" onClick={nextPrecision} title="切换盘口精度">{formatPrecision(market, precision)}</button>
       </div>
       <div className="book-head"><span>价格</span><span>数量</span><span>累计</span></div>
-      {[...groupedAsks].reverse().map((level) => <BookRow key={`a-${level.priceTicks}`} level={level} max={max} side="ask" onPickPrice={onPickPrice} />)}
-      <button className="mid-price" onClick={() => onPickPrice(mid)}><strong>{displayPrice(mid)}</strong></button>
-      {groupedBids.map((level) => <BookRow key={`b-${level.priceTicks}`} level={level} max={max} side="bid" onPickPrice={onPickPrice} />)}
+      {[...groupedAsks].reverse().map((level) => <BookRow key={`a-${level.priceTicks}`} level={level} market={market} max={max} side="ask" onPickPrice={onPickPrice} />)}
+      <button className="mid-price" onClick={() => onPickPrice(mid)}><strong>{displayMarketPrice(market, mid)}</strong></button>
+      {groupedBids.map((level) => <BookRow key={`b-${level.priceTicks}`} level={level} market={market} max={max} side="bid" onPickPrice={onPickPrice} />)}
     </section>
   );
 }
 
-function BookRow({ level, max, side, onPickPrice }: { level: OrderBookLevel; max: number; side: "bid" | "ask"; onPickPrice: (priceTicks: number) => void }) {
+function BookRow({ level, market, max, side, onPickPrice }: { level: OrderBookLevel; market?: Market; max: number; side: "bid" | "ask"; onPickPrice: (priceTicks: number) => void }) {
   return (
     <button className={`book-row ${side}`} onClick={() => onPickPrice(level.priceTicks)}>
       <i style={{ width: `${(level.totalSteps / max) * 100}%` }} />
-      <span>{displayPrice(level.priceTicks)}</span>
+      <span>{displayMarketPrice(market, level.priceTicks)}</span>
       <span>{level.quantitySteps}</span>
       <span>{level.totalSteps}</span>
     </button>
@@ -776,13 +877,14 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
   );
 }
 
-function BottomDeck({ productMode, balances, positions, orders, trades, market, onCancel }: {
+function BottomDeck({ productMode, balances, positions, orders, trades, market, markets, onCancel }: {
   productMode: ProductMode;
   balances: Balance[];
   positions: Position[];
   orders: OpenOrder[];
   trades: TradeRecord[];
   market?: Market;
+  markets: Market[];
   onCancel: (order: OpenOrder) => void;
 }) {
   const equity = balances.reduce((sum, item) => sum + item.equityUnits, 0);
@@ -834,7 +936,7 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
               <div className="position-row" key={`${item.symbol}-${item.marginMode}`}>
                 <strong>{item.symbol}</strong>
                 <span className={item.signedQuantitySteps >= 0 ? "up" : "down"}>{item.signedQuantitySteps >= 0 ? "LONG" : "SHORT"} {Math.abs(item.signedQuantitySteps)}</span>
-                <span>{displayPrice(item.entryPriceTicks)} / {displayPrice(item.markPriceTicks || market?.markPriceTicks || 0)}</span>
+                <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.entryPriceTicks)} / {displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.markPriceTicks || market?.markPriceTicks || 0)}</span>
                 <span className={item.unrealizedPnlUnits >= 0 ? "up" : "down"}>{displayUnits(item.unrealizedPnlUnits)}</span>
                 <span>{displayUnits(item.maintenanceMarginUnits)}</span>
                 <span>{displayPpm(item.marginRatioPpm)}</span>
@@ -852,7 +954,7 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
               <strong>{item.symbol}</strong>
               <span className={item.side === "BUY" ? "up" : "down"}>{item.side}</span>
               <span>{item.orderType}</span>
-              <span>{displayPrice(item.priceTicks)}</span>
+              <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.priceTicks)}</span>
               <span>{item.executedQuantitySteps}/{item.remainingQuantitySteps}</span>
               <span>{item.marginMode}</span>
               <span>{item.status}</span>
@@ -869,7 +971,7 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
               <strong>{item.symbol}</strong>
               <span>{item.role}</span>
               <span className={item.side === "BUY" ? "up" : "down"}>{item.side}</span>
-              <span>{displayPrice(item.priceTicks)}</span>
+              <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.priceTicks)}</span>
               <span>{item.quantitySteps}</span>
               <span>{item.time}</span>
               <span>{item.traceId ? item.traceId.slice(0, 8) : "-"}</span>
@@ -890,7 +992,7 @@ function AccountTable({ title, icon, children }: { title: string; icon: ReactNod
   );
 }
 
-function TradesTape({ events, symbol, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; mid: number; onPickPrice: (priceTicks: number) => void }) {
+function TradesTape({ events, symbol, market, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
   const [trades, setTrades] = useState<TradePrint[]>(() => fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
 
   useEffect(() => {
@@ -909,7 +1011,7 @@ function TradesTape({ events, symbol, mid, onPickPrice }: { events: WsEnvelope[]
       <div className="trades-list">
         {trades.map((item) => (
           <button className={`trade-row ${item.side === "BUY" ? "bid" : "ask"}`} key={item.id} onClick={() => onPickPrice(item.priceTicks)}>
-            <span>{displayPrice(item.priceTicks)}</span>
+            <span>{displayMarketPrice(market, item.priceTicks)}</span>
             <span>{item.quantitySteps}</span>
             <span>{item.time}</span>
           </button>
@@ -1199,8 +1301,8 @@ function groupOrderBookLevels(levels: OrderBookLevel[], side: "bid" | "ask", pre
   return withDepthTotals([...grouped.values()], side, depth);
 }
 
-function formatPrecision(value: number): string {
-  return value < 1 ? value.toFixed(1) : String(value);
+function formatPrecision(market: Market | undefined, value: number): string {
+  return displayMarketPrice(market, value);
 }
 
 function toCandlePoint(data: Record<string, unknown>): CandlePoint | null {

@@ -63,6 +63,7 @@ interface BackendMarkPrice {
   markPrice?: string | number;
   markPriceUnits?: number;
   indexPrice?: string | number;
+  indexPriceUnits?: number;
   fundingRate?: string | number;
   nextFundingTime?: string;
   timeUntilFundingSeconds?: number;
@@ -128,13 +129,15 @@ export async function loadInstrumentConfig(symbol: string): Promise<Market> {
   }
 }
 
-export async function loadMarkPrice(symbol: string): Promise<Partial<Market> | null> {
+export async function loadMarkPrice(symbol: string, market?: Pick<Market, "priceTickUnits">): Promise<Partial<Market> | null> {
   try {
     const response = await request<BackendMarkPrice>(
       gatewayPath("price-mark", `/latest?symbol=${encodeURIComponent(symbol)}`)
     );
-    const markPriceTicks = asOptionalNumber(response.markPriceUnits ?? response.markPrice);
-    const indexPriceTicks = asOptionalNumber(response.indexPrice);
+    const markPriceTicks = priceToTicks(response.markPrice, market)
+      ?? priceUnitsToTicks(response.markPriceUnits, market);
+    const indexPriceTicks = priceToTicks(response.indexPrice, market)
+      ?? priceUnitsToTicks(response.indexPriceUnits, market);
     const fundingRatePpm = asRatePpm(response.fundingRate);
     return {
       ...(markPriceTicks !== undefined ? { markPriceTicks } : {}),
@@ -312,6 +315,12 @@ function toMarket(item: BackendInstrument): Market {
   const quoteAsset = item.quoteAsset ?? item.symbol.split("-")[1] ?? "USDT";
   const instrumentType = item.instrumentType ?? fallback?.instrumentType;
   const contractType = item.contractType ?? fallback?.contractType;
+  const priceTickUnits = item.priceTickUnits ?? fallback?.priceTickUnits;
+  const fallbackPriceToTicks = (price: number | undefined, defaultPrice: number) => {
+    const value = price ?? defaultPrice;
+    if (!priceTickUnits || priceTickUnits === 1) return value;
+    return Math.round(value * 100_000_000 / priceTickUnits);
+  };
   return {
     symbol: item.symbol,
     version: item.version,
@@ -322,7 +331,7 @@ function toMarket(item: BackendInstrument): Market {
     settleAsset: item.settleAsset ?? quoteAsset,
     contractMultiplierPpm: item.contractMultiplierPpm,
     contractValueAsset: item.contractValueAsset,
-    priceTickUnits: item.priceTickUnits,
+    priceTickUnits,
     quantityStepUnits: item.quantityStepUnits,
     minQuantitySteps: item.minQuantitySteps,
     maxQuantitySteps: item.maxQuantitySteps,
@@ -355,9 +364,9 @@ function toMarket(item: BackendInstrument): Market {
     riskLimitBrackets: item.riskLimitBrackets,
     indexSources: item.indexSources,
     displayName: displayMarketName(item.symbol, instrumentType, contractType),
-    lastPriceTicks: fallback?.lastPriceTicks ?? 1000,
-    markPriceTicks: fallback?.markPriceTicks ?? 1000,
-    indexPriceTicks: fallback?.indexPriceTicks ?? 1000,
+    lastPriceTicks: fallbackPriceToTicks(fallback?.lastPriceTicks, 1000),
+    markPriceTicks: fallbackPriceToTicks(fallback?.markPriceTicks, 1000),
+    indexPriceTicks: fallbackPriceToTicks(fallback?.indexPriceTicks, 1000),
     change24hPpm: fallback?.change24hPpm ?? 0,
     fundingRatePpm: fallback?.fundingRatePpm ?? 0,
     volume24hUnits: fallback?.volume24hUnits ?? 0,
@@ -378,6 +387,22 @@ function asRatePpm(value: unknown): number | undefined {
   const number = asOptionalNumber(value);
   if (number === undefined) return undefined;
   return Math.abs(number) <= 1 ? Math.round(number * 1_000_000) : Math.round(number);
+}
+
+function priceToTicks(value: unknown, market?: Pick<Market, "priceTickUnits">): number | undefined {
+  const price = asOptionalNumber(value);
+  if (price === undefined || price <= 0) return undefined;
+  const tickUnits = market?.priceTickUnits;
+  if (!tickUnits || tickUnits === 1) return price;
+  return Math.round(price * 100_000_000 / tickUnits);
+}
+
+function priceUnitsToTicks(value: unknown, market?: Pick<Market, "priceTickUnits">): number | undefined {
+  const units = asOptionalNumber(value);
+  if (units === undefined || units <= 0) return undefined;
+  const tickUnits = market?.priceTickUnits;
+  if (!tickUnits || tickUnits <= 0 || tickUnits === 1) return units / 100_000_000;
+  return Math.round(units / tickUnits);
 }
 
 function displayMarketName(symbol: string, instrumentType?: string, contractType?: string): string {
