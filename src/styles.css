@@ -1,15 +1,47 @@
 :root {
   color-scheme: dark;
   font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  background: #080916;
-  color: #eff3ff;
+  --bg: #050914;
+  --bg-2: #09111f;
+  --panel: rgba(15, 23, 42, .86);
+  --panel-solid: #111827;
+  --panel-soft: rgba(30, 41, 59, .62);
+  --line: rgba(148, 163, 184, .18);
+  --line-strong: rgba(59, 130, 246, .42);
+  --text: #e7edf8;
+  --text-strong: #f8fbff;
+  --muted: #8ea0b8;
+  --muted-strong: #b7c4d8;
+  --accent: #3b82f6;
+  --accent-2: #14b8a6;
+  --buy: #00c076;
+  --sell: #f6465d;
+  --warning: #f0b90b;
+  background: var(--bg);
+  color: var(--text);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  background: #f6f8ff;
+  --bg: #f4f7fb;
+  --bg-2: #eaf0f8;
+  --panel: rgba(255, 255, 255, .92);
+  --panel-solid: #ffffff;
+  --panel-soft: rgba(241, 245, 249, .86);
+  --line: rgba(71, 85, 105, .16);
+  --line-strong: rgba(37, 99, 235, .28);
+  --text: #172033;
+  --text-strong: #0f172a;
+  --muted: #64748b;
+  --muted-strong: #334155;
+  --accent: #2563eb;
+  --accent-2: #0f766e;
+  --buy: #008f5a;
+  --sell: #d52b42;
+  --warning: #b77900;
+  background: var(--bg);
   color: #172033;
 }
 
@@ -21,17 +53,11 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 16% 0%, rgba(255, 86, 178, .18), transparent 28%),
-    radial-gradient(circle at 82% 18%, rgba(71, 235, 255, .14), transparent 30%),
-    linear-gradient(135deg, #090a18 0%, #10122a 52%, #090a18 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 54%, var(--bg) 100%);
 }
 
 :root[data-theme="light"] body {
-  background:
-    radial-gradient(circle at 15% 0%, rgba(255, 102, 188, .18), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(42, 197, 255, .18), transparent 30%),
-    linear-gradient(135deg, #f7f9ff 0%, #eef4ff 52%, #fff8fb 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 54%, var(--bg) 100%);
 }
 
 button,
@@ -48,27 +74,27 @@ button {
 
 input {
   width: 100%;
-  border: 1px solid rgba(148, 166, 255, .18);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 10, 24, .78);
-  color: #f8fbff;
+  background: var(--panel-soft);
+  color: var(--text-strong);
   outline: 0;
   padding: 10px 11px;
 }
 
 select {
   width: 100%;
-  border: 1px solid rgba(148, 166, 255, .18);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 10, 24, .78);
-  color: #f8fbff;
+  background: var(--panel-soft);
+  color: var(--text-strong);
   outline: 0;
 }
 
 input:focus,
 select:focus {
-  border-color: rgba(103, 232, 249, .7);
-  box-shadow: 0 0 0 3px rgba(103, 232, 249, .1);
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .16);
 }
 
 .auth-shell {
@@ -80,7 +106,7 @@ select:focus {
 
 .hint,
 .empty {
-  color: #9ba5d6;
+  color: var(--muted);
 }
 
 .top-actions,
@@ -99,8 +125,8 @@ select:focus {
 .top-actions button,
 .brand,
 .rail-search {
-  border: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
   border-radius: 8px;
 }
 
@@ -108,8 +134,8 @@ select:focus {
   width: min(420px, 100%);
   border-radius: 8px;
   padding: 28px;
-  background: rgba(12, 15, 36, .92);
-  border: 1px solid rgba(255, 255, 255, .11);
+  background: var(--panel);
+  border: 1px solid var(--line);
   box-shadow: 0 30px 90px rgba(0, 0, 0, .36);
 }
 
@@ -131,8 +157,8 @@ select:focus {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #67e8f9, #ff66bc);
-  color: #070817;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #ffffff;
 }
 
 .auth-logo strong {
@@ -147,7 +173,7 @@ select:focus {
   grid-auto-flow: column;
   gap: 6px;
   padding: 4px;
-  background: rgba(255, 255, 255, .05);
+  background: rgba(15, 23, 42, .62);
   border-radius: 8px;
 }
 
@@ -157,13 +183,13 @@ select:focus {
   min-height: 34px;
   border-radius: 6px;
   background: transparent;
-  color: #aeb7e6;
+  color: var(--muted);
 }
 
 .auth-tabs button.active,
 .segmented button.active {
-  background: rgba(103, 232, 249, .16);
-  color: #ffffff;
+  background: rgba(59, 130, 246, .2);
+  color: var(--text-strong);
 }
 
 .auth-panel label,
@@ -171,7 +197,7 @@ select:focus {
   display: grid;
   gap: 8px;
   margin-top: 14px;
-  color: #cbd3ff;
+  color: var(--muted-strong);
   font-size: 13px;
 }
 
@@ -181,8 +207,8 @@ select:focus {
   min-height: 44px;
   margin-top: 18px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #67e8f9, #ff66bc);
-  color: #070817;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #ffffff;
   font-weight: 800;
 }
 
@@ -191,13 +217,13 @@ select:focus {
   min-height: 40px;
   margin-top: 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid rgba(255, 255, 255, .1);
-  color: #cbd3ff;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  color: var(--muted-strong);
 }
 
 .error {
-  color: #ff6e9e;
+  color: var(--sell);
 }
 
 .app-shell {
@@ -243,7 +269,8 @@ select:focus {
 }
 
 .topbar nav button.active {
-  background: rgba(255, 102, 188, .18);
+  background: rgba(59, 130, 246, .18);
+  border-color: var(--line-strong);
 }
 
 .topbar nav button.disabled {
@@ -265,8 +292,8 @@ select:focus {
   gap: 6px;
   padding: 8px;
   border-radius: 8px;
-  border: 1px solid rgba(103, 232, 249, .2);
-  background: rgba(10, 13, 32, .96);
+  border: 1px solid var(--line-strong);
+  background: rgba(15, 23, 42, .96);
   box-shadow: 0 18px 60px rgba(0, 0, 0, .28);
   opacity: 0;
   pointer-events: none;
@@ -298,8 +325,8 @@ select:focus {
 }
 
 .auth-entry.primary {
-  background: linear-gradient(135deg, rgba(103, 232, 249, .9), rgba(255, 102, 188, .9));
-  color: #070817;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #ffffff;
   font-weight: 800;
 }
 
@@ -325,7 +352,7 @@ select:focus {
 .rail-search {
   gap: 8px;
   padding: 9px 10px;
-  color: #aeb7e6;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -336,8 +363,8 @@ select:focus {
   text-align: left;
   padding: 9px 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .055);
-  border: 1px solid rgba(255, 255, 255, .08);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .market-rail button strong {
@@ -345,8 +372,8 @@ select:focus {
 }
 
 .market-rail button.active {
-  border-color: rgba(103, 232, 249, .55);
-  background: rgba(103, 232, 249, .12);
+  border-color: var(--line-strong);
+  background: rgba(59, 130, 246, .15);
 }
 
 .market-rail button span {
@@ -369,7 +396,7 @@ select:focus {
 }
 
 .market-rail em {
-  color: #7f8cc0;
+  color: var(--muted);
   font-size: 11px;
   font-style: normal;
   overflow-wrap: anywhere;
@@ -384,8 +411,8 @@ select:focus {
 .market-header,
 .panel {
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(10, 13, 32, .78);
+  border: 1px solid var(--line);
+  background: var(--panel);
   backdrop-filter: blur(14px);
 }
 
@@ -400,7 +427,7 @@ select:focus {
 }
 
 .market-header.syncing {
-  border-color: rgba(103, 232, 249, .22);
+  border-color: var(--line-strong);
 }
 
 .pair-title {
@@ -425,8 +452,8 @@ select:focus {
   flex: 0 0 auto;
   padding: 3px 6px;
   border-radius: 6px;
-  background: rgba(255, 102, 188, .15);
-  color: #ffb5dc;
+  background: rgba(59, 130, 246, .18);
+  color: #bfdbfe;
   font-size: 11px;
 }
 
@@ -445,7 +472,7 @@ select:focus {
 }
 
 .metric span {
-  color: #8e99cc;
+  color: var(--muted);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -460,16 +487,16 @@ select:focus {
 
 .tone-up,
 .up {
-  color: #45f5c8;
+  color: var(--buy);
 }
 
 .tone-down,
 .down {
-  color: #ff6e9e;
+  color: var(--sell);
 }
 
 .tone-gold {
-  color: #ffd166;
+  color: var(--warning);
 }
 
 .icon-button {
@@ -478,7 +505,7 @@ select:focus {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .08);
+  background: var(--panel-soft);
 }
 
 .mini-icon-button {
@@ -488,9 +515,9 @@ select:focus {
   display: grid;
   place-items: center;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(255, 255, 255, .07);
-  color: #67e8f9;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--accent);
 }
 
 .main-grid {
@@ -514,13 +541,13 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #dce3ff;
+  color: var(--text);
   font-weight: 700;
 }
 
 .panel-title button {
   padding: 6px 9px;
-  color: #aeb7e6;
+  color: var(--muted-strong);
 }
 
 .chart-panel {
@@ -559,7 +586,7 @@ select:focus {
 }
 
 .book-head {
-  color: #7985b8;
+  color: var(--muted);
   font-size: 12px;
   padding: 4px 0;
 }
@@ -603,7 +630,7 @@ select:focus {
 .book-row:hover,
 .trade-row:hover,
 .mid-price:hover {
-  background: rgba(103, 232, 249, .07);
+  background: rgba(59, 130, 246, .08);
 }
 
 .book-row i {
@@ -615,11 +642,11 @@ select:focus {
 }
 
 .book-row.ask i {
-  background: #ff6e9e;
+  background: var(--sell);
 }
 
 .book-row.bid i {
-  background: #45f5c8;
+  background: var(--buy);
 }
 
 .book-row span,
@@ -644,14 +671,14 @@ select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 9px 0;
-  color: #67e8f9;
+  color: var(--accent);
 }
 
 :root[data-theme="light"] input,
 :root[data-theme="light"] select {
-  border-color: rgba(87, 106, 168, .22);
-  background: rgba(255, 255, 255, .86);
-  color: #172033;
+  border-color: var(--line);
+  background: #ffffff;
+  color: var(--text);
 }
 
 :root[data-theme="light"] .auth-panel,
@@ -662,8 +689,8 @@ select:focus {
 :root[data-theme="light"] .rules-table,
 :root[data-theme="light"] .modal-panel {
   background: rgba(255, 255, 255, .86);
-  border-color: rgba(68, 84, 142, .14);
-  color: #172033;
+  border-color: var(--line);
+  color: var(--text);
   box-shadow: 0 22px 70px rgba(54, 70, 126, .14);
 }
 
@@ -719,24 +746,24 @@ select:focus {
 :root[data-theme="light"] .auth-tabs button.active,
 :root[data-theme="light"] .segmented button.active,
 :root[data-theme="light"] .topbar nav button.active {
-  background: rgba(255, 102, 188, .14);
+  background: rgba(37, 99, 235, .12);
   color: #18213a;
 }
 
 :root[data-theme="light"] .toast {
   background: rgba(255, 255, 255, .94);
-  color: #172033;
-  border-color: rgba(42, 197, 255, .32);
+  color: var(--text);
+  border-color: var(--line-strong);
 }
 
 .side-switch .buy.active {
-  background: rgba(69, 245, 200, .18);
-  color: #45f5c8;
+  background: rgba(0, 192, 118, .16);
+  color: var(--buy);
 }
 
 .side-switch .sell.active {
-  background: rgba(255, 110, 158, .18);
-  color: #ff6e9e;
+  background: rgba(246, 70, 93, .16);
+  color: var(--sell);
 }
 
 .segmented.wide {
@@ -758,17 +785,17 @@ select:focus {
   margin-top: 12px;
   padding: 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .055);
-  color: #aeb7e6;
+  background: var(--panel-soft);
+  color: var(--muted-strong);
   font-size: 12px;
 }
 
 .submit-order.buy {
-  background: linear-gradient(135deg, #45f5c8, #67e8f9);
+  background: linear-gradient(135deg, var(--buy), #22c55e);
 }
 
 .submit-order.sell {
-  background: linear-gradient(135deg, #ff6e9e, #ffd166);
+  background: linear-gradient(135deg, var(--sell), #fb7185);
 }
 
 .bottom-deck {
@@ -793,8 +820,8 @@ select:focus {
   overflow-x: auto;
   padding: 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .035);
-  border: 1px solid rgba(255, 255, 255, .075);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .account-table h3,
@@ -827,18 +854,18 @@ select:focus {
 }
 
 .table-head {
-  color: #7f8cc0;
+  color: var(--muted);
   font-size: 11px;
   min-height: 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  border-bottom: 1px solid var(--line);
   margin-bottom: 4px;
 }
 
 .order-row button {
   height: 25px;
   border-radius: 6px;
-  background: rgba(255, 110, 158, .16);
-  color: #ff9ac0;
+  background: rgba(246, 70, 93, .14);
+  color: var(--sell);
 }
 
 .right-stack {
@@ -876,7 +903,7 @@ select:focus {
 .ticket .order-select-row .compact-select {
   gap: 5px;
   margin-top: 0;
-  color: #9ba5d6;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -901,7 +928,7 @@ select:focus {
 }
 
 .risk p {
-  color: #9ba5d6;
+  color: var(--muted);
   line-height: 1.6;
   font-size: 12px;
 }
@@ -915,8 +942,8 @@ select:focus {
 .rule-card,
 .rules-table {
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(10, 13, 32, .78);
+  border: 1px solid var(--line);
+  background: var(--panel);
   backdrop-filter: blur(14px);
 }
 
@@ -933,7 +960,7 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #67e8f9;
+  color: var(--accent);
   font-size: 12px;
 }
 
@@ -947,7 +974,7 @@ select:focus {
 .rule-card p,
 .config-section p {
   margin: 6px 0 0;
-  color: #aab4e6;
+  color: var(--muted-strong);
   line-height: 1.55;
   font-size: 13px;
 }
@@ -957,8 +984,8 @@ select:focus {
   gap: 8px;
   padding: 14px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .055);
-  border: 1px solid rgba(255, 255, 255, .09);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .rules-current strong {
@@ -966,15 +993,15 @@ select:focus {
 }
 
 .rules-current span {
-  color: #aeb7e6;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .rules-current button {
   min-height: 34px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #67e8f9, #ff66bc);
-  color: #070817;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #ffffff;
   font-weight: 800;
 }
 
@@ -1005,7 +1032,7 @@ select:focus {
 }
 
 button.rules-row:hover {
-  background: rgba(103, 232, 249, .07);
+  background: rgba(59, 130, 246, .08);
 }
 
 .modal-backdrop {
@@ -1024,8 +1051,8 @@ button.rules-row:hover {
   overflow: auto;
   padding: 14px;
   border-radius: 8px;
-  border: 1px solid rgba(103, 232, 249, .22);
-  background: rgba(10, 13, 32, .96);
+  border: 1px solid var(--line-strong);
+  background: rgba(15, 23, 42, .97);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .45);
 }
 
@@ -1042,12 +1069,12 @@ button.rules-row:hover {
   gap: 5px;
   padding: 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .07);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .config-item span {
-  color: #8793c5;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -1060,8 +1087,8 @@ button.rules-row:hover {
   margin-top: 12px;
   padding: 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .035);
-  border: 1px solid rgba(255, 255, 255, .07);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .config-section h3 {
@@ -1081,9 +1108,9 @@ button.rules-row:hover {
   gap: 8px;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(103, 232, 249, .25);
-  background: rgba(8, 10, 24, .92);
-  color: #dce3ff;
+  border: 1px solid var(--line-strong);
+  background: rgba(15, 23, 42, .94);
+  color: var(--text);
   box-shadow: 0 18px 60px rgba(0, 0, 0, .38);
 }
 

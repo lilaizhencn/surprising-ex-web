@@ -680,26 +680,26 @@ function KlineChart({ candles }: { candles: CandlePoint[] }) {
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#d7ddff",
+        textColor: "#b7c4d8",
         attributionLogo: false
       },
       grid: {
-        vertLines: { color: "rgba(127, 246, 255, 0.08)" },
-        horzLines: { color: "rgba(255, 122, 210, 0.08)" }
+        vertLines: { color: "rgba(148, 163, 184, 0.10)" },
+        horzLines: { color: "rgba(148, 163, 184, 0.10)" }
       },
       timeScale: { timeVisible: true, secondsVisible: false },
       rightPriceScale: {
-        borderColor: "rgba(255,255,255,.12)",
+        borderColor: "rgba(148, 163, 184, .18)",
         scaleMargins: { top: 0.04, bottom: 0.18 }
       }
     });
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#45f5c8",
-      downColor: "#ff5f9e",
-      borderUpColor: "#45f5c8",
-      borderDownColor: "#ff5f9e",
-      wickUpColor: "#45f5c8",
-      wickDownColor: "#ff5f9e",
+      upColor: "#00c076",
+      downColor: "#f6465d",
+      borderUpColor: "#00c076",
+      borderDownColor: "#f6465d",
+      wickUpColor: "#00c076",
+      wickDownColor: "#f6465d",
       autoscaleInfoProvider: (baseImplementation: () => AutoscaleInfo | null) => {
         const base = baseImplementation();
         if (!visiblePriceRange) return base;
@@ -727,7 +727,7 @@ function KlineChart({ candles }: { candles: CandlePoint[] }) {
     volumeSeries.setData(candles.map((item) => ({
       time: item.time as UTCTimestamp,
       value: item.volume,
-      color: item.close >= item.open ? "rgba(69,245,200,.28)" : "rgba(255,95,158,.28)"
+      color: item.close >= item.open ? "rgba(0, 192, 118, .28)" : "rgba(246, 70, 93, .28)"
     })));
     if (candles.length > KLINE_VISIBLE_BARS) {
       chart.timeScale().setVisibleLogicalRange({ from: candles.length - KLINE_VISIBLE_BARS, to: candles.length + 3 });
