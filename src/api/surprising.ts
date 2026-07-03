@@ -6,8 +6,10 @@ import type {
   CandlePoint,
   Market,
   OpenOrder,
+  OpenTriggerOrder,
   OrderBookLevel,
   PlaceOrderDraft,
+  PlaceTriggerOrderDraft,
   Position,
   PositionMode,
   ProductAccountType
@@ -293,6 +295,19 @@ export async function loadOpenOrders(session: AuthSession, symbol: string): Prom
   }
 }
 
+export async function loadOpenTriggerOrders(session: AuthSession, symbol: string): Promise<OpenTriggerOrder[]> {
+  try {
+    const response = await request<{ orders?: OpenTriggerOrder[]; items?: OpenTriggerOrder[] }>(
+      gatewayPath("trading-trigger", `/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
+      {},
+      session
+    );
+    return response.orders ?? response.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading"),
@@ -317,6 +332,32 @@ export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): 
   );
 }
 
+export async function placeTriggerOrder(session: AuthSession, draft: PlaceTriggerOrderDraft): Promise<OpenTriggerOrder> {
+  return request<OpenTriggerOrder>(
+    gatewayPath("trading-trigger"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        clientTriggerOrderId: `web-trigger-${session.user.userId}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`,
+        ocoGroupId: draft.ocoGroupId || undefined,
+        symbol: draft.symbol,
+        side: draft.side,
+        triggerType: draft.triggerType,
+        triggerPriceType: draft.triggerPriceType,
+        triggerPriceTicks: draft.triggerPriceTicks,
+        orderType: draft.orderType,
+        timeInForce: draft.timeInForce,
+        priceTicks: draft.orderType === "MARKET" ? 0 : draft.priceTicks,
+        quantitySteps: draft.quantitySteps,
+        marginMode: draft.marginMode,
+        positionSide: draft.positionSide ?? "NET"
+      })
+    },
+    session
+  );
+}
+
 export async function cancelOrder(session: AuthSession, order: OpenOrder): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading", "/cancel"),
@@ -325,6 +366,20 @@ export async function cancelOrder(session: AuthSession, order: OpenOrder): Promi
       body: JSON.stringify({
         userId: session.user.userId,
         orderId: order.orderId
+      })
+    },
+    session
+  );
+}
+
+export async function cancelTriggerOrder(session: AuthSession, order: OpenTriggerOrder): Promise<OpenTriggerOrder> {
+  return request<OpenTriggerOrder>(
+    gatewayPath("trading-trigger", "/cancel"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        triggerOrderId: order.triggerOrderId
       })
     },
     session

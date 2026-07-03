@@ -12,6 +12,7 @@ import {
   Layers3,
   LogOut,
   MoonStar,
+  Plus,
   Radio,
   Search,
   Sparkles,
@@ -19,6 +20,7 @@ import {
   Sun,
   TableProperties,
   TrendingUp,
+  Trash2,
   WalletCards,
 } from "lucide-react";
 import {
@@ -30,18 +32,26 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeOrder, register, updatePositionMode } from "./api/surprising";
+import { cancelOrder, cancelTriggerOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeOrder, placeTriggerOrder, register, updatePositionMode } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OrderBookLevel, OrderSide, OrderType, PlaceOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, WsEnvelope } from "./types";
+import type { AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
 type Page = "trade" | "rules";
 type ThemeMode = "dark" | "light";
 type PickedPrice = { value: number; nonce: number };
+type TriggerCloseTarget = "LONG" | "SHORT";
+type TriggerLevelInput = {
+  id: string;
+  triggerType: TriggerOrderType;
+  closeTarget: TriggerCloseTarget;
+  triggerPriceTicks: string;
+  quantitySteps: string;
+};
 const KLINE_PERIODS = ["1m", "5m", "15m", "1h"] as const;
 const KLINE_VISIBLE_BARS = 48;
 const ORDER_BOOK_SIDE_ROWS = 6;
@@ -67,6 +77,7 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
+  const [triggerOrders, setTriggerOrders] = useState<OpenTriggerOrder[]>([]);
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
   const [notice, setNotice] = useState("连接后端中，若服务未启动会进入离线演示数据。");
   const [loading, setLoading] = useState(false);
@@ -249,6 +260,7 @@ export default function App() {
     setBalances([]);
     setPositions([]);
     setOrders([]);
+    setTriggerOrders([]);
     setPositionMode("ONE_WAY");
   }
 
@@ -288,15 +300,17 @@ export default function App() {
     if (!active) return;
     try {
       const accountType = PRODUCT_META[productMode].accountType;
-      const [nextBalances, nextPositions, nextOrders, nextPositionMode] = await Promise.all([
+      const [nextBalances, nextPositions, nextOrders, nextTriggerOrders, nextPositionMode] = await Promise.all([
         loadBalances(active, accountType),
         productMode === "spot" ? Promise.resolve([]) : loadPositions(active),
         loadOpenOrders(active, symbol),
+        productMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol),
         productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active)
       ]);
       setBalances(nextBalances);
       setPositions(filterPositionsByProduct(nextPositions, markets, productMode));
       setOrders(nextOrders);
+      setTriggerOrders(nextTriggerOrders);
       setPositionMode(nextPositionMode);
       setNotice(`${PRODUCT_META[productMode].label}资产、${productMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
     } catch (error) {
@@ -337,6 +351,33 @@ export default function App() {
     }
   }
 
+  async function submitTriggerOrders(drafts: PlaceTriggerOrderDraft[]) {
+    if (!session) {
+      setNotice("请先登录后再提交止盈止损。");
+      setAuthMode("login");
+      return;
+    }
+    const validDrafts = drafts.filter((draft) => draft.triggerPriceTicks > 0 && draft.quantitySteps > 0);
+    if (!validDrafts.length) {
+      setNotice("止盈止损触发价和数量必须大于 0。");
+      return;
+    }
+    try {
+      const created: OpenTriggerOrder[] = [];
+      for (const draft of validDrafts) {
+        created.push(await placeTriggerOrder(session, draft));
+      }
+      setTriggerOrders((current) => [
+        ...created,
+        ...current.filter((item) => !created.some((createdItem) => createdItem.triggerOrderId === item.triggerOrderId))
+      ]);
+      setNotice(`止盈止损已提交：${created.length}档`);
+      void refreshPrivateData(session);
+    } catch (error) {
+      setNotice(error instanceof Error ? `止盈止损提交失败：${error.message}` : "止盈止损提交失败");
+    }
+  }
+
   async function submitCancel(order: OpenOrder) {
     if (!session) return;
     try {
@@ -345,6 +386,17 @@ export default function App() {
       setNotice(`撤单请求已提交：${order.orderId}`);
     } catch (error) {
       setNotice(error instanceof Error ? `撤单失败：${error.message}` : "撤单失败");
+    }
+  }
+
+  async function submitTriggerCancel(order: OpenTriggerOrder) {
+    if (!session) return;
+    try {
+      const canceled = await cancelTriggerOrder(session, order);
+      setTriggerOrders((current) => current.filter((item) => item.triggerOrderId !== canceled.triggerOrderId));
+      setNotice(`条件单撤销已提交：${order.triggerOrderId}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? `条件单撤销失败：${error.message}` : "条件单撤销失败");
     }
   }
 
@@ -416,16 +468,18 @@ export default function App() {
               balances={balances}
               positions={positions}
               orders={orders}
+              triggerOrders={triggerOrders}
               trades={tradeRecords}
               market={selectedMarket}
               markets={markets}
               onPositionModeChange={changePositionMode}
               onCancel={submitCancel}
+              onCancelTrigger={submitTriggerCancel}
             />
           </section>
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
-            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
+            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
       )}
@@ -618,6 +672,16 @@ function positionSideLabel(side: PositionSide | "NET"): string {
   if (side === "LONG") return "多仓";
   if (side === "SHORT") return "空仓";
   return "净仓";
+}
+
+function triggerTypeLabel(type: TriggerOrderType): string {
+  return type === "TAKE_PROFIT" ? "止盈" : "止损";
+}
+
+function triggerCloseLabel(side: OrderSide, positionSide: PositionSide | "NET" | undefined): string {
+  if (positionSide === "LONG") return "平多";
+  if (positionSide === "SHORT") return "平空";
+  return side === "SELL" ? "平多" : "平空";
 }
 
 function priceFromTicks(market: Market | undefined, priceTicks: number): number {
@@ -817,7 +881,23 @@ function BookRow({ level, market, max, side, onPickPrice }: { level: OrderBookLe
   );
 }
 
-function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, onSubmit }: { productMode: ProductMode; positionMode: PositionMode; symbol: string; market?: Market; pricePreset: PickedPrice | null; onSubmit: (draft: PlaceOrderDraft) => void }) {
+function OrderTicket({
+  productMode,
+  positionMode,
+  symbol,
+  market,
+  pricePreset,
+  onSubmit,
+  onSubmitTriggers
+}: {
+  productMode: ProductMode;
+  positionMode: PositionMode;
+  symbol: string;
+  market?: Market;
+  pricePreset: PickedPrice | null;
+  onSubmit: (draft: PlaceOrderDraft) => void;
+  onSubmitTriggers: (drafts: PlaceTriggerOrderDraft[]) => void;
+}) {
   const [side, setSide] = useState<OrderSide>("BUY");
   const [orderType, setOrderType] = useState<OrderType>("LIMIT");
   const [timeInForce, setTimeInForce] = useState<TimeInForce>("GTC");
@@ -825,6 +905,7 @@ function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, o
   const [positionSide, setPositionSide] = useState<PositionSide>("NET");
   const [priceTicks, setPriceTicks] = useState("65000");
   const [quantitySteps, setQuantitySteps] = useState("1");
+  const [triggerLevels, setTriggerLevels] = useState<TriggerLevelInput[]>([]);
   const [leverage, setLeverage] = useState(10);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
@@ -868,6 +949,31 @@ function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, o
     }
     if (positionSide === "NET") setPositionSide(side === "SELL" ? "SHORT" : "LONG");
   }, [isSpot, positionMode, positionSide, side]);
+
+  function addTriggerLevel(triggerType: TriggerOrderType) {
+    setTriggerLevels((current) => [
+      ...current,
+      {
+        id: `${Date.now()}-${current.length}`,
+        triggerType,
+        closeTarget: side === "SELL" ? "SHORT" : "LONG",
+        triggerPriceTicks: priceTicks,
+        quantitySteps
+      }
+    ]);
+  }
+
+  function patchTriggerLevel(id: string, patch: Partial<TriggerLevelInput>) {
+    setTriggerLevels((current) => current.map((level) => level.id === id ? { ...level, ...patch } : level));
+  }
+
+  function removeTriggerLevel(id: string) {
+    setTriggerLevels((current) => current.filter((level) => level.id !== id));
+  }
+
+  const validTriggerLevels = triggerLevels.filter((level) =>
+    Number(level.triggerPriceTicks) > 0 && Number(level.quantitySteps) > 0
+  );
 
   return (
     <section className="panel ticket">
@@ -914,6 +1020,54 @@ function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, o
       {!isSpot && <label>杠杆 <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
       {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />Reduce-only</label>}
       <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />Post-only</label>
+      {!isSpot && (
+        <div className="trigger-panel">
+          <div className="trigger-head">
+            <span>止盈止损</span>
+            <div>
+              <button type="button" title="新增止盈" onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />TP</button>
+              <button type="button" title="新增止损" onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />SL</button>
+            </div>
+          </div>
+          {triggerLevels.map((level) => (
+            <div className="trigger-level-row" key={level.id}>
+              <select value={level.triggerType} onChange={(event) => patchTriggerLevel(level.id, { triggerType: event.target.value as TriggerOrderType })}>
+                <option value="TAKE_PROFIT">TP</option>
+                <option value="STOP_LOSS">SL</option>
+              </select>
+              <select value={level.closeTarget} onChange={(event) => patchTriggerLevel(level.id, { closeTarget: event.target.value as TriggerCloseTarget })}>
+                <option value="LONG">平多</option>
+                <option value="SHORT">平空</option>
+              </select>
+              <input value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
+              <input value={level.quantitySteps} onChange={(event) => patchTriggerLevel(level.id, { quantitySteps: event.target.value })} />
+              <button type="button" title="删除" onClick={() => removeTriggerLevel(level.id)}><Trash2 size={13} /></button>
+            </div>
+          ))}
+          {triggerLevels.length > 0 && (
+            <button
+              className="submit-trigger"
+              disabled={validTriggerLevels.length === 0}
+              type="button"
+              onClick={() => onSubmitTriggers(validTriggerLevels.map((level) => ({
+                symbol,
+                side: level.closeTarget === "LONG" ? "SELL" : "BUY",
+                triggerType: level.triggerType,
+                triggerPriceType: "MARK_PRICE",
+                triggerPriceTicks: Number(level.triggerPriceTicks),
+                orderType: "MARKET",
+                timeInForce: "IOC",
+                priceTicks: 0,
+                quantitySteps: Number(level.quantitySteps),
+                marginMode,
+                positionSide: isHedgeMode ? level.closeTarget : "NET"
+              })))}
+            >
+              <Bell size={14} />提交止盈止损
+            </button>
+          )}
+        </div>
+      )}
       <div className="order-preview">
         <span>{marketProduct(market) === "inverse" ? "合约面值" : "预估成交额"} {displayPrice(notional)} {marketProduct(market) === "inverse" ? market?.quoteAsset : market?.quoteAsset}</span>
         <span>{isSpot ? `扣减资产 ${side === "BUY" ? market?.quoteAsset ?? "-" : market?.baseAsset ?? "-"}` : `预估保证金 ${displayPrice(margin)} ${market?.settleAsset ?? ""}`}</span>
@@ -935,17 +1089,19 @@ function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, o
   );
 }
 
-function BottomDeck({ productMode, positionMode, balances, positions, orders, trades, market, markets, onPositionModeChange, onCancel }: {
+function BottomDeck({ productMode, positionMode, balances, positions, orders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onCancelTrigger }: {
   productMode: ProductMode;
   positionMode: PositionMode;
   balances: Balance[];
   positions: Position[];
   orders: OpenOrder[];
+  triggerOrders: OpenTriggerOrder[];
   trades: TradeRecord[];
   market?: Market;
   markets: Market[];
   onPositionModeChange: (mode: PositionMode) => void;
   onCancel: (order: OpenOrder) => void;
+  onCancelTrigger: (order: OpenTriggerOrder) => void;
 }) {
   const equity = balances.reduce((sum, item) => sum + item.equityUnits, 0);
   const available = balances.reduce((sum, item) => sum + item.availableUnits, 0);
@@ -1040,6 +1196,27 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, tr
             </div>
           ))}
         </AccountTable>
+        {!isSpot && (
+          <AccountTable title="止盈止损" icon={<Bell size={15} />}>
+            <div className="trigger-order-row table-head">
+              <span>市场</span><span>类型</span><span>目标</span><span>触发价</span><span>数量</span><span>委托</span><span>状态</span><span></span>
+            </div>
+            {triggerOrders.length === 0 ? <p className="empty">暂无止盈止损</p> : triggerOrders.map((item) => (
+              <div className="trigger-order-row" key={item.triggerOrderId}>
+                <strong>{item.symbol}</strong>
+                <span>{triggerTypeLabel(item.triggerType)}</span>
+                <span className={triggerCloseLabel(item.side, item.positionSide) === "平多" ? "down" : "up"}>
+                  {triggerCloseLabel(item.side, item.positionSide)}
+                </span>
+                <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.triggerPriceTicks)}</span>
+                <span>{item.quantitySteps}</span>
+                <span>{item.orderType}/{item.timeInForce}</span>
+                <span>{item.status}</span>
+                <button onClick={() => onCancelTrigger(item)}>撤销</button>
+              </div>
+            ))}
+          </AccountTable>
+        )}
         <AccountTable title="成交记录" icon={<Activity size={15} />}>
           <div className="trade-history-row table-head">
             <span>市场</span><span>角色</span><span>方向</span><span>价格</span><span>数量</span><span>时间</span><span>Trace</span>

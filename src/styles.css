@@ -575,6 +575,7 @@ select:focus {
 .asset-row,
 .position-row,
 .order-row,
+.trigger-order-row,
 .trade-history-row,
 .rules-row {
   display: grid;
@@ -613,6 +614,7 @@ select:focus {
 .asset-row,
 .position-row,
 .order-row,
+.trigger-order-row,
 .trade-history-row,
 .rules-row {
   position: relative;
@@ -662,6 +664,8 @@ select:focus {
 .position-row strong,
 .order-row span,
 .order-row strong,
+.trigger-order-row span,
+.trigger-order-row strong,
 .trade-history-row span,
 .trade-history-row strong,
 .rules-row span,
@@ -820,6 +824,84 @@ select:focus {
   width: auto;
 }
 
+.trigger-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, .28);
+}
+
+.trigger-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-strong);
+  font-size: 12px;
+}
+
+.trigger-head div {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.trigger-head button,
+.submit-trigger,
+.trigger-level-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.trigger-head button {
+  height: 27px;
+  padding: 0 7px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: rgba(59, 130, 246, .12);
+}
+
+.trigger-level-row {
+  display: grid;
+  grid-template-columns: .75fr .75fr minmax(0, 1fr) minmax(0, .85fr) 30px;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.trigger-level-row select,
+.trigger-level-row input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.trigger-level-row button {
+  height: 30px;
+  border-radius: 6px;
+  color: var(--sell);
+  background: rgba(246, 70, 93, .12);
+}
+
+.submit-trigger {
+  min-height: 32px;
+  border-radius: 7px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  font-weight: 800;
+}
+
+.submit-trigger:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
 .order-preview {
   display: grid;
   gap: 6px;
@@ -889,6 +971,11 @@ select:focus {
   min-width: 880px;
 }
 
+.trigger-order-row {
+  grid-template-columns: .8fr .48fr .5fr .72fr .48fr .75fr .62fr 46px;
+  min-width: 840px;
+}
+
 .trade-history-row {
   grid-template-columns: .8fr .55fr .45fr .75fr .6fr .7fr .55fr;
   min-width: 760px;
@@ -902,7 +989,8 @@ select:focus {
   margin-bottom: 4px;
 }
 
-.order-row button {
+.order-row button,
+.trigger-order-row button {
   height: 25px;
   border-radius: 6px;
   background: rgba(246, 70, 93, .14);

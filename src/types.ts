@@ -4,6 +4,8 @@ export type TimeInForce = "GTC" | "IOC" | "FOK" | "GTX";
 export type MarginMode = "CROSS" | "ISOLATED";
 export type PositionMode = "ONE_WAY" | "HEDGE";
 export type PositionSide = "NET" | "LONG" | "SHORT";
+export type TriggerOrderType = "TAKE_PROFIT" | "STOP_LOSS";
+export type TriggerPriceType = "MARK_PRICE";
 export type ConnectionState = "live" | "degraded" | "offline";
 export type ProductMode = "linear" | "inverse" | "spot";
 export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "SPOT";
@@ -177,6 +179,44 @@ export interface PlaceOrderDraft {
   positionSide?: PositionSide;
   reduceOnly: boolean;
   postOnly: boolean;
+}
+
+export interface OpenTriggerOrder {
+  triggerOrderId: number;
+  clientTriggerOrderId?: string | null;
+  ocoGroupId?: string | null;
+  symbol: string;
+  side: OrderSide;
+  triggerType: TriggerOrderType;
+  triggerPriceType: TriggerPriceType;
+  triggerCondition?: string;
+  triggerPriceTicks: number;
+  orderType: OrderType;
+  timeInForce: TimeInForce;
+  priceTicks: number;
+  quantitySteps: number;
+  marginMode: MarginMode;
+  positionSide?: PositionSide;
+  status: string;
+  placedOrderId?: number | null;
+  triggeredPriceTicks?: number | null;
+  rejectReason?: string | null;
+  createdAt?: string;
+}
+
+export interface PlaceTriggerOrderDraft {
+  symbol: string;
+  side: OrderSide;
+  triggerType: TriggerOrderType;
+  triggerPriceType: TriggerPriceType;
+  triggerPriceTicks: number;
+  orderType: OrderType;
+  timeInForce: TimeInForce;
+  priceTicks: number;
+  quantitySteps: number;
+  marginMode: MarginMode;
+  positionSide?: PositionSide;
+  ocoGroupId?: string;
 }
 
 export interface WsEnvelope<T = unknown> {
