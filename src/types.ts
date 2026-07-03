@@ -2,6 +2,8 @@ export type OrderSide = "BUY" | "SELL";
 export type OrderType = "LIMIT" | "MARKET";
 export type TimeInForce = "GTC" | "IOC" | "FOK" | "GTX";
 export type MarginMode = "CROSS" | "ISOLATED";
+export type PositionMode = "ONE_WAY" | "HEDGE";
+export type PositionSide = "NET" | "LONG" | "SHORT";
 export type ConnectionState = "live" | "degraded" | "offline";
 export type ProductMode = "linear" | "inverse" | "spot";
 export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "SPOT";
@@ -135,6 +137,7 @@ export interface Balance {
 export interface Position {
   symbol: string;
   marginMode: MarginMode;
+  positionSide?: PositionSide;
   signedQuantitySteps: number;
   entryPriceTicks: number;
   markPriceTicks: number;
@@ -156,6 +159,7 @@ export interface OpenOrder {
   executedQuantitySteps: number;
   remainingQuantitySteps: number;
   marginMode: MarginMode;
+  positionSide?: PositionSide;
   reduceOnly: boolean;
   postOnly: boolean;
   status: string;
@@ -170,6 +174,7 @@ export interface PlaceOrderDraft {
   priceTicks: number;
   quantitySteps: number;
   marginMode: MarginMode;
+  positionSide?: PositionSide;
   reduceOnly: boolean;
   postOnly: boolean;
 }

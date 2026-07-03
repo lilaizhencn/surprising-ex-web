@@ -9,6 +9,7 @@ import type {
   OrderBookLevel,
   PlaceOrderDraft,
   Position,
+  PositionMode,
   ProductAccountType
 } from "../types";
 import { gatewayPath, request } from "./client";
@@ -251,6 +252,34 @@ export async function loadPositions(session: AuthSession): Promise<Position[]> {
   }
 }
 
+export async function loadPositionMode(session: AuthSession): Promise<PositionMode> {
+  try {
+    const response = await request<{ positionMode?: PositionMode }>(
+      gatewayPath("account", `/position-mode?userId=${session.user.userId}`),
+      {},
+      session
+    );
+    return response.positionMode ?? "ONE_WAY";
+  } catch {
+    return "ONE_WAY";
+  }
+}
+
+export async function updatePositionMode(session: AuthSession, positionMode: PositionMode): Promise<PositionMode> {
+  const response = await request<{ positionMode?: PositionMode }>(
+    gatewayPath("account", "/position-mode"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        positionMode
+      })
+    },
+    session
+  );
+  return response.positionMode ?? positionMode;
+}
+
 export async function loadOpenOrders(session: AuthSession, symbol: string): Promise<OpenOrder[]> {
   try {
     const response = await request<{ orders?: OpenOrder[]; items?: OpenOrder[] }>(
@@ -279,7 +308,7 @@ export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): 
         priceTicks: draft.orderType === "MARKET" ? 0 : draft.priceTicks,
         quantitySteps: draft.quantitySteps,
         marginMode: draft.marginMode,
-        positionSide: "NET",
+        positionSide: draft.positionSide ?? "NET",
         reduceOnly: draft.reduceOnly,
         postOnly: draft.postOnly
       })

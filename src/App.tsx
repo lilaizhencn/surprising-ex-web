@@ -30,12 +30,12 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOrderBook, loadPositions, login, placeOrder, register } from "./api/surprising";
+import { cancelOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeOrder, register, updatePositionMode } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OrderBookLevel, OrderSide, OrderType, PlaceOrderDraft, Position, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, WsEnvelope } from "./types";
+import type { AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OrderBookLevel, OrderSide, OrderType, PlaceOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -67,6 +67,7 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
+  const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
   const [notice, setNotice] = useState("连接后端中，若服务未启动会进入离线演示数据。");
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
@@ -248,6 +249,7 @@ export default function App() {
     setBalances([]);
     setPositions([]);
     setOrders([]);
+    setPositionMode("ONE_WAY");
   }
 
   function pickOrderPrice(priceTicks: number) {
@@ -286,17 +288,36 @@ export default function App() {
     if (!active) return;
     try {
       const accountType = PRODUCT_META[productMode].accountType;
-      const [nextBalances, nextPositions, nextOrders] = await Promise.all([
+      const [nextBalances, nextPositions, nextOrders, nextPositionMode] = await Promise.all([
         loadBalances(active, accountType),
         productMode === "spot" ? Promise.resolve([]) : loadPositions(active),
-        loadOpenOrders(active, symbol)
+        loadOpenOrders(active, symbol),
+        productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active)
       ]);
       setBalances(nextBalances);
       setPositions(filterPositionsByProduct(nextPositions, markets, productMode));
       setOrders(nextOrders);
+      setPositionMode(nextPositionMode);
       setNotice(`${PRODUCT_META[productMode].label}资产、${productMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "私有数据同步失败");
+    }
+  }
+
+  async function changePositionMode(nextMode: PositionMode) {
+    if (!session) {
+      setNotice("请先登录后再切换持仓模式。");
+      setAuthMode("login");
+      return;
+    }
+    if (nextMode === positionMode) return;
+    try {
+      const savedMode = await updatePositionMode(session, nextMode);
+      setPositionMode(savedMode);
+      setNotice(`持仓模式已切换为${positionModeLabel(savedMode)}。`);
+      void refreshPrivateData(session);
+    } catch (error) {
+      setNotice(error instanceof Error ? `切换持仓模式失败：${error.message}` : "切换持仓模式失败");
     }
   }
 
@@ -391,18 +412,20 @@ export default function App() {
             </div>
             <BottomDeck
               productMode={productMode}
+              positionMode={positionMode}
               balances={balances}
               positions={positions}
               orders={orders}
               trades={tradeRecords}
               market={selectedMarket}
               markets={markets}
+              onPositionModeChange={changePositionMode}
               onCancel={submitCancel}
             />
           </section>
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
-            <OrderTicket productMode={productMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
+            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} />
           </aside>
         </div>
       )}
@@ -585,6 +608,16 @@ function priceWithQuote(market: Market | undefined, priceTicks: number, quoteAss
 
 function displayMarketPrice(market: Market | undefined, priceTicks: number): string {
   return displayPrice(priceFromTicks(market, priceTicks));
+}
+
+function positionModeLabel(mode: PositionMode): string {
+  return mode === "HEDGE" ? "双向持仓" : "净仓";
+}
+
+function positionSideLabel(side: PositionSide | "NET"): string {
+  if (side === "LONG") return "多仓";
+  if (side === "SHORT") return "空仓";
+  return "净仓";
 }
 
 function priceFromTicks(market: Market | undefined, priceTicks: number): number {
@@ -784,11 +817,12 @@ function BookRow({ level, market, max, side, onPickPrice }: { level: OrderBookLe
   );
 }
 
-function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { productMode: ProductMode; symbol: string; market?: Market; pricePreset: PickedPrice | null; onSubmit: (draft: PlaceOrderDraft) => void }) {
+function OrderTicket({ productMode, positionMode, symbol, market, pricePreset, onSubmit }: { productMode: ProductMode; positionMode: PositionMode; symbol: string; market?: Market; pricePreset: PickedPrice | null; onSubmit: (draft: PlaceOrderDraft) => void }) {
   const [side, setSide] = useState<OrderSide>("BUY");
   const [orderType, setOrderType] = useState<OrderType>("LIMIT");
   const [timeInForce, setTimeInForce] = useState<TimeInForce>("GTC");
   const [marginMode, setMarginMode] = useState<MarginMode>("CROSS");
+  const [positionSide, setPositionSide] = useState<PositionSide>("NET");
   const [priceTicks, setPriceTicks] = useState("65000");
   const [quantitySteps, setQuantitySteps] = useState("1");
   const [leverage, setLeverage] = useState(10);
@@ -805,6 +839,7 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
   }, [pricePreset]);
 
   const isSpot = productMode === "spot";
+  const isHedgeMode = !isSpot && positionMode === "HEDGE";
   const priceNumber = Number(priceTicks || 0);
   const quantityNumber = Number(quantitySteps || 0);
   const notional = estimateNotional(market, priceNumber, quantityNumber);
@@ -826,12 +861,20 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
     if (!tifOptions.includes(timeInForce)) setTimeInForce(tifOptions[0] ?? "GTC");
   }, [tifOptions, timeInForce]);
 
+  useEffect(() => {
+    if (isSpot || positionMode === "ONE_WAY") {
+      setPositionSide("NET");
+      return;
+    }
+    if (positionSide === "NET") setPositionSide(side === "SELL" ? "SHORT" : "LONG");
+  }, [isSpot, positionMode, positionSide, side]);
+
   return (
     <section className="panel ticket">
-      <div className="panel-title"><span><CircleDollarSign size={16} />{PRODUCT_META[productMode].shortLabel}下单</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${leverage}x`}</button></div>
+      <div className="panel-title"><span><CircleDollarSign size={16} />{PRODUCT_META[productMode].shortLabel}下单</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${positionModeLabel(positionMode)} · ${leverage}x`}</button></div>
       <div className="side-switch">
-        <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isSpot ? "买入" : "开多 / 买入"}</button>
-        <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isSpot ? "卖出" : "开空 / 卖出"}</button>
+        <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isHedgeMode ? "买入" : isSpot ? "买入" : "开多 / 买入"}</button>
+        <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isHedgeMode ? "卖出" : isSpot ? "卖出" : "开空 / 卖出"}</button>
       </div>
       <div className={isSpot ? "order-select-row two" : "order-select-row"}>
         <label className="compact-select">类型
@@ -852,6 +895,20 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
           </select>
         </label>
       </div>
+      {isHedgeMode && (
+        <div className="position-side-switch">
+          {(["LONG", "SHORT"] as PositionSide[]).map((item) => (
+            <button
+              key={item}
+              className={positionSide === item ? `${item.toLowerCase()} active` : item.toLowerCase()}
+              type="button"
+              onClick={() => setPositionSide(item)}
+            >
+              {positionSideLabel(item)}
+            </button>
+          ))}
+        </div>
+      )}
       <label>价格 ticks<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
       <label>数量 steps<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
       {!isSpot && <label>杠杆 <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
@@ -870,6 +927,7 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
         priceTicks: priceNumber,
         quantitySteps: quantityNumber,
         marginMode: isSpot ? "CROSS" : marginMode,
+        positionSide: isHedgeMode ? positionSide : "NET",
         reduceOnly: isSpot ? false : reduceOnly,
         postOnly: orderType === "MARKET" ? false : postOnly
       })}>{side === "BUY" ? "确认买入" : "确认卖出"}</button>
@@ -877,14 +935,16 @@ function OrderTicket({ productMode, symbol, market, pricePreset, onSubmit }: { p
   );
 }
 
-function BottomDeck({ productMode, balances, positions, orders, trades, market, markets, onCancel }: {
+function BottomDeck({ productMode, positionMode, balances, positions, orders, trades, market, markets, onPositionModeChange, onCancel }: {
   productMode: ProductMode;
+  positionMode: PositionMode;
   balances: Balance[];
   positions: Position[];
   orders: OpenOrder[];
   trades: TradeRecord[];
   market?: Market;
   markets: Market[];
+  onPositionModeChange: (mode: PositionMode) => void;
   onCancel: (order: OpenOrder) => void;
 }) {
   const equity = balances.reduce((sum, item) => sum + item.equityUnits, 0);
@@ -896,7 +956,23 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
 
   return (
     <section className="bottom-deck panel">
-      <div className="panel-title"><span><WalletCards size={16} />{PRODUCT_META[productMode].label}账户</span></div>
+      <div className="panel-title">
+        <span><WalletCards size={16} />{PRODUCT_META[productMode].label}账户</span>
+        {!isSpot && (
+          <div className="mode-switch" aria-label="持仓模式">
+            {(["ONE_WAY", "HEDGE"] as PositionMode[]).map((mode) => (
+              <button
+                key={mode}
+                className={positionMode === mode ? "active" : ""}
+                type="button"
+                onClick={() => onPositionModeChange(mode)}
+              >
+                {positionModeLabel(mode)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="account-summary">
         <Metric label="总权益" value={displayUnits(equity)} />
         <Metric label="可用" value={displayUnits(available)} />
@@ -930,11 +1006,12 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
         {!isSpot && (
           <AccountTable title="持仓 / 风险" icon={<TrendingUp size={15} />}>
             <div className="position-row table-head">
-              <span>市场</span><span>方向数量</span><span>入场/标记</span><span>浮盈亏</span><span>维持保证金</span><span>保证金率</span><span>状态</span>
+              <span>市场</span><span>仓位</span><span>方向数量</span><span>入场/标记</span><span>浮盈亏</span><span>维持保证金</span><span>保证金率</span><span>状态</span>
             </div>
             {positions.length === 0 ? <p className="empty">暂无持仓</p> : positions.map((item) => (
-              <div className="position-row" key={`${item.symbol}-${item.marginMode}`}>
+              <div className="position-row" key={`${item.symbol}-${item.marginMode}-${item.positionSide ?? "NET"}`}>
                 <strong>{item.symbol}</strong>
+                <span>{positionSideLabel(item.positionSide ?? "NET")}</span>
                 <span className={item.signedQuantitySteps >= 0 ? "up" : "down"}>{item.signedQuantitySteps >= 0 ? "LONG" : "SHORT"} {Math.abs(item.signedQuantitySteps)}</span>
                 <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.entryPriceTicks)} / {displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.markPriceTicks || market?.markPriceTicks || 0)}</span>
                 <span className={item.unrealizedPnlUnits >= 0 ? "up" : "down"}>{displayUnits(item.unrealizedPnlUnits)}</span>
@@ -947,12 +1024,13 @@ function BottomDeck({ productMode, balances, positions, orders, trades, market, 
         )}
         <AccountTable title="当前委托" icon={<TableProperties size={15} />}>
           <div className="order-row table-head">
-            <span>市场</span><span>方向</span><span>类型</span><span>价格</span><span>成交/剩余</span><span>模式</span><span>状态</span><span></span>
+            <span>市场</span><span>方向</span><span>仓位</span><span>类型</span><span>价格</span><span>成交/剩余</span><span>模式</span><span>状态</span><span></span>
           </div>
           {orders.length === 0 ? <p className="empty">暂无委托</p> : orders.map((item) => (
             <div className="order-row" key={item.orderId}>
               <strong>{item.symbol}</strong>
               <span className={item.side === "BUY" ? "up" : "down"}>{item.side}</span>
+              <span>{positionSideLabel(item.positionSide ?? "NET")}</span>
               <span>{item.orderType}</span>
               <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.priceTicks)}</span>
               <span>{item.executedQuantitySteps}/{item.remainingQuantitySteps}</span>

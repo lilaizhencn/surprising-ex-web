@@ -168,6 +168,7 @@ select:focus {
 
 .auth-tabs,
 .side-switch,
+.position-side-switch,
 .segmented {
   display: grid;
   grid-auto-flow: column;
@@ -179,6 +180,7 @@ select:focus {
 
 .auth-tabs button,
 .side-switch button,
+.position-side-switch button,
 .segmented button {
   min-height: 34px;
   border-radius: 6px;
@@ -187,6 +189,7 @@ select:focus {
 }
 
 .auth-tabs button.active,
+.position-side-switch button.active,
 .segmented button.active {
   background: rgba(59, 130, 246, .2);
   color: var(--text-strong);
@@ -718,12 +721,15 @@ select:focus {
 
 :root[data-theme="light"] .auth-tabs,
 :root[data-theme="light"] .side-switch,
+:root[data-theme="light"] .position-side-switch,
+:root[data-theme="light"] .mode-switch,
 :root[data-theme="light"] .segmented {
   background: rgba(49, 72, 130, .07);
 }
 
 :root[data-theme="light"] .auth-tabs button,
 :root[data-theme="light"] .side-switch button,
+:root[data-theme="light"] .position-side-switch button,
 :root[data-theme="light"] .segmented button,
 :root[data-theme="light"] .hint,
 :root[data-theme="light"] .empty,
@@ -764,6 +770,41 @@ select:focus {
 .side-switch .sell.active {
   background: rgba(246, 70, 93, .16);
   color: var(--sell);
+}
+
+.position-side-switch {
+  margin-top: 8px;
+}
+
+.position-side-switch .long.active {
+  background: rgba(0, 192, 118, .16);
+  color: var(--buy);
+}
+
+.position-side-switch .short.active {
+  background: rgba(246, 70, 93, .16);
+  color: var(--sell);
+}
+
+.mode-switch {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, .62);
+}
+
+.mode-switch button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--muted-strong);
+}
+
+.mode-switch button.active {
+  background: rgba(59, 130, 246, .2);
+  color: var(--text-strong);
 }
 
 .segmented.wide {
@@ -839,13 +880,13 @@ select:focus {
 }
 
 .position-row {
-  grid-template-columns: .85fr .75fr 1.1fr .75fr .85fr .7fr .65fr;
-  min-width: 760px;
+  grid-template-columns: .85fr .55fr .75fr 1.1fr .75fr .85fr .7fr .65fr;
+  min-width: 840px;
 }
 
 .order-row {
-  grid-template-columns: .8fr .42fr .55fr .7fr .75fr .55fr .62fr 46px;
-  min-width: 800px;
+  grid-template-columns: .8fr .42fr .5fr .55fr .7fr .75fr .55fr .62fr 46px;
+  min-width: 880px;
 }
 
 .trade-history-row {
