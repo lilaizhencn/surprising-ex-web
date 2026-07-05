@@ -575,6 +575,7 @@ select:focus {
 .asset-row,
 .position-row,
 .order-row,
+.algo-order-row,
 .trigger-order-row,
 .trade-history-row,
 .rules-row {
@@ -614,6 +615,7 @@ select:focus {
 .asset-row,
 .position-row,
 .order-row,
+.algo-order-row,
 .trigger-order-row,
 .trade-history-row,
 .rules-row {
@@ -664,6 +666,8 @@ select:focus {
 .position-row strong,
 .order-row span,
 .order-row strong,
+.algo-order-row span,
+.algo-order-row strong,
 .trigger-order-row span,
 .trigger-order-row strong,
 .trade-history-row span,
@@ -824,7 +828,8 @@ select:focus {
   width: auto;
 }
 
-.trigger-panel {
+.trigger-panel,
+.algo-panel {
   display: grid;
   gap: 8px;
   margin-top: 10px;
@@ -850,6 +855,7 @@ select:focus {
 
 .trigger-head button,
 .submit-trigger,
+.submit-algo,
 .trigger-level-row button {
   display: inline-flex;
   align-items: center;
@@ -865,11 +871,46 @@ select:focus {
   background: rgba(59, 130, 246, .12);
 }
 
+.segmented.tiny {
+  gap: 3px;
+  padding: 2px;
+}
+
+.segmented.tiny button {
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.algo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.algo-grid label {
+  gap: 4px;
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.algo-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
 .trigger-level-row {
   display: grid;
-  grid-template-columns: .75fr .75fr minmax(0, 1fr) minmax(0, .85fr) 30px;
+  grid-template-columns: minmax(72px, .72fr) minmax(64px, .62fr) minmax(72px, .72fr) repeat(4, minmax(70px, 1fr)) 30px;
   gap: 6px;
   min-height: 30px;
+  min-width: 660px;
 }
 
 .trigger-level-row select,
@@ -889,7 +930,8 @@ select:focus {
   background: rgba(246, 70, 93, .12);
 }
 
-.submit-trigger {
+.submit-trigger,
+.submit-algo {
   min-height: 32px;
   border-radius: 7px;
   color: #ffffff;
@@ -897,7 +939,8 @@ select:focus {
   font-weight: 800;
 }
 
-.submit-trigger:disabled {
+.submit-trigger:disabled,
+.submit-algo:disabled {
   cursor: not-allowed;
   opacity: .55;
 }
@@ -971,6 +1014,11 @@ select:focus {
   min-width: 880px;
 }
 
+.algo-order-row {
+  grid-template-columns: .8fr .55fr .46fr .75fr .85fr .75fr .62fr 46px;
+  min-width: 820px;
+}
+
 .trigger-order-row {
   grid-template-columns: .8fr .48fr .5fr .72fr .48fr .75fr .62fr 46px;
   min-width: 840px;
@@ -990,7 +1038,8 @@ select:focus {
 }
 
 .order-row button,
-.trigger-order-row button {
+.trigger-order-row button,
+.algo-order-row button {
   height: 25px;
   border-radius: 6px;
   background: rgba(246, 70, 93, .14);

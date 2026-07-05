@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   CandlestickChart,
+  Clock3,
   CircleDollarSign,
   FileText,
   Flame,
@@ -32,12 +33,12 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelOrder, cancelTriggerOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeOrder, placeTriggerOrder, register, updatePositionMode } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, updatePositionMode } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, TriggerPriceType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -48,8 +49,11 @@ type TriggerCloseTarget = "LONG" | "SHORT";
 type TriggerLevelInput = {
   id: string;
   triggerType: TriggerOrderType;
+  triggerPriceType: TriggerPriceType;
   closeTarget: TriggerCloseTarget;
   triggerPriceTicks: string;
+  activationPriceTicks: string;
+  callbackRatePpm: string;
   quantitySteps: string;
 };
 const KLINE_PERIODS = ["1m", "5m", "15m", "1h"] as const;
@@ -59,7 +63,7 @@ const ORDER_BOOK_PRECISIONS = [0.1, 1, 10, 50, 100] as const;
 const TRADE_TAPE_ROWS = 15;
 const PRICE_UNIT_SCALE = 100_000_000;
 
-const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches"]);
+const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
 const THEME_KEY = "surprising-ex.theme";
 const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType }> = {
   linear: { label: "U本位合约", shortLabel: "U本位", accountType: "USDT_PERPETUAL" },
@@ -77,6 +81,7 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
+  const [algoOrders, setAlgoOrders] = useState<AlgoOrder[]>([]);
   const [triggerOrders, setTriggerOrders] = useState<OpenTriggerOrder[]>([]);
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
   const [notice, setNotice] = useState("连接后端中，若服务未启动会进入离线演示数据。");
@@ -260,6 +265,7 @@ export default function App() {
     setBalances([]);
     setPositions([]);
     setOrders([]);
+    setAlgoOrders([]);
     setTriggerOrders([]);
     setPositionMode("ONE_WAY");
   }
@@ -300,16 +306,18 @@ export default function App() {
     if (!active) return;
     try {
       const accountType = PRODUCT_META[productMode].accountType;
-      const [nextBalances, nextPositions, nextOrders, nextTriggerOrders, nextPositionMode] = await Promise.all([
+      const [nextBalances, nextPositions, nextOrders, nextAlgoOrders, nextTriggerOrders, nextPositionMode] = await Promise.all([
         loadBalances(active, accountType),
         productMode === "spot" ? Promise.resolve([]) : loadPositions(active),
         loadOpenOrders(active, symbol),
+        productMode === "spot" ? Promise.resolve([]) : loadOpenAlgoOrders(active, symbol),
         productMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol),
         productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active)
       ]);
       setBalances(nextBalances);
       setPositions(filterPositionsByProduct(nextPositions, markets, productMode));
       setOrders(nextOrders);
+      setAlgoOrders(nextAlgoOrders);
       setTriggerOrders(nextTriggerOrders);
       setPositionMode(nextPositionMode);
       setNotice(`${PRODUCT_META[productMode].label}资产、${productMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
@@ -357,9 +365,19 @@ export default function App() {
       setAuthMode("login");
       return;
     }
-    const validDrafts = drafts.filter((draft) => draft.triggerPriceTicks > 0 && draft.quantitySteps > 0);
+    const validDrafts = drafts.filter((draft) => {
+      if (draft.quantitySteps <= 0) return false;
+      if (draft.triggerType === "TRAILING_STOP") {
+        return draft.triggerPriceTicks >= 0
+          && (draft.activationPriceTicks === undefined || draft.activationPriceTicks >= 0)
+          && draft.callbackRatePpm !== undefined
+          && draft.callbackRatePpm >= 1_000
+          && draft.callbackRatePpm <= 100_000;
+      }
+      return draft.triggerPriceTicks > 0;
+    });
     if (!validDrafts.length) {
-      setNotice("止盈止损触发价和数量必须大于 0。");
+      setNotice("条件单参数无效。");
       return;
     }
     try {
@@ -375,6 +393,22 @@ export default function App() {
       void refreshPrivateData(session);
     } catch (error) {
       setNotice(error instanceof Error ? `止盈止损提交失败：${error.message}` : "止盈止损提交失败");
+    }
+  }
+
+  async function submitAlgoOrder(draft: PlaceAlgoOrderDraft) {
+    if (!session) {
+      setNotice("请先登录后再提交算法单。");
+      setAuthMode("login");
+      return;
+    }
+    try {
+      const order = await placeAlgoOrder(session, draft);
+      setAlgoOrders((current) => [order, ...current.filter((item) => item.algoOrderId !== order.algoOrderId)]);
+      setNotice(`算法单已提交：${order.algoOrderId}`);
+      void refreshPrivateData(session);
+    } catch (error) {
+      setNotice(error instanceof Error ? `算法单提交失败：${error.message}` : "算法单提交失败");
     }
   }
 
@@ -397,6 +431,17 @@ export default function App() {
       setNotice(`条件单撤销已提交：${order.triggerOrderId}`);
     } catch (error) {
       setNotice(error instanceof Error ? `条件单撤销失败：${error.message}` : "条件单撤销失败");
+    }
+  }
+
+  async function submitAlgoCancel(order: AlgoOrder) {
+    if (!session) return;
+    try {
+      const canceled = await cancelAlgoOrder(session, order);
+      setAlgoOrders((current) => current.map((item) => item.algoOrderId === canceled.algoOrderId ? canceled : item));
+      setNotice(`算法单取消已提交：${order.algoOrderId}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? `算法单取消失败：${error.message}` : "算法单取消失败");
     }
   }
 
@@ -468,18 +513,20 @@ export default function App() {
               balances={balances}
               positions={positions}
               orders={orders}
+              algoOrders={algoOrders}
               triggerOrders={triggerOrders}
               trades={tradeRecords}
               market={selectedMarket}
               markets={markets}
               onPositionModeChange={changePositionMode}
               onCancel={submitCancel}
+              onCancelAlgo={submitAlgoCancel}
               onCancelTrigger={submitTriggerCancel}
             />
           </section>
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
-            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitTriggers={submitTriggerOrders} />
+            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
       )}
@@ -675,7 +722,9 @@ function positionSideLabel(side: PositionSide | "NET"): string {
 }
 
 function triggerTypeLabel(type: TriggerOrderType): string {
-  return type === "TAKE_PROFIT" ? "止盈" : "止损";
+  if (type === "TAKE_PROFIT") return "止盈";
+  if (type === "TRAILING_STOP") return "追踪止损";
+  return "止损";
 }
 
 function triggerCloseLabel(side: OrderSide, positionSide: PositionSide | "NET" | undefined): string {
@@ -888,6 +937,7 @@ function OrderTicket({
   market,
   pricePreset,
   onSubmit,
+  onSubmitAlgo,
   onSubmitTriggers
 }: {
   productMode: ProductMode;
@@ -896,6 +946,7 @@ function OrderTicket({
   market?: Market;
   pricePreset: PickedPrice | null;
   onSubmit: (draft: PlaceOrderDraft) => void;
+  onSubmitAlgo: (draft: PlaceAlgoOrderDraft) => void;
   onSubmitTriggers: (drafts: PlaceTriggerOrderDraft[]) => void;
 }) {
   const [side, setSide] = useState<OrderSide>("BUY");
@@ -906,6 +957,10 @@ function OrderTicket({
   const [priceTicks, setPriceTicks] = useState("65000");
   const [quantitySteps, setQuantitySteps] = useState("1");
   const [triggerLevels, setTriggerLevels] = useState<TriggerLevelInput[]>([]);
+  const [algoType, setAlgoType] = useState<AlgoOrderType>("TWAP");
+  const [algoChildQuantitySteps, setAlgoChildQuantitySteps] = useState("1");
+  const [algoIntervalSeconds, setAlgoIntervalSeconds] = useState("5");
+  const [algoDurationSeconds, setAlgoDurationSeconds] = useState("20");
   const [leverage, setLeverage] = useState(10);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
@@ -956,8 +1011,11 @@ function OrderTicket({
       {
         id: `${Date.now()}-${current.length}`,
         triggerType,
+        triggerPriceType: "MARK_PRICE",
         closeTarget: side === "SELL" ? "SHORT" : "LONG",
-        triggerPriceTicks: priceTicks,
+        triggerPriceTicks: triggerType === "TRAILING_STOP" ? "0" : priceTicks,
+        activationPriceTicks: triggerType === "TRAILING_STOP" ? priceTicks : "",
+        callbackRatePpm: triggerType === "TRAILING_STOP" ? "1000" : "",
         quantitySteps
       }
     ]);
@@ -971,9 +1029,29 @@ function OrderTicket({
     setTriggerLevels((current) => current.filter((level) => level.id !== id));
   }
 
-  const validTriggerLevels = triggerLevels.filter((level) =>
-    Number(level.triggerPriceTicks) > 0 && Number(level.quantitySteps) > 0
-  );
+  const validTriggerLevels = triggerLevels.filter((level) => {
+    const quantity = Number(level.quantitySteps);
+    if (!Number.isFinite(quantity) || quantity <= 0) return false;
+    if (level.triggerType === "TRAILING_STOP") {
+      const triggerPrice = Number(level.triggerPriceTicks);
+      const activation = level.activationPriceTicks.trim() === "" ? 0 : Number(level.activationPriceTicks);
+      const callbackRate = Number(level.callbackRatePpm);
+      return Number.isFinite(triggerPrice) && triggerPrice >= 0
+        && Number.isFinite(activation) && activation >= 0
+        && Number.isFinite(callbackRate) && callbackRate >= 1_000 && callbackRate <= 100_000;
+    }
+    const triggerPrice = Number(level.triggerPriceTicks);
+    return Number.isFinite(triggerPrice) && triggerPrice > 0;
+  });
+  const algoChildQuantity = Number(algoChildQuantitySteps);
+  const algoInterval = Number(algoIntervalSeconds);
+  const algoDuration = Number(algoDurationSeconds);
+  const validAlgo = !isSpot
+    && Number.isFinite(quantityNumber) && quantityNumber > 0
+    && Number.isFinite(algoChildQuantity) && algoChildQuantity > 0 && algoChildQuantity <= quantityNumber
+    && Number.isFinite(algoInterval) && algoInterval >= 1
+    && Number.isFinite(algoDuration) && algoDuration >= algoInterval
+    && (algoType === "TWAP" || priceNumber > 0);
 
   return (
     <section className="panel ticket">
@@ -1021,26 +1099,89 @@ function OrderTicket({
       {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />Reduce-only</label>}
       <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />Post-only</label>
       {!isSpot && (
+        <div className="algo-panel">
+          <div className="trigger-head">
+            <span>Algo</span>
+            <div className="segmented tiny">
+              {(["TWAP", "ICEBERG"] as AlgoOrderType[]).map((item) => (
+                <button
+                  key={item}
+                  className={algoType === item ? "active" : ""}
+                  type="button"
+                  onClick={() => setAlgoType(item)}
+                >
+                  {item === "TWAP" ? "TWAP" : "Iceberg"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="algo-grid">
+            <label>切片<input value={algoChildQuantitySteps} onChange={(event) => setAlgoChildQuantitySteps(event.target.value)} /></label>
+            <label>间隔s<input value={algoIntervalSeconds} onChange={(event) => setAlgoIntervalSeconds(event.target.value)} /></label>
+            <label>时长s<input value={algoDurationSeconds} onChange={(event) => setAlgoDurationSeconds(event.target.value)} /></label>
+          </div>
+          <button
+            className="submit-algo"
+            disabled={!validAlgo}
+            type="button"
+            onClick={() => onSubmitAlgo({
+              symbol,
+              algoType,
+              side,
+              priceTicks: algoType === "TWAP" && orderType === "MARKET" ? 0 : priceNumber,
+              quantitySteps: quantityNumber,
+              childQuantitySteps: algoChildQuantity,
+              intervalSeconds: algoInterval,
+              durationSeconds: algoDuration,
+              marginMode: isSpot ? "CROSS" : marginMode,
+              positionSide: isHedgeMode ? positionSide : "NET",
+              reduceOnly: isSpot ? false : reduceOnly,
+              postOnly: algoType === "ICEBERG" && postOnly,
+              timeInForce: algoType === "TWAP" ? "IOC" : postOnly ? "GTX" : "GTC"
+            })}
+          >
+            <Clock3 size={14} />提交 {algoType}
+          </button>
+        </div>
+      )}
+      {!isSpot && (
         <div className="trigger-panel">
           <div className="trigger-head">
             <span>止盈止损</span>
             <div>
               <button type="button" title="新增止盈" onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />TP</button>
               <button type="button" title="新增止损" onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />SL</button>
+              <button type="button" title="新增追踪止损" onClick={() => addTriggerLevel("TRAILING_STOP")}><Plus size={13} />TS</button>
             </div>
           </div>
           {triggerLevels.map((level) => (
             <div className="trigger-level-row" key={level.id}>
-              <select value={level.triggerType} onChange={(event) => patchTriggerLevel(level.id, { triggerType: event.target.value as TriggerOrderType })}>
+              <select value={level.triggerType} onChange={(event) => {
+                const triggerType = event.target.value as TriggerOrderType;
+                patchTriggerLevel(level.id, {
+                  triggerType,
+                  triggerPriceTicks: triggerType === "TRAILING_STOP" ? "0" : (level.triggerPriceTicks === "0" ? priceTicks : level.triggerPriceTicks),
+                  activationPriceTicks: triggerType === "TRAILING_STOP" ? (level.activationPriceTicks || priceTicks) : "",
+                  callbackRatePpm: triggerType === "TRAILING_STOP" ? (level.callbackRatePpm || "1000") : ""
+                });
+              }}>
                 <option value="TAKE_PROFIT">TP</option>
                 <option value="STOP_LOSS">SL</option>
+                <option value="TRAILING_STOP">TS</option>
               </select>
               <select value={level.closeTarget} onChange={(event) => patchTriggerLevel(level.id, { closeTarget: event.target.value as TriggerCloseTarget })}>
                 <option value="LONG">平多</option>
                 <option value="SHORT">平空</option>
               </select>
-              <input value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
-              <input value={level.quantitySteps} onChange={(event) => patchTriggerLevel(level.id, { quantitySteps: event.target.value })} />
+              <select value={level.triggerPriceType} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceType: event.target.value as TriggerPriceType })}>
+                <option value="MARK_PRICE">Mark</option>
+                <option value="INDEX_PRICE">Index</option>
+                <option value="LAST_PRICE">Last</option>
+              </select>
+              <input title="触发价 ticks" value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
+              <input title="激活价 ticks" disabled={level.triggerType !== "TRAILING_STOP"} value={level.activationPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { activationPriceTicks: event.target.value })} />
+              <input title="回调 ppm" disabled={level.triggerType !== "TRAILING_STOP"} value={level.callbackRatePpm} onChange={(event) => patchTriggerLevel(level.id, { callbackRatePpm: event.target.value })} />
+              <input title="数量 steps" value={level.quantitySteps} onChange={(event) => patchTriggerLevel(level.id, { quantitySteps: event.target.value })} />
               <button type="button" title="删除" onClick={() => removeTriggerLevel(level.id)}><Trash2 size={13} /></button>
             </div>
           ))}
@@ -1053,8 +1194,12 @@ function OrderTicket({
                 symbol,
                 side: level.closeTarget === "LONG" ? "SELL" : "BUY",
                 triggerType: level.triggerType,
-                triggerPriceType: "MARK_PRICE",
+                triggerPriceType: level.triggerPriceType,
                 triggerPriceTicks: Number(level.triggerPriceTicks),
+                activationPriceTicks: level.triggerType === "TRAILING_STOP" && level.activationPriceTicks.trim() !== ""
+                  ? Number(level.activationPriceTicks)
+                  : undefined,
+                callbackRatePpm: level.triggerType === "TRAILING_STOP" ? Number(level.callbackRatePpm) : undefined,
                 orderType: "MARKET",
                 timeInForce: "IOC",
                 priceTicks: 0,
@@ -1089,18 +1234,20 @@ function OrderTicket({
   );
 }
 
-function BottomDeck({ productMode, positionMode, balances, positions, orders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onCancelTrigger }: {
+function BottomDeck({ productMode, positionMode, balances, positions, orders, algoOrders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onCancelAlgo, onCancelTrigger }: {
   productMode: ProductMode;
   positionMode: PositionMode;
   balances: Balance[];
   positions: Position[];
   orders: OpenOrder[];
+  algoOrders: AlgoOrder[];
   triggerOrders: OpenTriggerOrder[];
   trades: TradeRecord[];
   market?: Market;
   markets: Market[];
   onPositionModeChange: (mode: PositionMode) => void;
   onCancel: (order: OpenOrder) => void;
+  onCancelAlgo: (order: AlgoOrder) => void;
   onCancelTrigger: (order: OpenTriggerOrder) => void;
 }) {
   const equity = balances.reduce((sum, item) => sum + item.equityUnits, 0);
@@ -1197,6 +1344,25 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, tr
           ))}
         </AccountTable>
         {!isSpot && (
+          <AccountTable title="算法单" icon={<Clock3 size={15} />}>
+            <div className="algo-order-row table-head">
+              <span>市场</span><span>类型</span><span>方向</span><span>价格</span><span>进度</span><span>切片</span><span>状态</span><span></span>
+            </div>
+            {algoOrders.length === 0 ? <p className="empty">暂无算法单</p> : algoOrders.map((item) => (
+              <div className="algo-order-row" key={item.algoOrderId}>
+                <strong>{item.symbol}</strong>
+                <span>{item.algoType}</span>
+                <span className={item.side === "BUY" ? "up" : "down"}>{item.side}</span>
+                <span>{item.priceTicks > 0 ? displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.priceTicks) : "MARKET"}</span>
+                <span>{item.executedQuantitySteps + item.activeQuantitySteps}/{item.quantitySteps}</span>
+                <span>{item.childQuantitySteps} / {item.intervalSeconds}s</span>
+                <span>{item.status}</span>
+                <button onClick={() => onCancelAlgo(item)}>撤销</button>
+              </div>
+            ))}
+          </AccountTable>
+        )}
+        {!isSpot && (
           <AccountTable title="止盈止损" icon={<Bell size={15} />}>
             <div className="trigger-order-row table-head">
               <span>市场</span><span>类型</span><span>目标</span><span>触发价</span><span>数量</span><span>委托</span><span>状态</span><span></span>
@@ -1208,7 +1374,9 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, tr
                 <span className={triggerCloseLabel(item.side, item.positionSide) === "平多" ? "down" : "up"}>
                   {triggerCloseLabel(item.side, item.positionSide)}
                 </span>
-                <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.triggerPriceTicks)}</span>
+                <span>{item.triggerType === "TRAILING_STOP"
+                  ? `${item.activationPriceTicks ? displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.activationPriceTicks) : "立即"} / ${((item.callbackRatePpm ?? 0) / 10_000).toFixed(2)}%`
+                  : displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.triggerPriceTicks)}</span>
                 <span>{item.quantitySteps}</span>
                 <span>{item.orderType}/{item.timeInForce}</span>
                 <span>{item.status}</span>
@@ -1443,7 +1611,13 @@ function mergeTradeTape(incoming: TradePrint[], current: TradePrint[]): TradePri
 
 function buildTradeRecords(events: WsEnvelope[], userId: number | undefined, symbol: string, mid: number): TradeRecord[] {
   const records = events
-    .filter((event) => event.channel === "matches" && (!event.symbol || event.symbol === symbol))
+    .filter((event) => {
+      if (event.symbol && event.symbol !== symbol) return false;
+      if (event.channel === "matches") return true;
+      if (event.channel !== "executionReports") return false;
+      const data = asRecord(event.data);
+      return String(data?.reportType ?? "").toUpperCase() === "TRADE";
+    })
     .map((event, index) => toTradePrint(event, index, userRole(event.data, userId)))
     .filter((item): item is TradeRecord => Boolean(item))
     .slice(0, 30);
@@ -1468,7 +1642,7 @@ function toTradePrint(event: WsEnvelope, index: number, role: TradeRecord["role"
     quantitySteps,
     time: formatTime(String(data.tradeTime ?? data.eventTime ?? event.eventTime ?? new Date().toISOString())),
     role,
-    orderId: asNumber(data.takerOrderId ?? data.makerOrderId),
+    orderId: asNumber(data.orderId ?? data.takerOrderId ?? data.makerOrderId),
     traceId: typeof data.traceId === "string" ? data.traceId : undefined
   };
 }
@@ -1476,6 +1650,8 @@ function toTradePrint(event: WsEnvelope, index: number, role: TradeRecord["role"
 function userRole(data: unknown, userId: number | undefined): TradeRecord["role"] {
   const record = asRecord(data);
   if (!record || !userId) return "PUBLIC";
+  const liquidityRole = String(record.liquidityRole ?? "").toUpperCase();
+  if (liquidityRole === "TAKER" || liquidityRole === "MAKER") return liquidityRole;
   if (asNumber(record.takerUserId) === userId) return "TAKER";
   if (asNumber(record.makerUserId) === userId) return "MAKER";
   return "PUBLIC";

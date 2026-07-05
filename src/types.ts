@@ -4,8 +4,10 @@ export type TimeInForce = "GTC" | "IOC" | "FOK" | "GTX";
 export type MarginMode = "CROSS" | "ISOLATED";
 export type PositionMode = "ONE_WAY" | "HEDGE";
 export type PositionSide = "NET" | "LONG" | "SHORT";
-export type TriggerOrderType = "TAKE_PROFIT" | "STOP_LOSS";
-export type TriggerPriceType = "MARK_PRICE";
+export type TriggerOrderType = "TAKE_PROFIT" | "STOP_LOSS" | "TRAILING_STOP";
+export type TriggerPriceType = "MARK_PRICE" | "INDEX_PRICE" | "LAST_PRICE";
+export type AlgoOrderType = "TWAP" | "ICEBERG";
+export type AlgoOrderStatus = "PENDING" | "RUNNING" | "CANCEL_REQUESTED" | "CANCELED" | "COMPLETED" | "FAILED";
 export type ConnectionState = "live" | "degraded" | "offline";
 export type ProductMode = "linear" | "inverse" | "spot";
 export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "SPOT";
@@ -128,6 +130,33 @@ export interface TradeRecord extends TradePrint {
   traceId?: string;
 }
 
+export interface ExecutionReport {
+  reportType: "ORDER_EVENT" | "MATCH_RESULT" | "TRADE" | string;
+  userId: number;
+  symbol: string;
+  orderId?: number | null;
+  commandId?: number | null;
+  tradeId?: number | null;
+  counterpartyOrderId?: number | null;
+  counterpartyUserId?: number | null;
+  instrumentVersion?: number | null;
+  orderEventType?: string | null;
+  commandType?: string | null;
+  orderStatus?: string | null;
+  resultCode?: string | null;
+  liquidityRole?: "TAKER" | "MAKER" | string | null;
+  side?: OrderSide | string | null;
+  marginMode?: MarginMode | string | null;
+  positionSide?: PositionSide | string | null;
+  priceTicks?: number | null;
+  quantitySteps?: number | null;
+  filledQuantitySteps?: number | null;
+  orderCompleted?: boolean | null;
+  reason?: string | null;
+  traceId?: string | null;
+  eventTime?: string | null;
+}
+
 export interface Balance {
   accountType?: ProductAccountType | "FUNDING" | string;
   asset: string;
@@ -168,6 +197,64 @@ export interface OpenOrder {
   createdAt?: string;
 }
 
+export interface AlgoOrder {
+  algoOrderId: number;
+  clientAlgoOrderId?: string | null;
+  symbol: string;
+  algoType: AlgoOrderType;
+  side: OrderSide;
+  priceTicks: number;
+  quantitySteps: number;
+  childQuantitySteps: number;
+  intervalSeconds: number;
+  durationSeconds: number;
+  marginMode: MarginMode;
+  positionSide?: PositionSide;
+  reduceOnly: boolean;
+  postOnly: boolean;
+  timeInForce: TimeInForce;
+  status: AlgoOrderStatus;
+  executedQuantitySteps: number;
+  activeQuantitySteps: number;
+  childOrderCount: number;
+  currentOrderId?: number | null;
+  rejectReason?: string | null;
+  startAt?: string | null;
+  nextSliceAt?: string | null;
+  completedAt?: string | null;
+  createdAt?: string;
+}
+
+export interface PlaceAlgoOrderDraft {
+  symbol: string;
+  algoType: AlgoOrderType;
+  side: OrderSide;
+  priceTicks: number;
+  quantitySteps: number;
+  childQuantitySteps: number;
+  intervalSeconds: number;
+  durationSeconds: number;
+  marginMode: MarginMode;
+  positionSide?: PositionSide;
+  reduceOnly: boolean;
+  postOnly: boolean;
+  timeInForce?: TimeInForce;
+}
+
+export interface AlgoOrderBatchItem {
+  index: number;
+  success: boolean;
+  message: string;
+  algoOrder?: AlgoOrder | null;
+}
+
+export interface AlgoOrderBatchResponse {
+  requested: number;
+  completed: number;
+  failed: number;
+  results: AlgoOrderBatchItem[];
+}
+
 export interface PlaceOrderDraft {
   symbol: string;
   side: OrderSide;
@@ -181,6 +268,71 @@ export interface PlaceOrderDraft {
   postOnly: boolean;
 }
 
+export interface AmendOrderDraft {
+  orderId: number;
+  newClientOrderId?: string;
+  priceTicks?: number;
+  quantitySteps?: number;
+  timeInForce?: TimeInForce;
+  postOnly?: boolean;
+}
+
+export interface TestOrderResult {
+  accepted: boolean;
+  rejectReason?: string | null;
+  instrumentVersion: number;
+  validationStage: string;
+  accountType?: ProductAccountType | string | null;
+  asset?: string | null;
+  estimatedReserveUnits: number;
+}
+
+export interface OrderBatchItem {
+  index: number;
+  success: boolean;
+  message: string;
+  order?: OpenOrder | null;
+}
+
+export interface OrderBatchResponse {
+  requested: number;
+  completed: number;
+  failed: number;
+  results: OrderBatchItem[];
+}
+
+export interface CancelAllAfterResponse {
+  userId: number;
+  symbol?: string | null;
+  countdownMs: number;
+  active: boolean;
+  triggerAt?: string | null;
+  updatedAt?: string | null;
+  canceledOrders: number;
+  canceledTriggerOrders: number;
+}
+
+export interface AmendOrderResponse {
+  originalOrder: OpenOrder;
+  replacementOrder: OpenOrder;
+  cancelRequested: boolean;
+  message: string;
+}
+
+export interface AmendOrderBatchItem {
+  index: number;
+  success: boolean;
+  message: string;
+  amend?: AmendOrderResponse | null;
+}
+
+export interface AmendOrderBatchResponse {
+  requested: number;
+  completed: number;
+  failed: number;
+  results: AmendOrderBatchItem[];
+}
+
 export interface OpenTriggerOrder {
   triggerOrderId: number;
   clientTriggerOrderId?: string | null;
@@ -191,6 +343,11 @@ export interface OpenTriggerOrder {
   triggerPriceType: TriggerPriceType;
   triggerCondition?: string;
   triggerPriceTicks: number;
+  activationPriceTicks?: number | null;
+  callbackRatePpm?: number | null;
+  highestPriceTicks?: number | null;
+  lowestPriceTicks?: number | null;
+  activatedAt?: string | null;
   orderType: OrderType;
   timeInForce: TimeInForce;
   priceTicks: number;
@@ -210,6 +367,8 @@ export interface PlaceTriggerOrderDraft {
   triggerType: TriggerOrderType;
   triggerPriceType: TriggerPriceType;
   triggerPriceTicks: number;
+  activationPriceTicks?: number;
+  callbackRatePpm?: number;
   orderType: OrderType;
   timeInForce: TimeInForce;
   priceTicks: number;
@@ -217,6 +376,20 @@ export interface PlaceTriggerOrderDraft {
   marginMode: MarginMode;
   positionSide?: PositionSide;
   ocoGroupId?: string;
+}
+
+export interface TriggerOrderBatchItem {
+  index: number;
+  success: boolean;
+  message: string;
+  order?: OpenTriggerOrder | null;
+}
+
+export interface TriggerOrderBatchResponse {
+  requested: number;
+  completed: number;
+  failed: number;
+  results: TriggerOrderBatchItem[];
 }
 
 export interface WsEnvelope<T = unknown> {

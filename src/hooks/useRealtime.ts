@@ -128,7 +128,8 @@ function publicSubscriptions(symbol: string, productMode: ProductMode, candlePer
 function privateSubscriptions(symbol: string, productMode: ProductMode): Subscription[] {
   const channels: Subscription[] = [
     { id: "orders", channel: "orders", symbol },
-    { id: "matches", channel: "matches", symbol }
+    { id: "matches", channel: "matches", symbol },
+    { id: "executionReports", channel: "executionReports", symbol }
   ];
   if (productMode !== "spot") {
     channels.push(

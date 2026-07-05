@@ -1,18 +1,28 @@
 import { config } from "../config";
 import { fallbackBalancesForAccount, fallbackBook, fallbackCandles, fallbackMarkets, fallbackOrders, fallbackPositions } from "../mockData";
 import type {
+  AlgoOrder,
+  AlgoOrderBatchResponse,
+  AmendOrderBatchResponse,
+  AmendOrderDraft,
+  AmendOrderResponse,
   AuthSession,
   Balance,
   CandlePoint,
+  CancelAllAfterResponse,
   Market,
   OpenOrder,
   OpenTriggerOrder,
+  OrderBatchResponse,
   OrderBookLevel,
+  PlaceAlgoOrderDraft,
   PlaceOrderDraft,
   PlaceTriggerOrderDraft,
   Position,
   PositionMode,
-  ProductAccountType
+  ProductAccountType,
+  TestOrderResult,
+  TriggerOrderBatchResponse
 } from "../types";
 import { gatewayPath, request } from "./client";
 
@@ -308,6 +318,19 @@ export async function loadOpenTriggerOrders(session: AuthSession, symbol: string
   }
 }
 
+export async function loadOpenAlgoOrders(session: AuthSession, symbol: string): Promise<AlgoOrder[]> {
+  try {
+    const response = await request<{ orders?: AlgoOrder[]; items?: AlgoOrder[] }>(
+      gatewayPath("trading", `/algo/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
+      {},
+      session
+    );
+    return response.orders ?? response.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading"),
@@ -332,26 +355,109 @@ export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): 
   );
 }
 
+export async function testOrder(session: AuthSession, draft: PlaceOrderDraft): Promise<TestOrderResult> {
+  return request<TestOrderResult>(
+    gatewayPath("trading", "/test"),
+    {
+      method: "POST",
+      body: JSON.stringify(orderPayload(session, draft, `web-test-${session.user.userId}-${Date.now()}`))
+    },
+    session
+  );
+}
+
+export async function placeOrderBatch(session: AuthSession, drafts: PlaceOrderDraft[]): Promise<OrderBatchResponse> {
+  return request<OrderBatchResponse>(
+    gatewayPath("trading", "/batch"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        orders: drafts.map((draft, index) => orderPayload(
+          session,
+          draft,
+          `web-batch-${session.user.userId}-${Date.now()}-${index}`
+        ))
+      })
+    },
+    session
+  );
+}
+
+export async function amendOrder(session: AuthSession, draft: AmendOrderDraft): Promise<AmendOrderResponse> {
+  return request<AmendOrderResponse>(
+    gatewayPath("trading", "/amend"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        orderId: draft.orderId,
+        newClientOrderId: draft.newClientOrderId ?? `web-amend-${session.user.userId}-${Date.now()}`,
+        priceTicks: draft.priceTicks,
+        quantitySteps: draft.quantitySteps,
+        timeInForce: draft.timeInForce,
+        postOnly: draft.postOnly
+      })
+    },
+    session
+  );
+}
+
+export async function amendOrderBatch(
+  session: AuthSession,
+  drafts: AmendOrderDraft[]
+): Promise<AmendOrderBatchResponse> {
+  return request<AmendOrderBatchResponse>(
+    gatewayPath("trading", "/batch-amend"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        orders: drafts.map((draft, index) => ({
+          userId: session.user.userId,
+          orderId: draft.orderId,
+          newClientOrderId: draft.newClientOrderId
+            ?? `web-batch-amend-${session.user.userId}-${Date.now()}-${index}`,
+          priceTicks: draft.priceTicks,
+          quantitySteps: draft.quantitySteps,
+          timeInForce: draft.timeInForce,
+          postOnly: draft.postOnly
+        }))
+      })
+    },
+    session
+  );
+}
+
 export async function placeTriggerOrder(session: AuthSession, draft: PlaceTriggerOrderDraft): Promise<OpenTriggerOrder> {
   return request<OpenTriggerOrder>(
     gatewayPath("trading-trigger"),
     {
       method: "POST",
+      body: JSON.stringify(triggerOrderPayload(
+        session,
+        draft,
+        `web-trigger-${session.user.userId}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
+      ))
+    },
+    session
+  );
+}
+
+export async function placeTriggerOrderBatch(
+  session: AuthSession,
+  drafts: PlaceTriggerOrderDraft[],
+  atomic = false
+): Promise<TriggerOrderBatchResponse> {
+  return request<TriggerOrderBatchResponse>(
+    gatewayPath("trading-trigger", "/batch"),
+    {
+      method: "POST",
       body: JSON.stringify({
-        userId: session.user.userId,
-        clientTriggerOrderId: `web-trigger-${session.user.userId}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`,
-        ocoGroupId: draft.ocoGroupId || undefined,
-        symbol: draft.symbol,
-        side: draft.side,
-        triggerType: draft.triggerType,
-        triggerPriceType: draft.triggerPriceType,
-        triggerPriceTicks: draft.triggerPriceTicks,
-        orderType: draft.orderType,
-        timeInForce: draft.timeInForce,
-        priceTicks: draft.orderType === "MARKET" ? 0 : draft.priceTicks,
-        quantitySteps: draft.quantitySteps,
-        marginMode: draft.marginMode,
-        positionSide: draft.positionSide ?? "NET"
+        atomic,
+        orders: drafts.map((draft, index) => triggerOrderPayload(
+          session,
+          draft,
+          `web-trigger-batch-${session.user.userId}-${Date.now()}-${index}`
+        ))
       })
     },
     session
@@ -372,6 +478,82 @@ export async function cancelOrder(session: AuthSession, order: OpenOrder): Promi
   );
 }
 
+export async function cancelOrderBatch(session: AuthSession, orders: OpenOrder[]): Promise<OrderBatchResponse> {
+  return request<OrderBatchResponse>(
+    gatewayPath("trading", "/batch-cancel"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        orders: orders.map((order) => ({
+          userId: session.user.userId,
+          orderId: order.orderId
+        }))
+      })
+    },
+    session
+  );
+}
+
+export async function cancelOpenOrders(
+  session: AuthSession,
+  symbol?: string,
+  limit = 1000
+): Promise<OrderBatchResponse> {
+  return request<OrderBatchResponse>(
+    gatewayPath("trading", "/cancel-open"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        symbol,
+        limit
+      })
+    },
+    session
+  );
+}
+
+export async function cancelAllAfter(
+  session: AuthSession,
+  countdownMs: number,
+  symbol?: string
+): Promise<CancelAllAfterResponse> {
+  return request<CancelAllAfterResponse>(
+    gatewayPath("trading", "/cancel-all-after"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        symbol,
+        countdownMs
+      })
+    },
+    session
+  );
+}
+
+export async function closePosition(
+  session: AuthSession,
+  symbol: string,
+  marginMode: PlaceOrderDraft["marginMode"],
+  positionSide: PlaceOrderDraft["positionSide"] = "NET"
+): Promise<OpenOrder> {
+  return request<OpenOrder>(
+    gatewayPath("trading", "/close-position"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        clientOrderId: `web-close-${session.user.userId}-${Date.now()}`,
+        symbol,
+        marginMode,
+        positionSide
+      })
+    },
+    session
+  );
+}
+
 export async function cancelTriggerOrder(session: AuthSession, order: OpenTriggerOrder): Promise<OpenTriggerOrder> {
   return request<OpenTriggerOrder>(
     gatewayPath("trading-trigger", "/cancel"),
@@ -384,6 +566,142 @@ export async function cancelTriggerOrder(session: AuthSession, order: OpenTrigge
     },
     session
   );
+}
+
+export async function cancelTriggerOrderBatch(
+  session: AuthSession,
+  orders: OpenTriggerOrder[]
+): Promise<TriggerOrderBatchResponse> {
+  return request<TriggerOrderBatchResponse>(
+    gatewayPath("trading-trigger", "/batch-cancel"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        orders: orders.map((order) => ({
+          userId: session.user.userId,
+          triggerOrderId: order.triggerOrderId
+        }))
+      })
+    },
+    session
+  );
+}
+
+export async function cancelOpenTriggerOrders(
+  session: AuthSession,
+  symbol?: string,
+  limit = 1000
+): Promise<TriggerOrderBatchResponse> {
+  return request<TriggerOrderBatchResponse>(
+    gatewayPath("trading-trigger", "/cancel-open"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        symbol,
+        limit
+      })
+    },
+    session
+  );
+}
+
+export async function placeAlgoOrder(session: AuthSession, draft: PlaceAlgoOrderDraft): Promise<AlgoOrder> {
+  return request<AlgoOrder>(
+    gatewayPath("trading", "/algo"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        clientAlgoOrderId: `web-algo-${session.user.userId}-${Date.now()}`,
+        symbol: draft.symbol,
+        algoType: draft.algoType,
+        side: draft.side,
+        priceTicks: draft.algoType === "TWAP" && draft.priceTicks <= 0 ? 0 : draft.priceTicks,
+        quantitySteps: draft.quantitySteps,
+        childQuantitySteps: draft.childQuantitySteps,
+        intervalSeconds: draft.intervalSeconds,
+        durationSeconds: draft.durationSeconds,
+        marginMode: draft.marginMode,
+        positionSide: draft.positionSide ?? "NET",
+        reduceOnly: draft.reduceOnly,
+        postOnly: draft.algoType === "ICEBERG" && draft.postOnly,
+        timeInForce: draft.algoType === "TWAP" ? "IOC" : draft.timeInForce ?? "GTC"
+      })
+    },
+    session
+  );
+}
+
+export async function cancelAlgoOrder(session: AuthSession, order: AlgoOrder): Promise<AlgoOrder> {
+  return request<AlgoOrder>(
+    gatewayPath("trading", "/algo/cancel"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        algoOrderId: order.algoOrderId
+      })
+    },
+    session
+  );
+}
+
+export async function cancelOpenAlgoOrders(
+  session: AuthSession,
+  symbol?: string,
+  limit = 1000
+): Promise<AlgoOrderBatchResponse> {
+  return request<AlgoOrderBatchResponse>(
+    gatewayPath("trading", "/algo/cancel-open"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.user.userId,
+        symbol,
+        limit
+      })
+    },
+    session
+  );
+}
+
+function orderPayload(session: AuthSession, draft: PlaceOrderDraft, clientOrderId: string) {
+  return {
+    userId: session.user.userId,
+    clientOrderId,
+    symbol: draft.symbol,
+    side: draft.side,
+    orderType: draft.orderType,
+    timeInForce: draft.timeInForce,
+    priceTicks: draft.orderType === "MARKET" ? 0 : draft.priceTicks,
+    quantitySteps: draft.quantitySteps,
+    marginMode: draft.marginMode,
+    positionSide: draft.positionSide ?? "NET",
+    reduceOnly: draft.reduceOnly,
+    postOnly: draft.postOnly
+  };
+}
+
+function triggerOrderPayload(session: AuthSession, draft: PlaceTriggerOrderDraft, clientTriggerOrderId: string) {
+  return {
+    userId: session.user.userId,
+    clientTriggerOrderId,
+    ocoGroupId: draft.ocoGroupId || undefined,
+    symbol: draft.symbol,
+    side: draft.side,
+    triggerType: draft.triggerType,
+    triggerPriceType: draft.triggerPriceType,
+    triggerPriceTicks: draft.triggerPriceTicks,
+    activationPriceTicks: draft.activationPriceTicks,
+    callbackRatePpm: draft.callbackRatePpm,
+    orderType: draft.orderType,
+    timeInForce: draft.timeInForce,
+    priceTicks: draft.orderType === "MARKET" ? 0 : draft.priceTicks,
+    quantitySteps: draft.quantitySteps,
+    marginMode: draft.marginMode,
+    positionSide: draft.positionSide ?? "NET"
+  };
 }
 
 function withTotals(levels: BackendOrderBookLevel[]): OrderBookLevel[] {
