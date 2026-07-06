@@ -408,6 +408,7 @@ export interface WsEnvelope<T = unknown> {
   symbol?: string;
   period?: string;
   userId?: number;
+  productLine?: ProductLine;
   data?: T;
   error?: string;
   eventTime?: string;

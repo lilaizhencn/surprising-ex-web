@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { config } from "../config";
-import type { AuthSession, ConnectionState, ProductMode, WsEnvelope } from "../types";
+import type { AuthSession, ConnectionState, ProductLine, ProductMode, WsEnvelope } from "../types";
 
 export interface RealtimeSnapshot {
   state: ConnectionState;
@@ -107,37 +107,48 @@ export function useRealtime(
   return { state, lastEventAt, events };
 }
 
-type Subscription = { id: string; channel: string; symbol?: string; period?: string };
+type Subscription = { id: string; channel: string; symbol?: string; period?: string; productLine: ProductLine };
+
+const PRODUCT_LINE_BY_MODE: Record<ProductMode, ProductLine> = {
+  linear: "LINEAR_PERPETUAL",
+  inverse: "INVERSE_PERPETUAL",
+  linearDelivery: "LINEAR_DELIVERY",
+  inverseDelivery: "INVERSE_DELIVERY",
+  option: "OPTION",
+  spot: "SPOT"
+};
 
 function publicSubscriptions(symbol: string, productMode: ProductMode, candlePeriod: string): Subscription[] {
+  const productLine = PRODUCT_LINE_BY_MODE[productMode];
   const channels: Subscription[] = [
-    { id: `candles-${candlePeriod}`, channel: "candles", symbol, period: candlePeriod },
-    { id: "depth", channel: "depth", symbol },
-    { id: "trades", channel: "trades", symbol }
+    { id: `candles-${candlePeriod}`, channel: "candles", symbol, period: candlePeriod, productLine },
+    { id: "depth", channel: "depth", symbol, productLine },
+    { id: "trades", channel: "trades", symbol, productLine }
   ];
   if (productMode !== "spot") {
     channels.push(
-      { id: "index", channel: "index", symbol },
-      { id: "mark", channel: "mark", symbol }
+      { id: "index", channel: "index", symbol, productLine },
+      { id: "mark", channel: "mark", symbol, productLine }
     );
   }
   if (isFundingProduct(productMode)) {
-    channels.push({ id: "funding", channel: "funding", symbol });
+    channels.push({ id: "funding", channel: "funding", symbol, productLine });
   }
   return channels;
 }
 
 function privateSubscriptions(symbol: string, productMode: ProductMode): Subscription[] {
+  const productLine = PRODUCT_LINE_BY_MODE[productMode];
   const channels: Subscription[] = [
-    { id: "orders", channel: "orders", symbol },
-    { id: "matches", channel: "matches", symbol },
-    { id: "executionReports", channel: "executionReports", symbol }
+    { id: "orders", channel: "orders", symbol, productLine },
+    { id: "matches", channel: "matches", symbol, productLine },
+    { id: "executionReports", channel: "executionReports", symbol, productLine }
   ];
   if (productMode !== "spot") {
     channels.push(
-      { id: "positions", channel: "positions", symbol },
-      { id: "positionRisk", channel: "positionRisk", symbol },
-      { id: "accountRisk", channel: "accountRisk" }
+      { id: "positions", channel: "positions", symbol, productLine },
+      { id: "positionRisk", channel: "positionRisk", symbol, productLine },
+      { id: "accountRisk", channel: "accountRisk", productLine }
     );
   }
   return channels;

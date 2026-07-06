@@ -120,11 +120,18 @@ export default function App() {
     [markets, symbol, visibleMarkets]
   );
   const activeProductMode = selectedMarket ? marketProduct(selectedMarket) : productMode;
+  const activeProductLine = PRODUCT_META[activeProductMode].productLine;
   const realtime = useRealtime(session, symbol, activeProductMode, klinePeriod);
 
   const tradeRecords = useMemo(
-    () => buildTradeRecords(realtime.events, session?.user.userId, symbol, selectedMarket?.lastPriceTicks ?? 65000),
-    [realtime.events, selectedMarket?.lastPriceTicks, session?.user.userId, symbol]
+    () => buildTradeRecords(
+      realtime.events,
+      session?.user.userId,
+      symbol,
+      activeProductLine,
+      selectedMarket?.lastPriceTicks ?? 65000
+    ),
+    [activeProductLine, realtime.events, selectedMarket?.lastPriceTicks, session?.user.userId, symbol]
   );
 
   useEffect(() => {
@@ -184,18 +191,19 @@ export default function App() {
     const privateEvents = nextRealtimeEvents(
       realtime.events,
       processedPrivateEventKeysRef,
-      (event) => Boolean(event.channel && PRIVATE_CHANNELS.has(event.channel))
+      (event) => Boolean(event.channel && PRIVATE_CHANNELS.has(event.channel) && matchesProductLine(event, activeProductLine))
     );
     if (!privateEvents.length) return;
     const timer = window.setTimeout(() => void refreshPrivateData(session), 250);
     return () => window.clearTimeout(timer);
-  }, [productMode, realtime.events, session, symbol]);
+  }, [activeProductLine, productMode, realtime.events, session, symbol]);
 
   useEffect(() => {
     const events = nextRealtimeEvents(
       realtime.events,
       processedPublicEventKeysRef,
-      (event) => Boolean(event.channel && event.op === "event" && !PRIVATE_CHANNELS.has(event.channel))
+      (event) => Boolean(event.channel && event.op === "event" && !PRIVATE_CHANNELS.has(event.channel)
+        && matchesProductLine(event, activeProductLine))
     );
     if (!events.length) return;
 
@@ -204,6 +212,7 @@ export default function App() {
       if (!data) continue;
       const eventSymbol = String(data.symbol ?? event.symbol ?? "");
       if (eventSymbol && eventSymbol !== symbol) continue;
+      if (!matchesProductLine(event, activeProductLine)) continue;
       const targetSymbol = eventSymbol || symbol;
 
       if (event.channel === "depth") {
@@ -259,7 +268,7 @@ export default function App() {
         });
       }
     }
-  }, [klinePeriod, realtime.events, selectedMarket, symbol]);
+  }, [activeProductLine, klinePeriod, realtime.events, selectedMarket, symbol]);
 
   function patchMarket(targetSymbol: string, patch: Partial<Market>) {
     if (!targetSymbol) return;
@@ -561,7 +570,8 @@ export default function App() {
             />
           </section>
           <aside className="right-stack">
-            <TradesTape events={realtime.events} symbol={symbol} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
+            <TradesTape events={realtime.events} symbol={symbol} productLine={activeProductLine}
+              market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
             <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
@@ -1181,6 +1191,7 @@ function realtimeEventKey(event: WsEnvelope): string {
   const data = asRecord(event.data);
   const symbol = String(data?.symbol ?? event.symbol ?? "");
   const period = String(data?.period ?? event.period ?? "");
+  const productLine = eventProductLine(event) ?? "";
   const dataKey = String(
     data?.tradeId ??
     data?.eventId ??
@@ -1194,6 +1205,7 @@ function realtimeEventKey(event: WsEnvelope): string {
   return [
     event.op ?? "",
     event.channel ?? "",
+    productLine,
     symbol,
     period,
     event.eventTime ?? "",
@@ -1800,7 +1812,7 @@ function AccountTable({ title, icon, children }: { title: string; icon: ReactNod
   );
 }
 
-function TradesTape({ events, symbol, market, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
+function TradesTape({ events, symbol, productLine, market, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; productLine: ProductLine; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
   const [trades, setTrades] = useState<TradePrint[]>(() => fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
 
   useEffect(() => {
@@ -1808,10 +1820,10 @@ function TradesTape({ events, symbol, market, mid, onPickPrice }: { events: WsEn
   }, [symbol]);
 
   useEffect(() => {
-    const liveTrades = buildPublicTrades(events, symbol, mid, false);
+    const liveTrades = buildPublicTrades(events, symbol, productLine, mid, false);
     if (!liveTrades.length) return;
     setTrades((current) => mergeTradeTape(liveTrades, current));
-  }, [events, mid, symbol]);
+  }, [events, mid, productLine, symbol]);
 
   return (
     <section className="panel trades">
@@ -1975,6 +1987,17 @@ function productLineForSymbol(symbol: string, markets: Market[], fallbackMode: P
   return productLineForMarket(markets.find((market) => market.symbol === symbol), fallbackMode);
 }
 
+function eventProductLine(event: WsEnvelope): ProductLine | undefined {
+  const data = asRecord(event.data);
+  const value = data?.productLine ?? event.productLine;
+  return typeof value === "string" ? value as ProductLine : undefined;
+}
+
+function matchesProductLine(event: WsEnvelope, productLine: ProductLine): boolean {
+  const eventLine = eventProductLine(event);
+  return !eventLine || eventLine === productLine;
+}
+
 function filterPositionsByProduct(positions: Position[], markets: Market[], productMode: ProductMode): Position[] {
   if (productMode === "spot") return [];
   const productSymbols = new Set(markets.filter((market) => marketProduct(market) === productMode).map((market) => market.symbol));
@@ -1998,9 +2021,17 @@ function isFundingProduct(productMode: ProductMode): boolean {
   return productMode === "linear" || productMode === "inverse";
 }
 
-function buildPublicTrades(events: WsEnvelope[], symbol: string, mid: number, includeFallback = true): TradePrint[] {
+function buildPublicTrades(
+  events: WsEnvelope[],
+  symbol: string,
+  productLine: ProductLine,
+  mid: number,
+  includeFallback = true
+): TradePrint[] {
   const liveTrades = events
-    .filter((event) => event.channel === "trades" && (!event.symbol || event.symbol === symbol))
+    .filter((event) => event.channel === "trades"
+      && matchesProductLine(event, productLine)
+      && (!event.symbol || event.symbol === symbol))
     .map((event, index) => toTradePrint(event, index, "PUBLIC"))
     .filter((item): item is TradeRecord => Boolean(item))
     .filter((item) => !item.symbol || item.symbol === symbol)
@@ -2022,9 +2053,16 @@ function mergeTradeTape(incoming: TradePrint[], current: TradePrint[]): TradePri
   return unchanged ? current : next;
 }
 
-function buildTradeRecords(events: WsEnvelope[], userId: number | undefined, symbol: string, mid: number): TradeRecord[] {
+function buildTradeRecords(
+  events: WsEnvelope[],
+  userId: number | undefined,
+  symbol: string,
+  productLine: ProductLine,
+  mid: number
+): TradeRecord[] {
   const records = events
     .filter((event) => {
+      if (!matchesProductLine(event, productLine)) return false;
       if (event.symbol && event.symbol !== symbol) return false;
       if (event.channel === "matches") return true;
       if (event.channel !== "executionReports") return false;
