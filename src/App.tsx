@@ -47,7 +47,7 @@ import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, TriggerPriceType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, TriggerPriceType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -74,13 +74,13 @@ const PRICE_UNIT_SCALE = 100_000_000;
 
 const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
 const THEME_KEY = "surprising-ex.theme";
-const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType }> = {
-  linear: { label: "U本位永续", shortLabel: "U本位永续", accountType: "USDT_PERPETUAL" },
-  inverse: { label: "币本位永续", shortLabel: "币本位永续", accountType: "COIN_PERPETUAL" },
-  linearDelivery: { label: "U本位交割", shortLabel: "U本位交割", accountType: "USDT_DELIVERY" },
-  inverseDelivery: { label: "币本位交割", shortLabel: "币本位交割", accountType: "COIN_DELIVERY" },
-  option: { label: "期权", shortLabel: "期权", accountType: "OPTION" },
-  spot: { label: "现货", shortLabel: "现货", accountType: "SPOT" }
+const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType; productLine: ProductLine }> = {
+  linear: { label: "U本位永续", shortLabel: "U本位永续", accountType: "USDT_PERPETUAL", productLine: "LINEAR_PERPETUAL" },
+  inverse: { label: "币本位永续", shortLabel: "币本位永续", accountType: "COIN_PERPETUAL", productLine: "INVERSE_PERPETUAL" },
+  linearDelivery: { label: "U本位交割", shortLabel: "U本位交割", accountType: "USDT_DELIVERY", productLine: "LINEAR_DELIVERY" },
+  inverseDelivery: { label: "币本位交割", shortLabel: "币本位交割", accountType: "COIN_DELIVERY", productLine: "INVERSE_DELIVERY" },
+  option: { label: "期权", shortLabel: "期权", accountType: "OPTION", productLine: "OPTION" },
+  spot: { label: "现货", shortLabel: "现货", accountType: "SPOT", productLine: "SPOT" }
 };
 
 export default function App() {
@@ -291,13 +291,14 @@ export default function App() {
     const requestId = marketDataRequestRef.current + 1;
     marketDataRequestRef.current = requestId;
     const targetMarket = markets.find((market) => market.symbol === targetSymbol);
+    const productLine = productLineForMarket(targetMarket, productMode);
     const shouldLoadMarkPrice = targetMarket ? marketProduct(targetMarket) !== "spot" : productMode !== "spot";
     setLoading(true);
     try {
       const [nextCandles, book, markPrice] = await Promise.all([
-        loadCandles(targetSymbol, targetPeriod),
-        loadOrderBook(targetSymbol),
-        shouldLoadMarkPrice ? loadMarkPrice(targetSymbol, targetMarket) : Promise.resolve(null)
+        loadCandles(targetSymbol, targetPeriod, productLine),
+        loadOrderBook(targetSymbol, productLine),
+        shouldLoadMarkPrice ? loadMarkPrice(targetSymbol, targetMarket, productLine) : Promise.resolve(null)
       ]);
       if (requestId !== marketDataRequestRef.current) return;
       setCandles(nextCandles);
@@ -318,13 +319,14 @@ export default function App() {
     if (!active) return;
     try {
       const accountType = PRODUCT_META[productMode].accountType;
+      const productLine = PRODUCT_META[productMode].productLine;
       const [nextBalances, nextPositions, nextOrders, nextAlgoOrders, nextTriggerOrders, nextPositionMode] = await Promise.all([
-        loadBalances(active, accountType),
-        productMode === "spot" ? Promise.resolve([]) : loadPositions(active),
-        loadOpenOrders(active, symbol),
-        productMode === "spot" ? Promise.resolve([]) : loadOpenAlgoOrders(active, symbol),
-        productMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol),
-        productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active)
+        loadBalances(active, accountType, productLine),
+        productMode === "spot" ? Promise.resolve([]) : loadPositions(active, productLine),
+        loadOpenOrders(active, symbol, productLine),
+        productMode === "spot" ? Promise.resolve([]) : loadOpenAlgoOrders(active, symbol, productLine),
+        productMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol, productLine),
+        productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active, productLine)
       ]);
       setBalances(nextBalances);
       setPositions(filterPositionsByProduct(nextPositions, markets, productMode));
@@ -346,7 +348,7 @@ export default function App() {
     }
     if (nextMode === positionMode) return;
     try {
-      const savedMode = await updatePositionMode(session, nextMode);
+      const savedMode = await updatePositionMode(session, nextMode, PRODUCT_META[productMode].productLine);
       setPositionMode(savedMode);
       setNotice(`持仓模式已切换为${positionModeLabel(savedMode)}。`);
       void refreshPrivateData(session);
@@ -362,7 +364,7 @@ export default function App() {
       return;
     }
     try {
-      const order = await placeOrder(session, draft);
+      const order = await placeOrder(session, draft, productLineForSymbol(draft.symbol, markets, productMode));
       setOrders((current) => [order, ...current.filter((item) => item.orderId !== order.orderId)]);
       setNotice(`订单已提交：${order.orderId}`);
       void refreshPrivateData(session);
@@ -393,9 +395,10 @@ export default function App() {
       return;
     }
     try {
+      const productLine = productLineForSymbol(validDrafts[0]?.symbol ?? symbol, markets, productMode);
       const created: OpenTriggerOrder[] = [];
       for (const draft of validDrafts) {
-        created.push(await placeTriggerOrder(session, draft));
+        created.push(await placeTriggerOrder(session, draft, productLine));
       }
       setTriggerOrders((current) => [
         ...created,
@@ -415,7 +418,7 @@ export default function App() {
       return;
     }
     try {
-      const order = await placeAlgoOrder(session, draft);
+      const order = await placeAlgoOrder(session, draft, productLineForSymbol(draft.symbol, markets, productMode));
       setAlgoOrders((current) => [order, ...current.filter((item) => item.algoOrderId !== order.algoOrderId)]);
       setNotice(`算法单已提交：${order.algoOrderId}`);
       void refreshPrivateData(session);
@@ -427,7 +430,7 @@ export default function App() {
   async function submitCancel(order: OpenOrder) {
     if (!session) return;
     try {
-      const canceled = await cancelOrder(session, order);
+      const canceled = await cancelOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setOrders((current) => current.map((item) => item.orderId === canceled.orderId ? canceled : item));
       setNotice(`撤单请求已提交：${order.orderId}`);
     } catch (error) {
@@ -438,7 +441,7 @@ export default function App() {
   async function submitTriggerCancel(order: OpenTriggerOrder) {
     if (!session) return;
     try {
-      const canceled = await cancelTriggerOrder(session, order);
+      const canceled = await cancelTriggerOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setTriggerOrders((current) => current.filter((item) => item.triggerOrderId !== canceled.triggerOrderId));
       setNotice(`条件单撤销已提交：${order.triggerOrderId}`);
     } catch (error) {
@@ -449,7 +452,7 @@ export default function App() {
   async function submitAlgoCancel(order: AlgoOrder) {
     if (!session) return;
     try {
-      const canceled = await cancelAlgoOrder(session, order);
+      const canceled = await cancelAlgoOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setAlgoOrders((current) => current.map((item) => item.algoOrderId === canceled.algoOrderId ? canceled : item));
       setNotice(`算法单取消已提交：${order.algoOrderId}`);
     } catch (error) {
@@ -1962,6 +1965,14 @@ function marketProduct(market?: Market): ProductMode {
     return "inverse";
   }
   return "linear";
+}
+
+function productLineForMarket(market: Market | undefined, fallbackMode: ProductMode): ProductLine {
+  return PRODUCT_META[market ? marketProduct(market) : fallbackMode].productLine;
+}
+
+function productLineForSymbol(symbol: string, markets: Market[], fallbackMode: ProductMode): ProductLine {
+  return productLineForMarket(markets.find((market) => market.symbol === symbol), fallbackMode);
 }
 
 function filterPositionsByProduct(positions: Position[], markets: Market[], productMode: ProductMode): Position[] {

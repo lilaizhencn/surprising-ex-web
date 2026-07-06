@@ -30,9 +30,14 @@ export function saveSession(session: AuthSession | null): void {
   localStorage.setItem(storageKeys.auth, JSON.stringify(session));
 }
 
-export async function request<T>(path: string, options: RequestInit = {}, session?: AuthSession | null): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) {
+export interface ApiRequestInit extends RequestInit {
+  productLine?: string;
+}
+
+export async function request<T>(path: string, options: ApiRequestInit = {}, session?: AuthSession | null): Promise<T> {
+  const { productLine, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers);
+  if (!headers.has("Content-Type") && requestOptions.body) {
     headers.set("Content-Type", "application/json");
   }
   if (session?.accessToken) {
@@ -41,7 +46,10 @@ export async function request<T>(path: string, options: RequestInit = {}, sessio
   if (session?.user.userId) {
     headers.set("X-User-Id", String(session.user.userId));
   }
-  const response = await fetch(`${config.apiBaseUrl}${path}`, { ...options, headers });
+  if (productLine) {
+    headers.set("X-Product-Line", productLine);
+  }
+  const response = await fetch(`${config.apiBaseUrl}${path}`, { ...requestOptions, headers });
   if (!response.ok) {
     let payload: unknown;
     let raw = "";

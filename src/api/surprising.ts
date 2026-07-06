@@ -21,6 +21,7 @@ import type {
   Position,
   PositionMode,
   ProductAccountType,
+  ProductLine,
   TestOrderResult,
   TriggerOrderBatchResponse
 } from "../types";
@@ -149,10 +150,15 @@ export async function loadInstrumentConfig(symbol: string): Promise<Market> {
   }
 }
 
-export async function loadMarkPrice(symbol: string, market?: Pick<Market, "priceTickUnits">): Promise<Partial<Market> | null> {
+export async function loadMarkPrice(
+  symbol: string,
+  market?: Pick<Market, "priceTickUnits">,
+  productLine?: ProductLine
+): Promise<Partial<Market> | null> {
   try {
     const response = await request<BackendMarkPrice>(
-      gatewayPath("price-mark", `/latest?symbol=${encodeURIComponent(symbol)}`)
+      gatewayPath("price-mark", `/latest?symbol=${encodeURIComponent(symbol)}`),
+      { productLine }
     );
     const markPriceTicks = priceToTicks(response.markPrice, market)
       ?? priceUnitsToTicks(response.markPriceUnits, market);
@@ -171,7 +177,7 @@ export async function loadMarkPrice(symbol: string, market?: Pick<Market, "price
   }
 }
 
-export async function loadCandles(symbol: string, period = "1m"): Promise<CandlePoint[]> {
+export async function loadCandles(symbol: string, period = "1m", productLine?: ProductLine): Promise<CandlePoint[]> {
   const end = new Date();
   const start = new Date(end.getTime() - periodToMilliseconds(period) * 240);
   try {
@@ -182,7 +188,10 @@ export async function loadCandles(symbol: string, period = "1m"): Promise<Candle
       endTime: end.toISOString(),
       limit: "240"
     });
-    const response = await request<{ candles: BackendCandle[] }>(gatewayPath("candlestick", `/candles?${params}`));
+    const response = await request<{ candles: BackendCandle[] }>(
+      gatewayPath("candlestick", `/candles?${params}`),
+      { productLine }
+    );
     return response.candles.map(toCandlePoint).filter((item): item is CandlePoint => Boolean(item));
   } catch (error) {
     if (!config.enableMockFallback) {
@@ -226,10 +235,14 @@ function periodToMilliseconds(period: string): number {
   return Math.max(1, value) * multiplier;
 }
 
-export async function loadOrderBook(symbol: string): Promise<{ bids: OrderBookLevel[]; asks: OrderBookLevel[] }> {
+export async function loadOrderBook(
+  symbol: string,
+  productLine?: ProductLine
+): Promise<{ bids: OrderBookLevel[]; asks: OrderBookLevel[] }> {
   try {
     const response = await request<{ bids: BackendOrderBookLevel[]; asks: BackendOrderBookLevel[] }>(
-      gatewayPath("trading-market", `/orderbook?symbol=${encodeURIComponent(symbol)}&depth=40`)
+      gatewayPath("trading-market", `/orderbook?symbol=${encodeURIComponent(symbol)}&depth=40`),
+      { productLine }
     );
     return {
       bids: withTotals(response.bids),
@@ -241,7 +254,11 @@ export async function loadOrderBook(symbol: string): Promise<{ bids: OrderBookLe
   }
 }
 
-export async function loadBalances(session: AuthSession, accountType: ProductAccountType = "USDT_PERPETUAL"): Promise<Balance[]> {
+export async function loadBalances(
+  session: AuthSession,
+  accountType: ProductAccountType = "USDT_PERPETUAL",
+  productLine?: ProductLine
+): Promise<Balance[]> {
   try {
     const params = new URLSearchParams({
       userId: String(session.user.userId),
@@ -249,7 +266,7 @@ export async function loadBalances(session: AuthSession, accountType: ProductAcc
     });
     const response = await request<{ balances: Balance[] }>(
       gatewayPath("account", `/product-balances?${params}`),
-      {},
+      { productLine },
       session
     );
     return response.balances.map((balance) => ({ ...balance, accountType: balance.accountType ?? accountType }));
@@ -258,11 +275,11 @@ export async function loadBalances(session: AuthSession, accountType: ProductAcc
   }
 }
 
-export async function loadPositions(session: AuthSession): Promise<Position[]> {
+export async function loadPositions(session: AuthSession, productLine?: ProductLine): Promise<Position[]> {
   try {
     const response = await request<{ positions: Position[] }>(
       gatewayPath("risk", `/positions/latest?userId=${session.user.userId}`),
-      {},
+      { productLine },
       session
     );
     return response.positions;
@@ -271,11 +288,11 @@ export async function loadPositions(session: AuthSession): Promise<Position[]> {
   }
 }
 
-export async function loadPositionMode(session: AuthSession): Promise<PositionMode> {
+export async function loadPositionMode(session: AuthSession, productLine?: ProductLine): Promise<PositionMode> {
   try {
     const response = await request<{ positionMode?: PositionMode }>(
       gatewayPath("account", `/position-mode?userId=${session.user.userId}`),
-      {},
+      { productLine },
       session
     );
     return response.positionMode ?? "ONE_WAY";
@@ -284,11 +301,16 @@ export async function loadPositionMode(session: AuthSession): Promise<PositionMo
   }
 }
 
-export async function updatePositionMode(session: AuthSession, positionMode: PositionMode): Promise<PositionMode> {
+export async function updatePositionMode(
+  session: AuthSession,
+  positionMode: PositionMode,
+  productLine?: ProductLine
+): Promise<PositionMode> {
   const response = await request<{ positionMode?: PositionMode }>(
     gatewayPath("account", "/position-mode"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         positionMode
@@ -299,11 +321,15 @@ export async function updatePositionMode(session: AuthSession, positionMode: Pos
   return response.positionMode ?? positionMode;
 }
 
-export async function loadOpenOrders(session: AuthSession, symbol: string): Promise<OpenOrder[]> {
+export async function loadOpenOrders(
+  session: AuthSession,
+  symbol: string,
+  productLine?: ProductLine
+): Promise<OpenOrder[]> {
   try {
     const response = await request<{ orders?: OpenOrder[]; items?: OpenOrder[] }>(
       gatewayPath("trading", `/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
-      {},
+      { productLine },
       session
     );
     return response.orders ?? response.items ?? [];
@@ -312,11 +338,15 @@ export async function loadOpenOrders(session: AuthSession, symbol: string): Prom
   }
 }
 
-export async function loadOpenTriggerOrders(session: AuthSession, symbol: string): Promise<OpenTriggerOrder[]> {
+export async function loadOpenTriggerOrders(
+  session: AuthSession,
+  symbol: string,
+  productLine?: ProductLine
+): Promise<OpenTriggerOrder[]> {
   try {
     const response = await request<{ orders?: OpenTriggerOrder[]; items?: OpenTriggerOrder[] }>(
       gatewayPath("trading-trigger", `/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
-      {},
+      { productLine },
       session
     );
     return response.orders ?? response.items ?? [];
@@ -325,11 +355,15 @@ export async function loadOpenTriggerOrders(session: AuthSession, symbol: string
   }
 }
 
-export async function loadOpenAlgoOrders(session: AuthSession, symbol: string): Promise<AlgoOrder[]> {
+export async function loadOpenAlgoOrders(
+  session: AuthSession,
+  symbol: string,
+  productLine?: ProductLine
+): Promise<AlgoOrder[]> {
   try {
     const response = await request<{ orders?: AlgoOrder[]; items?: AlgoOrder[] }>(
       gatewayPath("trading", `/algo/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
-      {},
+      { productLine },
       session
     );
     return response.orders ?? response.items ?? [];
@@ -338,11 +372,16 @@ export async function loadOpenAlgoOrders(session: AuthSession, symbol: string): 
   }
 }
 
-export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): Promise<OpenOrder> {
+export async function placeOrder(
+  session: AuthSession,
+  draft: PlaceOrderDraft,
+  productLine?: ProductLine
+): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         clientOrderId: `web-${session.user.userId}-${Date.now()}`,
@@ -362,22 +401,32 @@ export async function placeOrder(session: AuthSession, draft: PlaceOrderDraft): 
   );
 }
 
-export async function testOrder(session: AuthSession, draft: PlaceOrderDraft): Promise<TestOrderResult> {
+export async function testOrder(
+  session: AuthSession,
+  draft: PlaceOrderDraft,
+  productLine?: ProductLine
+): Promise<TestOrderResult> {
   return request<TestOrderResult>(
     gatewayPath("trading", "/test"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify(orderPayload(session, draft, `web-test-${session.user.userId}-${Date.now()}`))
     },
     session
   );
 }
 
-export async function placeOrderBatch(session: AuthSession, drafts: PlaceOrderDraft[]): Promise<OrderBatchResponse> {
+export async function placeOrderBatch(
+  session: AuthSession,
+  drafts: PlaceOrderDraft[],
+  productLine?: ProductLine
+): Promise<OrderBatchResponse> {
   return request<OrderBatchResponse>(
     gatewayPath("trading", "/batch"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         orders: drafts.map((draft, index) => orderPayload(
           session,
@@ -390,11 +439,16 @@ export async function placeOrderBatch(session: AuthSession, drafts: PlaceOrderDr
   );
 }
 
-export async function amendOrder(session: AuthSession, draft: AmendOrderDraft): Promise<AmendOrderResponse> {
+export async function amendOrder(
+  session: AuthSession,
+  draft: AmendOrderDraft,
+  productLine?: ProductLine
+): Promise<AmendOrderResponse> {
   return request<AmendOrderResponse>(
     gatewayPath("trading", "/amend"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         orderId: draft.orderId,
@@ -411,12 +465,14 @@ export async function amendOrder(session: AuthSession, draft: AmendOrderDraft): 
 
 export async function amendOrderBatch(
   session: AuthSession,
-  drafts: AmendOrderDraft[]
+  drafts: AmendOrderDraft[],
+  productLine?: ProductLine
 ): Promise<AmendOrderBatchResponse> {
   return request<AmendOrderBatchResponse>(
     gatewayPath("trading", "/batch-amend"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         orders: drafts.map((draft, index) => ({
           userId: session.user.userId,
@@ -434,11 +490,16 @@ export async function amendOrderBatch(
   );
 }
 
-export async function placeTriggerOrder(session: AuthSession, draft: PlaceTriggerOrderDraft): Promise<OpenTriggerOrder> {
+export async function placeTriggerOrder(
+  session: AuthSession,
+  draft: PlaceTriggerOrderDraft,
+  productLine?: ProductLine
+): Promise<OpenTriggerOrder> {
   return request<OpenTriggerOrder>(
     gatewayPath("trading-trigger"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify(triggerOrderPayload(
         session,
         draft,
@@ -452,12 +513,14 @@ export async function placeTriggerOrder(session: AuthSession, draft: PlaceTrigge
 export async function placeTriggerOrderBatch(
   session: AuthSession,
   drafts: PlaceTriggerOrderDraft[],
-  atomic = false
+  atomic = false,
+  productLine?: ProductLine
 ): Promise<TriggerOrderBatchResponse> {
   return request<TriggerOrderBatchResponse>(
     gatewayPath("trading-trigger", "/batch"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         atomic,
         orders: drafts.map((draft, index) => triggerOrderPayload(
@@ -471,11 +534,16 @@ export async function placeTriggerOrderBatch(
   );
 }
 
-export async function cancelOrder(session: AuthSession, order: OpenOrder): Promise<OpenOrder> {
+export async function cancelOrder(
+  session: AuthSession,
+  order: OpenOrder,
+  productLine?: ProductLine
+): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading", "/cancel"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         orderId: order.orderId
@@ -485,11 +553,16 @@ export async function cancelOrder(session: AuthSession, order: OpenOrder): Promi
   );
 }
 
-export async function cancelOrderBatch(session: AuthSession, orders: OpenOrder[]): Promise<OrderBatchResponse> {
+export async function cancelOrderBatch(
+  session: AuthSession,
+  orders: OpenOrder[],
+  productLine?: ProductLine
+): Promise<OrderBatchResponse> {
   return request<OrderBatchResponse>(
     gatewayPath("trading", "/batch-cancel"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         orders: orders.map((order) => ({
           userId: session.user.userId,
@@ -504,12 +577,14 @@ export async function cancelOrderBatch(session: AuthSession, orders: OpenOrder[]
 export async function cancelOpenOrders(
   session: AuthSession,
   symbol?: string,
-  limit = 1000
+  limit = 1000,
+  productLine?: ProductLine
 ): Promise<OrderBatchResponse> {
   return request<OrderBatchResponse>(
     gatewayPath("trading", "/cancel-open"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         symbol,
@@ -523,12 +598,14 @@ export async function cancelOpenOrders(
 export async function cancelAllAfter(
   session: AuthSession,
   countdownMs: number,
-  symbol?: string
+  symbol?: string,
+  productLine?: ProductLine
 ): Promise<CancelAllAfterResponse> {
   return request<CancelAllAfterResponse>(
     gatewayPath("trading", "/cancel-all-after"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         symbol,
@@ -543,12 +620,14 @@ export async function closePosition(
   session: AuthSession,
   symbol: string,
   marginMode: PlaceOrderDraft["marginMode"],
-  positionSide: PlaceOrderDraft["positionSide"] = "NET"
+  positionSide: PlaceOrderDraft["positionSide"] = "NET",
+  productLine?: ProductLine
 ): Promise<OpenOrder> {
   return request<OpenOrder>(
     gatewayPath("trading", "/close-position"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         clientOrderId: `web-close-${session.user.userId}-${Date.now()}`,
@@ -561,11 +640,16 @@ export async function closePosition(
   );
 }
 
-export async function cancelTriggerOrder(session: AuthSession, order: OpenTriggerOrder): Promise<OpenTriggerOrder> {
+export async function cancelTriggerOrder(
+  session: AuthSession,
+  order: OpenTriggerOrder,
+  productLine?: ProductLine
+): Promise<OpenTriggerOrder> {
   return request<OpenTriggerOrder>(
     gatewayPath("trading-trigger", "/cancel"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         triggerOrderId: order.triggerOrderId
@@ -577,12 +661,14 @@ export async function cancelTriggerOrder(session: AuthSession, order: OpenTrigge
 
 export async function cancelTriggerOrderBatch(
   session: AuthSession,
-  orders: OpenTriggerOrder[]
+  orders: OpenTriggerOrder[],
+  productLine?: ProductLine
 ): Promise<TriggerOrderBatchResponse> {
   return request<TriggerOrderBatchResponse>(
     gatewayPath("trading-trigger", "/batch-cancel"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         orders: orders.map((order) => ({
           userId: session.user.userId,
@@ -597,12 +683,14 @@ export async function cancelTriggerOrderBatch(
 export async function cancelOpenTriggerOrders(
   session: AuthSession,
   symbol?: string,
-  limit = 1000
+  limit = 1000,
+  productLine?: ProductLine
 ): Promise<TriggerOrderBatchResponse> {
   return request<TriggerOrderBatchResponse>(
     gatewayPath("trading-trigger", "/cancel-open"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         symbol,
@@ -613,11 +701,16 @@ export async function cancelOpenTriggerOrders(
   );
 }
 
-export async function placeAlgoOrder(session: AuthSession, draft: PlaceAlgoOrderDraft): Promise<AlgoOrder> {
+export async function placeAlgoOrder(
+  session: AuthSession,
+  draft: PlaceAlgoOrderDraft,
+  productLine?: ProductLine
+): Promise<AlgoOrder> {
   return request<AlgoOrder>(
     gatewayPath("trading", "/algo"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         clientAlgoOrderId: `web-algo-${session.user.userId}-${Date.now()}`,
@@ -640,11 +733,16 @@ export async function placeAlgoOrder(session: AuthSession, draft: PlaceAlgoOrder
   );
 }
 
-export async function cancelAlgoOrder(session: AuthSession, order: AlgoOrder): Promise<AlgoOrder> {
+export async function cancelAlgoOrder(
+  session: AuthSession,
+  order: AlgoOrder,
+  productLine?: ProductLine
+): Promise<AlgoOrder> {
   return request<AlgoOrder>(
     gatewayPath("trading", "/algo/cancel"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         algoOrderId: order.algoOrderId
@@ -657,12 +755,14 @@ export async function cancelAlgoOrder(session: AuthSession, order: AlgoOrder): P
 export async function cancelOpenAlgoOrders(
   session: AuthSession,
   symbol?: string,
-  limit = 1000
+  limit = 1000,
+  productLine?: ProductLine
 ): Promise<AlgoOrderBatchResponse> {
   return request<AlgoOrderBatchResponse>(
     gatewayPath("trading", "/algo/cancel-open"),
     {
       method: "POST",
+      productLine,
       body: JSON.stringify({
         userId: session.user.userId,
         symbol,
