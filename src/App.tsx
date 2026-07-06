@@ -5,10 +5,18 @@ import {
   Bell,
   BookOpen,
   CandlestickChart,
+  CheckCircle2,
+  ChevronDown,
   Clock3,
   CircleDollarSign,
+  Coins,
+  Copy,
+  Download,
+  Eye,
   FileText,
   Flame,
+  Globe2,
+  HelpCircle,
   Info,
   Layers3,
   LogOut,
@@ -22,6 +30,7 @@ import {
   TableProperties,
   TrendingUp,
   Trash2,
+  Upload,
   WalletCards,
 } from "lucide-react";
 import {
@@ -42,7 +51,7 @@ import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, Margi
 import "./styles.css";
 
 type AuthMode = "login" | "register";
-type Page = "trade" | "rules";
+type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw";
 type ThemeMode = "dark" | "light";
 type PickedPrice = { value: number; nonce: number };
 type TriggerCloseTarget = "LONG" | "SHORT";
@@ -481,6 +490,27 @@ export default function App() {
             setPage("trade");
           }}
         />
+      ) : page === "assets" ? (
+        <AssetsPage
+          balances={balances}
+          session={session}
+          onDeposit={() => setPage("recharge")}
+          onWithdraw={() => setPage("withdraw")}
+        />
+      ) : page === "recharge" ? (
+        <FundingFlowPage
+          mode="deposit"
+          balances={balances}
+          onBack={() => setPage("assets")}
+          onShowAsset={() => setPage("assets")}
+        />
+      ) : page === "withdraw" ? (
+        <FundingFlowPage
+          mode="withdraw"
+          balances={balances}
+          onBack={() => setPage("assets")}
+          onShowAsset={() => setPage("assets")}
+        />
       ) : (
         <div className="terminal-grid">
           <MarketRail productMode={productMode} markets={visibleMarkets} symbol={symbol} onSelect={setSymbol} />
@@ -537,6 +567,333 @@ export default function App() {
       {notice && <div className="toast"><Radio size={15} />{notice}</div>}
     </main>
   );
+}
+
+function AssetsPage({
+  balances,
+  session,
+  onDeposit,
+  onWithdraw
+}: {
+  balances: Balance[];
+  session: AuthSession | null;
+  onDeposit: () => void;
+  onWithdraw: () => void;
+}) {
+  const assets = fundingAssets(balances);
+  const total = assets.reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
+  const totalCny = total * 7.18;
+  const fundingValue = assets.filter((item) => item.accountType !== "USDT_PERPETUAL" && item.accountType !== "COIN_PERPETUAL")
+    .reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
+  const tradeValue = Math.max(0, total - fundingValue);
+  const todayPnl = -totalCny * 0.0144;
+  const ledger = [
+    { title: "提币 USDT", time: "2026年6月21日 下午02:34", amount: "-99.061119 USDT", tone: "muted" },
+    { title: "从交易账户转入 USDT", time: "2026年6月21日 下午02:33", amount: "99.061119 USDT", tone: "up" },
+    { title: "提币 USDT", time: "2026年6月19日 下午09:13", amount: "-36.442173 USDT", tone: "muted" },
+    { title: "从交易账户转入 USDT", time: "2026年6月19日 下午09:13", amount: "36.442173 USDT", tone: "up" }
+  ];
+
+  return (
+    <section className="asset-page">
+      <AssetTabs active="资产总览" />
+      <div className="asset-layout">
+        <div className="asset-main">
+          <section className="asset-summary-card">
+            <div>
+              <p className="asset-label">总资产估值 <Eye size={15} /></p>
+              <h1>{currencyCny(totalCny)} <span>CNY <ChevronDown size={13} /></span></h1>
+              <p className="asset-loss">今日收益 {currencyCny(todayPnl)} (-1.44%)</p>
+              <div className="asset-actions">
+                <button className="active" onClick={onDeposit}>充币</button>
+                <button onClick={onWithdraw}>提币</button>
+                <button>资金划转</button>
+                <button>赚币</button>
+              </div>
+            </div>
+            <MiniAssetChart />
+            <ChevronDown className="asset-card-chevron" size={24} />
+          </section>
+
+          <section className="asset-portfolio-card">
+            <h2>资产组合</h2>
+            <div className="portfolio-cards">
+              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={currencyCny(fundingValue * 7.18)} />
+              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value={currencyCny(tradeValue * 7.18)} />
+              <PortfolioBox icon={<Coins size={18} />} title="赚币" value="¥0" />
+            </div>
+            <div className="asset-table-toolbar">
+              <div className="asset-search"><Search size={16} />搜索</div>
+              <button><TableProperties size={16} /></button>
+            </div>
+            <h3>代币</h3>
+            <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>
+            {assets.map((asset) => {
+              const amount = unitsToNumber(asset.equityUnits);
+              const value = amount * 7.18;
+              const gain = value * (asset.asset === "ETH" ? -0.3679 : asset.asset === "BTC" ? 0.3239 : 1.2366);
+              return (
+                <div className="pc-asset-row" key={`${asset.accountType}-${asset.asset}`}>
+                  <span className="pc-asset-name"><AssetIcon symbol={asset.asset} /><strong>{asset.asset}</strong><small>{assetName(asset.asset)}</small></span>
+                  <span>{displayUnits(asset.equityUnits, 8)}</span>
+                  <span><strong>{currencyCny(value)}</strong><small className={gain >= 0 ? "up" : "down"}>{gain >= 0 ? "+" : ""}{currencyCny(gain)} ({gain >= 0 ? "+" : ""}{(gain / Math.max(value, 1) * 100).toFixed(2)}%)</small></span>
+                </div>
+              );
+            })}
+            {!session && <p className="asset-login-note">登录后可同步真实资产和资金记录。</p>}
+          </section>
+        </div>
+
+        <aside className="recent-ledger-card">
+          <div className="ledger-title"><h3>近期资金账单</h3><button>查看更多 <ChevronDown size={13} /></button></div>
+          {ledger.map((item) => (
+            <div className="ledger-item" key={`${item.title}-${item.time}`}>
+              <div><strong>{item.title}</strong><small>{item.time}</small></div>
+              <span className={item.tone === "up" ? "up" : ""}>{item.amount}</span>
+            </div>
+          ))}
+        </aside>
+      </div>
+      <SupportBubble />
+    </section>
+  );
+}
+
+function FundingFlowPage({
+  mode,
+  balances,
+  onBack,
+  onShowAsset
+}: {
+  mode: "deposit" | "withdraw";
+  balances: Balance[];
+  onBack: () => void;
+  onShowAsset: () => void;
+}) {
+  const assets = fundingAssets(balances);
+  const [asset, setAsset] = useState(() => assets[0]?.asset ?? "USDT");
+  const [network, setNetwork] = useState(() => fundingNetworks(assets[0]?.asset ?? "USDT")[0]);
+  const [showDetails, setShowDetails] = useState(false);
+  const networks = fundingNetworks(asset);
+  const selectedNetwork = networks.includes(network) ? network : networks[0];
+  const title = mode === "deposit" ? "充币" : "提币";
+  const address = demoFundingAddress(asset, selectedNetwork);
+
+  useEffect(() => {
+    const nextNetwork = fundingNetworks(asset)[0];
+    setNetwork(nextNetwork);
+    setShowDetails(false);
+  }, [asset]);
+
+  return (
+    <section className="funding-page">
+      <AssetTabs active="资金账户" />
+      <div className="funding-layout">
+        <div className="funding-main">
+          <button className="funding-back" onClick={onBack}>资产总览</button>
+          <h1>{title}</h1>
+          <div className={showDetails ? "funding-steps completed" : "funding-steps"}>
+            <FundingStep index={1} done={showDetails} label="选择币种">
+              <button className="funding-select" onClick={() => setShowDetails(false)}>
+                <AssetIcon symbol={asset} /><span>{asset}</span><ChevronDown size={16} />
+              </button>
+              {!showDetails && (
+                <div className="funding-picker">
+                  {assets.slice(0, 8).map((item) => (
+                    <button className={item.asset === asset ? "active" : ""} key={item.asset} onClick={() => setAsset(item.asset)}>
+                      <AssetIcon symbol={item.asset} /><span>{item.asset}</span><small>{assetName(item.asset)}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </FundingStep>
+
+            <FundingStep index={2} done={showDetails} label="选择网络">
+              <button className="funding-select" onClick={() => setShowDetails(false)}>
+                <AssetIcon symbol={chainSymbol(selectedNetwork)} /><span>{networkLabel(selectedNetwork, asset)}</span><ChevronDown size={16} />
+              </button>
+              {!showDetails && (
+                <div className="funding-picker network-picker">
+                  {networks.map((item) => (
+                    <button className={item === selectedNetwork ? "active" : ""} key={item} onClick={() => setNetwork(item)}>
+                      <AssetIcon symbol={chainSymbol(item)} /><span>{networkLabel(item, asset)}</span><small>到账约 {networkEtaPc(item)} · 最小 {minimumAmount(asset)}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </FundingStep>
+
+            <FundingStep index={3} active={showDetails} label={`${title}详情`}>
+              {showDetails ? (
+                mode === "deposit" ? (
+                  <div className="funding-detail">
+                    <div className="pc-qr"><QrPattern /><AssetIcon symbol={asset} /></div>
+                    <div className="funding-address">
+                      <small>地址 〉</small>
+                      <strong>{address}</strong>
+                      <button><Copy size={16} /></button>
+                      <span>切换至 0x 地址 ⇄</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="withdraw-detail">
+                    <label>提币地址<input placeholder="请输入或粘贴地址" /></label>
+                    <label>提币数量<input placeholder={`最小 ${minimumAmount(asset)}`} /></label>
+                  </div>
+                )
+              ) : (
+                <button className="primary-flow-button" onClick={() => setShowDetails(true)}>继续</button>
+              )}
+            </FundingStep>
+          </div>
+
+          {showDetails && (
+            <div className="funding-info-grid">
+              <InfoPair label={`最小${title}金额`} value={minimumAmount(asset)} />
+              <InfoPair label={`${title}账户`} value="资金账户" />
+              <InfoPair label={`${title}到账时间`} value={networkEtaPc(selectedNetwork)} />
+              <InfoPair label={mode === "deposit" ? "可提币时间" : "手续费"} value={mode === "deposit" ? networkEtaPc(selectedNetwork) : `0.01 ${asset}`} />
+              <InfoPair label="代币合约" value="查看详情 〉" />
+            </div>
+          )}
+
+          <FundingRecords asset={asset} mode={mode} onShowAsset={onShowAsset} />
+        </div>
+        <FaqCard title="常见问题" />
+      </div>
+      <SupportBubble />
+    </section>
+  );
+}
+
+function AssetTabs({ active }: { active: string }) {
+  const tabs = ["资产总览", "资金账户", "交易账户", "金融账户", "资产分析", "订单中心", "手续费", "账户结单", "储备金证明报告"];
+  return <nav className="asset-tabs">{tabs.map((tab) => <button className={tab === active ? "active" : ""} key={tab}>{tab}</button>)}</nav>;
+}
+
+function PortfolioBox({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
+  return <div className="portfolio-box"><span>{icon}</span><small>{title}</small><strong>{value}</strong></div>;
+}
+
+function FundingStep({ index, label, done, active, children }: { index: number; label: string; done?: boolean; active?: boolean; children: ReactNode }) {
+  return (
+    <section className={active ? "funding-step active" : "funding-step"}>
+      <div className={done ? "step-index done" : "step-index"}>{done ? <CheckCircle2 size={18} /> : index}</div>
+      <div className="step-body">
+        <h2>{label}</h2>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function InfoPair({ label, value }: { label: string; value: string }) {
+  return <div><span>{label} <Info size={13} /></span><strong>{value}</strong></div>;
+}
+
+function FundingRecords({ asset, mode, onShowAsset }: { asset: string; mode: "deposit" | "withdraw"; onShowAsset: () => void }) {
+  return (
+    <section className="funding-records">
+      <div className="record-tabs"><button className="active">{asset} {mode === "deposit" ? "充币" : "提币"}记录</button><button>全部{mode === "deposit" ? "充币" : "提币"}记录</button></div>
+      <div className="record-actions"><button><Download size={14} /> 导出</button><button onClick={onShowAsset}><FileText size={14} /> 查看历史记录</button></div>
+      <div className="record-table-head"><span>时间</span><span>地址</span><span>交易 ID</span><span>币种</span><span>{mode === "deposit" ? "充币" : "提币"}数量</span><span>{mode === "deposit" ? "充币" : "提币"}状态</span></div>
+      <div className="empty-ledger"><FileText size={54} /><strong>暂无记录</strong><small>开始您的第一笔交易</small></div>
+    </section>
+  );
+}
+
+function FaqCard({ title }: { title: string }) {
+  return (
+    <aside className="faq-card">
+      <h3>{title}</h3>
+      <p>如何充币？</p>
+      <p>为什么我充的币一直不到账？</p>
+      <p>充币时如何查看地址及标签 (Tag)?</p>
+      <p>如何查看充币进度？</p>
+    </aside>
+  );
+}
+
+function AssetIcon({ symbol }: { symbol: string }) {
+  return <span className={`asset-icon asset-${symbol.toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{symbol.slice(0, 1)}</span>;
+}
+
+function MiniAssetChart() {
+  return <svg className="mini-asset-chart" viewBox="0 0 220 92" role="img" aria-label="资产走势">
+    <path d="M0 82 L0 42 C18 30 28 54 43 41 C55 30 69 46 82 31 C94 16 108 22 120 12 C135 0 150 27 166 24 C184 21 195 32 206 26 L220 70 L220 92 L0 92 Z" />
+    <polyline points="0,42 18,30 43,41 69,46 82,31 108,22 120,12 150,27 166,24 195,32 206,26 220,70" />
+  </svg>;
+}
+
+function QrPattern() {
+  return <div className="qr-pattern" aria-label="充值二维码">
+    {Array.from({ length: 121 }).map((_, index) => <i key={index} className={(index * 17 + index % 5) % 3 === 0 ? "on" : ""} />)}
+  </div>;
+}
+
+function SupportBubble() {
+  return <button className="support-bubble"><HelpCircle size={24} /></button>;
+}
+
+function fundingAssets(balances: Balance[]): Balance[] {
+  if (balances.length) return balances;
+  return [
+    { accountType: "FUNDING", asset: "OKB", availableUnits: 13_500_000_009, lockedUnits: 0, equityUnits: 13_500_000_009 },
+    { accountType: "FUNDING", asset: "BTC", availableUnits: 1_954_640, lockedUnits: 0, equityUnits: 1_954_640 },
+    { accountType: "FUNDING", asset: "A", availableUnits: 67_170_000, lockedUnits: 0, equityUnits: 67_170_000 },
+    { accountType: "FUNDING", asset: "NIGHT", availableUnits: 128_768_890, lockedUnits: 0, equityUnits: 128_768_890 },
+    { accountType: "FUNDING", asset: "ETH", availableUnits: 5, lockedUnits: 0, equityUnits: 5 },
+    { accountType: "FUNDING", asset: "SHIB", availableUnits: 92_099_162, lockedUnits: 0, equityUnits: 92_099_162 }
+  ];
+}
+
+function unitsToNumber(units: number): number {
+  return units / 100_000_000;
+}
+
+function currencyCny(value: number): string {
+  const prefix = value < 0 ? "-¥" : "¥";
+  return `${prefix}${Math.abs(value).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function assetName(symbol: string): string {
+  const names: Record<string, string> = { BTC: "Bitcoin", ETH: "Ethereum", OKB: "OKB", USDT: "USDT", USDC: "USD Coin", SHIB: "Shiba Inu", NIGHT: "Midnight", A: "Vaulta" };
+  return names[symbol] ?? symbol;
+}
+
+function fundingNetworks(asset: string): string[] {
+  if (asset === "BTC") return ["Bitcoin"];
+  if (asset === "ETH") return ["Ethereum (ERC20)", "Arbitrum One", "Avalanche C-Chain"];
+  return ["X Layer", "Tron (TRC20)", "Ethereum (ERC20)", "Aptos", "Arbitrum One", "Avalanche C-Chain", "Berachain"];
+}
+
+function networkLabel(network: string, asset: string): string {
+  if (network === "X Layer") return `X Layer (${asset}&${asset}0)`;
+  if (network === "Berachain") return `Berachain (${asset}0)`;
+  return network;
+}
+
+function networkEtaPc(network: string): string {
+  if (network.includes("Ethereum")) return "约 7 分钟";
+  if (network.includes("Arbitrum")) return "约 18 分钟";
+  return "约 1 分钟";
+}
+
+function minimumAmount(asset: string): string {
+  return `0.01 ${asset}`;
+}
+
+function chainSymbol(network: string): string {
+  if (network.includes("Tron")) return "TRX";
+  if (network.includes("Ethereum")) return "ETH";
+  if (network.includes("Bitcoin")) return "BTC";
+  if (network.includes("X Layer")) return "OKB";
+  return network.slice(0, 1);
+}
+
+function demoFundingAddress(asset: string, network: string): string {
+  if (asset === "USDT" && network === "X Layer") return "XK00861E9d78139CD68Ae6C78A5b5F7384325e60950";
+  return `${asset}${network.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)}9d78139CD68Ae6C78A5b5F7384325e60950`;
 }
 
 function AuthScreen({
@@ -622,14 +979,23 @@ function Topbar({
 }) {
   return (
     <header className="topbar">
-      <button className="brand" onClick={() => onPageChange("trade")}><Sparkles size={18} /><strong>Surprising EX</strong></button>
+      <button className="brand okx-brand" onClick={() => onPageChange("trade")}><span className="okx-mark" /><strong>欧易</strong></button>
       <nav>
+        <button onClick={() => { onProductModeChange("spot"); onPageChange("trade"); }}>买币<ChevronDown size={13} /></button>
+        <button onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}>市场</button>
         <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}><CircleDollarSign size={15} />U本位</button>
         <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => { onProductModeChange("inverse"); onPageChange("trade"); }}><Layers3 size={15} />币本位</button>
         <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => { onProductModeChange("spot"); onPageChange("trade"); }}><WalletCards size={15} />现货</button>
+        <button>金融<ChevronDown size={13} /></button>
+        <button>机构客户<ChevronDown size={13} /></button>
+        <button>新手学院<ChevronDown size={13} /></button>
+        <button>星球</button>
         <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />交易规则</button>
       </nav>
       <div className="top-actions">
+        <div className="top-search"><Search size={14} />搜索币对</div>
+        <button className="asset-charge" onClick={() => onPageChange("recharge")}>充值</button>
+        <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>资产管理<ChevronDown size={13} /></button>
         <button><Bell size={16} /></button>
         <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
         {session ? (
