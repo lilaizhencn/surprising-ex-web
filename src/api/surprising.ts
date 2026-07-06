@@ -64,6 +64,13 @@ interface BackendInstrument {
   fundingRateFloorPpm?: number;
   nextFundingTime?: string;
   timeUntilFundingSeconds?: number;
+  expiryTime?: string | null;
+  deliveryTime?: string | null;
+  underlyingSymbol?: string | null;
+  strikePriceUnits?: number | null;
+  optionType?: string | null;
+  optionExerciseStyle?: string | null;
+  settlementMethod?: string | null;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;
@@ -760,6 +767,13 @@ function toMarket(item: BackendInstrument): Market {
     fundingRateFloorPpm: item.fundingRateFloorPpm,
     nextFundingTime: item.nextFundingTime ?? fallback?.nextFundingTime,
     timeUntilFundingSeconds: item.timeUntilFundingSeconds ?? fallback?.timeUntilFundingSeconds,
+    expiryTime: item.expiryTime ?? fallback?.expiryTime,
+    deliveryTime: item.deliveryTime ?? fallback?.deliveryTime,
+    underlyingSymbol: item.underlyingSymbol ?? fallback?.underlyingSymbol,
+    strikePriceUnits: item.strikePriceUnits ?? fallback?.strikePriceUnits,
+    optionType: item.optionType ?? fallback?.optionType,
+    optionExerciseStyle: item.optionExerciseStyle ?? fallback?.optionExerciseStyle,
+    settlementMethod: item.settlementMethod ?? fallback?.settlementMethod,
     impactNotionalUnits: item.impactNotionalUnits,
     minValidIndexSources: item.minValidIndexSources,
     status: item.status,
@@ -810,6 +824,9 @@ function priceUnitsToTicks(value: unknown, market?: Pick<Market, "priceTickUnits
 function displayMarketName(symbol: string, instrumentType?: string, contractType?: string): string {
   const compactSymbol = symbol.replace(/-/g, "");
   if (instrumentType === "SPOT" || contractType === "SPOT") return `${compactSymbol.replace(/SPOT$/, "")} 现货`;
+  if (instrumentType === "OPTION" || contractType === "VANILLA_OPTION") return `${compactSymbol} 期权`;
+  if (contractType === "LINEAR_DELIVERY") return `${compactSymbol} U本位交割`;
+  if (contractType === "INVERSE_DELIVERY") return `${compactSymbol} 币本位交割`;
   if (contractType === "INVERSE_PERPETUAL" || contractType === "INVERSE") return `${compactSymbol} 币本位永续`;
   return `${compactSymbol} U本位永续`;
 }

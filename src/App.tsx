@@ -75,8 +75,11 @@ const PRICE_UNIT_SCALE = 100_000_000;
 const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
 const THEME_KEY = "surprising-ex.theme";
 const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType }> = {
-  linear: { label: "U本位合约", shortLabel: "U本位", accountType: "USDT_PERPETUAL" },
-  inverse: { label: "币本位合约", shortLabel: "币本位", accountType: "COIN_PERPETUAL" },
+  linear: { label: "U本位永续", shortLabel: "U本位永续", accountType: "USDT_PERPETUAL" },
+  inverse: { label: "币本位永续", shortLabel: "币本位永续", accountType: "COIN_PERPETUAL" },
+  linearDelivery: { label: "U本位交割", shortLabel: "U本位交割", accountType: "USDT_DELIVERY" },
+  inverseDelivery: { label: "币本位交割", shortLabel: "币本位交割", accountType: "COIN_DELIVERY" },
+  option: { label: "期权", shortLabel: "期权", accountType: "OPTION" },
   spot: { label: "现货", shortLabel: "现货", accountType: "SPOT" }
 };
 
@@ -985,6 +988,9 @@ function Topbar({
         <button onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}>市场</button>
         <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}><CircleDollarSign size={15} />U本位</button>
         <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => { onProductModeChange("inverse"); onPageChange("trade"); }}><Layers3 size={15} />币本位</button>
+        <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => { onProductModeChange("linearDelivery"); onPageChange("trade"); }}><Clock3 size={15} />U交割</button>
+        <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => { onProductModeChange("inverseDelivery"); onPageChange("trade"); }}><Clock3 size={15} />币交割</button>
+        <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => { onProductModeChange("option"); onPageChange("trade"); }}><Sparkles size={15} />期权</button>
         <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => { onProductModeChange("spot"); onPageChange("trade"); }}><WalletCards size={15} />现货</button>
         <button>金融<ChevronDown size={13} /></button>
         <button>机构客户<ChevronDown size={13} /></button>
@@ -1035,6 +1041,7 @@ function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loa
   if (!market) return null;
   const product = marketProduct(market);
   const isSpot = product === "spot";
+  const isFunding = isFundingProduct(product);
   const fundingTone = market.fundingRatePpm >= 0 ? "up" : "down";
   return (
     <section className={loading ? "market-header syncing" : "market-header"}>
@@ -1056,8 +1063,17 @@ function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loa
         <>
           <Metric label="标记" value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
           <Metric label="指数" value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
-          <Metric label="资金费率" value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
-          <Metric label="结算倒计时" value={formatFundingCountdown(market, nowMs)} tone="gold" />
+          {isFunding ? (
+            <>
+              <Metric label="资金费率" value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
+              <Metric label="资金费倒计时" value={formatFundingCountdown(market, nowMs)} tone="gold" />
+            </>
+          ) : (
+            <>
+              <Metric label={product === "option" ? "行权方向" : "到期时间"} value={product === "option" ? market.optionType ?? "-" : market.expiryTime ?? "-"} tone="gold" />
+              <Metric label="交割时间" value={market.deliveryTime ?? "-"} />
+            </>
+          )}
         </>
       )}
       <Metric label="24H量" value={compact(market.volume24hUnits)} />
@@ -1813,6 +1829,7 @@ function TradesTape({ events, symbol, market, mid, onPickPrice }: { events: WsEn
 function ContractInfoDialog({ market, onClose }: { market: Market; onClose: () => void }) {
   const product = marketProduct(market);
   const isSpot = product === "spot";
+  const isFunding = isFundingProduct(product);
   const items: Array<[string, ReactNode]> = [
     ["产品类型", PRODUCT_META[product].label],
     ["后端类型", `${market.instrumentType ?? "PERPETUAL"} / ${market.contractType ?? "LINEAR_PERPETUAL"}`],
@@ -1827,7 +1844,15 @@ function ContractInfoDialog({ market, onClose }: { market: Market; onClose: () =
     ...(isSpot ? [] : [
       ["最大杠杆", `${market.maxLeverage}x`],
       ["起始/维持保证金率", `${displayOptionalPpm(market.initialMarginRatePpm)} / ${displayOptionalPpm(market.maintenanceMarginRatePpm)}`],
-      ["资金费率周期", `${market.fundingIntervalHours ?? "-"} 小时`],
+      ...(isFunding ? [["资金费率周期", `${market.fundingIntervalHours ?? "-"} 小时`]] as Array<[string, ReactNode]> : []),
+      ...(market.expiryTime ? [["到期时间", market.expiryTime]] as Array<[string, ReactNode]> : []),
+      ...(market.deliveryTime ? [["交割时间", market.deliveryTime]] as Array<[string, ReactNode]> : []),
+      ...(product === "option" ? [
+        ["底层标的", market.underlyingSymbol ?? "-"],
+        ["行权价", market.strikePriceUnits ?? "-"],
+        ["期权方向/行权方式", `${market.optionType ?? "-"} / ${market.optionExerciseStyle ?? "-"}`],
+      ] as Array<[string, ReactNode]> : []),
+      ...(market.settlementMethod ? [["结算方式", market.settlementMethod]] as Array<[string, ReactNode]> : []),
       ["指数有效源数", market.minValidIndexSources ?? "-"],
     ] as Array<[string, ReactNode]>)
   ];
@@ -1869,7 +1894,7 @@ function TradingRulesPage({ markets, selectedMarket, onOpenMarket }: { markets: 
         <div>
           <span className="eyebrow"><FileText size={15} />Backend instrument rules</span>
           <h1>交易规则</h1>
-          <p>页面展示的数据来自 instrument 当前版本。现货、U本位和币本位共享同一套 symbol 规则、订单能力、数量边界、费率和风控配置入口。</p>
+          <p>页面展示的数据来自 instrument 当前版本。现货、永续、交割和期权按产品线隔离撮合与账户，但共享同一套 symbol 规则、订单能力、数量边界、费率和风控配置入口。</p>
         </div>
         <div className="rules-current">
           <strong>{selectedMarket?.symbol ?? "选择市场"}</strong>
@@ -1880,7 +1905,7 @@ function TradingRulesPage({ markets, selectedMarket, onOpenMarket }: { markets: 
       <div className="rules-grid">
         <RuleCard title="产品设计" icon={<Layers3 size={16} />}>
           <p>当前系统采用 instrument 版本化配置，交易、撮合、账户、风险、资金费率、K线、指数/标记价格都读取同一份规则快照。</p>
-          <p>U本位、币本位和现货都由后端 `instrumentType` 与 `contractType` 区分，前端不维护独立交易对清单。</p>
+          <p>现货、U本位/币本位永续、交割和期权都由后端 `instrumentType` 与 `contractType` 区分，前端不维护独立交易对清单。</p>
         </RuleCard>
         <RuleCard title="关键指标" icon={<TrendingUp size={16} />}>
           <p>合约产品展示标记价格、指数价格和资金费率；现货产品展示基础资产、计价资产、盘口和成交。</p>
@@ -1926,6 +1951,9 @@ function RuleCard({ title, icon, children }: { title: string; icon: ReactNode; c
 function marketProduct(market?: Market): ProductMode {
   if (!market) return "linear";
   if (market.instrumentType === "SPOT" || market.contractType === "SPOT") return "spot";
+  if (market.instrumentType === "OPTION" || market.contractType === "VANILLA_OPTION") return "option";
+  if (market.contractType === "LINEAR_DELIVERY") return "linearDelivery";
+  if (market.contractType === "INVERSE_DELIVERY") return "inverseDelivery";
   if (
     market.contractType === "INVERSE_PERPETUAL" ||
     market.contractType === "INVERSE" ||
@@ -1945,10 +1973,18 @@ function filterPositionsByProduct(positions: Position[], markets: Market[], prod
 
 function estimateNotional(market: Market | undefined, priceTicks: number, quantitySteps: number): number {
   if (!Number.isFinite(priceTicks) || !Number.isFinite(quantitySteps)) return 0;
-  if (marketProduct(market) === "inverse") {
+  if (isInverseProduct(marketProduct(market))) {
     return quantitySteps * (market?.notionalMultiplierUnits ?? 1);
   }
   return priceTicks * quantitySteps * (market?.notionalMultiplierUnits ?? 1);
+}
+
+function isInverseProduct(productMode: ProductMode): boolean {
+  return productMode === "inverse" || productMode === "inverseDelivery";
+}
+
+function isFundingProduct(productMode: ProductMode): boolean {
+  return productMode === "linear" || productMode === "inverse";
 }
 
 function buildPublicTrades(events: WsEnvelope[], symbol: string, mid: number, includeFallback = true): TradePrint[] {

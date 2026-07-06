@@ -118,9 +118,11 @@ function publicSubscriptions(symbol: string, productMode: ProductMode, candlePer
   if (productMode !== "spot") {
     channels.push(
       { id: "index", channel: "index", symbol },
-      { id: "mark", channel: "mark", symbol },
-      { id: "funding", channel: "funding", symbol }
+      { id: "mark", channel: "mark", symbol }
     );
+  }
+  if (isFundingProduct(productMode)) {
+    channels.push({ id: "funding", channel: "funding", symbol });
   }
   return channels;
 }
@@ -139,6 +141,10 @@ function privateSubscriptions(symbol: string, productMode: ProductMode): Subscri
     );
   }
   return channels;
+}
+
+function isFundingProduct(productMode: ProductMode): boolean {
+  return productMode === "linear" || productMode === "inverse";
 }
 
 function subscribe(socket: WebSocket, channels: Subscription[]) {

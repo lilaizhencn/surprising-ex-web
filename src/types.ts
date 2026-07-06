@@ -9,10 +9,10 @@ export type TriggerPriceType = "MARK_PRICE" | "INDEX_PRICE" | "LAST_PRICE";
 export type AlgoOrderType = "TWAP" | "ICEBERG";
 export type AlgoOrderStatus = "PENDING" | "RUNNING" | "CANCEL_REQUESTED" | "CANCELED" | "COMPLETED" | "FAILED";
 export type ConnectionState = "live" | "degraded" | "offline";
-export type ProductMode = "linear" | "inverse" | "spot";
-export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "SPOT";
-export type InstrumentType = "SPOT" | "PERPETUAL";
-export type ContractType = "SPOT" | "LINEAR" | "INVERSE" | "LINEAR_PERPETUAL" | "INVERSE_PERPETUAL";
+export type ProductMode = "linear" | "inverse" | "linearDelivery" | "inverseDelivery" | "option" | "spot";
+export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "USDT_DELIVERY" | "COIN_DELIVERY" | "OPTION" | "SPOT";
+export type InstrumentType = "SPOT" | "PERPETUAL" | "DELIVERY" | "OPTION";
+export type ContractType = "SPOT" | "LINEAR" | "INVERSE" | "LINEAR_PERPETUAL" | "INVERSE_PERPETUAL" | "LINEAR_DELIVERY" | "INVERSE_DELIVERY" | "VANILLA_OPTION";
 
 export interface AuthUser {
   userId: number;
@@ -68,6 +68,13 @@ export interface Market {
   fundingRateFloorPpm?: number;
   nextFundingTime?: string;
   timeUntilFundingSeconds?: number;
+  expiryTime?: string | null;
+  deliveryTime?: string | null;
+  underlyingSymbol?: string | null;
+  strikePriceUnits?: number | null;
+  optionType?: string | null;
+  optionExerciseStyle?: string | null;
+  settlementMethod?: string | null;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;

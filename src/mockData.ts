@@ -304,6 +304,15 @@ const fallbackBalancesByAccount: Record<ProductAccountType, Balance[]> = {
     { accountType: "COIN_PERPETUAL", asset: "BTC", availableUnits: 140_000_000, lockedUnits: 25_000_000, equityUnits: 171_000_000 },
     { accountType: "COIN_PERPETUAL", asset: "ETH", availableUnits: 850_000_000, lockedUnits: 0, equityUnits: 850_000_000 }
   ],
+  USDT_DELIVERY: [
+    { accountType: "USDT_DELIVERY", asset: "USDT", availableUnits: 120_000_000_000, lockedUnits: 18_000_000_000, equityUnits: 138_000_000_000 }
+  ],
+  COIN_DELIVERY: [
+    { accountType: "COIN_DELIVERY", asset: "BTC", availableUnits: 70_000_000, lockedUnits: 8_000_000, equityUnits: 78_000_000 }
+  ],
+  OPTION: [
+    { accountType: "OPTION", asset: "USDT", availableUnits: 90_000_000_000, lockedUnits: 11_000_000_000, equityUnits: 101_000_000_000 }
+  ],
   SPOT: [
     { accountType: "SPOT", asset: "USDT", availableUnits: 180_000_000_000, lockedUnits: 12_000_000_000, equityUnits: 192_000_000_000 },
     { accountType: "SPOT", asset: "BTC", availableUnits: 85_000_000, lockedUnits: 15_000_000, equityUnits: 100_000_000 },
