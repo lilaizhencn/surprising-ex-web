@@ -187,11 +187,11 @@ export default function App() {
 
   useEffect(() => {
     void refreshMarketData();
-  }, [klinePeriod, symbol]);
+  }, [activeProductLine, klinePeriod, symbol]);
 
   useEffect(() => {
     if (session) void refreshPrivateData(session);
-  }, [markets, productMode, session, symbol]);
+  }, [activeProductMode, markets, session, symbol]);
 
   useEffect(() => {
     if (!session) return;
@@ -277,9 +277,13 @@ export default function App() {
     }
   }, [activeProductLine, klinePeriod, realtime.events, selectedMarket, symbol]);
 
-  function patchMarket(targetSymbol: string, patch: Partial<Market>) {
+  function patchMarket(targetSymbol: string, patch: Partial<Market>, targetProductMode?: ProductMode) {
     if (!targetSymbol) return;
-    setMarkets((current) => current.map((market) => market.symbol === targetSymbol ? { ...market, ...patch } : market));
+    setMarkets((current) => current.map((market) =>
+      market.symbol === targetSymbol && (!targetProductMode || marketProduct(market) === targetProductMode)
+        ? { ...market, ...patch }
+        : market
+    ));
   }
 
   function persistSession(next: AuthSession | null) {
@@ -306,9 +310,10 @@ export default function App() {
   async function refreshMarketData(targetSymbol = symbol, targetPeriod = klinePeriod) {
     const requestId = marketDataRequestRef.current + 1;
     marketDataRequestRef.current = requestId;
-    const targetMarket = markets.find((market) => market.symbol === targetSymbol);
-    const productLine = productLineForMarket(targetMarket, productMode);
-    const shouldLoadMarkPrice = targetMarket ? marketProduct(targetMarket) !== "spot" : productMode !== "spot";
+    const targetMarket = marketForSymbolAndMode(markets, targetSymbol, productMode);
+    const targetProductMode = targetMarket ? marketProduct(targetMarket) : productMode;
+    const productLine = PRODUCT_META[targetProductMode].productLine;
+    const shouldLoadMarkPrice = targetProductMode !== "spot";
     setLoading(true);
     try {
       const [nextCandles, book, markPrice] = await Promise.all([
@@ -320,7 +325,7 @@ export default function App() {
       setCandles(nextCandles);
       setBids(book.bids);
       setAsks(book.asks);
-      if (markPrice) patchMarket(targetSymbol, markPrice);
+      if (markPrice) patchMarket(targetSymbol, markPrice, targetProductMode);
     } catch (error) {
       if (requestId !== marketDataRequestRef.current) return;
       setNotice(error instanceof Error ? error.message : "行情同步失败");
@@ -334,23 +339,23 @@ export default function App() {
   async function refreshPrivateData(active = session) {
     if (!active) return;
     try {
-      const accountType = PRODUCT_META[productMode].accountType;
-      const productLine = PRODUCT_META[productMode].productLine;
+      const accountType = PRODUCT_META[activeProductMode].accountType;
+      const productLine = PRODUCT_META[activeProductMode].productLine;
       const [nextBalances, nextPositions, nextOrders, nextAlgoOrders, nextTriggerOrders, nextPositionMode] = await Promise.all([
         loadBalances(active, accountType, productLine),
-        productMode === "spot" ? Promise.resolve([]) : loadPositions(active, productLine),
+        activeProductMode === "spot" ? Promise.resolve([]) : loadPositions(active, productLine),
         loadOpenOrders(active, symbol, productLine),
-        productMode === "spot" ? Promise.resolve([]) : loadOpenAlgoOrders(active, symbol, productLine),
-        productMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol, productLine),
-        productMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active, productLine)
+        activeProductMode === "spot" ? Promise.resolve([]) : loadOpenAlgoOrders(active, symbol, productLine),
+        activeProductMode === "spot" ? Promise.resolve([]) : loadOpenTriggerOrders(active, symbol, productLine),
+        activeProductMode === "spot" ? Promise.resolve<PositionMode>("ONE_WAY") : loadPositionMode(active, productLine)
       ]);
       setBalances(nextBalances);
-      setPositions(filterPositionsByProduct(nextPositions, markets, productMode));
+      setPositions(filterPositionsByProduct(nextPositions, markets, activeProductMode));
       setOrders(nextOrders);
       setAlgoOrders(nextAlgoOrders);
       setTriggerOrders(nextTriggerOrders);
       setPositionMode(nextPositionMode);
-      setNotice(`${PRODUCT_META[productMode].label}资产、${productMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
+      setNotice(`${PRODUCT_META[activeProductMode].label}资产、${activeProductMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "私有数据同步失败");
     }
@@ -364,7 +369,7 @@ export default function App() {
     }
     if (nextMode === positionMode) return;
     try {
-      const savedMode = await updatePositionMode(session, nextMode, PRODUCT_META[productMode].productLine);
+      const savedMode = await updatePositionMode(session, nextMode, activeProductLine);
       setPositionMode(savedMode);
       setNotice(`持仓模式已切换为${positionModeLabel(savedMode)}。`);
       void refreshPrivateData(session);
@@ -579,7 +584,7 @@ export default function App() {
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} productLine={activeProductLine}
               market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
-            <OrderTicket productMode={productMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
+            <OrderTicket productMode={activeProductMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
       )}
