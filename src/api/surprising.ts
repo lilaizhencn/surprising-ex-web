@@ -139,10 +139,13 @@ export async function loadMarkets(): Promise<Market[]> {
   }
 }
 
-export async function loadInstrumentConfig(symbol: string): Promise<Market> {
+export async function loadInstrumentConfig(symbol: string, productLine?: ProductLine): Promise<Market> {
   try {
+    const params = new URLSearchParams({ symbol });
+    if (productLine) params.set("productLine", productLine);
     const instrument = await request<BackendInstrument>(
-      gatewayPath("instrument", `/latest?symbol=${encodeURIComponent(symbol)}`)
+      gatewayPath("instrument", `/latest?${params}`),
+      { productLine }
     );
     return toMarket(instrument);
   } catch {

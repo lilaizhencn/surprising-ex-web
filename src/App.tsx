@@ -163,7 +163,7 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
-    void loadInstrumentConfig(symbol).then((instrument) => {
+    void loadInstrumentConfig(symbol, activeProductLine).then((instrument) => {
       if (!alive || !instrument?.symbol) return;
       if (marketProduct(instrument) !== activeProductMode) return;
       setMarkets((current) => {
@@ -183,7 +183,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [activeProductMode, symbol]);
+  }, [activeProductLine, activeProductMode, symbol]);
 
   useEffect(() => {
     void refreshMarketData();
