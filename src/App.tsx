@@ -116,7 +116,10 @@ export default function App() {
   );
 
   const selectedMarket = useMemo(
-    () => markets.find((market) => market.symbol === symbol) ?? visibleMarkets[0] ?? markets[0],
+    () => visibleMarkets.find((market) => market.symbol === symbol)
+      ?? visibleMarkets[0]
+      ?? markets.find((market) => market.symbol === symbol)
+      ?? markets[0],
     [markets, symbol, visibleMarkets]
   );
   const activeProductMode = selectedMarket ? marketProduct(selectedMarket) : productMode;
@@ -162,10 +165,14 @@ export default function App() {
     let alive = true;
     void loadInstrumentConfig(symbol).then((instrument) => {
       if (!alive || !instrument?.symbol) return;
+      if (marketProduct(instrument) !== activeProductMode) return;
       setMarkets((current) => {
-        const exists = current.some((market) => market.symbol === instrument.symbol);
+        const instrumentProductMode = marketProduct(instrument);
+        const exists = current.some((market) =>
+          market.symbol === instrument.symbol && marketProduct(market) === instrumentProductMode
+        );
         if (!exists) return [instrument, ...current];
-        return current.map((market) => market.symbol === instrument.symbol ? {
+        return current.map((market) => market.symbol === instrument.symbol && marketProduct(market) === instrumentProductMode ? {
           ...market,
           ...instrument,
           nextFundingTime: instrument.nextFundingTime ?? market.nextFundingTime,
@@ -176,7 +183,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [symbol]);
+  }, [activeProductMode, symbol]);
 
   useEffect(() => {
     void refreshMarketData();
@@ -1984,7 +1991,12 @@ function productLineForMarket(market: Market | undefined, fallbackMode: ProductM
 }
 
 function productLineForSymbol(symbol: string, markets: Market[], fallbackMode: ProductMode): ProductLine {
-  return productLineForMarket(markets.find((market) => market.symbol === symbol), fallbackMode);
+  return productLineForMarket(marketForSymbolAndMode(markets, symbol, fallbackMode), fallbackMode);
+}
+
+function marketForSymbolAndMode(markets: Market[], symbol: string, productMode: ProductMode): Market | undefined {
+  return markets.find((market) => market.symbol === symbol && marketProduct(market) === productMode)
+    ?? markets.find((market) => market.symbol === symbol);
 }
 
 function eventProductLine(event: WsEnvelope): ProductLine | undefined {
