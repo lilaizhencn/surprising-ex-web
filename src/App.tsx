@@ -948,7 +948,7 @@ function SupportBubble() {
 function fundingAssets(balances: Balance[]): Balance[] {
   if (balances.length) return balances;
   return [
-    { accountType: "FUNDING", asset: "OKB", availableUnits: 13_500_000_009, lockedUnits: 0, equityUnits: 13_500_000_009 },
+    { accountType: "FUNDING", asset: "SPEX", availableUnits: 13_500_000_009, lockedUnits: 0, equityUnits: 13_500_000_009 },
     { accountType: "FUNDING", asset: "BTC", availableUnits: 1_954_640, lockedUnits: 0, equityUnits: 1_954_640 },
     { accountType: "FUNDING", asset: "A", availableUnits: 67_170_000, lockedUnits: 0, equityUnits: 67_170_000 },
     { accountType: "FUNDING", asset: "NIGHT", availableUnits: 128_768_890, lockedUnits: 0, equityUnits: 128_768_890 },
@@ -967,18 +967,18 @@ function currencyCny(value: number): string {
 }
 
 function assetName(symbol: string): string {
-  const names: Record<string, string> = { BTC: "Bitcoin", ETH: "Ethereum", OKB: "OKB", USDT: "USDT", USDC: "USD Coin", SHIB: "Shiba Inu", NIGHT: "Midnight", A: "Vaulta" };
+  const names: Record<string, string> = { BTC: "Bitcoin", ETH: "Ethereum", SPEX: "Surprising EX", USDT: "USDT", USDC: "USD Coin", SHIB: "Shiba Inu", NIGHT: "Midnight", A: "Vaulta" };
   return names[symbol] ?? symbol;
 }
 
 function fundingNetworks(asset: string): string[] {
   if (asset === "BTC") return ["Bitcoin"];
   if (asset === "ETH") return ["Ethereum (ERC20)", "Arbitrum One", "Avalanche C-Chain"];
-  return ["X Layer", "Tron (TRC20)", "Ethereum (ERC20)", "Aptos", "Arbitrum One", "Avalanche C-Chain", "Berachain"];
+  return ["Surprising Chain", "Tron (TRC20)", "Ethereum (ERC20)", "Aptos", "Arbitrum One", "Avalanche C-Chain", "Berachain"];
 }
 
 function networkLabel(network: string, asset: string): string {
-  if (network === "X Layer") return `X Layer (${asset}&${asset}0)`;
+  if (network === "Surprising Chain") return `Surprising Chain (${asset})`;
   if (network === "Berachain") return `Berachain (${asset}0)`;
   return network;
 }
@@ -997,12 +997,12 @@ function chainSymbol(network: string): string {
   if (network.includes("Tron")) return "TRX";
   if (network.includes("Ethereum")) return "ETH";
   if (network.includes("Bitcoin")) return "BTC";
-  if (network.includes("X Layer")) return "OKB";
+  if (network.includes("Surprising")) return "SPEX";
   return network.slice(0, 1);
 }
 
 function demoFundingAddress(asset: string, network: string): string {
-  if (asset === "USDT" && network === "X Layer") return "XK00861E9d78139CD68Ae6C78A5b5F7384325e60950";
+  if (asset === "USDT" && network === "Surprising Chain") return "SX00861E9d78139CD68Ae6C78A5b5F7384325e60950";
   return `${asset}${network.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)}9d78139CD68Ae6C78A5b5F7384325e60950`;
 }
 
