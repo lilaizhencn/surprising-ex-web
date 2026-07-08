@@ -488,6 +488,94 @@ select:focus {
   white-space: nowrap;
 }
 
+.product-insight {
+  margin-bottom: 10px;
+}
+
+.lifecycle-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lifecycle-item {
+  min-width: 0;
+  min-height: 50px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, .32);
+}
+
+.lifecycle-item span,
+.option-chain-head {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.lifecycle-item strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.option-insight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.option-metrics,
+.delivery-note {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.option-chain {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, .32);
+}
+
+.option-chain-head,
+.option-chain-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.option-chain-row {
+  min-height: 24px;
+  font-size: 11px;
+}
+
+.option-chain-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.option-chain-row strong.active {
+  color: var(--warning);
+}
+
+.option-empty {
+  min-height: 44px;
+  margin: 0;
+}
+
 .tone-up,
 .up {
   color: var(--buy);
@@ -711,7 +799,9 @@ select:focus {
 :root[data-theme="light"] .topbar nav button,
 :root[data-theme="light"] .top-actions button,
 :root[data-theme="light"] .brand,
-:root[data-theme="light"] .rail-search {
+:root[data-theme="light"] .rail-search,
+:root[data-theme="light"] .lifecycle-item,
+:root[data-theme="light"] .option-chain {
   border-color: rgba(68, 84, 142, .14);
   background: rgba(255, 255, 255, .7);
 }
@@ -1350,6 +1440,10 @@ button.rules-row:hover {
   .rules-hero,
   .rules-grid,
   .account-summary,
+  .lifecycle-grid,
+  .option-insight-grid,
+  .option-metrics,
+  .delivery-note,
   .config-grid {
     grid-template-columns: 1fr;
   }

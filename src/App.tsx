@@ -543,6 +543,7 @@ export default function App() {
           <MarketRail productMode={productMode} markets={visibleMarkets} symbol={symbol} onSelect={setSymbol} />
           <section className="workspace">
             <MarketHeader market={selectedMarket} loading={loading} nowMs={nowMs} onInfo={() => setInstrumentInfoOpen(true)} />
+            <DerivativeLifecyclePanel market={selectedMarket} markets={markets} nowMs={nowMs} />
             <div className="main-grid">
               <section className="chart-panel panel">
                 <div className="panel-title">
@@ -1108,6 +1109,65 @@ function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loa
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" | "gold" }) {
   return <div className="metric"><span>{label}</span><strong className={tone ? `tone-${tone}` : ""}>{value}</strong></div>;
+}
+
+function DerivativeLifecyclePanel({ market, markets, nowMs }: { market?: Market; markets: Market[]; nowMs: number }) {
+  if (!market) return null;
+  const product = marketProduct(market);
+  if (product === "spot" || isFundingProduct(product)) return null;
+  const isOption = product === "option";
+  const lifecycleRows: Array<[string, ReactNode]> = [
+    ["产品线", PRODUCT_META[product].productLine],
+    ["状态", market.status ?? "TRADING"],
+    ["到期时间", market.expiryTime ?? "-"],
+    [isOption ? "行权时间" : "交割时间", market.deliveryTime ?? "-"],
+    ["剩余时间", formatLifecycleCountdown(market, nowMs)],
+    ["结算方式", market.settlementMethod ?? "-"]
+  ];
+  const optionChain = isOption ? optionChainForMarket(market, markets) : [];
+  const optionMetrics = isOption ? optionMetricRows(market, markets) : [];
+  return (
+    <section className="product-insight panel">
+      <div className="panel-title">
+        <span>{isOption ? <Sparkles size={16} /> : <Clock3 size={16} />}{isOption ? "期权链路" : "交割合约生命周期"}</span>
+        <button>{market.symbol}</button>
+      </div>
+      <div className="lifecycle-grid">
+        {lifecycleRows.map(([label, value]) => (
+          <div className="lifecycle-item" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+      {isOption ? (
+        <div className="option-insight-grid">
+          <div className="option-metrics">
+            {optionMetrics.map(([label, value, tone]) => (
+              <Metric key={label} label={label} value={String(value)} tone={tone} />
+            ))}
+          </div>
+          <div className="option-chain">
+            <div className="option-chain-head"><span>到期/行权价</span><span>CALL</span><span>PUT</span></div>
+            {optionChain.length ? optionChain.map((row) => (
+              <div className="option-chain-row" key={`${row.expiry}-${row.strike}`}>
+                <span>{row.expiry} · {row.strike}</span>
+                <strong className={row.call === market.symbol ? "active" : ""}>{row.call ?? "-"}</strong>
+                <strong className={row.put === market.symbol ? "active" : ""}>{row.put ?? "-"}</strong>
+              </div>
+            )) : <p className="empty option-empty">暂无同到期日期权链</p>}
+          </div>
+        </div>
+      ) : (
+        <div className="delivery-note">
+          <Metric label="标记价格" value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
+          <Metric label="指数价格" value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
+          <Metric label="结算资产" value={market.settleAsset ?? market.quoteAsset} />
+          <Metric label="合约方向" value={isInverseProduct(product) ? "币本位反向" : "U本位正向"} />
+        </div>
+      )}
+    </section>
+  );
 }
 
 function priceWithQuote(market: Market | undefined, priceTicks: number, quoteAsset?: string): string {
@@ -2012,7 +2072,89 @@ function eventProductLine(event: WsEnvelope): ProductLine | undefined {
 
 function matchesProductLine(event: WsEnvelope, productLine: ProductLine): boolean {
   const eventLine = eventProductLine(event);
-  return !eventLine || eventLine === productLine;
+  return eventLine === productLine;
+}
+
+function optionChainForMarket(market: Market, markets: Market[]) {
+  const targetExpiry = dateKey(market.expiryTime ?? market.deliveryTime);
+  const targetUnderlying = market.underlyingSymbol ?? market.baseAsset;
+  const rows = new Map<string, { expiry: string; strike: string; strikeValue: number; call?: string; put?: string }>();
+  for (const item of markets) {
+    if (marketProduct(item) !== "option") continue;
+    const expiry = dateKey(item.expiryTime ?? item.deliveryTime);
+    if (targetExpiry && expiry !== targetExpiry) continue;
+    if ((item.underlyingSymbol ?? item.baseAsset) !== targetUnderlying) continue;
+    const strikeValue = strikePrice(item);
+    const strike = displayPrice(strikeValue);
+    const key = `${expiry}:${strikeValue}`;
+    const row = rows.get(key) ?? { expiry: expiry || "-", strike, strikeValue };
+    if (item.optionType === "PUT") row.put = item.symbol;
+    else row.call = item.symbol;
+    rows.set(key, row);
+  }
+  return Array.from(rows.values()).sort((left, right) => left.strikeValue - right.strikeValue);
+}
+
+function optionMetricRows(market: Market, markets: Market[]): Array<[string, string, "up" | "down" | "gold" | undefined]> {
+  const underlying = markets.find((item) => item.symbol === market.underlyingSymbol)
+    ?? markets.find((item) => item.symbol === `${market.baseAsset}-${market.quoteAsset}`)
+    ?? markets.find((item) => item.baseAsset === market.baseAsset && marketProduct(item) !== "option");
+  const underlyingPrice = priceFromTicks(underlying ?? market, underlying?.indexPriceTicks || underlying?.lastPriceTicks || market.indexPriceTicks || market.lastPriceTicks);
+  const strike = strikePrice(market);
+  const premium = priceFromTicks(market, market.markPriceTicks || market.lastPriceTicks);
+  const call = market.optionType !== "PUT";
+  const intrinsic = Math.max(0, call ? underlyingPrice - strike : strike - underlyingPrice);
+  const moneyness = strike > 0 ? (call ? underlyingPrice / strike : strike / Math.max(underlyingPrice, 1)) : 0;
+  const delta = market.deltaPpm ?? estimatedOptionDeltaPpm(call, underlyingPrice, strike);
+  return [
+    ["底层价格", underlyingPrice > 0 ? `${displayPrice(underlyingPrice)} ${market.quoteAsset}` : "-", undefined],
+    ["行权价", strike > 0 ? `${displayPrice(strike)} ${market.quoteAsset}` : "-", "gold"],
+    ["权利金标记", premium > 0 ? `${displayPrice(premium)} ${market.quoteAsset}` : "-", undefined],
+    ["内在价值", `${displayPrice(intrinsic)} ${market.quoteAsset}`, intrinsic > 0 ? "up" : undefined],
+    ["Moneyness", moneyness > 0 ? moneyness.toFixed(4) : "-", moneyness >= 1 ? "up" : "down"],
+    ["IV", displayOptionalPpm(market.impliedVolatilityPpm ?? undefined, 2), "gold"],
+    ["Delta", displayGreekPpm(delta), delta >= 0 ? "up" : "down"],
+    ["Gamma/Theta/Vega", `${displayGreekPpm(market.gammaPpm)} / ${displayGreekPpm(market.thetaPpm)} / ${displayGreekPpm(market.vegaPpm)}`, undefined]
+  ];
+}
+
+function estimatedOptionDeltaPpm(call: boolean, underlyingPrice: number, strike: number): number {
+  if (underlyingPrice <= 0 || strike <= 0) return 0;
+  const ratio = underlyingPrice / strike;
+  if (call) {
+    if (ratio >= 1.03) return 750_000;
+    if (ratio <= 0.97) return 250_000;
+    return 500_000;
+  }
+  if (ratio <= 0.97) return -750_000;
+  if (ratio >= 1.03) return -250_000;
+  return -500_000;
+}
+
+function displayGreekPpm(value?: number | null): string {
+  return typeof value === "number" && Number.isFinite(value) ? (value / 1_000_000).toFixed(4) : "-";
+}
+
+function strikePrice(market: Market): number {
+  return typeof market.strikePriceUnits === "number" ? market.strikePriceUnits / PRICE_UNIT_SCALE : 0;
+}
+
+function dateKey(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+}
+
+function formatLifecycleCountdown(market: Market, nowMs: number): string {
+  const raw = market.deliveryTime ?? market.expiryTime;
+  if (!raw) return "-";
+  const target = Date.parse(raw);
+  if (Number.isNaN(target)) return raw;
+  const seconds = Math.floor((target - nowMs) / 1000);
+  if (seconds <= 0) return "已到期";
+  const days = Math.floor(seconds / 86400);
+  const remain = seconds % 86400;
+  return days > 0 ? `${days}天 ${formatDuration(remain)}` : formatDuration(remain);
 }
 
 function filterPositionsByProduct(positions: Position[], markets: Market[], productMode: ProductMode): Position[] {

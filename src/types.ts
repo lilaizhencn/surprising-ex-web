@@ -76,6 +76,11 @@ export interface Market {
   optionType?: string | null;
   optionExerciseStyle?: string | null;
   settlementMethod?: string | null;
+  impliedVolatilityPpm?: number | null;
+  deltaPpm?: number | null;
+  gammaPpm?: number | null;
+  thetaPpm?: number | null;
+  vegaPpm?: number | null;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;

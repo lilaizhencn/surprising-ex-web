@@ -72,6 +72,11 @@ interface BackendInstrument {
   optionType?: string | null;
   optionExerciseStyle?: string | null;
   settlementMethod?: string | null;
+  impliedVolatilityPpm?: number | null;
+  deltaPpm?: number | null;
+  gammaPpm?: number | null;
+  thetaPpm?: number | null;
+  vegaPpm?: number | null;
   impactNotionalUnits?: number;
   minValidIndexSources?: number;
   status?: string;
@@ -877,6 +882,11 @@ function toMarket(item: BackendInstrument): Market {
     optionType: item.optionType ?? fallback?.optionType,
     optionExerciseStyle: item.optionExerciseStyle ?? fallback?.optionExerciseStyle,
     settlementMethod: item.settlementMethod ?? fallback?.settlementMethod,
+    impliedVolatilityPpm: item.impliedVolatilityPpm ?? fallback?.impliedVolatilityPpm,
+    deltaPpm: item.deltaPpm ?? fallback?.deltaPpm,
+    gammaPpm: item.gammaPpm ?? fallback?.gammaPpm,
+    thetaPpm: item.thetaPpm ?? fallback?.thetaPpm,
+    vegaPpm: item.vegaPpm ?? fallback?.vegaPpm,
     impactNotionalUnits: item.impactNotionalUnits,
     minValidIndexSources: item.minValidIndexSources,
     status: item.status,
