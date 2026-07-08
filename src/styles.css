@@ -328,9 +328,9 @@ select:focus {
 }
 
 .auth-entry.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #ffffff;
-  font-weight: 800;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
 }
 
 .terminal-grid {
@@ -1477,11 +1477,11 @@ button.rules-row:hover {
   }
 }
 
-/* OKX-like desktop surface */
+/* Trading desktop surface */
 :root {
-  --okx-black: #050505;
-  --okx-dark: #0b0b0b;
-  --okx-line: #2b2b2b;
+  --platform-black: #050505;
+  --platform-dark: #0b0b0b;
+  --platform-line: #2b2b2b;
   --asset-bg: #f4f4f4;
   --asset-card: #ffffff;
   --asset-muted: #8c8c8c;
@@ -1490,7 +1490,7 @@ button.rules-row:hover {
 .app-shell {
   min-height: 100vh;
   padding: 0;
-  background: var(--okx-black);
+  background: var(--platform-black);
 }
 
 .topbar {
@@ -1519,21 +1519,20 @@ button.rules-row:hover {
   color: #fff;
 }
 
-.okx-brand strong {
-  font-size: 22px;
+.platform-brand strong {
+  font-size: 18px;
   line-height: 1;
 }
 
-.okx-mark {
-  width: 24px;
-  height: 24px;
-  display: inline-block;
-  background:
-    linear-gradient(#fff 0 0) 0 0 / 9px 9px,
-    linear-gradient(#fff 0 0) 15px 0 / 9px 9px,
-    linear-gradient(#fff 0 0) 0 15px / 9px 9px,
-    linear-gradient(#fff 0 0) 15px 15px / 9px 9px;
-  background-repeat: no-repeat;
+.platform-mark {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #050505;
+  background: #f7c843;
+  border: 1px solid rgba(255, 255, 255, .22);
 }
 
 .topbar nav {
@@ -1579,6 +1578,10 @@ button.rules-row:hover {
   gap: 4px;
 }
 
+.top-search-wrap {
+  position: relative;
+}
+
 .top-search {
   width: 172px;
   height: 28px;
@@ -1592,6 +1595,79 @@ button.rules-row:hover {
   font-size: 12px;
 }
 
+.top-search input,
+.rail-search input {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.top-search input::placeholder,
+.rail-search input::placeholder {
+  color: #777;
+}
+
+.top-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 240px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid #2f2f2f;
+  border-radius: 8px;
+  background: #121212;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .36);
+  scrollbar-width: thin;
+  scrollbar-color: #555 #202020;
+}
+
+.top-search-results button {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #f2f2f2;
+  text-align: left;
+}
+
+.top-search-results button:hover {
+  background: #222;
+}
+
+.top-search-results small {
+  color: #8b8b8b;
+}
+
+.top-search-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.top-search-results::-webkit-scrollbar-track {
+  background: #202020;
+}
+
+.top-search-results::-webkit-scrollbar-thumb {
+  background: #555;
+  border-color: #202020;
+}
+
+.top-search-results::-webkit-scrollbar-thumb:hover {
+  background: #737373;
+}
+
 .terminal-grid {
   height: calc(100vh - 42px);
   grid-template-columns: 410px minmax(720px, 1fr) 370px;
@@ -1603,7 +1679,7 @@ button.rules-row:hover {
 .market-rail,
 .workspace,
 .right-stack {
-  border-right: 1px solid var(--okx-line);
+  border-right: 1px solid var(--platform-line);
 }
 
 .market-rail {
@@ -1615,7 +1691,7 @@ button.rules-row:hover {
 .market-rail button,
 .market-header,
 .panel {
-  border-color: var(--okx-line);
+  border-color: var(--platform-line);
   background: #0b0b0b;
   border-radius: 0;
   backdrop-filter: none;
@@ -1929,6 +2005,7 @@ button.rules-row:hover {
 .asset-usdc { background: #2775ca; }
 .asset-okb { background: #111; }
 .asset-shib { background: #ff5a33; }
+.asset-placeholder { background: #d8d8d8; color: #777; }
 
 .asset-login-note {
   margin: 14px 0 0;
@@ -2042,6 +2119,12 @@ button.rules-row:hover {
   text-align: left;
 }
 
+.funding-select:disabled {
+  cursor: not-allowed;
+  color: #888;
+  background: #f6f6f6;
+}
+
 .funding-select svg {
   margin-left: auto;
 }
@@ -2055,6 +2138,27 @@ button.rules-row:hover {
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 18px 54px rgba(0, 0, 0, .08);
+  scrollbar-width: thin;
+  scrollbar-color: #c9c9c9 #f3f3f3;
+}
+
+.funding-picker::-webkit-scrollbar {
+  width: 8px;
+}
+
+.funding-picker::-webkit-scrollbar-track {
+  background: #f3f3f3;
+  border-radius: 999px;
+}
+
+.funding-picker::-webkit-scrollbar-thumb {
+  background: #c9c9c9;
+  border: 2px solid #f3f3f3;
+  border-radius: 999px;
+}
+
+.funding-picker::-webkit-scrollbar-thumb:hover {
+  background: #9f9f9f;
 }
 
 .funding-picker button {
@@ -2091,6 +2195,12 @@ button.rules-row:hover {
   background: #111;
   color: #fff;
   font-weight: 900;
+}
+
+.primary-flow-button:disabled {
+  cursor: not-allowed;
+  background: #d8d8d8;
+  color: #888;
 }
 
 .funding-detail {

@@ -74,6 +74,14 @@ const PRICE_UNIT_SCALE = 100_000_000;
 
 const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
 const THEME_KEY = "surprising-ex.theme";
+const PRODUCT_ROUTES: Record<ProductMode, string> = {
+  linear: "/trade/usdt-perpetual",
+  inverse: "/trade/coin-perpetual",
+  linearDelivery: "/trade/usdt-delivery",
+  inverseDelivery: "/trade/coin-delivery",
+  option: "/trade/option",
+  spot: "/trade/spot"
+};
 const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType; productLine: ProductLine }> = {
   linear: { label: "U本位永续", shortLabel: "U本位永续", accountType: "USDT_PERPETUAL", productLine: "LINEAR_PERPETUAL" },
   inverse: { label: "币本位永续", shortLabel: "币本位永续", accountType: "COIN_PERPETUAL", productLine: "INVERSE_PERPETUAL" },
@@ -83,7 +91,34 @@ const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; acc
   spot: { label: "现货", shortLabel: "现货", accountType: "SPOT", productLine: "SPOT" }
 };
 
+function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const productMode = productModeFromPath(path) ?? "linear";
+  if (path === "/rules") return { page: "rules", productMode };
+  if (path === "/assets") return { page: "assets", productMode };
+  if (path === "/recharge") return { page: "recharge", productMode };
+  if (path === "/withdraw") return { page: "withdraw", productMode };
+  return { page: "trade", productMode };
+}
+
+function productModeFromPath(path: string): ProductMode | null {
+  const matched = (Object.entries(PRODUCT_ROUTES) as Array<[ProductMode, string]>)
+    .find(([, route]) => path === route);
+  return matched?.[0] ?? null;
+}
+
+function routeForPage(page: Page, productMode: ProductMode): string {
+  if (page === "trade") return PRODUCT_ROUTES[productMode];
+  return `/${page}`;
+}
+
+function pushRoute(path: string): void {
+  if (window.location.pathname === path) return;
+  window.history.pushState(null, "", path);
+}
+
 export default function App() {
+  const initialRoute = routeStateFromLocation();
   const [session, setSession] = useState<AuthSession | null>(() => loadSession());
   const [markets, setMarkets] = useState<Market[]>([]);
   const [symbol, setSymbol] = useState("BTC-USDT");
@@ -99,8 +134,9 @@ export default function App() {
   const [notice, setNotice] = useState("连接后端中，若服务未启动会进入离线演示数据。");
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
-  const [page, setPage] = useState<Page>("trade");
-  const [productMode, setProductMode] = useState<ProductMode>("linear");
+  const [page, setPage] = useState<Page>(initialRoute.page);
+  const [productMode, setProductMode] = useState<ProductMode>(initialRoute.productMode);
+  const [marketSearch, setMarketSearch] = useState("");
   const [klinePeriod, setKlinePeriod] = useState<string>("1m");
   const [theme, setTheme] = useState<ThemeMode>(() => localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -152,6 +188,16 @@ export default function App() {
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const nextRoute = routeStateFromLocation();
+      setPage(nextRoute.page);
+      setProductMode(nextRoute.productMode);
+    };
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
   }, []);
 
   useEffect(() => {
@@ -291,7 +337,7 @@ export default function App() {
     saveSession(next);
     if (next) {
       setAuthMode(null);
-      setPage("trade");
+      navigateToPage("trade");
       return;
     }
     setBalances([]);
@@ -300,6 +346,24 @@ export default function App() {
     setAlgoOrders([]);
     setTriggerOrders([]);
     setPositionMode("ONE_WAY");
+  }
+
+  function navigateToPage(nextPage: Page) {
+    setPage(nextPage);
+    pushRoute(routeForPage(nextPage, productMode));
+  }
+
+  function openProductPage(nextMode: ProductMode) {
+    setProductMode(nextMode);
+    setPage("trade");
+    setMarketSearch("");
+    pushRoute(routeForPage("trade", nextMode));
+  }
+
+  function selectMarket(nextSymbol: string) {
+    setSymbol(nextSymbol);
+    setMarketSearch("");
+    navigateToPage("trade");
   }
 
   function pickOrderPrice(priceTicks: number) {
@@ -498,9 +562,13 @@ export default function App() {
         session={session}
         page={page}
         productMode={productMode}
+        markets={visibleMarkets}
+        marketSearch={marketSearch}
         theme={theme}
-        onPageChange={setPage}
-        onProductModeChange={setProductMode}
+        onPageChange={navigateToPage}
+        onProductModeChange={openProductPage}
+        onMarketSearchChange={setMarketSearch}
+        onMarketSelect={selectMarket}
         onThemeToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")}
         onLogin={() => setAuthMode("login")}
         onRegister={() => setAuthMode("register")}
@@ -512,35 +580,34 @@ export default function App() {
           markets={markets}
           selectedMarket={selectedMarket}
           onOpenMarket={(market) => {
-            setProductMode(marketProduct(market));
             setSymbol(market.symbol);
-            setPage("trade");
+            openProductPage(marketProduct(market));
           }}
         />
       ) : page === "assets" ? (
         <AssetsPage
           balances={balances}
           session={session}
-          onDeposit={() => setPage("recharge")}
-          onWithdraw={() => setPage("withdraw")}
+          onDeposit={() => navigateToPage("recharge")}
+          onWithdraw={() => navigateToPage("withdraw")}
         />
       ) : page === "recharge" ? (
         <FundingFlowPage
           mode="deposit"
           balances={balances}
-          onBack={() => setPage("assets")}
-          onShowAsset={() => setPage("assets")}
+          onBack={() => navigateToPage("assets")}
+          onShowAsset={() => navigateToPage("assets")}
         />
       ) : page === "withdraw" ? (
         <FundingFlowPage
           mode="withdraw"
           balances={balances}
-          onBack={() => setPage("assets")}
-          onShowAsset={() => setPage("assets")}
+          onBack={() => navigateToPage("assets")}
+          onShowAsset={() => navigateToPage("assets")}
         />
       ) : (
-        <div className="terminal-grid">
-          <MarketRail productMode={productMode} markets={visibleMarkets} symbol={symbol} onSelect={setSymbol} />
+        <div className="terminal-grid" key={productMode}>
+          <MarketRail productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
           <section className="workspace">
             <MarketHeader market={selectedMarket} loading={loading} nowMs={nowMs} onInfo={() => setInstrumentInfoOpen(true)} />
             <DerivativeLifecyclePanel market={selectedMarket} markets={markets} nowMs={nowMs} />
@@ -700,19 +767,28 @@ function FundingFlowPage({
   onShowAsset: () => void;
 }) {
   const assets = fundingAssets(balances);
-  const [asset, setAsset] = useState(() => assets[0]?.asset ?? "USDT");
-  const [network, setNetwork] = useState(() => fundingNetworks(assets[0]?.asset ?? "USDT")[0]);
+  const [asset, setAsset] = useState("");
+  const [network, setNetwork] = useState("");
+  const [openPicker, setOpenPicker] = useState<"asset" | "network" | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const networks = fundingNetworks(asset);
-  const selectedNetwork = networks.includes(network) ? network : networks[0];
+  const networks = asset ? fundingNetworks(asset) : [];
+  const selectedNetwork = network && networks.includes(network) ? network : "";
   const title = mode === "deposit" ? "充币" : "提币";
-  const address = demoFundingAddress(asset, selectedNetwork);
+  const address = asset && selectedNetwork ? demoFundingAddress(asset, selectedNetwork) : "";
 
-  useEffect(() => {
-    const nextNetwork = fundingNetworks(asset)[0];
+  function selectFundingAsset(nextAsset: string) {
+    const nextNetwork = fundingNetworks(nextAsset)[0] ?? "";
+    setAsset(nextAsset);
     setNetwork(nextNetwork);
     setShowDetails(false);
-  }, [asset]);
+    setOpenPicker("network");
+  }
+
+  function selectFundingNetwork(nextNetwork: string) {
+    setNetwork(nextNetwork);
+    setShowDetails(false);
+    setOpenPicker(null);
+  }
 
   return (
     <section className="funding-page">
@@ -722,14 +798,16 @@ function FundingFlowPage({
           <button className="funding-back" onClick={onBack}>资产总览</button>
           <h1>{title}</h1>
           <div className={showDetails ? "funding-steps completed" : "funding-steps"}>
-            <FundingStep index={1} done={showDetails} label="选择币种">
-              <button className="funding-select" onClick={() => setShowDetails(false)}>
-                <AssetIcon symbol={asset} /><span>{asset}</span><ChevronDown size={16} />
+            <FundingStep index={1} done={Boolean(asset)} active={openPicker === "asset"} label="选择币种">
+              <button className="funding-select" onClick={() => { setOpenPicker(openPicker === "asset" ? null : "asset"); setShowDetails(false); }}>
+                {asset ? <AssetIcon symbol={asset} /> : <span className="asset-icon asset-placeholder">?</span>}
+                <span>{asset || "请选择币种"}</span>
+                <ChevronDown size={16} />
               </button>
-              {!showDetails && (
+              {openPicker === "asset" && (
                 <div className="funding-picker">
                   {assets.slice(0, 8).map((item) => (
-                    <button className={item.asset === asset ? "active" : ""} key={item.asset} onClick={() => setAsset(item.asset)}>
+                    <button className={item.asset === asset ? "active" : ""} key={item.asset} onClick={() => selectFundingAsset(item.asset)}>
                       <AssetIcon symbol={item.asset} /><span>{item.asset}</span><small>{assetName(item.asset)}</small>
                     </button>
                   ))}
@@ -737,14 +815,16 @@ function FundingFlowPage({
               )}
             </FundingStep>
 
-            <FundingStep index={2} done={showDetails} label="选择网络">
-              <button className="funding-select" onClick={() => setShowDetails(false)}>
-                <AssetIcon symbol={chainSymbol(selectedNetwork)} /><span>{networkLabel(selectedNetwork, asset)}</span><ChevronDown size={16} />
+            <FundingStep index={2} done={Boolean(selectedNetwork)} active={openPicker === "network"} label="选择网络">
+              <button className="funding-select" disabled={!asset} onClick={() => { if (asset) { setOpenPicker(openPicker === "network" ? null : "network"); setShowDetails(false); } }}>
+                {selectedNetwork ? <AssetIcon symbol={chainSymbol(selectedNetwork)} /> : <span className="asset-icon asset-placeholder">?</span>}
+                <span>{selectedNetwork ? networkLabel(selectedNetwork, asset) : "请先选择币种"}</span>
+                <ChevronDown size={16} />
               </button>
-              {!showDetails && (
+              {openPicker === "network" && (
                 <div className="funding-picker network-picker">
                   {networks.map((item) => (
-                    <button className={item === selectedNetwork ? "active" : ""} key={item} onClick={() => setNetwork(item)}>
+                    <button className={item === selectedNetwork ? "active" : ""} key={item} onClick={() => selectFundingNetwork(item)}>
                       <AssetIcon symbol={chainSymbol(item)} /><span>{networkLabel(item, asset)}</span><small>到账约 {networkEtaPc(item)} · 最小 {minimumAmount(asset)}</small>
                     </button>
                   ))}
@@ -771,7 +851,7 @@ function FundingFlowPage({
                   </div>
                 )
               ) : (
-                <button className="primary-flow-button" onClick={() => setShowDetails(true)}>继续</button>
+                <button className="primary-flow-button" disabled={!asset || !selectedNetwork} onClick={() => { setOpenPicker(null); setShowDetails(true); }}>继续</button>
               )}
             </FundingStep>
           </div>
@@ -786,7 +866,7 @@ function FundingFlowPage({
             </div>
           )}
 
-          <FundingRecords asset={asset} mode={mode} onShowAsset={onShowAsset} />
+          <FundingRecords asset={asset || null} mode={mode} onShowAsset={onShowAsset} />
         </div>
         <FaqCard title="常见问题" />
       </div>
@@ -820,13 +900,14 @@ function InfoPair({ label, value }: { label: string; value: string }) {
   return <div><span>{label} <Info size={13} /></span><strong>{value}</strong></div>;
 }
 
-function FundingRecords({ asset, mode, onShowAsset }: { asset: string; mode: "deposit" | "withdraw"; onShowAsset: () => void }) {
+function FundingRecords({ asset, mode, onShowAsset }: { asset: string | null; mode: "deposit" | "withdraw"; onShowAsset: () => void }) {
+  const actionLabel = mode === "deposit" ? "充币" : "提币";
   return (
     <section className="funding-records">
-      <div className="record-tabs"><button className="active">{asset} {mode === "deposit" ? "充币" : "提币"}记录</button><button>全部{mode === "deposit" ? "充币" : "提币"}记录</button></div>
+      <div className="record-tabs"><button className="active">{asset ? `${asset} ${actionLabel}记录` : `${actionLabel}记录`}</button><button>全部{actionLabel}记录</button></div>
       <div className="record-actions"><button><Download size={14} /> 导出</button><button onClick={onShowAsset}><FileText size={14} /> 查看历史记录</button></div>
-      <div className="record-table-head"><span>时间</span><span>地址</span><span>交易 ID</span><span>币种</span><span>{mode === "deposit" ? "充币" : "提币"}数量</span><span>{mode === "deposit" ? "充币" : "提币"}状态</span></div>
-      <div className="empty-ledger"><FileText size={54} /><strong>暂无记录</strong><small>开始您的第一笔交易</small></div>
+      <div className="record-table-head"><span>时间</span><span>地址</span><span>交易 ID</span><span>币种</span><span>{actionLabel}数量</span><span>{actionLabel}状态</span></div>
+      <div className="empty-ledger"><FileText size={54} /><strong>暂无记录</strong><small>{asset ? "开始您的第一笔交易" : "选择币种后查看对应记录"}</small></div>
     </section>
   );
 }
@@ -987,9 +1068,13 @@ function Topbar({
   session,
   page,
   productMode,
+  markets,
+  marketSearch,
   theme,
   onPageChange,
   onProductModeChange,
+  onMarketSearchChange,
+  onMarketSelect,
   onThemeToggle,
   onLogin,
   onRegister,
@@ -998,37 +1083,72 @@ function Topbar({
   session: AuthSession | null;
   page: Page;
   productMode: ProductMode;
+  markets: Market[];
+  marketSearch: string;
   theme: ThemeMode;
   onPageChange: (page: Page) => void;
   onProductModeChange: (mode: ProductMode) => void;
+  onMarketSearchChange: (value: string) => void;
+  onMarketSelect: (symbol: string) => void;
   onThemeToggle: () => void;
   onLogin: () => void;
   onRegister: () => void;
   onLogout: () => void;
 }) {
+  const query = marketSearch.trim().toUpperCase();
+  const searchResults = query
+    ? markets.filter((market) => `${market.symbol} ${market.displayName}`.toUpperCase().includes(query)).slice(0, 6)
+    : [];
+
+  function openMarket(symbol: string) {
+    onMarketSelect(symbol);
+    onMarketSearchChange("");
+    onPageChange("trade");
+  }
+
   return (
     <header className="topbar">
-      <button className="brand okx-brand" onClick={() => onPageChange("trade")}><span className="okx-mark" /><strong>欧易</strong></button>
+      <button className="brand platform-brand" onClick={() => onPageChange("trade")}>
+        <span className="platform-mark"><Sparkles size={16} /></span>
+        <strong>Surprising EX</strong>
+      </button>
       <nav>
-        <button onClick={() => { onProductModeChange("spot"); onPageChange("trade"); }}>买币<ChevronDown size={13} /></button>
-        <button onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}>市场</button>
-        <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => { onProductModeChange("linear"); onPageChange("trade"); }}><CircleDollarSign size={15} />U本位</button>
-        <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => { onProductModeChange("inverse"); onPageChange("trade"); }}><Layers3 size={15} />币本位</button>
-        <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => { onProductModeChange("linearDelivery"); onPageChange("trade"); }}><Clock3 size={15} />U交割</button>
-        <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => { onProductModeChange("inverseDelivery"); onPageChange("trade"); }}><Clock3 size={15} />币交割</button>
-        <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => { onProductModeChange("option"); onPageChange("trade"); }}><Sparkles size={15} />期权</button>
-        <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => { onProductModeChange("spot"); onPageChange("trade"); }}><WalletCards size={15} />现货</button>
-        <button>金融<ChevronDown size={13} /></button>
-        <button>机构客户<ChevronDown size={13} /></button>
-        <button>新手学院<ChevronDown size={13} /></button>
-        <button>星球</button>
+        <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => onProductModeChange("linear")}><CircleDollarSign size={15} />U本位</button>
+        <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => onProductModeChange("inverse")}><Layers3 size={15} />币本位</button>
+        <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => onProductModeChange("linearDelivery")}><Clock3 size={15} />U交割</button>
+        <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => onProductModeChange("inverseDelivery")}><Clock3 size={15} />币交割</button>
+        <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => onProductModeChange("option")}><Sparkles size={15} />期权</button>
+        <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => onProductModeChange("spot")}><WalletCards size={15} />现货</button>
         <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />交易规则</button>
       </nav>
       <div className="top-actions">
-        <div className="top-search"><Search size={14} />搜索币对</div>
+        <div className="top-search-wrap">
+          <label className="top-search">
+            <Search size={14} />
+            <input
+              value={marketSearch}
+              onChange={(event) => onMarketSearchChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && searchResults[0]) {
+                  openMarket(searchResults[0].symbol);
+                }
+              }}
+              placeholder={`搜索${PRODUCT_META[productMode].shortLabel}`}
+            />
+          </label>
+          {searchResults.length > 0 && (
+            <div className="top-search-results">
+              {searchResults.map((market) => (
+                <button key={market.symbol} onClick={() => openMarket(market.symbol)}>
+                  <span>{market.symbol}</span>
+                  <small>{market.displayName}</small>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button className="asset-charge" onClick={() => onPageChange("recharge")}>充值</button>
         <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>资产管理<ChevronDown size={13} /></button>
-        <button><Bell size={16} /></button>
         <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
         {session ? (
           <>
@@ -1038,7 +1158,7 @@ function Topbar({
         ) : (
           <>
             <button className="auth-entry" onClick={onLogin}>登录</button>
-            <button className="auth-entry primary" onClick={onRegister}>注册</button>
+            <button className="auth-entry" onClick={onRegister}>注册</button>
           </>
         )}
       </div>
@@ -1046,12 +1166,44 @@ function Topbar({
   );
 }
 
-function MarketRail({ productMode, markets, symbol, onSelect }: { productMode: ProductMode; markets: Market[]; symbol: string; onSelect: (symbol: string) => void }) {
+function MarketRail({
+  productMode,
+  markets,
+  marketSearch,
+  symbol,
+  onSearchChange,
+  onSelect
+}: {
+  productMode: ProductMode;
+  markets: Market[];
+  marketSearch: string;
+  symbol: string;
+  onSearchChange: (value: string) => void;
+  onSelect: (symbol: string) => void;
+}) {
+  const query = marketSearch.trim().toUpperCase();
+  const filteredMarkets = query
+    ? markets.filter((market) => `${market.symbol} ${market.displayName}`.toUpperCase().includes(query))
+    : markets;
+
   return (
     <aside className="market-rail">
-      <div className="rail-search"><Search size={14} /><span>搜索{PRODUCT_META[productMode].shortLabel}</span></div>
+      <label className="rail-search">
+        <Search size={14} />
+        <input
+          value={marketSearch}
+          onChange={(event) => onSearchChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && filteredMarkets[0]) {
+              onSelect(filteredMarkets[0].symbol);
+            }
+          }}
+          placeholder={`搜索${PRODUCT_META[productMode].shortLabel}`}
+        />
+      </label>
       {markets.length === 0 && <p className="empty rail-empty">暂无{PRODUCT_META[productMode].label}市场</p>}
-      {markets.map((market) => (
+      {markets.length > 0 && filteredMarkets.length === 0 && <p className="empty rail-empty">没有匹配的币对</p>}
+      {filteredMarkets.map((market) => (
         <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${market.displayName}`} onClick={() => onSelect(market.symbol)}>
           <span><Star size={13} />{market.symbol}</span>
           <strong>{displayMarketPrice(market, market.lastPriceTicks)}</strong>

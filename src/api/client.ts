@@ -50,30 +50,59 @@ export async function request<T>(path: string, options: ApiRequestInit = {}, ses
     headers.set("X-Product-Line", productLine);
   }
   const response = await fetch(`${config.apiBaseUrl}${path}`, { ...requestOptions, headers });
+  const raw = await response.text();
   if (!response.ok) {
-    let payload: unknown;
-    let raw = "";
-    try {
-      raw = await response.text();
-      payload = raw ? JSON.parse(raw) : "";
-    } catch {
-      payload = raw;
-    }
-    const message = typeof payload === "object" && payload && "detail" in payload
-      ? String((payload as { detail?: string }).detail)
-      : typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message?: string }).message)
-        : typeof payload === "string" && payload.trim()
-          ? payload
-      : `HTTP ${response.status}`;
+    const payload = parseJsonPayload(raw) ?? raw;
+    const message = responseErrorMessage(payload, raw, response.status);
     throw new ApiError(message, response.status, payload);
   }
-  if (response.status === 204) {
+  if (response.status === 204 || !raw.trim()) {
     return undefined as T;
   }
-  return response.json() as Promise<T>;
+  const payload = parseJsonPayload(raw);
+  if (payload === undefined) {
+    throw new ApiError(nonJsonResponseMessage(raw), response.status, raw);
+  }
+  return payload as T;
 }
 
 export function gatewayPath(service: string, path = ""): string {
   return `${config.gatewayPrefix}/${service}${path}`;
+}
+
+function parseJsonPayload(raw: string): unknown | undefined {
+  if (!raw.trim()) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+function responseErrorMessage(payload: unknown, raw: string, status: number): string {
+  if (isHtmlResponse(raw)) {
+    return "接口返回了 HTML 页面，请检查 API 地址或 Vite 网关代理配置。";
+  }
+  if (typeof payload === "object" && payload && "detail" in payload) {
+    return String((payload as { detail?: string }).detail);
+  }
+  if (typeof payload === "object" && payload && "message" in payload) {
+    return String((payload as { message?: string }).message);
+  }
+  if (typeof payload === "string" && payload.trim()) {
+    return payload;
+  }
+  return `HTTP ${status}`;
+}
+
+function nonJsonResponseMessage(raw: string): string {
+  if (isHtmlResponse(raw)) {
+    return "接口返回了 HTML 页面，请检查 API 地址或 Vite 网关代理配置。";
+  }
+  return "接口返回了非 JSON 响应，请检查 API 地址或 Vite 网关代理配置。";
+}
+
+function isHtmlResponse(raw: string): boolean {
+  const value = raw.trimStart().toLowerCase();
+  return value.startsWith("<!doctype") || value.startsWith("<html");
 }
