@@ -72,7 +72,8 @@ const ORDER_BOOK_PRECISIONS = [0.1, 1, 10, 50, 100] as const;
 const TRADE_TAPE_ROWS = 15;
 const PRICE_UNIT_SCALE = 100_000_000;
 
-const PRIVATE_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
+const PRIVATE_REFRESH_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
+const PRIVATE_CHANNELS = new Set([...PRIVATE_REFRESH_CHANNELS, "triggerOrders"]);
 const THEME_KEY = "surprising-ex.theme";
 const PRODUCT_ROUTES: Record<ProductMode, string> = {
   linear: "/trade/usdt-perpetual",
@@ -143,8 +144,15 @@ export default function App() {
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
   const [pickedPrice, setPickedPrice] = useState<PickedPrice | null>(null);
   const processedPrivateEventKeysRef = useRef<Set<string>>(new Set());
+  const processedTriggerEventKeysRef = useRef<Set<string>>(new Set());
+  const triggerOrderEventVersionsRef = useRef<Map<number, number>>(new Map());
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
+
+  useEffect(() => {
+    processedTriggerEventKeysRef.current.clear();
+    triggerOrderEventVersionsRef.current.clear();
+  }, [session?.user.userId]);
 
   const visibleMarkets = useMemo(
     () => markets.filter((market) => marketProduct(market) === productMode),
@@ -244,12 +252,43 @@ export default function App() {
     const privateEvents = nextRealtimeEvents(
       realtime.events,
       processedPrivateEventKeysRef,
-      (event) => Boolean(event.channel && PRIVATE_CHANNELS.has(event.channel) && matchesProductLine(event, activeProductLine))
+      (event) => Boolean(event.channel && PRIVATE_REFRESH_CHANNELS.has(event.channel)
+        && matchesProductLine(event, activeProductLine))
     );
     if (!privateEvents.length) return;
     const timer = window.setTimeout(() => void refreshPrivateData(session), 250);
     return () => window.clearTimeout(timer);
   }, [activeProductLine, productMode, realtime.events, session, symbol]);
+
+  useEffect(() => {
+    if (!session || realtime.privateConnectionVersion <= 0) return;
+    void refreshPrivateData(session);
+  }, [realtime.privateConnectionVersion]);
+
+  useEffect(() => {
+    if (!session) return;
+    const updates = nextRealtimeEvents(
+      realtime.events,
+      processedTriggerEventKeysRef,
+      (event) => event.op === "event" && event.channel === "triggerOrders"
+        && matchesProductLine(event, activeProductLine)
+    );
+    for (const event of updates) {
+      const data = asRecord(event.data);
+      const order = asRecord(data?.order);
+      if (!data || !order) continue;
+      const triggerOrderId = asNumber(order.triggerOrderId);
+      const eventId = asNumber(data.eventId);
+      if (!triggerOrderId || !eventId) continue;
+      const eventSymbol = String(order.symbol ?? event.symbol ?? "");
+      if (eventSymbol !== symbol) continue;
+      const previousEventId = triggerOrderEventVersionsRef.current.get(triggerOrderId) ?? 0;
+      if (eventId <= previousEventId) continue;
+      triggerOrderEventVersionsRef.current.set(triggerOrderId, eventId);
+      const snapshot = order as unknown as OpenTriggerOrder;
+      setTriggerOrders((current) => upsertOpenTriggerOrder(current, snapshot));
+    }
+  }, [activeProductLine, realtime.events, session, symbol]);
 
   useEffect(() => {
     const events = nextRealtimeEvents(
@@ -1409,6 +1448,14 @@ function nextRealtimeEvents(
     processedRef.current = new Set([...processedRef.current].slice(-240));
   }
   return next;
+}
+
+function upsertOpenTriggerOrder(current: OpenTriggerOrder[], incoming: OpenTriggerOrder): OpenTriggerOrder[] {
+  const remaining = current.filter((item) => item.triggerOrderId !== incoming.triggerOrderId);
+  if (incoming.status !== "PENDING" && incoming.status !== "TRIGGERING") {
+    return remaining;
+  }
+  return [incoming, ...remaining];
 }
 
 function realtimeEventKey(event: WsEnvelope): string {

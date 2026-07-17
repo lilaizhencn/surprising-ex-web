@@ -10,7 +10,7 @@
 - JWT access token + refresh token，本地持久化 session。
 - 交易工作台：U本位合约、币本位合约、现货市场列表、K线、盘口、成交、下单、资产、当前委托、合约持仓和风险快照。
 - REST 接入 `surprising-gateway-provider`。
-- WebSocket 接入 `surprising-websocket-provider`，订阅行情和私有推送。
+- WebSocket 接入 `surprising-websocket-provider`，订阅行情和私有推送。止盈止损状态快照会立即更新开放条件单列表；私有 WebSocket 重连后主动执行一次 REST 全量刷新补偿漏消息。
 - 后端不可用时，行情和账户模块进入降级展示；下单不会伪造成交。
 
 ## 本地开发

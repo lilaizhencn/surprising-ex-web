@@ -372,6 +372,15 @@ export interface OpenTriggerOrder {
   triggeredPriceTicks?: number | null;
   rejectReason?: string | null;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TriggerOrderUpdatedEvent {
+  eventId: number;
+  productLine: ProductLine;
+  order: OpenTriggerOrder;
+  eventTime: string;
+  traceId?: string | null;
 }
 
 export interface PlaceTriggerOrderDraft {

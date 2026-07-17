@@ -6,6 +6,7 @@ export interface RealtimeSnapshot {
   state: ConnectionState;
   lastEventAt?: Date;
   events: WsEnvelope[];
+  privateConnectionVersion: number;
 }
 
 export function useRealtime(
@@ -17,6 +18,7 @@ export function useRealtime(
   const [state, setState] = useState<ConnectionState>("offline");
   const [lastEventAt, setLastEventAt] = useState<Date | undefined>();
   const [events, setEvents] = useState<WsEnvelope[]>([]);
+  const [privateConnectionVersion, setPrivateConnectionVersion] = useState(0);
   const publicReconnectTimer = useRef<number | null>(null);
   const privateReconnectTimer = useRef<number | null>(null);
 
@@ -85,6 +87,7 @@ export function useRealtime(
       nextSocket.onopen = () => {
         attempt = 0;
         subscribe(nextSocket, privateSubscriptions(symbol, productMode));
+        setPrivateConnectionVersion((current) => current + 1);
       };
       nextSocket.onmessage = pushEvent;
       nextSocket.onerror = () => undefined;
@@ -104,7 +107,7 @@ export function useRealtime(
     };
   }, [privateUrl, productMode, session, symbol]);
 
-  return { state, lastEventAt, events };
+  return { state, lastEventAt, events, privateConnectionVersion };
 }
 
 type Subscription = { id: string; channel: string; symbol?: string; period?: string; productLine: ProductLine };
@@ -146,6 +149,7 @@ function privateSubscriptions(symbol: string, productMode: ProductMode): Subscri
   ];
   if (productMode !== "spot") {
     channels.push(
+      { id: "triggerOrders", channel: "triggerOrders", symbol, productLine },
       { id: "positions", channel: "positions", symbol, productLine },
       { id: "positionRisk", channel: "positionRisk", symbol, productLine },
       { id: "accountRisk", channel: "accountRisk", productLine }
