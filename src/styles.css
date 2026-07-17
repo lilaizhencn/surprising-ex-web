@@ -997,7 +997,7 @@ select:focus {
 
 .trigger-level-row {
   display: grid;
-  grid-template-columns: minmax(72px, .72fr) minmax(64px, .62fr) minmax(72px, .72fr) repeat(4, minmax(70px, 1fr)) 30px;
+  grid-template-columns: minmax(72px, .72fr) minmax(64px, .62fr) repeat(4, minmax(70px, 1fr)) 30px;
   gap: 6px;
   min-height: 30px;
   min-width: 660px;

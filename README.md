@@ -10,7 +10,7 @@ User-facing trading web terminal for Surprising EX, maintained separately from t
 - JWT access token and refresh token session persistence.
 - Trading workspace for USDT-margined perpetuals, coin-margined perpetuals, and spot markets: market list, candlesticks, order book, trades, order entry, assets, open orders, contract positions, and risk snapshots.
 - REST integration through `surprising-gateway-provider`.
-- WebSocket integration through `surprising-websocket-provider` for public market data and private account updates. TP/SL status snapshots update the open-trigger list immediately; private WebSocket reconnects trigger a full REST refresh to recover missed events.
+- WebSocket integration through `surprising-websocket-provider` for public market data and private account updates. TP/SL placement is fixed to mark-price triggering; status snapshots update the open-trigger list immediately, and private WebSocket reconnects trigger a full REST refresh to recover missed events.
 - Market and account modules fall back to demo data when the backend is unavailable. Order submission is never faked as filled.
 
 ## Local Development

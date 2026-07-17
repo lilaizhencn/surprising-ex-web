@@ -47,7 +47,7 @@ import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, TriggerPriceType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -58,7 +58,6 @@ type TriggerCloseTarget = "LONG" | "SHORT";
 type TriggerLevelInput = {
   id: string;
   triggerType: TriggerOrderType;
-  triggerPriceType: TriggerPriceType;
   closeTarget: TriggerCloseTarget;
   triggerPriceTicks: string;
   activationPriceTicks: string;
@@ -1679,7 +1678,6 @@ function OrderTicket({
       {
         id: `${Date.now()}-${current.length}`,
         triggerType,
-        triggerPriceType: "MARK_PRICE",
         closeTarget: side === "SELL" ? "SHORT" : "LONG",
         triggerPriceTicks: triggerType === "TRAILING_STOP" ? "0" : priceTicks,
         activationPriceTicks: triggerType === "TRAILING_STOP" ? priceTicks : "",
@@ -1841,11 +1839,6 @@ function OrderTicket({
                 <option value="LONG">平多</option>
                 <option value="SHORT">平空</option>
               </select>
-              <select value={level.triggerPriceType} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceType: event.target.value as TriggerPriceType })}>
-                <option value="MARK_PRICE">Mark</option>
-                <option value="INDEX_PRICE">Index</option>
-                <option value="LAST_PRICE">Last</option>
-              </select>
               <input title="触发价 ticks" value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
               <input title="激活价 ticks" disabled={level.triggerType !== "TRAILING_STOP"} value={level.activationPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { activationPriceTicks: event.target.value })} />
               <input title="回调 ppm" disabled={level.triggerType !== "TRAILING_STOP"} value={level.callbackRatePpm} onChange={(event) => patchTriggerLevel(level.id, { callbackRatePpm: event.target.value })} />
@@ -1862,7 +1855,6 @@ function OrderTicket({
                 symbol,
                 side: level.closeTarget === "LONG" ? "SELL" : "BUY",
                 triggerType: level.triggerType,
-                triggerPriceType: level.triggerPriceType,
                 triggerPriceTicks: Number(level.triggerPriceTicks),
                 activationPriceTicks: level.triggerType === "TRAILING_STOP" && level.activationPriceTicks.trim() !== ""
                   ? Number(level.activationPriceTicks)

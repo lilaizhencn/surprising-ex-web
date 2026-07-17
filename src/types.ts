@@ -5,7 +5,6 @@ export type MarginMode = "CROSS" | "ISOLATED";
 export type PositionMode = "ONE_WAY" | "HEDGE";
 export type PositionSide = "NET" | "LONG" | "SHORT";
 export type TriggerOrderType = "TAKE_PROFIT" | "STOP_LOSS" | "TRAILING_STOP";
-export type TriggerPriceType = "MARK_PRICE" | "INDEX_PRICE" | "LAST_PRICE";
 export type AlgoOrderType = "TWAP" | "ICEBERG";
 export type AlgoOrderStatus = "PENDING" | "RUNNING" | "CANCEL_REQUESTED" | "CANCELED" | "COMPLETED" | "FAILED";
 export type ConnectionState = "live" | "degraded" | "offline";
@@ -353,7 +352,6 @@ export interface OpenTriggerOrder {
   symbol: string;
   side: OrderSide;
   triggerType: TriggerOrderType;
-  triggerPriceType: TriggerPriceType;
   triggerCondition?: string;
   triggerPriceTicks: number;
   activationPriceTicks?: number | null;
@@ -387,7 +385,6 @@ export interface PlaceTriggerOrderDraft {
   symbol: string;
   side: OrderSide;
   triggerType: TriggerOrderType;
-  triggerPriceType: TriggerPriceType;
   triggerPriceTicks: number;
   activationPriceTicks?: number;
   callbackRatePpm?: number;

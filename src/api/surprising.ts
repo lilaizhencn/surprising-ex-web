@@ -806,7 +806,6 @@ function triggerOrderPayload(session: AuthSession, draft: PlaceTriggerOrderDraft
     symbol: draft.symbol,
     side: draft.side,
     triggerType: draft.triggerType,
-    triggerPriceType: draft.triggerPriceType,
     triggerPriceTicks: draft.triggerPriceTicks,
     activationPriceTicks: draft.activationPriceTicks,
     callbackRatePpm: draft.callbackRatePpm,
