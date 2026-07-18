@@ -329,20 +329,56 @@ export async function updatePositionMode(
   return response.positionMode ?? positionMode;
 }
 
+export interface OpenOrderPage {
+  orders: OpenOrder[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  sort: string;
+  limit: number;
+}
+
 export async function loadOpenOrders(
   session: AuthSession,
   symbol: string,
-  productLine?: ProductLine
-): Promise<OpenOrder[]> {
+  productLine?: ProductLine,
+  cursor?: string | null,
+  limit = 100
+): Promise<OpenOrderPage> {
   try {
-    const response = await request<{ orders?: OpenOrder[]; items?: OpenOrder[] }>(
-      gatewayPath("trading", `/open?userId=${session.user.userId}&symbol=${encodeURIComponent(symbol)}&limit=100`),
+    const query = new URLSearchParams({
+      userId: String(session.user.userId),
+      symbol,
+      limit: String(limit)
+    });
+    if (cursor) query.set("cursor", cursor);
+    const response = await request<{
+      orders?: OpenOrder[];
+      items?: OpenOrder[];
+      nextCursor?: string | null;
+      hasMore?: boolean;
+      sort?: string;
+      limit?: number;
+    }>(
+      gatewayPath("trading", `/open?${query.toString()}`),
       { productLine },
       session
     );
-    return response.orders ?? response.items ?? [];
+    const nextCursor = response.nextCursor ?? null;
+    return {
+      orders: response.orders ?? response.items ?? [],
+      nextCursor,
+      hasMore: response.hasMore === true && nextCursor !== null,
+      sort: response.sort ?? "orderId.desc",
+      limit: response.limit ?? limit
+    };
   } catch {
-    return fallbackOrders.filter((order) => order.symbol === symbol);
+    return {
+      orders: fallbackOrders.filter((order) => order.symbol === symbol),
+      nextCursor: null,
+      hasMore: false,
+      sort: "orderId.desc",
+      limit
+    };
   }
 }
 

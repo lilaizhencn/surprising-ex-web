@@ -1136,6 +1136,27 @@ select:focus {
   color: var(--sell);
 }
 
+.table-load-more {
+  display: flex;
+  justify-content: center;
+  min-width: 880px;
+  padding: 10px 0 2px;
+}
+
+.table-load-more button {
+  min-width: 132px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.table-load-more button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .right-stack {
   display: grid;
   gap: 8px;

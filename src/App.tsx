@@ -128,6 +128,9 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
+  const [openOrdersNextCursor, setOpenOrdersNextCursor] = useState<string | null>(null);
+  const [openOrdersHasMore, setOpenOrdersHasMore] = useState(false);
+  const [loadingMoreOpenOrders, setLoadingMoreOpenOrders] = useState(false);
   const [algoOrders, setAlgoOrders] = useState<AlgoOrder[]>([]);
   const [triggerOrders, setTriggerOrders] = useState<OpenTriggerOrder[]>([]);
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
@@ -147,6 +150,7 @@ export default function App() {
   const triggerOrderEventVersionsRef = useRef<Map<number, number>>(new Map());
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
+  const openOrdersRequestRef = useRef(0);
 
   useEffect(() => {
     processedTriggerEventKeysRef.current.clear();
@@ -378,9 +382,13 @@ export default function App() {
       navigateToPage("trade");
       return;
     }
+    openOrdersRequestRef.current += 1;
     setBalances([]);
     setPositions([]);
     setOrders([]);
+    setOpenOrdersNextCursor(null);
+    setOpenOrdersHasMore(false);
+    setLoadingMoreOpenOrders(false);
     setAlgoOrders([]);
     setTriggerOrders([]);
     setPositionMode("ONE_WAY");
@@ -440,6 +448,9 @@ export default function App() {
 
   async function refreshPrivateData(active = session) {
     if (!active) return;
+    const ordersRequestId = openOrdersRequestRef.current + 1;
+    openOrdersRequestRef.current = ordersRequestId;
+    setLoadingMoreOpenOrders(false);
     try {
       const accountType = PRODUCT_META[activeProductMode].accountType;
       const productLine = PRODUCT_META[activeProductMode].productLine;
@@ -453,13 +464,51 @@ export default function App() {
       ]);
       setBalances(nextBalances);
       setPositions(filterPositionsByProduct(nextPositions, markets, activeProductMode));
-      setOrders(nextOrders);
+      if (ordersRequestId === openOrdersRequestRef.current) {
+        setOrders(nextOrders.orders);
+        setOpenOrdersNextCursor(nextOrders.nextCursor);
+        setOpenOrdersHasMore(nextOrders.hasMore);
+      }
       setAlgoOrders(nextAlgoOrders);
       setTriggerOrders(nextTriggerOrders);
       setPositionMode(nextPositionMode);
       setNotice(`${PRODUCT_META[activeProductMode].label}资产、${activeProductMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "私有数据同步失败");
+    }
+  }
+
+  async function loadMoreOpenOrders() {
+    const active = session;
+    const cursor = openOrdersNextCursor;
+    if (!active || !cursor || !openOrdersHasMore || loadingMoreOpenOrders) return;
+    const ordersRequestId = openOrdersRequestRef.current + 1;
+    openOrdersRequestRef.current = ordersRequestId;
+    const selectedSymbol = symbol;
+    const productLine = activeProductLine;
+    setLoadingMoreOpenOrders(true);
+    try {
+      const nextPage = await loadOpenOrders(active, selectedSymbol, productLine, cursor);
+      if (ordersRequestId !== openOrdersRequestRef.current) return;
+      setOrders((current) => {
+        const existingOrderIds = new Set(current.map((item) => item.orderId));
+        const additions = nextPage.orders.filter((item) => {
+          if (existingOrderIds.has(item.orderId)) return false;
+          existingOrderIds.add(item.orderId);
+          return true;
+        });
+        return [...current, ...additions];
+      });
+      setOpenOrdersNextCursor(nextPage.nextCursor);
+      setOpenOrdersHasMore(nextPage.hasMore);
+    } catch (error) {
+      if (ordersRequestId === openOrdersRequestRef.current) {
+        setNotice(error instanceof Error ? error.message : "加载更多委托失败");
+      }
+    } finally {
+      if (ordersRequestId === openOrdersRequestRef.current) {
+        setLoadingMoreOpenOrders(false);
+      }
     }
   }
 
@@ -554,8 +603,9 @@ export default function App() {
     if (!session) return;
     try {
       const canceled = await cancelOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
-      setOrders((current) => current.map((item) => item.orderId === canceled.orderId ? canceled : item));
+      setOrders((current) => current.filter((item) => item.orderId !== canceled.orderId));
       setNotice(`撤单请求已提交：${order.orderId}`);
+      void refreshPrivateData(session);
     } catch (error) {
       setNotice(error instanceof Error ? `撤单失败：${error.message}` : "撤单失败");
     }
@@ -676,6 +726,8 @@ export default function App() {
               balances={balances}
               positions={positions}
               orders={orders}
+              openOrdersHasMore={openOrdersHasMore}
+              loadingMoreOpenOrders={loadingMoreOpenOrders}
               algoOrders={algoOrders}
               triggerOrders={triggerOrders}
               trades={tradeRecords}
@@ -683,6 +735,7 @@ export default function App() {
               markets={markets}
               onPositionModeChange={changePositionMode}
               onCancel={submitCancel}
+              onLoadMoreOpenOrders={loadMoreOpenOrders}
               onCancelAlgo={submitAlgoCancel}
               onCancelTrigger={submitTriggerCancel}
             />
@@ -1894,12 +1947,14 @@ function OrderTicket({
   );
 }
 
-function BottomDeck({ productMode, positionMode, balances, positions, orders, algoOrders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onCancelAlgo, onCancelTrigger }: {
+function BottomDeck({ productMode, positionMode, balances, positions, orders, openOrdersHasMore, loadingMoreOpenOrders, algoOrders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onLoadMoreOpenOrders, onCancelAlgo, onCancelTrigger }: {
   productMode: ProductMode;
   positionMode: PositionMode;
   balances: Balance[];
   positions: Position[];
   orders: OpenOrder[];
+  openOrdersHasMore: boolean;
+  loadingMoreOpenOrders: boolean;
   algoOrders: AlgoOrder[];
   triggerOrders: OpenTriggerOrder[];
   trades: TradeRecord[];
@@ -1907,6 +1962,7 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, al
   markets: Market[];
   onPositionModeChange: (mode: PositionMode) => void;
   onCancel: (order: OpenOrder) => void;
+  onLoadMoreOpenOrders: () => void;
   onCancelAlgo: (order: AlgoOrder) => void;
   onCancelTrigger: (order: OpenTriggerOrder) => void;
 }) {
@@ -2002,6 +2058,13 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, al
               <button onClick={() => onCancel(item)}>撤单</button>
             </div>
           ))}
+          {openOrdersHasMore && (
+            <div className="table-load-more">
+              <button type="button" onClick={onLoadMoreOpenOrders} disabled={loadingMoreOpenOrders}>
+                {loadingMoreOpenOrders ? "加载中..." : "加载更多委托"}
+              </button>
+            </div>
+          )}
         </AccountTable>
         {!isSpot && (
           <AccountTable title="算法单" icon={<Clock3 size={15} />}>
