@@ -314,6 +314,7 @@ export async function updatePositionMode(
   positionMode: PositionMode,
   productLine?: ProductLine
 ): Promise<PositionMode> {
+  const referenceId = `position-mode:${session.user.userId}:${crypto.randomUUID()}`;
   const response = await request<{ positionMode?: PositionMode }>(
     gatewayPath("account", "/position-mode"),
     {
@@ -321,7 +322,8 @@ export async function updatePositionMode(
       productLine,
       body: JSON.stringify({
         userId: session.user.userId,
-        positionMode
+        positionMode,
+        referenceId
       })
     },
     session
