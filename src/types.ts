@@ -58,6 +58,22 @@ export interface ApiKeyView {
   revokedAt?: string | null;
 }
 
+export interface KycProfile {
+  userId: number;
+  kycLevel: string;
+  status: string;
+  country?: string | null;
+  documentType?: string | null;
+  provider?: string | null;
+  providerReference?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  expiresAt?: string | null;
+  applicantType: string;
+  submittedDocuments: string;
+  faceVerificationStatus: string;
+}
+
 export interface Market {
   symbol: string;
   baseAsset: string;

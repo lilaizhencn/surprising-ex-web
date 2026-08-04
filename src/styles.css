@@ -23,6 +23,74 @@
   text-rendering: optimizeLegibility;
 }
 
+.kyc-card {
+  margin-bottom: 16px;
+}
+
+.no-wrap {
+  white-space: nowrap;
+}
+
+.kyc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.kyc-form-grid label,
+.kyc-document-editor,
+.kyc-submit-row label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kyc-form-grid input,
+.kyc-form-grid select,
+.kyc-document-editor textarea,
+.kyc-submit-row select {
+  min-width: 0;
+  padding: 10px 12px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
+.kyc-document-editor textarea {
+  width: 100%;
+  resize: vertical;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.kyc-document-editor small {
+  color: var(--muted);
+}
+
+.kyc-submit-row {
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+@media (max-width: 760px) {
+  .kyc-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .kyc-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kyc-submit-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #f4f7fb;
@@ -2818,6 +2886,16 @@ button.rules-row:hover {
   .top-actions .auth-entry {
     padding: 0 6px;
     font-size: 12px;
+  }
+
+  .mobile-account,
+  .mobile-logout {
+    padding: 0 7px;
+  }
+
+  .mobile-account span,
+  .mobile-logout span {
+    display: none;
   }
 
   .mobile-products-menu {

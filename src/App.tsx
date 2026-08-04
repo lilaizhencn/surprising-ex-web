@@ -44,12 +44,12 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, updatePositionMode, updateSecurityScene, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadKyc, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -857,6 +857,15 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
   const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null);
   const [scenes, setScenes] = useState<SecurityScene[]>([]);
   const [keys, setKeys] = useState<ApiKeyView[]>([]);
+  const [kyc, setKyc] = useState<KycProfile | null>(null);
+  const [kycApplicantType, setKycApplicantType] = useState("INDIVIDUAL");
+  const [kycLevel, setKycLevel] = useState("STANDARD");
+  const [kycCountry, setKycCountry] = useState("");
+  const [kycDocumentType, setKycDocumentType] = useState("ID_CARD");
+  const [kycProvider, setKycProvider] = useState("SELF");
+  const [kycProviderReference, setKycProviderReference] = useState("");
+  const [kycDocuments, setKycDocuments] = useState('[{"type":"ID_CARD","reference":""},{"type":"ADDRESS_PROOF","reference":""}]');
+  const [kycFaceStatus, setKycFaceStatus] = useState("NOT_REQUIRED");
   const [totpCode, setTotpCode] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [apiTotpCode, setApiTotpCode] = useState("");
@@ -869,14 +878,26 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
 
   async function reload() {
     if (!session) return;
-    const [mfaStatus, securityScenes, apiKeys] = await Promise.all([
+    const [mfaStatus, securityScenes, apiKeys, kycProfile] = await Promise.all([
       loadMfaStatus(session),
       loadSecurityScenes(session),
-      loadApiKeys(session)
+      loadApiKeys(session),
+      loadKyc(session)
     ]);
     setMfa(mfaStatus);
     setScenes(securityScenes);
     setKeys(apiKeys);
+    setKyc(kycProfile);
+    if (kycProfile) {
+      setKycApplicantType(kycProfile.applicantType || "INDIVIDUAL");
+      setKycLevel(kycProfile.kycLevel === "NONE" ? "STANDARD" : kycProfile.kycLevel);
+      setKycCountry(kycProfile.country || "");
+      setKycDocumentType(kycProfile.documentType || "ID_CARD");
+      setKycProvider(kycProfile.provider || "SELF");
+      setKycProviderReference(kycProfile.providerReference || "");
+      setKycDocuments(kycProfile.submittedDocuments || "[]");
+      setKycFaceStatus(kycProfile.faceVerificationStatus || "NOT_REQUIRED");
+    }
   }
 
   useEffect(() => {
@@ -884,6 +905,7 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
     setEnrollment(null);
     setScenes([]);
     setKeys([]);
+    setKyc(null);
     if (session) {
       void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "安全信息加载失败"));
     }
@@ -928,7 +950,7 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
         <div>
           <span className="auth-eyebrow">CONTROL DECK</span>
           <h1>安全中心</h1>
-          <p>邮箱是账户主身份。每项敏感能力都可以独立开关，变更会留下可追溯记录。</p>
+          <p>邮箱是账户主身份。每项敏感能力都可以<span className="no-wrap">独立开关</span>，变更会留下可追溯记录。</p>
         </div>
         <div className="security-account"><ShieldCheck size={18} />{session.user.email ?? "账户"}</div>
       </div>
@@ -957,6 +979,24 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
           <label>当前 2FA 验证码（关闭场景时需要）<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
         </section>
       </div>
+      <section className="panel security-card kyc-card">
+        <div className="panel-title"><span><FileText size={16} />身份认证 KYC</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? "未提交"}</strong></div>
+        <p className="security-muted">提币前必须完成 KYC。材料引用用于连接对象存储或第三方服务，不在交易接口内保存<span className="no-wrap">原件</span>。</p>
+        {kyc?.rejectionReason && <div className="security-alert error">审核意见：{kyc.rejectionReason}</div>}
+        <div className="kyc-form-grid">
+          <label>申请主体<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">个人</option><option value="BUSINESS">企业</option></select></label>
+          <label>认证等级<select value={kycLevel} onChange={(event) => setKycLevel(event.target.value)}><option value="BASIC">基础</option><option value="STANDARD">标准</option><option value="ENHANCED">增强</option></select></label>
+          <label>国家/地区代码<input value={kycCountry} onChange={(event) => setKycCountry(event.target.value.toUpperCase().slice(0, 2))} placeholder="CN" maxLength={2} /></label>
+          <label>主证件类型<select value={kycDocumentType} onChange={(event) => setKycDocumentType(event.target.value)}><option value="ID_CARD">身份证</option><option value="PASSPORT">护照</option><option value="BUSINESS_LICENSE">企业营业执照</option></select></label>
+          <label>认证服务<select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">平台审核</option><option value="THIRD_PARTY">第三方服务</option></select></label>
+          <label>服务引用（可选）<input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder="provider-reference" /></label>
+        </div>
+        <label className="kyc-document-editor">材料引用 JSON
+          <textarea value={kycDocuments} onChange={(event) => setKycDocuments(event.target.value)} rows={4} spellCheck={false} />
+          <small>类型支持 ID_CARD、PASSPORT、ADDRESS_PROOF、BUSINESS_LICENSE；reference 填上传后的文件引用。</small>
+        </label>
+        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2} onClick={() => void run(async () => { try { JSON.parse(kycDocuments); } catch { throw new Error("材料引用必须是合法 JSON 数组"); } setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, submittedDocuments: kycDocuments, faceVerificationStatus: kycFaceStatus })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
+      </section>
       <section className="panel security-card api-key-card">
         <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>兼容交易 API</strong></div>
         <p className="security-muted">Secret 只在创建成功时显示一次。提现权限默认关闭，签名、时间戳和幂等键由服务端校验。</p>
@@ -1427,8 +1467,8 @@ function Topbar({
         <button className="mobile-product-toggle" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />产品线</button>
         {session ? (
           <>
-            <button className="user-pill" onClick={() => onPageChange("security")}>{session.user.email ?? "账户"}</button>
-            <button className="logout-button" onClick={onLogout}><LogOut size={16} />退出</button>
+            <button className="user-pill mobile-account" onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? "账户"}</span></button>
+            <button className="logout-button mobile-logout" onClick={onLogout}><LogOut size={16} /><span>退出</span></button>
           </>
         ) : (
           <>

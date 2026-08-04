@@ -14,6 +14,7 @@ import type {
   Market,
   MfaEnrollment,
   MfaStatus,
+  KycProfile,
   OpenOrder,
   OpenTriggerOrder,
   OrderBatchResponse,
@@ -227,6 +228,29 @@ export function revokeApiKey(session: AuthSession, apiKey: string, emailCode: st
       "X-Security-TOTP-Code": totpCode || ""
     },
     body: JSON.stringify({ apiKey })
+  }, session);
+}
+
+export function loadKyc(session: AuthSession): Promise<KycProfile | null> {
+  return request<KycProfile | null>("/api/v1/compliance/kyc", {}, session);
+}
+
+export function submitKyc(
+  session: AuthSession,
+  payload: {
+    applicantType: string;
+    kycLevel: string;
+    country: string;
+    documentType: string;
+    provider?: string;
+    providerReference?: string;
+    submittedDocuments: string;
+    faceVerificationStatus: string;
+  }
+): Promise<KycProfile> {
+  return request<KycProfile>("/api/v1/compliance/kyc", {
+    method: "POST",
+    body: JSON.stringify(payload)
   }, session);
 }
 
