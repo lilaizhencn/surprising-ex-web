@@ -2790,6 +2790,41 @@ button.rules-row:hover {
 }
 
 @media (max-width: 1320px) {
+  .topbar {
+    grid-template-columns: 190px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .topbar nav {
+    min-width: 0;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar nav button {
+    padding: 0 7px;
+    gap: 4px;
+  }
+
+  .top-actions {
+    gap: 4px;
+  }
+
+  .mobile-account span {
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-logout span {
+    display: none;
+  }
+
   .top-search-wrap {
     display: none;
   }
@@ -2856,6 +2891,12 @@ button.rules-row:hover {
 }
 
 @media (max-width: 700px) {
+  .platform-brand {
+    position: relative;
+    z-index: 21;
+    gap: 14px;
+  }
+
   .platform-brand strong {
     font-size: 16px;
   }
@@ -2912,6 +2953,22 @@ button.rules-row:hover {
     border-radius: 12px;
     background: var(--panel-solid);
     box-shadow: 0 18px 50px rgba(0, 0, 0, .46);
+  }
+
+  .topbar.product-menu-open {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand actions"
+      "menu menu";
+  }
+
+  .topbar.product-menu-open .mobile-products-menu {
+    position: relative;
+    top: auto;
+    right: auto;
+    grid-area: menu;
+    margin: 0 8px 0 auto;
   }
 
   .mobile-products-menu button {

@@ -1420,7 +1420,7 @@ function Topbar({
   }
 
   return (
-    <header className="topbar">
+    <header className={mobileProductsOpen ? "topbar product-menu-open" : "topbar"}>
       <button className="brand platform-brand" onClick={() => onPageChange("trade")}>
         <span className="platform-mark"><Sparkles size={16} /></span>
         <strong>Surprising EX</strong>
@@ -1464,11 +1464,11 @@ function Topbar({
         <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>资产管理<ChevronDown size={13} /></button>
         <button className={page === "security" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("security")}><ShieldCheck size={14} />安全中心</button>
         <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
-        <button className="mobile-product-toggle" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />产品线</button>
+        <button className="mobile-product-toggle" aria-expanded={mobileProductsOpen} aria-controls="mobile-product-menu" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />产品线</button>
         {session ? (
           <>
-            <button className="user-pill mobile-account" onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? "账户"}</span></button>
-            <button className="logout-button mobile-logout" onClick={onLogout}><LogOut size={16} /><span>退出</span></button>
+            <button className="user-pill mobile-account" aria-label="打开安全中心" onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? "账户"}</span></button>
+            <button className="logout-button mobile-logout" aria-label="退出登录" onClick={onLogout}><LogOut size={16} /><span>退出</span></button>
           </>
         ) : (
           <>
@@ -1477,7 +1477,7 @@ function Topbar({
           </>
         )}
       </div>
-      {mobileProductsOpen && <div className="mobile-products-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{meta.label}</button>)}</div>}
+      {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{meta.label}</button>)}</div>}
     </header>
   );
 }
