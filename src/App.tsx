@@ -1156,7 +1156,7 @@ function AuthScreen({
   return (
     <main className="auth-shell">
       <section className="auth-panel">
-        <button className="auth-logo" onClick={onBack}>
+        <button disabled={busy} className="auth-logo" onClick={onBack}>
           <span><Sparkles size={25} /></span>
           <strong>Surprising EX</strong>
         </button>

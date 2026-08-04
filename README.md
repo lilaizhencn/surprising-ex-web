@@ -6,7 +6,7 @@ User-facing trading web terminal for Surprising EX, maintained separately from t
 
 ## Features
 
-- Username and password registration/login. The backend keeps the email field reserved, but the current flow does not require it.
+- Email and password registration/login with email verification and password recovery.
 - JWT access token and refresh token session persistence.
 - Trading workspace for USDT-margined perpetuals, coin-margined perpetuals, and spot markets: market list, candlesticks, order book, trades, order entry, assets, open orders, contract positions, and risk snapshots.
 - REST integration through `surprising-gateway-provider`.

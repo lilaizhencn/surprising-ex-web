@@ -6,7 +6,7 @@
 
 ## 功能
 
-- 用户名 + 密码注册和登录，邮箱字段后端保留但当前不要求输入。
+- 邮箱 + 密码注册和登录，支持邮箱验证与密码找回。
 - JWT access token + refresh token，本地持久化 session。
 - 交易工作台：U本位合约、币本位合约、现货市场列表、K线、盘口、成交、下单、资产、当前委托、合约持仓和风险快照。
 - REST 接入 `surprising-gateway-provider`。
