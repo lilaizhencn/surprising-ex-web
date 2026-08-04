@@ -1202,7 +1202,7 @@ function AuthScreen({
         <button className="primary-button" disabled={busy} onClick={submit}>
           {busy ? "处理中..." : step === "login" ? "进入交易舱" : step === "register" ? "创建账户" : step === "verify" ? "完成邮箱验证" : step === "reset" ? "更新密码" : "发送验证码"}
         </button>
-        {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { await resendEmailVerification(pendingSession); setNotice("新的验证码已发送。"); } catch (err) { setError(err instanceof Error ? err.message : "验证码发送失败"); } finally { setBusy(false); } }}>重新发送验证码</button>}
+        {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); setNotice(""); try { await resendEmailVerification(pendingSession); setNotice("新的验证码已发送。"); } catch (err) { setError(err instanceof Error ? err.message : "验证码发送失败"); } finally { setBusy(false); } }}>重新发送验证码</button>}
         {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>返回登录</button>}
         <button disabled={busy} className="ghost-button" onClick={onBack}>返回行情</button>
       </section>
