@@ -18,6 +18,7 @@ import {
   Globe2,
   HelpCircle,
   Info,
+  KeyRound,
   Layers3,
   LogOut,
   MoonStar,
@@ -25,6 +26,7 @@ import {
   Radio,
   Search,
   Sparkles,
+  ShieldCheck,
   Star,
   Sun,
   TableProperties,
@@ -42,17 +44,17 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, forgotPassword, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, updatePositionMode, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, updatePositionMode, updateSecurityScene, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, MarginMode, Market, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
-type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw";
+type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
 type PickedPrice = { value: number; nonce: number };
 type TriggerCloseTarget = "LONG" | "SHORT";
@@ -99,6 +101,7 @@ function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
   if (path === "/assets") return { page: "assets", productMode };
   if (path === "/recharge") return { page: "recharge", productMode };
   if (path === "/withdraw") return { page: "withdraw", productMode };
+  if (path === "/security") return { page: "security", productMode };
   return { page: "trade", productMode };
 }
 
@@ -694,6 +697,8 @@ export default function App() {
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
+      ) : page === "security" ? (
+        <SecurityPage session={session} onLogin={() => setAuthMode("login")} />
       ) : (
         <div className="terminal-grid" key={productMode}>
           <MarketRail productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
@@ -843,6 +848,127 @@ function AssetsPage({
         </aside>
       </div>
       <SupportBubble />
+    </section>
+  );
+}
+
+function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLogin: () => void }) {
+  const [mfa, setMfa] = useState<MfaStatus | null>(null);
+  const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null);
+  const [scenes, setScenes] = useState<SecurityScene[]>([]);
+  const [keys, setKeys] = useState<ApiKeyView[]>([]);
+  const [totpCode, setTotpCode] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [apiTotpCode, setApiTotpCode] = useState("");
+  const [apiLabel, setApiLabel] = useState("");
+  const [apiPermissions, setApiPermissions] = useState<string[]>(["TRADE"]);
+  const [createdSecret, setCreatedSecret] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  async function reload() {
+    if (!session) return;
+    const [mfaStatus, securityScenes, apiKeys] = await Promise.all([
+      loadMfaStatus(session),
+      loadSecurityScenes(session),
+      loadApiKeys(session)
+    ]);
+    setMfa(mfaStatus);
+    setScenes(securityScenes);
+    setKeys(apiKeys);
+  }
+
+  useEffect(() => {
+    setMfa(null);
+    setEnrollment(null);
+    setScenes([]);
+    setKeys([]);
+    if (session) {
+      void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "安全信息加载失败"));
+    }
+  }, [session?.accessToken]);
+
+  if (!session) {
+    return (
+      <section className="security-page">
+        <section className="panel security-locked">
+          <ShieldCheck size={42} />
+          <h1>安全中心</h1>
+          <p>登录后管理 2FA、敏感操作验证和 API 访问权限。</p>
+          <button className="primary-button" onClick={onLogin}>登录后继续</button>
+        </section>
+      </section>
+    );
+  }
+
+  async function run(action: () => Promise<void>, successMessage: string) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await action();
+      setNotice(successMessage);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "操作失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function togglePermission(permission: string) {
+    setApiPermissions((current) => current.includes(permission)
+      ? current.filter((item) => item !== permission)
+      : [...current, permission]);
+  }
+
+  return (
+    <section className="security-page">
+      <div className="security-heading">
+        <div>
+          <span className="auth-eyebrow">CONTROL DECK</span>
+          <h1>安全中心</h1>
+          <p>邮箱是账户主身份。每项敏感能力都可以独立开关，变更会留下可追溯记录。</p>
+        </div>
+        <div className="security-account"><ShieldCheck size={18} />{session.user.email ?? "账户"}</div>
+      </div>
+      {(notice || error) && <div className={error ? "security-alert error" : "security-alert success"} role={error ? "alert" : "status"}>{error || notice}</div>}
+      <div className="security-grid">
+        <section className="panel security-card">
+          <div className="panel-title"><span><KeyRound size={16} />登录保护</span><strong className={mfa?.enabled ? "tone-up" : "tone-gold"}>{mfa?.enabled ? "已启用" : "未启用"}</strong></div>
+          <p className="security-muted">绑定验证器后，关闭安全场景和 API 敏感权限会额外要求动态验证码。</p>
+          {!mfa?.enabled && !enrollment && <button className="primary-button" disabled={busy} onClick={() => void run(async () => setEnrollment(await enrollMfa(session)), "已生成 2FA 绑定信息")}>绑定 2FA</button>}
+          {enrollment && !mfa?.enabled && (
+            <div className="security-enrollment">
+              <label>密钥<input readOnly value={enrollment.secret} /></label>
+              <label>验证器 URI<input readOnly value={enrollment.provisioningUri} /></label>
+              <label>输入验证器 6 位验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+              <button className="primary-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await confirmMfa(session, totpCode)); setEnrollment(null); setTotpCode(""); }, "2FA 已启用")}>确认绑定</button>
+            </div>
+          )}
+          {mfa?.enabled && <div className="security-inline-form"><label>关闭 2FA 验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await disableMfa(session, totpCode)); setTotpCode(""); }, "2FA 已关闭")}>关闭 2FA</button></div>}
+        </section>
+        <section className="panel security-card">
+          <div className="panel-title"><span><ShieldCheck size={16} />敏感场景</span><strong>可配置</strong></div>
+          <p className="security-muted">关闭场景会降低保护强度。开启 2FA 后，关闭场景必须输入当前动态验证码。</p>
+          <div className="security-scenes">
+            {scenes.map((scene) => <label className="security-scene" key={scene.sceneCode}><span><strong>{scene.label}</strong><small>{scene.sceneCode}</small></span><input type="checkbox" checked={scene.enabled} disabled={busy} onChange={() => void run(async () => { const saved = await updateSecurityScene(session, scene.sceneCode, !scene.enabled, totpCode || undefined); setScenes((current) => current.map((item) => item.sceneCode === saved.sceneCode ? saved : item)); }, `${scene.label}已更新`)} /></label>)}
+          </div>
+          <label>当前 2FA 验证码（关闭场景时需要）<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+        </section>
+      </div>
+      <section className="panel security-card api-key-card">
+        <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>兼容交易 API</strong></div>
+        <p className="security-muted">Secret 只在创建成功时显示一次。提现权限默认关闭，签名、时间戳和幂等键由服务端校验。</p>
+        <div className="api-key-create">
+          <label>名称<input value={apiLabel} onChange={(event) => setApiLabel(event.target.value)} placeholder="例如：量化主账户" /></label>
+          <div className="permission-picker">{["TRADE", "WITHDRAW"].map((permission) => <label key={permission}><input type="checkbox" checked={apiPermissions.includes(permission)} onChange={() => togglePermission(permission)} />{permission === "TRADE" ? "交易" : "提现"}</label>)}</div>
+          <button className="primary-button" disabled={busy || !apiLabel.trim()} onClick={() => void run(async () => { const created = await createApiKey(session, apiLabel.trim(), apiPermissions, emailCode, apiTotpCode); setCreatedSecret(created.secret); setApiLabel(""); setEmailCode(""); setApiTotpCode(""); await reload(); }, "API Key 已创建，请立即保存 Secret")}>创建 Key</button>
+        </div>
+        <div className="security-verification-row"><label>邮箱验证码<input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>2FA 验证码<input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, "验证码已发送到邮箱")}>发送邮箱验证码</button></div>
+        {createdSecret && <div className="secret-reveal"><strong>Secret 仅显示这一次</strong><code>{createdSecret}</code><button className="ghost-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>复制 Secret</button></div>}
+        <div className="api-key-list">{keys.length === 0 ? <p className="empty">暂无 API Key</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small></div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, "API Key 已撤销")}>撤销</button>}</div>)}</div>
+      </section>
     </section>
   );
 }
@@ -1241,6 +1367,7 @@ function Topbar({
   onRegister: () => void;
   onLogout: () => void;
 }) {
+  const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const query = marketSearch.trim().toUpperCase();
   const searchResults = query
     ? markets.filter((market) => `${market.symbol} ${market.displayName}`.toUpperCase().includes(query)).slice(0, 6)
@@ -1295,10 +1422,12 @@ function Topbar({
         </div>
         <button className="asset-charge" onClick={() => onPageChange("recharge")}>充值</button>
         <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>资产管理<ChevronDown size={13} /></button>
+        <button className={page === "security" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("security")}><ShieldCheck size={14} />安全中心</button>
         <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
+        <button className="mobile-product-toggle" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />产品线</button>
         {session ? (
           <>
-            <button className="user-pill">{session.user.email ?? "账户"}</button>
+            <button className="user-pill" onClick={() => onPageChange("security")}>{session.user.email ?? "账户"}</button>
             <button className="logout-button" onClick={onLogout}><LogOut size={16} />退出</button>
           </>
         ) : (
@@ -1308,6 +1437,7 @@ function Topbar({
           </>
         )}
       </div>
+      {mobileProductsOpen && <div className="mobile-products-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{meta.label}</button>)}</div>}
     </header>
   );
 }

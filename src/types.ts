@@ -31,6 +31,33 @@ export interface AuthSession {
   requiresEmailVerification?: boolean;
 }
 
+export interface SecurityScene {
+  sceneCode: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface MfaStatus {
+  enabled: boolean;
+  verifiedAt?: string | null;
+}
+
+export interface MfaEnrollment {
+  enabled: boolean;
+  secret: string;
+  provisioningUri: string;
+}
+
+export interface ApiKeyView {
+  apiKey: string;
+  label: string;
+  permissions: string;
+  status: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+}
+
 export interface Market {
   symbol: string;
   baseAsset: string;

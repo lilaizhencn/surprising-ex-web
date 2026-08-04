@@ -7,10 +7,13 @@ import type {
   AmendOrderDraft,
   AmendOrderResponse,
   AuthSession,
+  ApiKeyView,
   Balance,
   CandlePoint,
   CancelAllAfterResponse,
   Market,
+  MfaEnrollment,
+  MfaStatus,
   OpenOrder,
   OpenTriggerOrder,
   OrderBatchResponse,
@@ -22,6 +25,7 @@ import type {
   PositionMode,
   ProductAccountType,
   ProductLine,
+  SecurityScene,
   TestOrderResult,
   TriggerOrderBatchResponse
 } from "../types";
@@ -147,6 +151,83 @@ export function resetPassword(identifier: string, code: string, newPassword: str
     method: "POST",
     body: JSON.stringify({ identifier, code, newPassword })
   });
+}
+
+export function loadMfaStatus(session: AuthSession): Promise<MfaStatus> {
+  return request<MfaStatus>("/api/v1/security/mfa", {}, session);
+}
+
+export function enrollMfa(session: AuthSession): Promise<MfaEnrollment> {
+  return request<MfaEnrollment>("/api/v1/security/mfa/enroll", { method: "POST" }, session);
+}
+
+export function confirmMfa(session: AuthSession, totpCode: string): Promise<MfaStatus> {
+  return request<MfaStatus>("/api/v1/security/mfa/confirm", {
+    method: "POST",
+    body: JSON.stringify({ totpCode })
+  }, session);
+}
+
+export function disableMfa(session: AuthSession, totpCode: string): Promise<MfaStatus> {
+  return request<MfaStatus>("/api/v1/security/mfa/disable", {
+    method: "POST",
+    body: JSON.stringify({ totpCode })
+  }, session);
+}
+
+export function loadSecurityScenes(session: AuthSession): Promise<SecurityScene[]> {
+  return request<SecurityScene[]>("/api/v1/security/scenes", {}, session);
+}
+
+export function updateSecurityScene(
+  session: AuthSession,
+  sceneCode: string,
+  enabled: boolean,
+  totpCode?: string
+): Promise<SecurityScene> {
+  return request<SecurityScene>(`/api/v1/security/scenes/${encodeURIComponent(sceneCode)}`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled, totpCode: totpCode || undefined })
+  }, session);
+}
+
+export function issueSecurityChallenge(session: AuthSession, sceneCode: string): Promise<{ challengeId: number; destination: string; expiresAt: string }> {
+  return request(`/api/v1/security/verification/challenge`, {
+    method: "POST",
+    body: JSON.stringify({ sceneCode })
+  }, session);
+}
+
+export function loadApiKeys(session: AuthSession): Promise<ApiKeyView[]> {
+  return request<ApiKeyView[]>("/api/v1/security/api-keys", {}, session);
+}
+
+export function createApiKey(
+  session: AuthSession,
+  label: string,
+  permissions: string[],
+  emailCode: string,
+  totpCode: string
+): Promise<{ apiKey: ApiKeyView; secret: string }> {
+  return request(`/api/v1/security/api-keys`, {
+    method: "POST",
+    headers: {
+      "X-Security-Email-Code": emailCode || "",
+      "X-Security-TOTP-Code": totpCode || ""
+    },
+    body: JSON.stringify({ label, permissions })
+  }, session);
+}
+
+export function revokeApiKey(session: AuthSession, apiKey: string, emailCode: string, totpCode: string): Promise<void> {
+  return request<void>(`/api/v1/security/api-keys`, {
+    method: "DELETE",
+    headers: {
+      "X-Security-Email-Code": emailCode || "",
+      "X-Security-TOTP-Code": totpCode || ""
+    },
+    body: JSON.stringify({ apiKey })
+  }, session);
 }
 
 export async function refresh(refreshToken: string): Promise<AuthSession> {
