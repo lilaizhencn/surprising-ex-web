@@ -110,17 +110,42 @@ interface BackendOrderBookLevel {
   orderCount: number;
 }
 
-export async function register(username: string, password: string): Promise<AuthSession> {
+export async function register(email: string, password: string): Promise<AuthSession> {
   return request<AuthSession>(`${config.authPrefix}/register`, {
     method: "POST",
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password })
   });
 }
 
-export async function login(username: string, password: string): Promise<AuthSession> {
+export async function login(identifier: string, password: string, totpCode?: string): Promise<AuthSession> {
   return request<AuthSession>(`${config.authPrefix}/login`, {
     method: "POST",
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ identifier, password, totpCode: totpCode || undefined })
+  });
+}
+
+export function verifyEmail(session: AuthSession, email: string, code: string): Promise<boolean> {
+  return request<boolean>(`${config.authPrefix}/verify-email`, {
+    method: "POST",
+    body: JSON.stringify({ email, code })
+  }, session);
+}
+
+export function resendEmailVerification(session: AuthSession): Promise<{ challengeId: number; destination: string; expiresAt: string }> {
+  return request(`${config.authPrefix}/resend-email-verification`, { method: "POST" }, session);
+}
+
+export function forgotPassword(identifier: string): Promise<{ accepted: boolean }> {
+  return request(`${config.authPrefix}/forgot-password`, {
+    method: "POST",
+    body: JSON.stringify({ identifier })
+  });
+}
+
+export function resetPassword(identifier: string, code: string, newPassword: string): Promise<{ accepted: boolean }> {
+  return request(`${config.authPrefix}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ identifier, code, newPassword })
   });
 }
 

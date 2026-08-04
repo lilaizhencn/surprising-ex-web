@@ -42,7 +42,7 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, updatePositionMode } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, forgotPassword, loadBalances, loadCandles, loadInstrumentConfig, loadMarkets, loadMarkPrice, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, updatePositionMode, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
@@ -51,6 +51,7 @@ import type { AlgoOrder, AlgoOrderType, AuthSession, Balance, CandlePoint, Margi
 import "./styles.css";
 
 type AuthMode = "login" | "register";
+type AuthStep = AuthMode | "forgot" | "verify" | "reset";
 type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw";
 type ThemeMode = "dark" | "light";
 type PickedPrice = { value: number; nonce: number };
@@ -1106,18 +1107,45 @@ function AuthScreen({
   onAuthenticated: (session: AuthSession) => void;
   onBack: () => void;
 }) {
-  const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [username, setUsername] = useState("");
+  const [step, setStep] = useState<AuthStep>(initialMode);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [pendingSession, setPendingSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const statusDescription = error || notice ? "auth-status" : undefined;
 
   async function submit() {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
-      const session = mode === "login" ? await login(username, password) : await register(username, password);
-      onAuthenticated(session);
+      if (step === "forgot") {
+        await forgotPassword(email);
+        setStep("reset");
+        setNotice("如果该邮箱已注册，验证码已发送。请检查收件箱和垃圾邮件。");
+      } else if (step === "reset") {
+        await resetPassword(email, code, password);
+        setStep("login");
+        setCode("");
+        setPassword("");
+        setNotice("密码已更新，请使用新密码登录。");
+      } else if (step === "verify" && pendingSession) {
+        const verified = await verifyEmail(pendingSession, email, code);
+        if (!verified) throw new Error("验证码无效或已过期");
+        onAuthenticated(pendingSession);
+      } else {
+        const session = step === "login" ? await login(email, password) : await register(email, password);
+        if (step === "register" && session.requiresEmailVerification !== false) {
+          setPendingSession(session);
+          setStep("verify");
+          setNotice("验证码已发送到你的邮箱，请完成验证后进入交易。");
+        } else {
+          onAuthenticated(session);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "认证失败");
     } finally {
@@ -1132,24 +1160,51 @@ function AuthScreen({
           <span><Sparkles size={25} /></span>
           <strong>Surprising EX</strong>
         </button>
-        <div className="auth-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>登录</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>注册</button>
-        </div>
-        <label>
-          用户名
-          <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="3-32位字母数字下划线" />
-        </label>
-        <label>
-          密码
-          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="至少8位" />
-        </label>
-        <p className="hint">当前注册只需要用户名和密码；邮箱字段已在后端保留，后期可开启邮箱验证。</p>
-        {error && <p className="error">{error}</p>}
+        {step === "login" || step === "register" ? (
+          <div className="auth-tabs">
+            <button disabled={busy} className={step === "login" ? "active" : ""} onClick={() => { setStep("login"); setError(""); setNotice(""); }}>登录</button>
+            <button disabled={busy} className={step === "register" ? "active" : ""} onClick={() => { setStep("register"); setError(""); setNotice(""); }}>注册</button>
+          </div>
+        ) : (
+          <div className="auth-step-heading">
+            <span className="auth-eyebrow">SECURE ACCESS</span>
+            <h2>{step === "verify" ? "验证邮箱" : step === "reset" ? "设置新密码" : "找回密码"}</h2>
+          </div>
+        )}
+        {step !== "verify" && (
+          <label>
+            邮箱地址
+            <input value={email} onChange={(event) => setEmail(event.target.value.trim())} type="email" inputMode="email" autoComplete="email" placeholder="name@example.com" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+          </label>
+        )}
+        {step === "verify" && <p className="hint">验证码已发送至 {email.replace(/(^.).*(@.*$)/, "$1•••$2")}，有效期 10 分钟。</p>}
+        {(step === "login" || step === "register") && (
+          <label>
+            密码
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={step === "login" ? "current-password" : "new-password"} placeholder="至少 8 位" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+          </label>
+        )}
+        {(step === "verify" || step === "reset") && (
+          <label>
+            邮箱验证码
+            <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6 位数字" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+          </label>
+        )}
+        {step === "reset" && (
+          <label>
+            新密码
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="至少 8 位" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+          </label>
+        )}
+        {step === "login" && <button disabled={busy} className="link-button" onClick={() => { setStep("forgot"); setError(""); setNotice(""); }}>忘记密码？</button>}
+        {notice && <p id="auth-status" className="success" role="status" aria-live="polite">{notice}</p>}
+        {error && <p id="auth-status" className="error" role="alert" aria-live="assertive">{error}</p>}
         <button className="primary-button" disabled={busy} onClick={submit}>
-          {busy ? "处理中..." : mode === "login" ? "进入交易舱" : "创建账户"}
+          {busy ? "处理中..." : step === "login" ? "进入交易舱" : step === "register" ? "创建账户" : step === "verify" ? "完成邮箱验证" : step === "reset" ? "更新密码" : "发送验证码"}
         </button>
-        <button className="ghost-button" onClick={onBack}>返回行情</button>
+        {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); try { await resendEmailVerification(pendingSession); setNotice("新的验证码已发送。"); } catch (err) { setError(err instanceof Error ? err.message : "验证码发送失败"); } finally { setBusy(false); } }}>重新发送验证码</button>}
+        {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>返回登录</button>}
+        <button disabled={busy} className="ghost-button" onClick={onBack}>返回行情</button>
       </section>
     </main>
   );
@@ -1243,7 +1298,7 @@ function Topbar({
         <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
         {session ? (
           <>
-            <button className="user-pill">{session.user.username}</button>
+            <button className="user-pill">{session.user.email ?? "账户"}</button>
             <button className="logout-button" onClick={onLogout}><LogOut size={16} />退出</button>
           </>
         ) : (

@@ -16,7 +16,7 @@ export type ContractType = "SPOT" | "LINEAR" | "INVERSE" | "LINEAR_PERPETUAL" | 
 
 export interface AuthUser {
   userId: number;
-  username: string;
+  username: string | null;
   email?: string | null;
   status: string;
   roles: string[];
@@ -28,6 +28,7 @@ export interface AuthSession {
   refreshToken: string;
   accessTokenExpiresAt: string;
   refreshTokenExpiresAt: string;
+  requiresEmailVerification?: boolean;
 }
 
 export interface Market {
