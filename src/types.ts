@@ -74,6 +74,19 @@ export interface KycProfile {
   faceVerificationStatus: string;
 }
 
+export interface KycDocument {
+  documentId: number;
+  userId: number;
+  documentType: string;
+  originalFilename: string;
+  contentType: string;
+  fileSize: number;
+  sha256: string;
+  status: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+
 export interface Market {
   symbol: string;
   baseAsset: string;

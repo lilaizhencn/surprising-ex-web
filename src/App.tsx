@@ -44,12 +44,12 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadKyc, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
-import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -852,6 +852,11 @@ function AssetsPage({
   );
 }
 
+function formatKycFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLogin: () => void }) {
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null);
@@ -862,9 +867,12 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
   const [kycLevel, setKycLevel] = useState("STANDARD");
   const [kycCountry, setKycCountry] = useState("");
   const [kycDocumentType, setKycDocumentType] = useState("ID_CARD");
+  const [kycUploadType, setKycUploadType] = useState("ID_CARD");
+  const [kycUploadedDocuments, setKycUploadedDocuments] = useState<KycDocument[]>([]);
+  const [kycFile, setKycFile] = useState<File | null>(null);
+  const kycFileInputRef = useRef<HTMLInputElement>(null);
   const [kycProvider, setKycProvider] = useState("SELF");
   const [kycProviderReference, setKycProviderReference] = useState("");
-  const [kycDocuments, setKycDocuments] = useState('[{"type":"ID_CARD","reference":""},{"type":"ADDRESS_PROOF","reference":""}]');
   const [kycFaceStatus, setKycFaceStatus] = useState("NOT_REQUIRED");
   const [totpCode, setTotpCode] = useState("");
   const [emailCode, setEmailCode] = useState("");
@@ -878,16 +886,18 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
 
   async function reload() {
     if (!session) return;
-    const [mfaStatus, securityScenes, apiKeys, kycProfile] = await Promise.all([
+    const [mfaStatus, securityScenes, apiKeys, kycProfile, uploadedDocuments] = await Promise.all([
       loadMfaStatus(session),
       loadSecurityScenes(session),
       loadApiKeys(session),
-      loadKyc(session)
+      loadKyc(session),
+      loadKycDocuments(session)
     ]);
     setMfa(mfaStatus);
     setScenes(securityScenes);
     setKeys(apiKeys);
     setKyc(kycProfile);
+    setKycUploadedDocuments(uploadedDocuments);
     if (kycProfile) {
       setKycApplicantType(kycProfile.applicantType || "INDIVIDUAL");
       setKycLevel(kycProfile.kycLevel === "NONE" ? "STANDARD" : kycProfile.kycLevel);
@@ -895,7 +905,6 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
       setKycDocumentType(kycProfile.documentType || "ID_CARD");
       setKycProvider(kycProfile.provider || "SELF");
       setKycProviderReference(kycProfile.providerReference || "");
-      setKycDocuments(kycProfile.submittedDocuments || "[]");
       setKycFaceStatus(kycProfile.faceVerificationStatus || "NOT_REQUIRED");
     }
   }
@@ -906,6 +915,8 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
     setScenes([]);
     setKeys([]);
     setKyc(null);
+    setKycUploadedDocuments([]);
+    setKycFile(null);
     if (session) {
       void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "安全信息加载失败"));
     }
@@ -981,7 +992,7 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
       </div>
       <section className="panel security-card kyc-card">
         <div className="panel-title"><span><FileText size={16} />身份认证 KYC</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? "未提交"}</strong></div>
-        <p className="security-muted">提币前必须完成 KYC。材料引用用于连接对象存储或第三方服务，不在交易接口内保存<span className="no-wrap">原件</span>。</p>
+        <p className="security-muted">提币前必须完成 KYC。材料会存入对象存储，审核只读取已上传的材料元数据和原件。</p>
         {kyc?.rejectionReason && <div className="security-alert error">审核意见：{kyc.rejectionReason}</div>}
         <div className="kyc-form-grid">
           <label>申请主体<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">个人</option><option value="BUSINESS">企业</option></select></label>
@@ -991,11 +1002,13 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
           <label>认证服务<select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">平台审核</option><option value="THIRD_PARTY">第三方服务</option></select></label>
           <label>服务引用（可选）<input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder="provider-reference" /></label>
         </div>
-        <label className="kyc-document-editor">材料引用 JSON
-          <textarea value={kycDocuments} onChange={(event) => setKycDocuments(event.target.value)} rows={4} spellCheck={false} />
-          <small>类型支持 ID_CARD、PASSPORT、ADDRESS_PROOF、BUSINESS_LICENSE；reference 填上传后的文件引用。</small>
-        </label>
-        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2} onClick={() => void run(async () => { try { JSON.parse(kycDocuments); } catch { throw new Error("材料引用必须是合法 JSON 数组"); } setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, submittedDocuments: kycDocuments, faceVerificationStatus: kycFaceStatus })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
+        <div className="kyc-upload-grid">
+          <label>上传材料类型<select value={kycUploadType} onChange={(event) => setKycUploadType(event.target.value)}><option value="ID_CARD">身份证</option><option value="PASSPORT">护照</option><option value="ADDRESS_PROOF">地址证明</option><option value="BUSINESS_LICENSE">企业营业执照</option><option value="FACE_IMAGE">人脸照片</option></select></label>
+          <label>选择 PDF 或图片<input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></label>
+          <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error("请选择 KYC 材料"); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, "材料已上传")}>上传材料</button>
+        </div>
+        <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">尚未上传材料。请至少上传主证件，地址证明按审核要求补充。</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? "已提交" : "已上传"}</em></div>)}</div>
+        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
       </section>
       <section className="panel security-card api-key-card">
         <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>兼容交易 API</strong></div>

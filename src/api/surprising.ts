@@ -15,6 +15,7 @@ import type {
   MfaEnrollment,
   MfaStatus,
   KycProfile,
+  KycDocument,
   OpenOrder,
   OpenTriggerOrder,
   OrderBatchResponse,
@@ -235,6 +236,20 @@ export function loadKyc(session: AuthSession): Promise<KycProfile | null> {
   return request<KycProfile | null>("/api/v1/compliance/kyc", {}, session);
 }
 
+export function loadKycDocuments(session: AuthSession): Promise<KycDocument[]> {
+  return request<KycDocument[]>("/api/v1/compliance/kyc/documents", {}, session);
+}
+
+export function uploadKycDocument(session: AuthSession, documentType: string, file: File): Promise<KycDocument> {
+  const body = new FormData();
+  body.append("documentType", documentType);
+  body.append("file", file, file.name);
+  return request<KycDocument>("/api/v1/compliance/kyc/documents", {
+    method: "POST",
+    body
+  }, session);
+}
+
 export function submitKyc(
   session: AuthSession,
   payload: {
@@ -244,8 +259,8 @@ export function submitKyc(
     documentType: string;
     provider?: string;
     providerReference?: string;
-    submittedDocuments: string;
     faceVerificationStatus: string;
+    documentIds: number[];
   }
 ): Promise<KycProfile> {
   return request<KycProfile>("/api/v1/compliance/kyc", {

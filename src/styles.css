@@ -69,6 +69,67 @@
   color: var(--muted);
 }
 
+.kyc-upload-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(220px, 1.4fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+}
+
+.kyc-upload-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kyc-upload-grid select,
+.kyc-upload-grid input[type="file"] {
+  min-width: 0;
+  padding: 10px 12px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
+.kyc-document-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.kyc-document-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.kyc-document-row span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kyc-document-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kyc-document-row small,
+.kyc-document-row em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
 .kyc-submit-row {
   justify-content: space-between;
   margin-top: 14px;
@@ -88,6 +149,14 @@
   .kyc-submit-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .kyc-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kyc-upload-grid button {
+    width: 100%;
   }
 }
 

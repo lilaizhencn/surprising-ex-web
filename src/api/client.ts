@@ -37,7 +37,7 @@ export interface ApiRequestInit extends RequestInit {
 export async function request<T>(path: string, options: ApiRequestInit = {}, session?: AuthSession | null): Promise<T> {
   const { productLine, ...requestOptions } = options;
   const headers = new Headers(requestOptions.headers);
-  if (!headers.has("Content-Type") && requestOptions.body) {
+  if (!headers.has("Content-Type") && requestOptions.body && !(requestOptions.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (session?.accessToken) {
