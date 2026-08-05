@@ -1,5 +1,21 @@
 const PRICE_UNIT_SCALE = 100_000_000;
 
+export class ValuationRequestGuard {
+  private generation = 0;
+
+  begin(): number {
+    return ++this.generation;
+  }
+
+  invalidate(): void {
+    this.generation++;
+  }
+
+  isCurrent(requestGeneration: number): boolean {
+    return requestGeneration === this.generation;
+  }
+}
+
 export interface PriceTickMarket {
   symbol: string;
   lastPriceTicks: number;

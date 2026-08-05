@@ -51,7 +51,7 @@ import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
-import { applyMarketPriceTicks, priceFromTicks } from "./valuation";
+import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
 
@@ -169,6 +169,7 @@ export default function App() {
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
   const openOrdersRequestRef = useRef(0);
+  const valuationRequestGuardRef = useRef(new ValuationRequestGuard());
   const marketsRef = useRef<Market[]>([]);
 
   useEffect(() => {
@@ -270,6 +271,7 @@ export default function App() {
     if (valuationMarketState !== "ready") return;
     let cancelled = false;
     const refreshSpotPrices = async () => {
+      const requestGeneration = valuationRequestGuardRef.current.begin();
       const currentMarkets = marketsRef.current;
       const targetMarkets = Array.from(new Map(
         fundingBalances
@@ -283,7 +285,9 @@ export default function App() {
           .filter((item): item is readonly [string, Market] => item !== null)
       ).values());
       if (targetMarkets.length !== fundingBalances.filter((balance) => balance.asset.toUpperCase() !== "USDT").length) {
-        setValuationMarketState("error");
+        if (!cancelled && valuationRequestGuardRef.current.isCurrent(requestGeneration)) {
+          setValuationMarketState("error");
+        }
         return;
       }
       try {
@@ -301,11 +305,11 @@ export default function App() {
           prices.set(market.baseAsset.toUpperCase(), priceUnits);
           priceTicksBySymbol.set(market.symbol, priceTicks);
         });
-        if (cancelled) return;
+        if (cancelled || !valuationRequestGuardRef.current.isCurrent(requestGeneration)) return;
         setValuationPrices(Object.fromEntries(prices));
         setMarkets((current) => applyMarketPriceTicks(current, priceTicksBySymbol));
       } catch {
-        if (!cancelled) {
+        if (!cancelled && valuationRequestGuardRef.current.isCurrent(requestGeneration)) {
           setValuationPrices({});
           setValuationMarketState("error");
         }
@@ -315,6 +319,7 @@ export default function App() {
     const timer = window.setInterval(() => { void refreshSpotPrices(); }, 30_000);
     return () => {
       cancelled = true;
+      valuationRequestGuardRef.current.invalidate();
       window.clearInterval(timer);
     };
   }, [fundingBalances, valuationMarketState]);
