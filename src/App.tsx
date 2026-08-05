@@ -1395,7 +1395,7 @@ function AuthScreen({
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "认证失败");
+      setError(err instanceof Error ? err.message : text("认证失败", "Authentication failed"));
     } finally {
       setBusy(false);
     }

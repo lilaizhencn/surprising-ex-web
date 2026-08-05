@@ -1912,19 +1912,19 @@ button.rules-row:hover {
 }
 
 .toast {
-  margin: 12px 18px 0;
-  width: min(760px, calc(100% - 36px));
-  max-width: min(760px, calc(100vw - 24px));
-  min-height: 38px;
+  margin: var(--sx-space-3) var(--sx-space-4) 0;
+  width: min(var(--sx-size-toast-max-width), calc(100% - (2 * var(--sx-space-4))));
+  max-width: min(var(--sx-size-toast-max-width), calc(100vw - (2 * var(--sx-space-3))));
+  min-height: var(--sx-size-toast-min-height);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--line-strong);
-  background: rgba(15, 23, 42, .94);
-  color: var(--text);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .38);
+  gap: var(--sx-space-2);
+  padding: var(--sx-space-2) var(--sx-space-3);
+  border-radius: var(--sx-radius-toast);
+  border: 1px solid var(--sx-cyan-500);
+  background: var(--sx-ink-900);
+  color: var(--sx-text-primary);
+  box-shadow: var(--sx-shadow-toast);
 }
 
 .spin {
@@ -2090,6 +2090,10 @@ button.rules-row:hover {
   --sx-space-qr-cell: 2px;
   --sx-space-records: 54px;
   --sx-space-record-toolbar: 28px;
+  --sx-size-toast-max-width: 760px;
+  --sx-size-toast-min-height: 38px;
+  --sx-radius-toast: 8px;
+  --sx-shadow-toast: 0 18px 60px rgba(0, 0, 0, .38);
   --sx-font-caption: 12px;
   --sx-font-body: 13px;
   --sx-font-section: 18px;
