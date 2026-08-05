@@ -1740,6 +1740,11 @@ button.rules-row:hover {
 .transfer-dialog {
   width: min(520px, 100%);
   padding: 24px;
+  border-radius: var(--sx-radius-asset-card);
+  border-color: var(--sx-asset-border);
+  background: var(--sx-surface-light);
+  color: var(--sx-asset-ink);
+  box-shadow: 0 24px 60px rgba(17, 17, 17, .18);
 }
 
 .transfer-dialog-header {
@@ -1751,8 +1756,8 @@ button.rules-row:hover {
 
 .transfer-dialog-header small,
 .transfer-field span {
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--sx-asset-secondary);
+  font-size: var(--sx-font-caption);
 }
 
 .transfer-dialog-header h2 {
@@ -1765,10 +1770,10 @@ button.rules-row:hover {
   min-height: 44px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sx-asset-border);
   border-radius: 10px;
-  background: var(--panel-soft);
-  color: var(--text);
+  background: var(--sx-asset-soft);
+  color: var(--sx-asset-ink);
 }
 
 .transfer-route {
@@ -1784,8 +1789,8 @@ button.rules-row:hover {
   display: grid;
   gap: 8px;
   margin-top: 16px;
-  color: var(--muted-strong);
-  font-size: 13px;
+  color: var(--sx-asset-secondary);
+  font-size: var(--sx-font-body);
 }
 
 .transfer-route select,
@@ -1794,15 +1799,20 @@ button.rules-row:hover {
   width: 100%;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--sx-asset-border);
   border-radius: 10px;
-  background: var(--panel-soft);
-  color: var(--text-strong);
+  background: var(--sx-asset-card-soft);
+  color: var(--sx-asset-ink);
 }
 
 .transfer-swap {
   margin-bottom: 0;
-  color: var(--accent-2);
+  color: var(--sx-asset-positive);
+}
+
+.transfer-dialog .primary-button {
+  background: var(--sx-asset-positive);
+  color: #fff;
 }
 
 .transfer-success {
@@ -2358,11 +2368,6 @@ button.rules-row:hover {
   bottom: 0;
   height: 3px;
   background: var(--sx-ink-light);
-}
-
-.asset-tabs button:disabled {
-  cursor: not-allowed;
-  opacity: .62;
 }
 
 .asset-tabs button:disabled {

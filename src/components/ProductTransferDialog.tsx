@@ -1,6 +1,7 @@
 import { ArrowDownUp, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { submitProductTransfer } from "../api/surprising";
+import { availableUnitsForAsset } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
 import { AssetIcon, assetName } from "./AssetPrimitives";
 
@@ -21,14 +22,14 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
 }) {
   const [sourceAccountType, setSourceAccountType] = useState<ProductAccountType>("SPOT");
   const [targetAccountType, setTargetAccountType] = useState<ProductAccountType>("USDT_PERPETUAL");
-  const [asset, setAsset] = useState(() => balances.find((item) => item.equityUnits > 0)?.asset ?? "USDT");
+  const [asset, setAsset] = useState(() => balances.find((item) => item.availableUnits > 0)?.asset ?? "USDT");
   const [amount, setAmount] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const available = useMemo(
-    () => balances.find((item) => item.asset.toUpperCase() === asset.toUpperCase())?.equityUnits ?? 0,
+    () => availableUnitsForAsset(balances, asset),
     [asset, balances]
   );
 
