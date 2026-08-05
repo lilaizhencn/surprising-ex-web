@@ -51,6 +51,7 @@ import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
+import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
@@ -162,6 +163,7 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(() => localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [pickedPrice, setPickedPrice] = useState<PickedPrice | null>(null);
   const processedPrivateEventKeysRef = useRef<Set<string>>(new Set());
   const processedTriggerEventKeysRef = useRef<Set<string>>(new Set());
@@ -843,6 +845,8 @@ export default function App() {
           onValuationCurrencyChange={changeValuationCurrency}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
+          onTransfer={() => setTransferOpen(true)}
+          onEarn={() => setNotice("赚币产品线即将开放，当前可使用现货、永续、交割和期权账户")}
         />
       ) : page === "recharge" ? (
         <FundingFlowPage
@@ -922,6 +926,7 @@ export default function App() {
       {instrumentInfoOpen && selectedMarket && (
         <ContractInfoDialog market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
+      {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
       {notice && <div className="toast"><Radio size={15} />{notice}</div>}
     </main>
   );
@@ -939,7 +944,9 @@ function AssetsPage({
   valuationPrices,
   onValuationCurrencyChange,
   onDeposit,
-  onWithdraw
+  onWithdraw,
+  onTransfer,
+  onEarn
 }: {
   balances: Balance[];
   markets: Market[];
@@ -953,6 +960,8 @@ function AssetsPage({
   onValuationCurrencyChange: (currency: ValuationCurrency) => void;
   onDeposit: () => void;
   onWithdraw: () => void;
+  onTransfer: () => void;
+  onEarn: () => void;
 }) {
   const assets = fundingAssets(balances);
   const valuationRate = valuationRates[valuationCurrency];
@@ -982,8 +991,8 @@ function AssetsPage({
               <div className="asset-actions">
                 <button className="active" onClick={onDeposit}>充币</button>
                 <button onClick={onWithdraw}>提币</button>
-                <button>资金划转</button>
-                <button>赚币</button>
+                <button onClick={onTransfer}>资金划转</button>
+                <button onClick={onEarn}>赚币</button>
               </div>
             </div>
             <ChevronDown className="asset-card-chevron" size={24} />

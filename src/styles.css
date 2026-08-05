@@ -1737,6 +1737,81 @@ button.rules-row:hover {
   box-shadow: 0 28px 90px rgba(0, 0, 0, .45);
 }
 
+.transfer-dialog {
+  width: min(520px, 100%);
+  padding: 24px;
+}
+
+.transfer-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.transfer-dialog-header small,
+.transfer-field span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.transfer-dialog-header h2 {
+  margin: 4px 0 0;
+}
+
+.icon-button,
+.transfer-swap {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.transfer-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.transfer-route label,
+.transfer-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.transfer-route select,
+.transfer-field select,
+.transfer-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text-strong);
+}
+
+.transfer-swap {
+  margin-bottom: 0;
+  color: var(--accent-2);
+}
+
+.transfer-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--buy);
+}
+
 .config-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2283,6 +2358,16 @@ button.rules-row:hover {
   bottom: 0;
   height: 3px;
   background: var(--sx-ink-light);
+}
+
+.asset-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: .62;
+}
+
+.asset-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: .62;
 }
 
 .asset-page,

@@ -303,6 +303,30 @@ export async function loadMarkets(allowFallback = true): Promise<Market[]> {
   }
 }
 
+export function submitProductTransfer(
+  session: AuthSession,
+  input: {
+    sourceAccountType: ProductAccountType;
+    targetAccountType: ProductAccountType;
+    asset: string;
+    amountUnits: number;
+    idempotencyKey: string;
+  }
+): Promise<{ transferId?: number; status?: string }> {
+  return request<{ transferId?: number; status?: string }>(gatewayPath("account", "/transfers"), {
+    method: "POST",
+    headers: { "Idempotency-Key": input.idempotencyKey },
+    body: JSON.stringify({
+      sourceAccountType: input.sourceAccountType,
+      targetAccountType: input.targetAccountType,
+      asset: input.asset.toUpperCase(),
+      amountUnits: input.amountUnits,
+      referenceId: input.idempotencyKey,
+      reason: "web product transfer"
+    })
+  }, session);
+}
+
 export async function loadInstrumentConfig(symbol: string, productLine?: ProductLine): Promise<Market> {
   try {
     const params = new URLSearchParams({ symbol });
