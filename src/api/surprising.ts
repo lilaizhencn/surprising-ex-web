@@ -1114,13 +1114,15 @@ function withTotals(levels: BackendOrderBookLevel[]): OrderBookLevel[] {
 }
 
 function toMarket(item: BackendInstrument): Market {
-  const fallback = fallbackMarkets.find((market) => market.symbol === item.symbol);
+  const fallback = config.enableMockFallback
+    ? fallbackMarkets.find((market) => market.symbol === item.symbol)
+    : undefined;
   const quoteAsset = item.quoteAsset ?? item.symbol.split("-")[1] ?? "USDT";
   const instrumentType = item.instrumentType ?? fallback?.instrumentType;
   const contractType = item.contractType ?? fallback?.contractType;
   const priceTickUnits = item.priceTickUnits ?? fallback?.priceTickUnits;
   const fallbackPriceToTicks = (price: number | undefined, defaultPrice: number) => {
-    const value = price ?? defaultPrice;
+    const value = price ?? (config.enableMockFallback ? defaultPrice : 0);
     if (!priceTickUnits || priceTickUnits === 1) return value;
     return Math.round(value * 100_000_000 / priceTickUnits);
   };
@@ -1185,7 +1187,10 @@ function toMarket(item: BackendInstrument): Market {
     change24hPpm: fallback?.change24hPpm ?? 0,
     fundingRatePpm: fallback?.fundingRatePpm ?? 0,
     volume24hUnits: fallback?.volume24hUnits ?? 0,
-    maxLeverage: item.maxLeverage ?? Math.max(1, Math.floor((item.maxLeveragePpm ?? 50_000_000) / 1_000_000))
+    maxLeverage: item.maxLeverage
+      ?? (item.maxLeveragePpm !== undefined
+        ? Math.max(1, Math.floor(item.maxLeveragePpm / 1_000_000))
+        : (config.enableMockFallback ? 50 : 0))
   };
 }
 
