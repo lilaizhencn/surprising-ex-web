@@ -39,9 +39,9 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
   );
 
   useEffect(() => {
+    if (outcomeLocked) return;
     setIdempotencyKey(crypto.randomUUID());
-    setOutcomeLocked(false);
-  }, [amount, asset, sourceAccountType, targetAccountType]);
+  }, [amount, asset, outcomeLocked, sourceAccountType, targetAccountType]);
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -124,12 +124,12 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button ref={closeRef} className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
       <p className="security-muted">产品账户之间即时划转，不需要额外验证；服务端使用幂等键避免重复扣款。</p>
       <div className="transfer-route">
-        <label>从<select value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
-        <button className="transfer-swap" type="button" aria-label="交换划转方向" onClick={swapAccounts}><ArrowDownUp size={18} /></button>
-        <label>到<select value={targetAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setTargetAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <label>从<select disabled={outcomeLocked} value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <button className="transfer-swap" type="button" aria-label="交换划转方向" disabled={outcomeLocked} onClick={swapAccounts}><ArrowDownUp size={18} /></button>
+        <label>到<select disabled={outcomeLocked} value={targetAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setTargetAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
       </div>
-      <label className="transfer-field">币种<select value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></label>
-      <label className="transfer-field">数量<input value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
+      <label className="transfer-field">币种<select disabled={outcomeLocked} value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></label>
+      <label className="transfer-field">数量<input disabled={outcomeLocked} value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="transfer-success" role="status"><AssetIcon symbol={asset} />{notice}</p>}
       <button className="primary-button" type="button" disabled={submitting || Boolean(notice) || outcomeLocked} onClick={() => void submit()}>{submitting ? "提交中…" : outcomeLocked ? "请查看资金记录" : "确认划转"}</button>
