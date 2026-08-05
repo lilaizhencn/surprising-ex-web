@@ -141,6 +141,8 @@ export default function App() {
   });
   const [valuationRates, setValuationRates] = useState<Partial<Record<ValuationCurrency, number>>>({ USDT: 1 });
   const [valuationRateState, setValuationRateState] = useState<FundingBalanceState>("loading");
+  const [valuationMarketState, setValuationMarketState] = useState<FundingBalanceState>("loading");
+  const [valuationPrices, setValuationPrices] = useState<Record<string, number>>({});
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [openOrdersNextCursor, setOpenOrdersNextCursor] = useState<string | null>(null);
@@ -166,6 +168,11 @@ export default function App() {
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
   const openOrdersRequestRef = useRef(0);
+  const marketsRef = useRef<Market[]>([]);
+
+  useEffect(() => {
+    marketsRef.current = markets;
+  }, [markets]);
 
   useEffect(() => {
     processedTriggerEventKeysRef.current.clear();
@@ -200,9 +207,18 @@ export default function App() {
   );
 
   useEffect(() => {
-    void loadMarkets().then((items) => {
+    void loadMarkets(false).then((items) => {
       setMarkets(items);
+      setValuationPrices({});
+      setValuationMarketState("ready");
       if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
+    }).catch(() => {
+      setValuationMarketState("error");
+      setValuationPrices({});
+      void loadMarkets().then((items) => {
+        setMarkets(items);
+        if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
+      });
     });
   }, []);
 
@@ -248,6 +264,58 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (valuationMarketState !== "ready") return;
+    let cancelled = false;
+    const refreshSpotPrices = async () => {
+      const currentMarkets = marketsRef.current;
+      const targetMarkets = Array.from(new Map(
+        fundingBalances
+          .filter((balance) => balance.asset.toUpperCase() !== "USDT")
+          .map((balance) => {
+            const market = currentMarkets.find((item) => item.instrumentType === "SPOT"
+              && item.baseAsset.toUpperCase() === balance.asset.toUpperCase()
+              && item.quoteAsset.toUpperCase() === "USDT");
+            return market ? [balance.asset.toUpperCase(), market] as const : null;
+          })
+          .filter((item): item is readonly [string, Market] => item !== null)
+      ).values());
+      if (targetMarkets.length !== fundingBalances.filter((balance) => balance.asset.toUpperCase() !== "USDT").length) {
+        setValuationMarketState("error");
+        return;
+      }
+      try {
+        const books = await Promise.all(targetMarkets.map((market) => loadOrderBook(market.symbol, "SPOT", false)));
+        const prices = new Map<string, number>();
+        targetMarkets.forEach((market, index) => {
+          const book = books[index];
+          const bid = book.bids[0]?.priceTicks;
+          const ask = book.asks[0]?.priceTicks;
+          const price = bid && ask ? (bid + ask) / 2 : bid ?? ask;
+          if (price === undefined || !Number.isFinite(price) || price <= 0) throw new Error("spot order book is empty");
+          prices.set(market.baseAsset.toUpperCase(), price);
+        });
+        if (cancelled) return;
+        setValuationPrices(Object.fromEntries(prices));
+        setMarkets((current) => current.map((market) => {
+          const price = prices.get(market.baseAsset.toUpperCase());
+          return price === undefined ? market : { ...market, lastPriceTicks: price, markPriceTicks: price, indexPriceTicks: price };
+        }));
+      } catch {
+        if (!cancelled) {
+          setValuationPrices({});
+          setValuationMarketState("error");
+        }
+      }
+    };
+    void refreshSpotPrices();
+    const timer = window.setInterval(() => { void refreshSpotPrices(); }, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [fundingBalances, valuationMarketState]);
 
   function changeValuationCurrency(next: ValuationCurrency) {
     setValuationCurrency(next);
@@ -763,6 +831,8 @@ export default function App() {
           valuationCurrency={valuationCurrency}
           valuationRates={valuationRates}
           valuationRateState={valuationRateState}
+          valuationMarketState={valuationMarketState}
+          valuationPrices={valuationPrices}
           onValuationCurrencyChange={changeValuationCurrency}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
@@ -858,6 +928,8 @@ function AssetsPage({
   valuationCurrency,
   valuationRates,
   valuationRateState,
+  valuationMarketState,
+  valuationPrices,
   onValuationCurrencyChange,
   onDeposit,
   onWithdraw
@@ -869,6 +941,8 @@ function AssetsPage({
   valuationCurrency: ValuationCurrency;
   valuationRates: Partial<Record<ValuationCurrency, number>>;
   valuationRateState: FundingBalanceState;
+  valuationMarketState: FundingBalanceState;
+  valuationPrices: Record<string, number>;
   onValuationCurrencyChange: (currency: ValuationCurrency) => void;
   onDeposit: () => void;
   onWithdraw: () => void;
@@ -876,7 +950,7 @@ function AssetsPage({
   const assets = fundingAssets(balances);
   const valuationRate = valuationRates[valuationCurrency];
   const assetValues = assets.map((asset) => {
-    const usdtPrice = assetValuationPrice(asset.asset, markets);
+    const usdtPrice = assetValuationPrice(asset.asset, valuationPrices);
     return usdtPrice === null || valuationRate === undefined
       ? null
       : unitsToNumber(asset.equityUnits) * usdtPrice * valuationRate;
@@ -884,6 +958,7 @@ function AssetsPage({
   const hasFundingBalances = fundingBalanceState === "ready";
   const hasValuation = hasFundingBalances
     && valuationRateState === "ready"
+    && valuationMarketState === "ready"
     && assetValues.every((value) => value !== null);
   const totalValue = hasValuation ? assetValues.reduce((sum, value) => sum + (value ?? 0), 0) : null;
 
@@ -894,7 +969,7 @@ function AssetsPage({
         <div className="asset-main">
           <section className="asset-summary-card">
             <div>
-              <p className="asset-label">总资产估值 <Eye size={15} /></p>
+              <p className="asset-label">资金账户估值 <Eye size={15} /></p>
               <h1>{totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label="估值货币"><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h1>
               <p className="asset-login-note">{hasValuation ? "按实时市场价估值，收益以资金账本为准" : "行情或汇率未同步，已隐藏估值"}</p>
               <div className="asset-actions">
@@ -922,7 +997,7 @@ function AssetsPage({
             <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>
             {assets.map((asset, index) => {
               const amount = unitsToNumber(asset.equityUnits);
-              const value = assetValues[index];
+              const value = valuationMarketState === "ready" ? assetValues[index] : null;
               return (
                 <div className="pc-asset-row" key={`${asset.accountType}-${asset.asset}`}>
                   <span className="pc-asset-name"><AssetIcon symbol={asset.asset} /><strong>{asset.asset}</strong><small>{assetName(asset.asset)}</small></span>
@@ -1130,13 +1205,9 @@ function unitsToNumber(units: number): number {
   return units / 100_000_000;
 }
 
-function assetValuationPrice(asset: string, markets: Market[]): number | null {
+function assetValuationPrice(asset: string, valuationPrices: Record<string, number>): number | null {
   if (asset.toUpperCase() === "USDT") return 1;
-  const market = markets.find((item) => item.baseAsset.toUpperCase() === asset.toUpperCase()
-    && item.quoteAsset.toUpperCase() === "USDT"
-    && item.lastPriceTicks > 0);
-  if (!market) return null;
-  const price = priceFromTicks(market, market.lastPriceTicks);
+  const price = valuationPrices[asset.toUpperCase()];
   return Number.isFinite(price) && price > 0 ? price : null;
 }
 

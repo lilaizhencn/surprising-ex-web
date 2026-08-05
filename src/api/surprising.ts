@@ -286,15 +286,19 @@ export async function refresh(refreshToken: string): Promise<AuthSession> {
   });
 }
 
-export async function loadMarkets(): Promise<Market[]> {
+export async function loadMarkets(allowFallback = true): Promise<Market[]> {
   try {
     const response = await request<{ instruments?: BackendInstrument[]; items?: BackendInstrument[] }>(
       gatewayPath("instrument", "/list?status=TRADING")
     );
     const instruments = response.instruments ?? response.items ?? [];
-    if (!instruments.length) return fallbackMarkets;
+    if (!instruments.length) {
+      if (!allowFallback) throw new Error("行情标的为空");
+      return fallbackMarkets;
+    }
     return instruments.map(toMarket);
   } catch {
+    if (!allowFallback) throw new Error("行情服务不可用");
     return fallbackMarkets;
   }
 }
@@ -400,7 +404,8 @@ function periodToMilliseconds(period: string): number {
 
 export async function loadOrderBook(
   symbol: string,
-  productLine?: ProductLine
+  productLine?: ProductLine,
+  allowFallback = true
 ): Promise<{ bids: OrderBookLevel[]; asks: OrderBookLevel[] }> {
   try {
     const response = await request<{ bids: BackendOrderBookLevel[]; asks: BackendOrderBookLevel[] }>(
@@ -412,6 +417,7 @@ export async function loadOrderBook(
       asks: withTotals(response.asks)
     };
   } catch {
+    if (!allowFallback) throw new Error("订单簿行情不可用");
     const mid = fallbackMarkets.find((market) => market.symbol === symbol)?.lastPriceTicks ?? 65000;
     return fallbackBook(mid);
   }
