@@ -39,19 +39,19 @@ export function chainSymbol(chain: WalletChain): string {
   return chain.nativeSymbol || chain.chain.slice(0, 3);
 }
 
-export function networkEta(chain: WalletChain): string {
-  if (chain.family.toLowerCase().includes("evm")) return "约 7 分钟";
-  if (chain.family.toLowerCase().includes("bitcoin")) return "约 30 分钟";
-  return "约 1 分钟";
+export function networkEta(chain: WalletChain, language: "zh-CN" | "en-US" = "zh-CN"): string {
+  if (chain.family.toLowerCase().includes("evm")) return language === "en-US" ? "about 7 min" : "约 7 分钟";
+  if (chain.family.toLowerCase().includes("bitcoin")) return language === "en-US" ? "about 30 min" : "约 30 分钟";
+  return language === "en-US" ? "about 1 min" : "约 1 分钟";
 }
 
 export function minimumAmount(asset: string, chain: WalletChain): string {
   const token = chain.tokens.find((item) => item.symbol === asset.toUpperCase());
-  return token?.minDeposit ? `${token.minDeposit} ${asset}` : `0.01 ${asset}`;
+  return token?.minDeposit ? `${token.minDeposit} ${asset}` : `— ${asset}`;
 }
 
-export function formatFundingTime(value: string): string {
+export function formatFundingTime(value: string, language: "zh-CN" | "en-US" = "zh-CN"): string {
   if (!value) return "—";
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString("zh-CN", { hour12: false });
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString(language === "en-US" ? "en-US" : "zh-CN", { hour12: false });
 }

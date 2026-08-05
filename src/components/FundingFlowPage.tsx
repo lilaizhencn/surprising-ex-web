@@ -220,7 +220,7 @@ export function FundingFlowPage({
       <div className="funding-main">
         <button className="funding-back" type="button" onClick={onBack}>{text("资产总览", "Overview")}</button>
         <h1>{title}</h1>
-        {!session && <WalletError message={text("登录后才能生成真实钱包地址或提交提币。", "Log in to generate a real wallet address or submit a withdrawal.")} />}
+        {!session && <WalletError message={mode === "deposit" ? text("登录后才能生成真实钱包地址。", "Log in to generate a real deposit address.") : text("登录后才能提交提币。", "Log in to submit a withdrawal.")} />}
         <WalletError message={error} />
         {notice && <p className="funding-notice" role="status">{notice}</p>}
         <div className={showDetails ? "funding-steps completed" : "funding-steps"}>
@@ -243,7 +243,7 @@ export function FundingFlowPage({
             </button>
             {openPicker === "network" && <div className="funding-picker network-picker">
               {networkOptions.map((chain) => <button className={chainKeyFor(chain) === chainKey ? "active" : ""} type="button" key={chainKeyFor(chain)} onClick={() => selectChain(chain)}>
-                <AssetIcon symbol={chainSymbol(chain)} /><span>{chainLabel(chain, asset)}</span><small>{networkEta(chain)} · 最低 {minimumAmount(asset, chain)}</small>
+                <AssetIcon symbol={chainSymbol(chain)} /><span>{chainLabel(chain, asset)}</span><small>{networkEta(chain, language)} · {text("最低", "Minimum")} {minimumAmount(asset, chain)}</small>
               </button>)}
             </div>}
           </FundingStep>
@@ -278,7 +278,7 @@ export function FundingFlowPage({
         {showDetails && selectedChain && <div className="funding-info-grid">
           <InfoPair label={`${text("最低", "Minimum ")}${title}${text("金额", " amount")}`} value={minimumAmount(asset, selectedChain)} />
           <InfoPair label={`${title}${text("账户", " account")}`} value={text("资金账户 / Spot", "Funding / Spot")} />
-          <InfoPair label={`${title}${text("到账时间", " ETA")}`} value={networkEta(selectedChain)} />
+          <InfoPair label={`${title}${text("到账时间", " ETA")}`} value={networkEta(selectedChain, language)} />
           <InfoPair label={mode === "deposit" ? text("入账规则", "Credit rule") : text("手续费", "Fee")} value={mode === "deposit" ? text("确认后自动入现货账户", "Credited to Spot after confirmations") : text("按钱包与风控配置计算", "Calculated by wallet and risk controls")} />
           <InfoPair label={text("网络状态", "Network status")} value={selectedChain.status} />
         </div>}

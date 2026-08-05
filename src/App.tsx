@@ -2258,7 +2258,9 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
   const available = balances.reduce((sum, item) => sum + item.availableUnits, 0);
   const locked = balances.reduce((sum, item) => sum + item.lockedUnits, 0);
   const pnl = positions.reduce((sum, item) => sum + item.unrealizedPnlUnits, 0);
-  const marginRatio = Math.max(0, ...positions.map((item) => item.marginRatioPpm));
+  const marginRatio = positions.length > 0 ? Math.max(...positions.map((item) => item.marginRatioPpm)) : null;
+  const hasBalanceData = balances.length > 0;
+  const hasPositionData = positions.length > 0;
   const isSpot = productMode === "spot";
 
   return (
@@ -2281,18 +2283,18 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
         )}
       </div>
       <div className="account-summary">
-        <Metric label="总权益" value={displayUnits(equity)} />
-        <Metric label="可用" value={displayUnits(available)} />
-        <Metric label="冻结" value={displayUnits(locked)} />
+        <Metric label="总权益" value={hasBalanceData ? displayUnits(equity) : "—"} />
+        <Metric label="可用" value={hasBalanceData ? displayUnits(available) : "—"} />
+        <Metric label="冻结" value={hasBalanceData ? displayUnits(locked) : "—"} />
         {isSpot ? (
           <>
-            <Metric label="资产数" value={String(balances.length)} />
+            <Metric label="资产数" value={hasBalanceData ? String(balances.length) : "—"} />
             <Metric label="账户类型" value={PRODUCT_META[productMode].accountType} tone="gold" />
           </>
         ) : (
           <>
-            <Metric label="未实现盈亏" value={displayUnits(pnl)} tone={pnl >= 0 ? "up" : "down"} />
-            <Metric label="最高保证金率" value={displayPpm(marginRatio)} tone={marginRatio > 800000 ? "down" : "up"} />
+            <Metric label="未实现盈亏" value={hasPositionData ? displayUnits(pnl) : "—"} tone={hasPositionData ? pnl >= 0 ? "up" : "down" : undefined} />
+            <Metric label="最高保证金率" value={marginRatio === null ? "—" : displayPpm(marginRatio)} tone={marginRatio === null ? undefined : marginRatio > 800000 ? "down" : "up"} />
           </>
         )}
       </div>

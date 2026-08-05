@@ -60,7 +60,7 @@ export function FundingRecords({
     ) : <div className="record-table" role="table" aria-label={`${actionLabel}记录`}>
       <div className="record-table-head" role="row"><span>{text("时间", "Time")}</span><span>{text("网络", "Network")}</span><span>Transaction ID</span><span>{text("币种", "Asset")}</span><span>{text("数量", "Amount")}</span><span>{text("状态", "Status")}</span></div>
       {records.map((record) => <div className="record-table-row" key={record.id || `${record.createdAt}-${record.amount}`} role="row">
-        <span>{formatFundingTime(record.createdAt)}</span>
+        <span>{formatFundingTime(record.createdAt, language)}</span>
         <span>{record.chain}{record.network ? ` · ${record.network}` : ""}</span>
         <span title={record.txHash || record.id}>{shortValue(record.txHash || record.id)}</span>
         <span>{record.assetSymbol || asset || "—"}</span>
