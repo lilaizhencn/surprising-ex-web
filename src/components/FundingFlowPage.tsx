@@ -10,6 +10,7 @@ import { chainKeyFor, chainLabel, chainSymbol, chainsForAsset, fundingAssetOptio
 
 export function FundingFlowPage({
   mode,
+  language,
   balances,
   session,
   onBack,
@@ -18,6 +19,7 @@ export function FundingFlowPage({
   onHelp
 }: {
   mode: "deposit" | "withdraw";
+  language: "zh-CN" | "en-US";
   balances: Balance[];
   session: AuthSession | null;
   onBack: () => void;
@@ -25,6 +27,7 @@ export function FundingFlowPage({
   onFundingBalanceRefresh: () => void;
   onHelp: () => void;
 }) {
+  const text = (zh: string, en: string) => language === "en-US" ? en : zh;
   const [chains, setChains] = useState<WalletChain[]>([]);
   const [asset, setAsset] = useState("");
   const [chainKey, setChainKey] = useState("");
@@ -47,7 +50,7 @@ export function FundingFlowPage({
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const [idempotencyKeyPersisted, setIdempotencyKeyPersisted] = useState(true);
 
-  const title = mode === "deposit" ? "充币" : "提币";
+  const title = mode === "deposit" ? text("充币", "Deposit") : text("提币", "Withdraw");
   const assetOptions = useMemo(() => fundingAssetOptions(balances, chains), [balances, chains]);
   const networkOptions = useMemo(
     () => chainsForAsset(chains, asset, mode === "withdraw"),
@@ -84,7 +87,7 @@ export function FundingFlowPage({
     void loadWalletChains(session).then((nextChains) => {
       if (!cancelled) setChains(nextChains);
     }).catch((reason: unknown) => {
-      if (!cancelled) setError(reason instanceof Error ? reason.message : "钱包网络配置暂不可用");
+      if (!cancelled) setError(reason instanceof Error ? reason.message : text("钱包网络配置暂不可用", "Wallet network configuration is unavailable"));
     }).finally(() => {
       if (!cancelled) setLoadingChains(false);
     });
@@ -116,7 +119,7 @@ export function FundingFlowPage({
     void loader(session, selectedChain.chain, asset).then((nextRecords) => {
       if (!cancelled) setRecords(nextRecords);
     }).catch((reason: unknown) => {
-      if (!cancelled) setError(reason instanceof Error ? reason.message : "钱包记录暂不可用");
+      if (!cancelled) setError(reason instanceof Error ? reason.message : text("钱包记录暂不可用", "Wallet records are unavailable"));
     }).finally(() => {
       if (!cancelled) setLoadingRecords(false);
     });
@@ -140,11 +143,11 @@ export function FundingFlowPage({
 
   async function continueFlow() {
     if (!session) {
-      setError("请先登录后使用资金账户");
+      setError(text("请先登录后使用资金账户", "Log in to use the funding account"));
       return;
     }
     if (!selectedChain || !asset) {
-      setError("请选择币种和钱包网络");
+      setError(text("请选择币种和钱包网络", "Select an asset and wallet network"));
       return;
     }
     setError("");
@@ -154,7 +157,7 @@ export function FundingFlowPage({
       if (mode === "deposit") setAddress(await createWalletAddress(session, selectedChain));
       setShowDetails(true);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "钱包地址暂不可用");
+      setError(reason instanceof Error ? reason.message : text("钱包地址暂不可用", "Wallet address is unavailable"));
     } finally {
       setLoadingDetails(false);
     }
@@ -166,9 +169,9 @@ export function FundingFlowPage({
     setError("");
     try {
       const challenge = await issueSecurityChallenge(session, "WITHDRAWAL");
-      setNotice(`验证码已发送至 ${challenge.destination}，有效期至 ${new Date(challenge.expiresAt).toLocaleTimeString("zh-CN", { hour12: false })}`);
+      setNotice(`${text("验证码已发送至", "A code was sent to")} ${challenge.destination}，${text("有效期至", "expires at")} ${new Date(challenge.expiresAt).toLocaleTimeString(language === "en-US" ? "en-US" : "zh-CN", { hour12: false })}`);
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "验证码发送失败");
+      setError(reason instanceof Error ? reason.message : text("验证码发送失败", "Failed to send code"));
     } finally {
       setSendingCode(false);
     }
@@ -177,11 +180,11 @@ export function FundingFlowPage({
   async function submitWithdrawal() {
     if (!session || !selectedChain || !asset) return;
     if (!idempotencyKeyPersisted) {
-      setError("当前浏览器无法保存提现幂等凭证，请启用本地存储后重试");
+      setError(text("当前浏览器无法保存提现幂等凭证，请启用本地存储后重试", "This browser cannot save the withdrawal idempotency key. Enable local storage and retry."));
       return;
     }
     if (!toAddress.trim() || !amount.trim()) {
-      setError("请输入提币地址和数量");
+      setError(text("请输入提币地址和数量", "Enter a withdrawal address and amount"));
       return;
     }
     setSubmitting(true);
@@ -198,33 +201,33 @@ export function FundingFlowPage({
         emailCode,
         totpCode
       });
-      setNotice(`提币请求已受理：${response.status}`);
+      setNotice(`${text("提币请求已受理", "Withdrawal request accepted")}: ${response.status}`);
       setRecordsRefresh((value) => value + 1);
       const rotatedKey = rotateWithdrawalKey(withdrawalDraftStorageKey);
       setIdempotencyKey(rotatedKey.key);
       setIdempotencyKeyPersisted(rotatedKey.persisted);
       onFundingBalanceRefresh();
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : "提币请求失败");
+      setError(reason instanceof Error ? reason.message : text("提币请求失败", "Withdrawal request failed"));
     } finally {
       setSubmitting(false);
     }
   }
 
   return <section className="funding-page">
-    <AssetTabs active="资金账户" />
+    <AssetTabs active={text("资金账户", "Funding")} language={language} />
     <div className="funding-layout">
       <div className="funding-main">
-        <button className="funding-back" type="button" onClick={onBack}>资产总览</button>
+        <button className="funding-back" type="button" onClick={onBack}>{text("资产总览", "Overview")}</button>
         <h1>{title}</h1>
-        {!session && <WalletError message="登录后才能生成真实钱包地址或提交提币。" />}
+        {!session && <WalletError message={text("登录后才能生成真实钱包地址或提交提币。", "Log in to generate a real wallet address or submit a withdrawal.")} />}
         <WalletError message={error} />
         {notice && <p className="funding-notice" role="status">{notice}</p>}
         <div className={showDetails ? "funding-steps completed" : "funding-steps"}>
-          <FundingStep index={1} done={Boolean(asset)} active={openPicker === "asset"} label="选择币种">
+          <FundingStep index={1} done={Boolean(asset)} active={openPicker === "asset"} label={text("选择币种", "Select asset")}>
             <button className="funding-select" type="button" disabled={!session || loadingChains} onClick={() => setOpenPicker(openPicker === "asset" ? null : "asset")}>
               {asset ? <AssetIcon symbol={asset} /> : <span className="asset-icon asset-placeholder">?</span>}
-              <span>{loadingChains ? "同步支持资产…" : asset || "请选择币种"}</span><ChevronDown size={16} />
+              <span>{loadingChains ? text("同步支持资产…", "Syncing supported assets…") : asset || text("请选择币种", "Select an asset")}</span><ChevronDown size={16} />
             </button>
             {openPicker === "asset" && <div className="funding-picker">
               {assetOptions.map((item) => <button className={item.asset === asset ? "active" : ""} type="button" key={item.asset} onClick={() => selectAsset(item.asset)}>
@@ -233,10 +236,10 @@ export function FundingFlowPage({
             </div>}
           </FundingStep>
 
-          <FundingStep index={2} done={Boolean(selectedChain)} active={openPicker === "network"} label="选择网络">
+          <FundingStep index={2} done={Boolean(selectedChain)} active={openPicker === "network"} label={text("选择网络", "Select network")}>
             <button className="funding-select" type="button" disabled={!asset} onClick={() => asset && setOpenPicker(openPicker === "network" ? null : "network")}>
               {selectedChain ? <AssetIcon symbol={chainSymbol(selectedChain)} /> : <span className="asset-icon asset-placeholder">?</span>}
-              <span>{selectedChain ? chainLabel(selectedChain, asset) : "请先选择币种"}</span><ChevronDown size={16} />
+              <span>{selectedChain ? chainLabel(selectedChain, asset) : text("请先选择币种", "Select an asset first")}</span><ChevronDown size={16} />
             </button>
             {openPicker === "network" && <div className="funding-picker network-picker">
               {networkOptions.map((chain) => <button className={chainKeyFor(chain) === chainKey ? "active" : ""} type="button" key={chainKeyFor(chain)} onClick={() => selectChain(chain)}>
@@ -245,9 +248,10 @@ export function FundingFlowPage({
             </div>}
           </FundingStep>
 
-          <FundingStep index={3} active={showDetails} label={`${title}详情`}>
+          <FundingStep index={3} active={showDetails} label={`${title} ${text("详情", "details")}`}>
             {showDetails && selectedChain ? <FundingDetails
               mode={mode}
+              language={language}
               asset={asset}
               chain={selectedChain}
               address={address}
@@ -266,23 +270,23 @@ export function FundingFlowPage({
               onSendCode={() => void sendWithdrawalCode()}
               onSubmit={() => void submitWithdrawal()}
             /> : <button className="primary-flow-button" type="button" disabled={!session || !asset || !selectedChain || loadingDetails} onClick={() => void continueFlow()}>
-              {loadingDetails ? "连接钱包…" : "继续"}
+              {loadingDetails ? text("连接钱包…", "Connecting wallet…") : text("继续", "Continue")}
             </button>}
           </FundingStep>
         </div>
 
         {showDetails && selectedChain && <div className="funding-info-grid">
-          <InfoPair label={`最低${title}金额`} value={minimumAmount(asset, selectedChain)} />
-          <InfoPair label={`${title}账户`} value="资金账户 / Spot" />
-          <InfoPair label={`${title}到账时间`} value={networkEta(selectedChain)} />
-          <InfoPair label={mode === "deposit" ? "入账规则" : "手续费"} value={mode === "deposit" ? "确认后自动入现货账户" : "按钱包与风控配置计算"} />
-          <InfoPair label="网络状态" value={selectedChain.status} />
+          <InfoPair label={`${text("最低", "Minimum ")}${title}${text("金额", " amount")}`} value={minimumAmount(asset, selectedChain)} />
+          <InfoPair label={`${title}${text("账户", " account")}`} value={text("资金账户 / Spot", "Funding / Spot")} />
+          <InfoPair label={`${title}${text("到账时间", " ETA")}`} value={networkEta(selectedChain)} />
+          <InfoPair label={mode === "deposit" ? text("入账规则", "Credit rule") : text("手续费", "Fee")} value={mode === "deposit" ? text("确认后自动入现货账户", "Credited to Spot after confirmations") : text("按钱包与风控配置计算", "Calculated by wallet and risk controls")} />
+          <InfoPair label={text("网络状态", "Network status")} value={selectedChain.status} />
         </div>}
-        <FundingRecords asset={asset || null} mode={mode} records={records} loading={loadingRecords} onShowAsset={onShowAsset} onRefresh={() => setRecordsRefresh((value) => value + 1)} />
+        <FundingRecords language={language} asset={asset || null} mode={mode} records={records} loading={loadingRecords} onShowAsset={onShowAsset} onRefresh={() => setRecordsRefresh((value) => value + 1)} />
       </div>
-      <FaqCard title="常见问题" />
+      <FaqCard language={language} title={text("常见问题", "FAQ")} />
     </div>
-    <SupportBubble onOpen={onHelp} />
+    <SupportBubble language={language} onOpen={onHelp} />
   </section>;
 }
 

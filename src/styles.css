@@ -3651,3 +3651,80 @@ button.rules-row:hover {
     background: var(--panel-soft);
   }
 }
+
+@media (max-width: 1500px) and (min-width: 701px) {
+  .topbar {
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding-inline: 10px;
+  }
+
+  .topbar nav {
+    gap: 4px;
+  }
+
+  .topbar nav button {
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .top-actions {
+    gap: 6px;
+  }
+
+  .top-search {
+    width: 148px;
+  }
+
+  .asset-charge {
+    padding-inline: 9px !important;
+  }
+
+  .terminal-grid {
+    grid-template-columns: minmax(240px, 26vw) minmax(0, 1fr) minmax(280px, 28vw);
+    min-width: 0;
+  }
+
+  .main-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 29vw);
+  }
+}
+
+@media (max-width: 700px) {
+  .terminal-grid {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-width: 0;
+  }
+
+  .market-rail,
+  .workspace,
+  .right-stack {
+    width: 100%;
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .market-rail {
+    min-height: 116px;
+  }
+
+  .workspace {
+    min-height: auto;
+  }
+
+  .main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chart-panel,
+  .orderbook {
+    min-height: 280px;
+  }
+
+  .right-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -28,6 +28,7 @@ export function InfoPair({ label, value }: { label: string; value: string }) {
 }
 
 export function FundingRecords({
+  language,
   asset,
   mode,
   records,
@@ -35,6 +36,7 @@ export function FundingRecords({
   onShowAsset,
   onRefresh
 }: {
+  language: "zh-CN" | "en-US";
   asset: string | null;
   mode: "deposit" | "withdraw";
   records: WalletFundingRecord[];
@@ -42,20 +44,21 @@ export function FundingRecords({
   onShowAsset: () => void;
   onRefresh: () => void;
 }) {
-  const actionLabel = mode === "deposit" ? "充币" : "提币";
+  const text = (zh: string, en: string) => language === "en-US" ? en : zh;
+  const actionLabel = mode === "deposit" ? text("充币", "Deposit") : text("提币", "Withdraw");
   return <section className="funding-records">
     <div className="record-tabs">
-      <button className="active" type="button">{asset ? `${asset} ${actionLabel}记录` : `${actionLabel}记录`}</button>
-      <button type="button">全部{actionLabel}记录</button>
+      <button className="active" type="button">{asset ? `${asset} ${actionLabel}${text("记录", " records")}` : `${actionLabel}${text("记录", " records")}`}</button>
+      <button type="button">{text("全部", "All ")}{actionLabel}{text("记录", " records")}</button>
     </div>
     <div className="record-actions">
-      <button type="button" onClick={onRefresh}><Download size={14} />刷新</button>
-      <button type="button" onClick={onShowAsset}><FileText size={14} />查看资产</button>
+      <button type="button" onClick={onRefresh}><Download size={14} />{text("刷新", "Refresh")}</button>
+      <button type="button" onClick={onShowAsset}><FileText size={14} />{text("查看资产", "View assets")}</button>
     </div>
-    {loading ? <div className="empty-ledger"><span className="funding-spinner" aria-hidden="true" /><strong>同步钱包记录中</strong></div> : records.length === 0 ? (
-      <div className="empty-ledger"><FileText size={54} /><strong>暂无记录</strong><small>{asset ? "链上记录确认后会显示在这里" : "选择币种后查看对应记录"}</small></div>
+    {loading ? <div className="empty-ledger"><span className="funding-spinner" aria-hidden="true" /><strong>{text("同步钱包记录中", "Syncing wallet records")}</strong></div> : records.length === 0 ? (
+      <div className="empty-ledger"><FileText size={54} /><strong>{text("暂无记录", "No records")}</strong><small>{asset ? text("链上记录确认后会显示在这里", "On-chain records appear here after confirmation") : text("选择币种后查看对应记录", "Select an asset to view its records")}</small></div>
     ) : <div className="record-table" role="table" aria-label={`${actionLabel}记录`}>
-      <div className="record-table-head" role="row"><span>时间</span><span>网络</span><span>交易 ID</span><span>币种</span><span>数量</span><span>状态</span></div>
+      <div className="record-table-head" role="row"><span>{text("时间", "Time")}</span><span>{text("网络", "Network")}</span><span>Transaction ID</span><span>{text("币种", "Asset")}</span><span>{text("数量", "Amount")}</span><span>{text("状态", "Status")}</span></div>
       {records.map((record) => <div className="record-table-row" key={record.id || `${record.createdAt}-${record.amount}`} role="row">
         <span>{formatFundingTime(record.createdAt)}</span>
         <span>{record.chain}{record.network ? ` · ${record.network}` : ""}</span>
@@ -68,14 +71,15 @@ export function FundingRecords({
   </section>;
 }
 
-export function FaqCard({ title }: { title: string }) {
+export function FaqCard({ title, language = "zh-CN" }: { title: string; language?: "zh-CN" | "en-US" }) {
+  const text = (zh: string, en: string) => language === "en-US" ? en : zh;
   return <aside className="faq-card">
     <h3>{title}</h3>
-    <p>如何生成充值地址？</p>
-    <p>为什么充值还没有到账？</p>
-    <p>提币需要哪些安全验证？</p>
-    <p>如何查看资金流水？</p>
-    <button type="button" className="faq-help" onClick={() => window.location.assign("/rules")}><HelpCircle size={15} /> 联系支持</button>
+    <p>{text("如何生成充值地址？", "How do I generate a deposit address?")}</p>
+    <p>{text("为什么充值还没有到账？", "Why has my deposit not arrived?")}</p>
+    <p>{text("提币需要哪些安全验证？", "What security checks does withdrawal require?")}</p>
+    <p>{text("如何查看资金流水？", "How do I view the funding ledger?")}</p>
+    <button type="button" className="faq-help" onClick={() => window.location.assign("/rules")}><HelpCircle size={15} /> {text("联系支持", "Contact support")}</button>
   </aside>;
 }
 
@@ -96,11 +100,11 @@ function statusTone(status: string): "positive" | "warning" | "negative" | "neut
   return "neutral";
 }
 
-export function FundingAddress({ address, onCopy }: { address: string; onCopy: () => void }) {
+export function FundingAddress({ address, onCopy, language = "zh-CN" }: { address: string; onCopy: () => void; language?: "zh-CN" | "en-US" }) {
   return <div className="funding-address">
-    <small>充值地址</small>
+    <small>{language === "en-US" ? "Deposit address" : "充值地址"}</small>
     <strong>{address}</strong>
-    <button type="button" aria-label="复制充值地址" onClick={onCopy}>复制</button>
+    <button type="button" aria-label={language === "en-US" ? "Copy deposit address" : "复制充值地址"} onClick={onCopy}>{language === "en-US" ? "Copy" : "复制"}</button>
   </div>;
 }
 

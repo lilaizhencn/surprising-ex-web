@@ -105,6 +105,15 @@ function localized(language: LanguageMode, zh: string, en: string): string {
   return language === "en-US" ? en : zh;
 }
 
+function localizedNotice(language: LanguageMode, notice: string): string {
+  const messages: Record<string, string> = {
+    "连接后端中，若服务未启动会进入离线演示数据。": "Connecting to backend. If the service is unavailable, live data will remain hidden.",
+    "交易对服务暂不可用，请稍后重试": "Market service is unavailable. Please try again later.",
+    "交易对配置暂不可用，请稍后重试": "Market configuration is unavailable. Please try again later."
+  };
+  return language === "en-US" ? messages[notice] ?? notice : notice;
+}
+
 function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMode = productModeFromPath(path) ?? "linear";
@@ -212,7 +221,7 @@ export default function App() {
       session?.user.userId,
       symbol,
       activeProductLine,
-      selectedMarket?.lastPriceTicks ?? 65000
+      selectedMarket?.lastPriceTicks ?? 0
     ),
     [activeProductLine, realtime.events, selectedMarket?.lastPriceTicks, session?.user.userId, symbol]
   );
@@ -812,6 +821,7 @@ export default function App() {
       <AuthScreen
         key={authMode}
         initialMode={authMode}
+        language={language}
         onAuthenticated={persistSession}
         onBack={() => setAuthMode(null)}
       />
@@ -843,6 +853,7 @@ export default function App() {
         <TradingRulesPage
           markets={markets}
           selectedMarket={selectedMarket}
+          language={language}
           onOpenMarket={(market) => {
             setSymbol(market.symbol);
             openProductPage(marketProduct(market));
@@ -859,6 +870,7 @@ export default function App() {
           valuationRateState={valuationRateState}
           valuationMarketState={valuationMarketState}
           valuationPrices={valuationPrices}
+          language={language}
           onValuationCurrencyChange={changeValuationCurrency}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
@@ -868,6 +880,7 @@ export default function App() {
       ) : page === "recharge" ? (
         <FundingFlowPage
           mode="deposit"
+          language={language}
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
@@ -878,6 +891,7 @@ export default function App() {
       ) : page === "withdraw" ? (
         <FundingFlowPage
           mode="withdraw"
+          language={language}
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
@@ -886,7 +900,7 @@ export default function App() {
           onShowAsset={() => navigateToPage("assets")}
         />
       ) : page === "security" ? (
-        <SecurityPage session={session} onLogin={() => setAuthMode("login")} />
+        <SecurityPage language={language} session={session} onLogin={() => setAuthMode("login")} />
       ) : (
         <div className="terminal-grid" key={productMode}>
           <MarketRail productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
@@ -936,7 +950,7 @@ export default function App() {
           </section>
           <aside className="right-stack">
             <TradesTape events={realtime.events} symbol={symbol} productLine={activeProductLine}
-              market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 65000} onPickPrice={pickOrderPrice} />
+              market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
             <OrderTicket productMode={activeProductMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
@@ -946,7 +960,7 @@ export default function App() {
         <ContractInfoDialog market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
       {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
-      {notice && <div className="toast"><Radio size={15} />{notice}</div>}
+      {notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
     </main>
   );
 }
@@ -956,6 +970,7 @@ function AssetsPage({
   markets,
   fundingBalanceState,
   session,
+  language,
   valuationCurrency,
   valuationRates,
   valuationRateState,
@@ -971,6 +986,7 @@ function AssetsPage({
   markets: Market[];
   fundingBalanceState: FundingBalanceState;
   session: AuthSession | null;
+  language: LanguageMode;
   valuationCurrency: ValuationCurrency;
   valuationRates: Partial<Record<ValuationCurrency, number>>;
   valuationRateState: FundingBalanceState;
@@ -983,6 +999,7 @@ function AssetsPage({
   onHelp: () => void;
 }) {
   const [compactTable, setCompactTable] = useState(false);
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const assets = fundingAssets(balances);
   const valuationRate = valuationRates[valuationCurrency];
   const assetValues = assets.map((asset) => {
@@ -1000,36 +1017,36 @@ function AssetsPage({
 
   return (
     <section className="asset-page">
-      <AssetTabs active="资产总览" />
+      <AssetTabs active={text("资产总览", "Overview")} language={language} />
       <div className="asset-layout">
         <div className="asset-main">
           <section className="asset-summary-card">
             <div>
-              <p className="asset-label">资金账户估值 <Eye size={15} /></p>
-              <h1>{totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label="估值货币"><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h1>
-              <p className="asset-login-note">{hasValuation ? "按实时市场价估值，收益以资金账本为准" : "行情或汇率未同步，已隐藏估值"}</p>
+              <p className="asset-label">{text("资金账户估值", "Funding account valuation")} <Eye size={15} /></p>
+              <h1>{totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h1>
+              <p className="asset-login-note">{hasValuation ? text("按实时市场价估值，收益以资金账本为准", "Valued with live market prices; ledger activity is authoritative") : text("行情或汇率未同步，已隐藏估值", "Valuation is hidden until market data and FX rates are synchronized")}</p>
               <div className="asset-actions">
-                <button className="active" onClick={onDeposit}>充币</button>
-                <button onClick={onWithdraw}>提币</button>
-                <button onClick={onTransfer}>资金划转</button>
+                <button className="active" onClick={onDeposit}>{text("充币", "Deposit")}</button>
+                <button onClick={onWithdraw}>{text("提币", "Withdraw")}</button>
+                <button onClick={onTransfer}>{text("资金划转", "Transfer")}</button>
               </div>
             </div>
             <ChevronDown className="asset-card-chevron" size={24} />
           </section>
 
           <section className={`asset-portfolio-card${compactTable ? " compact" : ""}`}>
-            <h2>资产组合</h2>
+            <h2>{text("资产组合", "Portfolio")}</h2>
             <div className="portfolio-cards">
-              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} />
-              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value="—" />
-              <PortfolioBox icon={<Coins size={18} />} title="赚币" value="—" />
+              <PortfolioBox icon={<WalletCards size={18} />} title={text("资金账户", "Funding")} value={totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} />
+              <PortfolioBox icon={<Activity size={18} />} title={text("交易账户", "Trading")} value="—" />
+              <PortfolioBox icon={<Coins size={18} />} title={text("赚币", "Earn")} value="—" />
             </div>
             <div className="asset-table-toolbar">
-              <div className="asset-search"><Search size={16} />搜索</div>
-              <button type="button" aria-label="切换资产列表密度" title="切换资产列表密度" aria-pressed={compactTable} onClick={() => setCompactTable((current) => !current)}><TableProperties size={16} /></button>
+              <div className="asset-search"><Search size={16} />{text("搜索", "Search")}</div>
+              <button type="button" aria-label={text("切换资产列表密度", "Toggle asset list density")} title={text("切换资产列表密度", "Toggle asset list density")} aria-pressed={compactTable} onClick={() => setCompactTable((current) => !current)}><TableProperties size={16} /></button>
             </div>
-            <h3>代币</h3>
-            <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>
+            <h3>{text("代币", "Assets")}</h3>
+            <div className="pc-asset-row pc-asset-head"><span>{text("名称", "Name")}</span><span>{text("数量", "Amount")}</span><span>{text("估值/现货收益", "Valuation / spot P&L")}</span></div>
             {assets.map((asset, index) => {
               const amount = unitsToNumber(asset.equityUnits);
               const value = valuationMarketState === "ready" ? assetValues[index] : null;
@@ -1037,23 +1054,23 @@ function AssetsPage({
                 <div className="pc-asset-row" key={`${asset.accountType}-${asset.asset}`}>
                   <span className="pc-asset-name"><AssetIcon symbol={asset.asset} /><strong>{asset.asset}</strong><small>{assetName(asset.asset)}</small></span>
                   <span>{displayUnits(asset.equityUnits, 8)}</span>
-                  <span><strong>{value === null ? "—" : formatValuation(value, valuationCurrency)}</strong><small>实时估值</small></span>
+                  <span><strong>{value === null ? "—" : formatValuation(value, valuationCurrency)}</strong><small>{text("实时估值", "Live valuation")}</small></span>
                 </div>
               );
             })}
-            {!session && <p className="asset-login-note">登录后可同步真实资产和资金记录。</p>}
-            {session && fundingBalanceState === "loading" && <p className="asset-login-note">正在同步资金账户真实余额…</p>}
-            {session && fundingBalanceState === "error" && <p className="asset-login-note" role="alert">资金账户数据暂不可用，已隐藏余额，请稍后重试。</p>}
-            {session && hasFundingBalances && !hasValuation && <p className="asset-login-note" role="status">部分资产缺少可用市场价格或汇率，估值将在同步完成后显示。</p>}
+            {!session && <p className="asset-login-note">{text("登录后可同步真实资产和资金记录。", "Log in to sync real assets and funding records.")}</p>}
+            {session && fundingBalanceState === "loading" && <p className="asset-login-note">{text("正在同步资金账户真实余额…", "Syncing real funding account balances…")}</p>}
+            {session && fundingBalanceState === "error" && <p className="asset-login-note" role="alert">{text("资金账户数据暂不可用，已隐藏余额，请稍后重试。", "Funding account data is unavailable; balances are hidden. Please try again later.")}</p>}
+            {session && hasFundingBalances && !hasValuation && <p className="asset-login-note" role="status">{text("部分资产缺少可用市场价格或汇率，估值将在同步完成后显示。", "Some assets are missing a usable market price or FX rate; valuation will appear after synchronization.")}</p>}
           </section>
         </div>
 
         <aside className="recent-ledger-card">
-          <div className="ledger-title"><h3>近期资金账单</h3></div>
-          <p className="asset-login-note">真实资金流水将在资金账户记录同步后显示。</p>
+          <div className="ledger-title"><h3>{text("近期资金账单", "Recent funding ledger")}</h3></div>
+          <p className="asset-login-note">{text("真实资金流水将在资金账户记录同步后显示。", "Real ledger activity will appear after funding account records are synchronized.")}</p>
         </aside>
       </div>
-      <SupportBubble onOpen={onHelp} />
+      <SupportBubble language={language} onOpen={onHelp} />
     </section>
   );
 }
@@ -1080,7 +1097,8 @@ function validateKycSubmission(
   if (provider === "THIRD_PARTY" && !providerReference.trim()) throw new Error("第三方认证需要填写服务引用。");
 }
 
-function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLogin: () => void }) {
+function SecurityPage({ language, session, onLogin }: { language: LanguageMode; session: AuthSession | null; onLogin: () => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null);
   const [scenes, setScenes] = useState<SecurityScene[]>([]);
@@ -1155,9 +1173,9 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
       <section className="security-page">
         <section className="panel security-locked">
           <ShieldCheck size={42} />
-          <h1>安全中心</h1>
-          <p>登录后管理 2FA、敏感操作验证和 API 访问权限。</p>
-          <button className="primary-button" onClick={onLogin}>登录后继续</button>
+          <h1>{text("安全中心", "Security center")}</h1>
+          <p>{text("登录后管理 2FA、敏感操作验证和 API 访问权限。", "Log in to manage 2FA, sensitive-action verification, and API access.")}</p>
+          <button className="primary-button" onClick={onLogin}>{text("登录后继续", "Log in to continue")}</button>
         </section>
       </section>
     );
@@ -1205,81 +1223,81 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
       <div className="security-heading">
         <div>
           <span className="auth-eyebrow">CONTROL DECK</span>
-          <h1>安全中心</h1>
-          <p>邮箱是账户主身份。每项敏感能力都可以<span className="no-wrap">独立开关</span>，变更会留下可追溯记录。</p>
+          <h1>{text("安全中心", "Security center")}</h1>
+          <p>{text("邮箱是账户主身份。每项敏感能力都可以", "Email is the primary account identity. Each sensitive capability can be ")}<span className="no-wrap">{text("独立开关", "controlled independently")}</span>{text("，变更会留下可追溯记录。", "; every change leaves a traceable record.")}</p>
         </div>
-        <div className="security-account"><ShieldCheck size={18} />{session.user.email ?? "账户"}</div>
+        <div className="security-account"><ShieldCheck size={18} />{session.user.email ?? text("账户", "Account")}</div>
       </div>
       {(notice || error) && <div className={error ? "security-alert error" : "security-alert success"} role={error ? "alert" : "status"}>{error || notice}</div>}
       <div className="security-grid">
         <section className="panel security-card">
-          <div className="panel-title"><span><KeyRound size={16} />登录保护</span><strong className={mfa?.enabled ? "tone-up" : "tone-gold"}>{mfa?.enabled ? "已启用" : "未启用"}</strong></div>
-          <p className="security-muted">绑定验证器后，关闭安全场景和 API 敏感权限会额外要求动态验证码。</p>
-          {!mfa?.enabled && !enrollment && <button className="primary-button" disabled={busy} onClick={() => void run(async () => setEnrollment(await enrollMfa(session)), "已生成 2FA 绑定信息")}>绑定 2FA</button>}
+          <div className="panel-title"><span><KeyRound size={16} />{text("登录保护", "Login protection")}</span><strong className={mfa?.enabled ? "tone-up" : "tone-gold"}>{mfa?.enabled ? text("已启用", "Enabled") : text("未启用", "Disabled")}</strong></div>
+          <p className="security-muted">{text("绑定验证器后，关闭安全场景和 API 敏感权限会额外要求动态验证码。", "After binding an authenticator, disabling security scenes or sensitive API permissions also requires a one-time code.")}</p>
+          {!mfa?.enabled && !enrollment && <button className="primary-button" disabled={busy} onClick={() => void run(async () => setEnrollment(await enrollMfa(session)), text("已生成 2FA 绑定信息", "2FA enrollment details generated"))}>{text("绑定 2FA", "Bind 2FA")}</button>}
           {enrollment && !mfa?.enabled && (
             <div className="security-enrollment">
-              <label>密钥<input readOnly value={enrollment.secret} /></label>
-              <label>验证器 URI<input readOnly value={enrollment.provisioningUri} /></label>
-              <label>输入验证器 6 位验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-              <button className="primary-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await confirmMfa(session, totpCode)); setEnrollment(null); setTotpCode(""); }, "2FA 已启用")}>确认绑定</button>
+              <label>{text("密钥", "Secret")}<input readOnly value={enrollment.secret} /></label>
+              <label>{text("验证器 URI", "Authenticator URI")}<input readOnly value={enrollment.provisioningUri} /></label>
+              <label>{text("输入验证器 6 位验证码", "Enter the 6-digit authenticator code")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+              <button className="primary-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await confirmMfa(session, totpCode)); setEnrollment(null); setTotpCode(""); }, text("2FA 已启用", "2FA enabled"))}>{text("确认绑定", "Confirm binding")}</button>
             </div>
           )}
-          {mfa?.enabled && <div className="security-inline-form"><label>关闭 2FA 验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await disableMfa(session, totpCode)); setTotpCode(""); }, "2FA 已关闭")}>关闭 2FA</button></div>}
+          {mfa?.enabled && <div className="security-inline-form"><label>{text("关闭 2FA 验证码", "Code to disable 2FA")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await disableMfa(session, totpCode)); setTotpCode(""); }, text("2FA 已关闭", "2FA disabled"))}>{text("关闭 2FA", "Disable 2FA")}</button></div>}
         </section>
         <section className="panel security-card">
-          <div className="panel-title"><span><ShieldCheck size={16} />敏感场景</span><strong>可配置</strong></div>
-          <p className="security-muted">修改安全场景需要邮箱验证；开启 2FA 后还需动态验证码。</p>
+          <div className="panel-title"><span><ShieldCheck size={16} />{text("敏感场景", "Sensitive scenes")}</span><strong>{text("可配置", "Configurable")}</strong></div>
+          <p className="security-muted">{text("修改安全场景需要邮箱验证；开启 2FA 后还需动态验证码。", "Changing a security scene requires email verification; enabled 2FA adds an authenticator code.")}</p>
           <div className="security-scenes">
             {scenes.map((scene) => <label className="security-scene" key={scene.sceneCode}><span><strong>{scene.label}</strong><small>{scene.sceneCode}</small></span><input type="checkbox" checked={scene.enabled} disabled={busy} onChange={() => void run(() => changeSecurityScene(session, scene), `${scene.label}已更新`)} /></label>)}
           </div>
-          <div className="security-verification-row"><label>安全设置邮箱验证码<input value={securityEmailCode} onChange={(event) => setSecurityEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>2FA 验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, "验证码已发送到邮箱")}>发送验证码</button></div>
+          <div className="security-verification-row"><label>{text("安全设置邮箱验证码", "Security settings email code")}<input value={securityEmailCode} onChange={(event) => setSecurityEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>{text("2FA 验证码", "2FA code")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</button></div>
         </section>
       </div>
       <section className="panel security-card">
-        <div className="panel-title"><span><KeyRound size={16} />修改密码</span><strong>需验证</strong></div>
-        <p className="security-muted">修改密码后，其他登录设备的 refresh session 会立即失效。若开启了修改密码场景，请先发送邮箱验证码。</p>
+        <div className="panel-title"><span><KeyRound size={16} />{text("修改密码", "Change password")}</span><strong>{text("需验证", "Verification required")}</strong></div>
+        <p className="security-muted">{text("修改密码后，其他登录设备的 refresh session 会立即失效。若开启了修改密码场景，请先发送邮箱验证码。", "Other refresh sessions are invalidated after a password change. If the password-change scene is enabled, send an email code first.")}</p>
         <div className="security-inline-form">
-          <label>当前密码<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
-          <label>新密码<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="至少 8 位" /></label>
+          <label>{text("当前密码", "Current password")}<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+          <label>{text("新密码", "New password")}<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder={text("至少 8 位", "At least 8 characters")} /></label>
         </div>
         <div className="security-verification-row">
-          <label>邮箱验证码<input value={changePasswordEmailCode} onChange={(event) => setChangePasswordEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-          <label>2FA 验证码<input value={changePasswordTotpCode} onChange={(event) => setChangePasswordTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-          <button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "CHANGE_PASSWORD"); }, "验证码已发送到邮箱")}>发送验证码</button>
-          <button className="primary-button" disabled={busy || !currentPassword || newPassword.length < 8} onClick={() => void run(async () => { await changePassword(session, currentPassword, newPassword, changePasswordEmailCode, changePasswordTotpCode); setCurrentPassword(""); setNewPassword(""); setChangePasswordEmailCode(""); setChangePasswordTotpCode(""); }, "密码已修改，请重新登录其他设备")}>确认修改</button>
+          <label>{text("邮箱验证码", "Email code")}<input value={changePasswordEmailCode} onChange={(event) => setChangePasswordEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+          <label>{text("2FA 验证码", "2FA code")}<input value={changePasswordTotpCode} onChange={(event) => setChangePasswordTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+          <button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "CHANGE_PASSWORD"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</button>
+          <button className="primary-button" disabled={busy || !currentPassword || newPassword.length < 8} onClick={() => void run(async () => { await changePassword(session, currentPassword, newPassword, changePasswordEmailCode, changePasswordTotpCode); setCurrentPassword(""); setNewPassword(""); setChangePasswordEmailCode(""); setChangePasswordTotpCode(""); }, text("密码已修改，请重新登录其他设备", "Password changed; other sessions must sign in again"))}>{text("确认修改", "Confirm change")}</button>
         </div>
       </section>
       <section className="panel security-card kyc-card">
-        <div className="panel-title"><span><FileText size={16} />身份认证 KYC</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? "未提交"}</strong></div>
-        <p className="security-muted">提币前必须完成 KYC。基础认证需要身份证或护照；标准及以上还需要地址证明；企业认证还需要营业执照；启用人脸识别时需要人脸材料。</p>
-        {kyc?.rejectionReason && <div className="security-alert error">审核意见：{kyc.rejectionReason}</div>}
+        <div className="panel-title"><span><FileText size={16} />{text("身份认证 KYC", "Identity verification KYC")}</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? text("未提交", "Not submitted")}</strong></div>
+        <p className="security-muted">{text("提币前必须完成 KYC。基础认证需要身份证或护照；标准及以上还需要地址证明；企业认证还需要营业执照；启用人脸识别时需要人脸材料。", "KYC is required before withdrawals. Basic verification needs an ID card or passport; standard and above also need proof of address; business verification needs a license; face verification needs face material.")}</p>
+        {kyc?.rejectionReason && <div className="security-alert error">{text("审核意见：", "Review note: ")}{kyc.rejectionReason}</div>}
         <div className="kyc-form-grid">
-          <label>申请主体<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">个人</option><option value="BUSINESS">企业</option></select></label>
-          <label>认证等级<select value={kycLevel} onChange={(event) => setKycLevel(event.target.value)}><option value="BASIC">基础</option><option value="STANDARD">标准</option><option value="ENHANCED">增强</option></select></label>
-          <label>国家/地区代码<input value={kycCountry} onChange={(event) => setKycCountry(event.target.value.toUpperCase().slice(0, 2))} placeholder="CN" maxLength={2} /></label>
-          <label>主证件类型<select value={kycDocumentType} onChange={(event) => setKycDocumentType(event.target.value)}><option value="ID_CARD">身份证</option><option value="PASSPORT">护照</option><option value="BUSINESS_LICENSE">企业营业执照</option></select></label>
-          <label>认证服务<select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">平台审核</option><option value="THIRD_PARTY">第三方服务</option></select></label>
-          <label>服务引用{kycProvider === "THIRD_PARTY" ? "" : "（可选）"}<input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder={kycProvider === "THIRD_PARTY" ? "第三方返回的核验编号" : "provider-reference"} /></label>
+          <label>{text("申请主体", "Applicant type")}<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">{text("个人", "Individual")}</option><option value="BUSINESS">{text("企业", "Business")}</option></select></label>
+          <label>{text("认证等级", "Verification level")}<select value={kycLevel} onChange={(event) => setKycLevel(event.target.value)}><option value="BASIC">{text("基础", "Basic")}</option><option value="STANDARD">{text("标准", "Standard")}</option><option value="ENHANCED">{text("增强", "Enhanced")}</option></select></label>
+          <label>{text("国家/地区代码", "Country / region code")}<input value={kycCountry} onChange={(event) => setKycCountry(event.target.value.toUpperCase().slice(0, 2))} placeholder="CN" maxLength={2} /></label>
+          <label>{text("主证件类型", "Primary document")}<select value={kycDocumentType} onChange={(event) => setKycDocumentType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option></select></label>
+          <label>{text("认证服务", "Verification provider")}<select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">{text("平台审核", "Platform review")}</option><option value="THIRD_PARTY">{text("第三方服务", "Third-party service")}</option></select></label>
+          <label>{text("服务引用", "Provider reference")}{kycProvider === "THIRD_PARTY" ? "" : text("（可选）", " (optional)")}<input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder={kycProvider === "THIRD_PARTY" ? text("第三方返回的核验编号", "Reference from provider") : "provider-reference"} /></label>
         </div>
         <div className="kyc-upload-grid">
-          <label>上传材料类型<select value={kycUploadType} onChange={(event) => setKycUploadType(event.target.value)}><option value="ID_CARD">身份证</option><option value="PASSPORT">护照</option><option value="ADDRESS_PROOF">地址证明</option><option value="BUSINESS_LICENSE">企业营业执照</option><option value="FACE_IMAGE">人脸照片</option></select></label>
-          <label>选择 PDF 或图片<input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></label>
-          <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error("请选择 KYC 材料"); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, "材料已上传")}>上传材料</button>
+          <label>{text("上传材料类型", "Document type")}<select value={kycUploadType} onChange={(event) => setKycUploadType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="ADDRESS_PROOF">{text("地址证明", "Proof of address")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option><option value="FACE_IMAGE">{text("人脸照片", "Face image")}</option></select></label>
+          <label>{text("选择 PDF 或图片", "Choose PDF or image")}<input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></label>
+          <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error(text("请选择 KYC 材料", "Choose a KYC document")); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, text("材料已上传", "Document uploaded"))}>{text("上传材料", "Upload document")}</button>
         </div>
-        <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">尚未上传材料。请至少上传主证件；标准及以上认证请同时上传地址证明。</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? "已提交" : "已上传"}</em></div>)}</div>
-        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
+        <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">{text("尚未上传材料。请至少上传主证件；标准及以上认证请同时上传地址证明。", "No documents uploaded. Upload a primary document; standard and above also need proof of address.")}</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? text("已提交", "Submitted") : text("已上传", "Uploaded")}</em></div>)}</div>
+        <div className="security-inline-form kyc-submit-row"><label>{text("人脸状态", "Face verification")}<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">{text("暂不启用", "Not enabled")}</option><option value="PENDING">{text("等待人脸识别", "Face verification pending")}</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, text("KYC 已提交，等待审核", "KYC submitted for review"))}>{text("提交认证", "Submit verification")}</button></div>
       </section>
       <section className="panel security-card api-key-card">
-        <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>兼容交易 API</strong></div>
-        <p className="security-muted">Secret 只在创建成功时显示一次。提现权限默认关闭，签名、时间戳和幂等键由服务端校验。</p>
+        <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>{text("兼容交易 API", "Trading API compatible")}</strong></div>
+        <p className="security-muted">{text("Secret 只在创建成功时显示一次。提现权限默认关闭，签名、时间戳和幂等键由服务端校验。", "The Secret is shown only once. Withdrawal permission is off by default; the server validates signatures, timestamps, and idempotency keys.")}</p>
         <div className="api-key-create">
-          <label>名称<input value={apiLabel} onChange={(event) => setApiLabel(event.target.value)} placeholder="例如：量化主账户" /></label>
-          <div className="permission-picker">{["TRADE", "WITHDRAW"].map((permission) => <label key={permission}><input type="checkbox" checked={apiPermissions.includes(permission)} onChange={() => togglePermission(permission)} />{permission === "TRADE" ? "交易" : "提现"}</label>)}</div>
-          <button className="primary-button" disabled={busy || !apiLabel.trim()} onClick={() => void run(async () => { const created = await createApiKey(session, apiLabel.trim(), apiPermissions, emailCode, apiTotpCode); setCreatedSecret(created.secret); setApiLabel(""); setEmailCode(""); setApiTotpCode(""); await reload(); }, "API Key 已创建，请立即保存 Secret")}>创建 Key</button>
+          <label>{text("名称", "Label")}<input value={apiLabel} onChange={(event) => setApiLabel(event.target.value)} placeholder={text("例如：量化主账户", "e.g. primary trading bot")} /></label>
+          <div className="permission-picker">{["TRADE", "WITHDRAW"].map((permission) => <label key={permission}><input type="checkbox" checked={apiPermissions.includes(permission)} onChange={() => togglePermission(permission)} />{permission === "TRADE" ? text("交易", "Trade") : text("提现", "Withdraw")}</label>)}</div>
+          <button className="primary-button" disabled={busy || !apiLabel.trim()} onClick={() => void run(async () => { const created = await createApiKey(session, apiLabel.trim(), apiPermissions, emailCode, apiTotpCode); setCreatedSecret(created.secret); setApiLabel(""); setEmailCode(""); setApiTotpCode(""); await reload(); }, text("API Key 已创建，请立即保存 Secret", "API Key created; save the Secret now"))}>{text("创建 Key", "Create key")}</button>
         </div>
-        <div className="security-verification-row"><label>邮箱验证码<input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>2FA 验证码<input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, "验证码已发送到邮箱")}>发送邮箱验证码</button></div>
-        {createdSecret && <div className="secret-reveal"><strong>Secret 仅显示这一次</strong><code>{createdSecret}</code><button className="ghost-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>复制 Secret</button></div>}
-        <div className="api-key-list">{keys.length === 0 ? <p className="empty">暂无 API Key</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small></div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, "API Key 已撤销")}>撤销</button>}</div>)}</div>
+        <div className="security-verification-row"><label>{text("邮箱验证码", "Email code")}<input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>{text("2FA 验证码", "2FA code")}<input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送邮箱验证码", "Send email code")}</button></div>
+        {createdSecret && <div className="secret-reveal"><strong>{text("Secret 仅显示这一次", "Secret is shown only once")}</strong><code>{createdSecret}</code><button className="ghost-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>{text("复制 Secret", "Copy Secret")}</button></div>}
+        <div className="api-key-list">{keys.length === 0 ? <p className="empty">{text("暂无 API Key", "No API keys")}</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small></div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, text("API Key 已撤销", "API key revoked"))}>{text("撤销", "Revoke")}</button>}</div>)}</div>
       </section>
     </section>
   );
@@ -1308,13 +1326,16 @@ function formatValuation(value: number, currency: ValuationCurrency): string {
 
 function AuthScreen({
   initialMode,
+  language,
   onAuthenticated,
   onBack
 }: {
   initialMode: AuthMode;
+  language: LanguageMode;
   onAuthenticated: (session: AuthSession) => void;
   onBack: () => void;
 }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const [step, setStep] = useState<AuthStep>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1333,13 +1354,13 @@ function AuthScreen({
       if (step === "forgot") {
         await forgotPassword(email);
         setStep("reset");
-        setNotice("如果该邮箱已注册，验证码已发送。请检查收件箱和垃圾邮件。");
+        setNotice(text("如果该邮箱已注册，验证码已发送。请检查收件箱和垃圾邮件。", "If this email is registered, a code was sent. Check your inbox and spam folder."));
       } else if (step === "reset") {
         await resetPassword(email, code, password);
         setStep("login");
         setCode("");
         setPassword("");
-        setNotice("密码已更新，请使用新密码登录。");
+        setNotice(text("密码已更新，请使用新密码登录。", "Password updated. Sign in with your new password."));
       } else if (step === "verify" && pendingSession) {
         const verified = await verifyEmail(pendingSession, email, code);
         if (!verified) throw new Error("验证码无效或已过期");
@@ -1349,7 +1370,7 @@ function AuthScreen({
         if (step === "register" && session.requiresEmailVerification !== false) {
           setPendingSession(session);
           setStep("verify");
-          setNotice("验证码已发送到你的邮箱，请完成验证后进入交易。");
+          setNotice(text("验证码已发送到你的邮箱，请完成验证后进入交易。", "A verification code was sent to your email. Verify it before trading."));
         } else {
           onAuthenticated(session);
         }
@@ -1370,49 +1391,49 @@ function AuthScreen({
         </button>
         {step === "login" || step === "register" ? (
           <div className="auth-tabs">
-            <button disabled={busy} className={step === "login" ? "active" : ""} onClick={() => { setStep("login"); setError(""); setNotice(""); }}>登录</button>
-            <button disabled={busy} className={step === "register" ? "active" : ""} onClick={() => { setStep("register"); setError(""); setNotice(""); }}>注册</button>
+            <button disabled={busy} className={step === "login" ? "active" : ""} onClick={() => { setStep("login"); setError(""); setNotice(""); }}>{text("登录", "Log in")}</button>
+            <button disabled={busy} className={step === "register" ? "active" : ""} onClick={() => { setStep("register"); setError(""); setNotice(""); }}>{text("注册", "Sign up")}</button>
           </div>
         ) : (
           <div className="auth-step-heading">
             <span className="auth-eyebrow">SECURE ACCESS</span>
-            <h2>{step === "verify" ? "验证邮箱" : step === "reset" ? "设置新密码" : "找回密码"}</h2>
+            <h2>{step === "verify" ? text("验证邮箱", "Verify email") : step === "reset" ? text("设置新密码", "Set new password") : text("找回密码", "Reset password")}</h2>
           </div>
         )}
         {step !== "verify" && (
           <label>
-            邮箱地址
+            {text("邮箱地址", "Email address")}
             <input value={email} onChange={(event) => setEmail(event.target.value.trim())} type="email" inputMode="email" autoComplete="email" placeholder="name@example.com" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
           </label>
         )}
-        {step === "verify" && <p className="hint">验证码已发送至 {email.replace(/(^.).*(@.*$)/, "$1•••$2")}，有效期 10 分钟。</p>}
+        {step === "verify" && <p className="hint">{text("验证码已发送至", "A code was sent to")} {email.replace(/(^.).*(@.*$)/, "$1•••$2")}{text("，有效期 10 分钟。", "; it expires in 10 minutes.")}</p>}
         {(step === "login" || step === "register") && (
           <label>
-            密码
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={step === "login" ? "current-password" : "new-password"} placeholder="至少 8 位" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+            {text("密码", "Password")}
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={step === "login" ? "current-password" : "new-password"} placeholder={text("至少 8 位", "At least 8 characters")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
           </label>
         )}
         {(step === "verify" || step === "reset") && (
           <label>
-            邮箱验证码
-            <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6 位数字" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+            {text("邮箱验证码", "Email code")}
+            <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder={text("6 位数字", "6 digits")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
           </label>
         )}
         {step === "reset" && (
           <label>
-            新密码
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="至少 8 位" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
+            {text("新密码", "New password")}
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder={text("至少 8 位", "At least 8 characters")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
           </label>
         )}
-        {step === "login" && <button disabled={busy} className="link-button" onClick={() => { setStep("forgot"); setError(""); setNotice(""); }}>忘记密码？</button>}
+        {step === "login" && <button disabled={busy} className="link-button" onClick={() => { setStep("forgot"); setError(""); setNotice(""); }}>{text("忘记密码？", "Forgot password?")}</button>}
         {notice && <p id="auth-status" className="success" role="status" aria-live="polite">{notice}</p>}
         {error && <p id="auth-status" className="error" role="alert" aria-live="assertive">{error}</p>}
         <button className="primary-button" disabled={busy} onClick={submit}>
-          {busy ? "处理中..." : step === "login" ? "进入交易舱" : step === "register" ? "创建账户" : step === "verify" ? "完成邮箱验证" : step === "reset" ? "更新密码" : "发送验证码"}
+          {busy ? text("处理中...", "Processing...") : step === "login" ? text("进入交易舱", "Enter trading") : step === "register" ? text("创建账户", "Create account") : step === "verify" ? text("完成邮箱验证", "Verify email") : step === "reset" ? text("更新密码", "Update password") : text("发送验证码", "Send code")}
         </button>
-        {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); setNotice(""); try { await resendEmailVerification(pendingSession); setNotice("新的验证码已发送。"); } catch (err) { setError(err instanceof Error ? err.message : "验证码发送失败"); } finally { setBusy(false); } }}>重新发送验证码</button>}
-        {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>返回登录</button>}
-        <button disabled={busy} className="ghost-button" onClick={onBack}>返回行情</button>
+        {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); setNotice(""); try { await resendEmailVerification(pendingSession); setNotice(text("新的验证码已发送。", "A new code was sent.")); } catch (err) { setError(err instanceof Error ? err.message : text("验证码发送失败", "Failed to send code")); } finally { setBusy(false); } }}>{text("重新发送验证码", "Resend code")}</button>}
+        {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>{text("返回登录", "Back to log in")}</button>}
+        <button disabled={busy} className="ghost-button" onClick={onBack}>{text("返回行情", "Back to markets")}</button>
       </section>
     </main>
   );
@@ -1690,6 +1711,7 @@ function priceWithQuote(market: Market | undefined, priceTicks: number, quoteAss
 }
 
 function displayMarketPrice(market: Market | undefined, priceTicks: number): string {
+  if (!market || !Number.isFinite(priceTicks) || priceTicks <= 0) return "—";
   return displayPrice(priceFromTicks(market, priceTicks));
 }
 
@@ -1939,7 +1961,7 @@ function OrderTicket({
   const [timeInForce, setTimeInForce] = useState<TimeInForce>("GTC");
   const [marginMode, setMarginMode] = useState<MarginMode>("CROSS");
   const [positionSide, setPositionSide] = useState<PositionSide>("NET");
-  const [priceTicks, setPriceTicks] = useState("65000");
+  const [priceTicks, setPriceTicks] = useState("");
   const [quantitySteps, setQuantitySteps] = useState("1");
   const [triggerLevels, setTriggerLevels] = useState<TriggerLevelInput[]>([]);
   const [algoType, setAlgoType] = useState<AlgoOrderType>("TWAP");
@@ -1951,7 +1973,8 @@ function OrderTicket({
   const [postOnly, setPostOnly] = useState(false);
 
   useEffect(() => {
-    if (market?.lastPriceTicks) setPriceTicks(String(market.lastPriceTicks));
+    if (market?.lastPriceTicks && market.lastPriceTicks > 0) setPriceTicks(String(market.lastPriceTicks));
+    else if (!market) setPriceTicks("");
     setLeverage((current) => Math.min(current, market?.maxLeverage ?? current));
   }, [market?.lastPriceTicks, market?.maxLeverage]);
 
@@ -2493,39 +2516,40 @@ function ContractInfoDialog({ market, onClose }: { market: Market; onClose: () =
   );
 }
 
-function TradingRulesPage({ markets, selectedMarket, onOpenMarket }: { markets: Market[]; selectedMarket?: Market; onOpenMarket: (market: Market) => void }) {
+function TradingRulesPage({ markets, selectedMarket, language, onOpenMarket }: { markets: Market[]; selectedMarket?: Market; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   return (
     <section className="rules-page">
       <div className="rules-hero">
         <div>
-          <span className="eyebrow"><FileText size={15} />Backend instrument rules</span>
-          <h1>交易规则</h1>
-          <p>页面展示的数据来自 instrument 当前版本。现货、永续、交割和期权按产品线隔离撮合与账户，但共享同一套 symbol 规则、订单能力、数量边界、费率和风控配置入口。</p>
+          <span className="eyebrow"><FileText size={15} />{text("后端标的规则", "Backend instrument rules")}</span>
+          <h1>{text("交易规则", "Trading rules")}</h1>
+          <p>{text("页面展示的数据来自 instrument 当前版本。现货、永续、交割和期权按产品线隔离撮合与账户，但共享同一套 symbol 规则、订单能力、数量边界、费率和风控配置入口。", "This page reflects the current instrument version. Spot, perpetuals, deliveries, and options use isolated matching and accounts while sharing symbol rules, order capabilities, quantity bounds, fees, and risk controls.")}</p>
         </div>
         <div className="rules-current">
-          <strong>{selectedMarket?.symbol ?? "选择市场"}</strong>
-          <span>{selectedMarket ? `${PRODUCT_META[marketProduct(selectedMarket)].label} · ${selectedMarket.settleAsset ?? selectedMarket.quoteAsset}` : "选择产品"} </span>
-          <button onClick={() => selectedMarket && onOpenMarket(selectedMarket)}>打开交易</button>
+          <strong>{selectedMarket?.symbol ?? text("选择市场", "Select market")}</strong>
+          <span>{selectedMarket ? `${language === "en-US" ? PRODUCT_META[marketProduct(selectedMarket)].labelEn : PRODUCT_META[marketProduct(selectedMarket)].label} · ${selectedMarket.settleAsset ?? selectedMarket.quoteAsset}` : text("选择产品", "Select product")} </span>
+          <button onClick={() => selectedMarket && onOpenMarket(selectedMarket)}>{text("打开交易", "Open trading")}</button>
         </div>
       </div>
       <div className="rules-grid">
-        <RuleCard title="产品设计" icon={<Layers3 size={16} />}>
-          <p>当前系统采用 instrument 版本化配置，交易、撮合、账户、风险、资金费率、K线、指数/标记价格都读取同一份规则快照。</p>
-          <p>现货、U本位/币本位永续、交割和期权都由后端 `instrumentType` 与 `contractType` 区分，前端不维护独立交易对清单。</p>
+        <RuleCard title={text("产品设计", "Product design")} icon={<Layers3 size={16} />}>
+          <p>{text("当前系统采用 instrument 版本化配置，交易、撮合、账户、风险、资金费率、K线、指数/标记价格都读取同一份规则快照。", "The system uses versioned instrument configuration. Trading, matching, accounts, risk, funding rates, candles, and index/mark prices all read one rule snapshot.")}</p>
+          <p>{text("现货、U本位/币本位永续、交割和期权都由后端 instrumentType 与 contractType 区分，前端不维护独立交易对清单。", "Spot, USDT/coin perpetuals, deliveries, and options are distinguished by backend instrumentType and contractType; the frontend does not maintain a separate market list.")}</p>
         </RuleCard>
-        <RuleCard title="关键指标" icon={<TrendingUp size={16} />}>
-          <p>合约产品展示标记价格、指数价格和资金费率；现货产品展示基础资产、计价资产、盘口和成交。</p>
-          <p>资产、持仓、权益、保证金率和风险状态由后端 account/risk 推送或查询，前端只展示，不自行结算。</p>
+        <RuleCard title={text("关键指标", "Key metrics")} icon={<TrendingUp size={16} />}>
+          <p>{text("合约产品展示标记价格、指数价格和资金费率；现货产品展示基础资产、计价资产、盘口和成交。", "Derivatives show mark price, index price, and funding rate; spot shows base/quote assets, order book, and trades.")}</p>
+          <p>{text("资产、持仓、权益、保证金率和风险状态由后端 account/risk 推送或查询，前端只展示，不自行结算。", "Assets, positions, equity, margin ratios, and risk status come from backend account/risk events or queries. The frontend displays them and never settles locally.")}</p>
         </RuleCard>
-        <RuleCard title="下单保护" icon={<TableProperties size={16} />}>
-          <p>订单入口按最小数量、最大数量、最小/最大名义价值、最大杠杆、reduce-only、post-only、价格保护和持仓限额校验。</p>
-          <p>撮合结果带 traceId，成交用 symbol + tradeId 幂等，WebSocket 至少一次投递，前端按事件版本刷新账户数据。</p>
+        <RuleCard title={text("下单保护", "Order protection")} icon={<TableProperties size={16} />}>
+          <p>{text("订单入口按最小数量、最大数量、最小/最大名义价值、最大杠杆、reduce-only、post-only、价格保护和持仓限额校验。", "Order entry validates quantity, notional, leverage, reduce-only, post-only, price protection, and position limits against backend rules.")}</p>
+          <p>{text("撮合结果带 traceId，成交用 symbol + tradeId 幂等，WebSocket 至少一次投递，前端按事件版本刷新账户数据。", "Matches carry a traceId, fills are idempotent by symbol + tradeId, WebSocket delivery is at-least-once, and account state refreshes by event version.")}</p>
         </RuleCard>
       </div>
       <div className="rules-table panel">
-        <div className="panel-title"><span><BookOpen size={16} />产品参数</span><button>{markets.length} symbols</button></div>
+        <div className="panel-title"><span><BookOpen size={16} />{text("产品参数", "Product parameters")}</span><button>{markets.length} symbols</button></div>
         <div className="rules-row table-head">
-          <span>市场</span><span>产品</span><span>后端类型</span><span>账户/结算</span><span>杠杆</span><span>数量范围</span><span>名义价值</span><span>费率</span><span>状态</span>
+          <span>{text("市场", "Market")}</span><span>{text("产品", "Product")}</span><span>{text("后端类型", "Backend type")}</span><span>{text("账户/结算", "Account / settlement")}</span><span>{text("杠杆", "Leverage")}</span><span>{text("数量范围", "Quantity range")}</span><span>{text("名义价值", "Notional")}</span><span>{text("费率", "Fees")}</span><span>{text("状态", "Status")}</span>
         </div>
         {markets.map((market) => (
           <button className="rules-row" key={market.symbol} onClick={() => onOpenMarket(market)}>
