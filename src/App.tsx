@@ -1507,14 +1507,14 @@ function Topbar({
           )}
         </div>
         <button className="asset-charge" onClick={() => onPageChange("recharge")}>{localized(language, "充值", "Deposit")}</button>
-        <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>{localized(language, "资产管理", "Assets")}<ChevronDown size={13} /></button>
-        <button className={page === "security" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("security")}><ShieldCheck size={14} />{localized(language, "安全中心", "Security")}</button>
+        <button className={`user-pill asset-management-button ${page === "assets" ? "active" : ""}`} onClick={() => onPageChange("assets")}>{localized(language, "资产管理", "Assets")}<ChevronDown size={13} /></button>
+        <button className={`user-pill security-center-button ${page === "security" ? "active" : ""}`} onClick={() => onPageChange("security")}><ShieldCheck size={14} />{localized(language, "安全中心", "Security")}</button>
         <button onClick={onThemeToggle} aria-label={localized(language, "切换明暗主题", "Toggle theme")}>{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
         <button onClick={onLanguageToggle} aria-label={localized(language, "切换语言", "Switch language")}>{language === "zh-CN" ? "EN" : "中文"}</button>
         <button className="mobile-product-toggle" aria-expanded={mobileProductsOpen} aria-controls="mobile-product-menu" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />{localized(language, "产品线", "Products")}</button>
         {session ? (
           <>
-            <button className="user-pill mobile-account" aria-label="打开安全中心" onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? "账户"}</span></button>
+            <button className="user-pill mobile-account" aria-label={localized(language, "打开安全中心", "Open security center")} onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? localized(language, "账户", "Account")}</span></button>
             <button className="logout-button mobile-logout" aria-label={localized(language, "退出登录", "Log out")} onClick={onLogout}><LogOut size={16} /><span>{localized(language, "退出", "Log out")}</span></button>
           </>
         ) : (

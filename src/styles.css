@@ -2161,12 +2161,27 @@ button.rules-row:hover {
 
 .topbar {
   height: 42px;
-  grid-template-columns: auto minmax(680px, 1fr) auto;
-  gap: 18px;
+  grid-template-columns: minmax(180px, auto) minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
   margin: 0;
   padding: 0 16px;
   background: var(--platform-black);
   border-bottom: 1px solid var(--platform-hover);
+}
+
+.topbar nav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.topbar nav::-webkit-scrollbar {
+  display: none;
+}
+
+.top-actions {
+  min-width: 0;
 }
 
 .brand,
@@ -3470,7 +3485,7 @@ button.rules-row:hover {
 @media (max-width: 900px) {
   .topbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(42px, auto) minmax(0, 1fr);
     grid-template-areas:
       "brand actions"
       "nav nav";
@@ -3547,7 +3562,32 @@ button.rules-row:hover {
   }
 
   .top-actions {
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+
+  .top-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-actions > button {
+    flex: 0 0 auto;
+  }
+
+  .platform-brand {
+    width: 42px;
+    justify-content: center;
+  }
+
+  .platform-brand strong {
+    display: none;
+  }
+
+  .asset-management-button,
+  .security-center-button {
+    display: none;
   }
 
   .top-actions .auth-entry {
