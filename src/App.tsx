@@ -132,6 +132,7 @@ export default function App() {
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
+  const [fundingBalances, setFundingBalances] = useState<Balance[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [openOrdersNextCursor, setOpenOrdersNextCursor] = useState<string | null>(null);
@@ -196,6 +197,18 @@ export default function App() {
       if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
     });
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setFundingBalances([]);
+      return;
+    }
+    let cancelled = false;
+    void loadBalances(session, "SPOT", "SPOT").then((nextBalances) => {
+      if (!cancelled) setFundingBalances(nextBalances);
+    });
+    return () => { cancelled = true; };
+  }, [session?.accessToken]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -390,6 +403,7 @@ export default function App() {
     }
     openOrdersRequestRef.current += 1;
     setBalances([]);
+    setFundingBalances([]);
     setPositions([]);
     setOrders([]);
     setOpenOrdersNextCursor(null);
@@ -680,7 +694,7 @@ export default function App() {
         />
       ) : page === "assets" ? (
         <AssetsPage
-          balances={balances}
+          balances={fundingBalances}
           session={session}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
@@ -688,7 +702,7 @@ export default function App() {
       ) : page === "recharge" ? (
         <FundingFlowPage
           mode="deposit"
-          balances={balances}
+          balances={fundingBalances}
           session={session}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
@@ -696,7 +710,7 @@ export default function App() {
       ) : page === "withdraw" ? (
         <FundingFlowPage
           mode="withdraw"
-          balances={balances}
+          balances={fundingBalances}
           session={session}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}

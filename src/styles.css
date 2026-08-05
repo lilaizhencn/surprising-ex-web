@@ -1915,6 +1915,38 @@ button.rules-row:hover {
   --sx-text-primary: #eff5fb;
   --sx-text-secondary: #9eabbc;
   --sx-border-subtle: rgba(170, 194, 214, .16);
+  --sx-surface-light: #fff;
+  --sx-surface-light-soft: #f6f6f6;
+  --sx-ink-light: #111;
+  --sx-text-light: #333;
+  --sx-text-light-muted: #777;
+  --sx-text-light-subtle: #888;
+  --sx-border-light: #eee;
+  --sx-border-light-strong: #ddd;
+  --sx-border-light-dashed: #c8c8c8;
+  --sx-scroll-thumb: #c9c9c9;
+  --sx-scroll-track: #f3f3f3;
+  --sx-space-1: 4px;
+  --sx-space-2: 8px;
+  --sx-space-3: 12px;
+  --sx-space-4: 16px;
+  --sx-space-5: 20px;
+  --sx-space-6: 24px;
+  --sx-space-7: 28px;
+  --sx-space-8: 32px;
+  --sx-space-9: 40px;
+  --sx-space-page-bottom: 80px;
+  --sx-space-step-line: 12px;
+  --sx-space-step-top: 26px;
+  --sx-space-detail: 18px;
+  --sx-space-qr-padding: 10px;
+  --sx-space-qr-cell: 2px;
+  --sx-space-records: 54px;
+  --sx-space-record-toolbar: 28px;
+  --sx-font-caption: 12px;
+  --sx-font-body: 13px;
+  --sx-font-section: 18px;
+  --sx-font-page: 30px;
   --sx-radius-control: 12px;
   --sx-radius-panel: 20px;
   --sx-radius-pill: 999px;
@@ -2174,25 +2206,25 @@ button.rules-row:hover {
 }
 
 .asset-tabs {
-  height: 40px;
+  height: 44px;
   display: flex;
   justify-content: center;
   gap: 28px;
   align-items: center;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  background: var(--sx-surface-light);
+  border-bottom: 1px solid var(--sx-border-light-strong);
 }
 
 .asset-tabs button {
-  height: 40px;
+  min-height: 44px;
   position: relative;
   background: transparent;
-  color: #555;
+  color: var(--sx-text-light-muted);
   font-weight: 700;
 }
 
 .asset-tabs button.active {
-  color: #111;
+  color: var(--sx-ink-light);
 }
 
 .asset-tabs button.active::after {
@@ -2202,7 +2234,7 @@ button.rules-row:hover {
   right: 0;
   bottom: 0;
   height: 3px;
-  background: #111;
+  background: var(--sx-ink-light);
 }
 
 .asset-page,
@@ -2483,26 +2515,29 @@ button.rules-row:hover {
 }
 
 .funding-main {
-  padding-bottom: 80px;
+  padding-bottom: var(--sx-space-page-bottom);
 }
 
 .funding-back {
   background: transparent;
   padding: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .funding-main h1 {
-  margin: 14px 0 16px;
-  font-size: 30px;
+  margin: var(--sx-space-3) 0 var(--sx-space-4);
+  font-size: var(--sx-font-page);
 }
 
 .funding-notice,
 .funding-error {
   width: 400px;
-  margin: 0 0 14px 40px;
-  padding: 10px 12px;
+  margin: 0 0 var(--sx-space-3) var(--sx-space-9);
+  padding: var(--sx-space-2) var(--sx-space-3);
   border-radius: var(--sx-radius-control);
-  font-size: 13px;
+  font-size: var(--sx-font-body);
 }
 
 .funding-notice {
@@ -2519,17 +2554,17 @@ button.rules-row:hover {
   position: relative;
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
-  gap: 14px;
-  padding-bottom: 28px;
+  gap: var(--sx-space-3);
+  padding-bottom: var(--sx-space-7);
 }
 
 .funding-step::before {
   content: "";
   position: absolute;
-  left: 12px;
-  top: 26px;
+  left: var(--sx-space-step-line);
+  top: var(--sx-space-step-top);
   bottom: 0;
-  border-left: 1px dashed #c8c8c8;
+  border-left: 1px dashed var(--sx-border-light-dashed);
 }
 
 .funding-step:last-child::before {
@@ -2543,23 +2578,23 @@ button.rules-row:hover {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid #cfcfcf;
-  color: #777;
-  font-size: 12px;
+  background: var(--sx-surface-light);
+  border: 1px solid var(--sx-border-light-strong);
+  color: var(--sx-text-light-muted);
+  font-size: var(--sx-font-caption);
   font-weight: 900;
 }
 
 .step-index.done,
 .funding-step.active .step-index {
-  background: #111;
-  border-color: #111;
-  color: #fff;
+  background: var(--sx-ink-light);
+  border-color: var(--sx-ink-light);
+  color: var(--sx-surface-light);
 }
 
 .step-body h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
+  margin: 0 0 var(--sx-space-3);
+  font-size: var(--sx-font-section);
 }
 
 .funding-select {
@@ -2567,8 +2602,8 @@ button.rules-row:hover {
   height: 48px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px;
+  gap: var(--sx-space-2);
+  padding: 0 var(--sx-space-3);
   border-radius: var(--sx-radius-control);
   background: var(--sx-mineral-100);
   color: var(--platform-black);
@@ -2577,8 +2612,8 @@ button.rules-row:hover {
 
 .funding-select:disabled {
   cursor: not-allowed;
-  color: #888;
-  background: #f6f6f6;
+  color: var(--sx-text-light-subtle);
+  background: var(--sx-surface-light-soft);
 }
 
 .funding-select svg {
@@ -2595,14 +2630,14 @@ button.rules-row:hover {
 .funding-picker {
   width: 400px;
   max-height: 238px;
-  margin-top: 8px;
+  margin-top: var(--sx-space-2);
   overflow: auto;
   border: 1px solid var(--sx-border-subtle);
   border-radius: var(--sx-radius-control);
-  background: var(--asset-card);
+  background: var(--sx-surface-light);
   box-shadow: 0 18px 54px rgba(0, 0, 0, .08);
   scrollbar-width: thin;
-  scrollbar-color: #c9c9c9 #f3f3f3;
+  scrollbar-color: var(--sx-scroll-thumb) var(--sx-scroll-track);
 }
 
 .funding-picker::-webkit-scrollbar {
@@ -2610,18 +2645,18 @@ button.rules-row:hover {
 }
 
 .funding-picker::-webkit-scrollbar-track {
-  background: #f3f3f3;
+  background: var(--sx-scroll-track);
   border-radius: 999px;
 }
 
 .funding-picker::-webkit-scrollbar-thumb {
-  background: #c9c9c9;
-  border: 2px solid #f3f3f3;
+  background: var(--sx-scroll-thumb);
+  border: 2px solid var(--sx-scroll-track);
   border-radius: 999px;
 }
 
 .funding-picker::-webkit-scrollbar-thumb:hover {
-  background: #9f9f9f;
+  background: var(--sx-text-light-subtle);
 }
 
 .funding-picker button {
@@ -2631,9 +2666,9 @@ button.rules-row:hover {
   grid-template-columns: 28px 1fr;
   column-gap: 10px;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--sx-space-2) var(--sx-space-3);
   background: transparent;
-  color: #111;
+  color: var(--sx-ink-light);
   text-align: left;
 }
 
@@ -2644,7 +2679,7 @@ button.rules-row:hover {
 
 .funding-picker small {
   grid-column: 2;
-  color: #888;
+  color: var(--sx-text-light-subtle);
 }
 
 .network-picker {
@@ -2668,7 +2703,7 @@ button.rules-row:hover {
 
 .funding-detail {
   display: flex;
-  gap: 18px;
+  gap: var(--sx-space-detail);
   align-items: flex-start;
 }
 
@@ -2678,7 +2713,7 @@ button.rules-row:hover {
   position: relative;
   display: grid;
   place-items: center;
-  padding: 10px;
+  padding: var(--sx-space-qr-padding);
   border-radius: var(--sx-radius-control);
   background: var(--sx-mineral-100);
 }
@@ -2687,7 +2722,7 @@ button.rules-row:hover {
   position: absolute;
   width: 32px;
   height: 32px;
-  border: 4px solid #fff;
+  border: 4px solid var(--sx-surface-light);
 }
 
 .qr-pattern {
@@ -2695,9 +2730,9 @@ button.rules-row:hover {
   height: 112px;
   display: grid;
   grid-template-columns: repeat(11, 1fr);
-  gap: 2px;
-  background: #fff;
-  padding: 4px;
+  gap: var(--sx-space-qr-cell);
+  background: var(--sx-surface-light);
+  padding: var(--sx-space-1);
 }
 
 .qr-pattern i {
@@ -2705,14 +2740,14 @@ button.rules-row:hover {
 }
 
 .qr-pattern i.on {
-  background: #111;
+  background: var(--sx-ink-light);
 }
 
 .funding-address {
   width: 270px;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px 12px;
+  gap: var(--sx-space-2) var(--sx-space-3);
 }
 
 .funding-address small,
@@ -2728,7 +2763,7 @@ button.rules-row:hover {
   grid-column: 1;
   grid-row: 2;
   overflow-wrap: anywhere;
-  font-size: 17px;
+  font-size: var(--sx-font-section);
   color: var(--platform-black);
 }
 
@@ -2736,7 +2771,7 @@ button.rules-row:hover {
   width: auto;
   min-width: 44px;
   height: 34px;
-  padding: 0 8px;
+  padding: 0 var(--sx-space-2);
   display: grid;
   place-items: center;
   grid-column: 2;
@@ -2748,7 +2783,7 @@ button.rules-row:hover {
 }
 
 .funding-memo {
-  margin: 8px 0 0;
+  margin: var(--sx-space-2) 0 0;
   color: var(--sx-text-secondary);
 }
 
@@ -2759,12 +2794,12 @@ button.rules-row:hover {
 .withdraw-detail {
   width: 400px;
   display: grid;
-  gap: 12px;
+  gap: var(--sx-space-3);
 }
 
 .withdraw-detail label {
   display: grid;
-  gap: 8px;
+  gap: var(--sx-space-2);
   color: var(--sx-text-secondary);
   font-weight: 700;
 }
@@ -2780,7 +2815,7 @@ button.rules-row:hover {
 .funding-network-note {
   margin: 0;
   color: var(--sx-text-secondary);
-  font-size: 13px;
+  font-size: var(--sx-font-body);
   word-break: keep-all;
 }
 
@@ -2791,7 +2826,7 @@ button.rules-row:hover {
 .security-code-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: var(--sx-space-3);
   align-items: end;
 }
 
@@ -2801,7 +2836,7 @@ button.rules-row:hover {
 
 .secondary-flow-button {
   height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--sx-space-3);
   border-radius: var(--sx-radius-control);
   background: var(--sx-mineral-100);
   color: var(--platform-black);
@@ -2810,13 +2845,13 @@ button.rules-row:hover {
 
 .secondary-flow-button:disabled {
   cursor: not-allowed;
-  color: #888;
+  color: var(--sx-text-light-subtle);
 }
 
 .funding-info-grid {
   width: 400px;
-  margin-left: 40px;
-  padding-top: 18px;
+  margin-left: var(--sx-space-9);
+  padding-top: var(--sx-space-4);
   border-top: 1px solid var(--sx-border-subtle);
 }
 
@@ -2824,13 +2859,13 @@ button.rules-row:hover {
   min-height: 34px;
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--sx-space-5);
 }
 
 .funding-info-grid span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sx-space-1);
   color: var(--sx-text-secondary);
 }
 
@@ -2841,33 +2876,33 @@ button.rules-row:hover {
 .faq-card {
   min-height: 188px;
   align-self: start;
-  padding: 22px;
+  padding: var(--sx-space-5);
 }
 
 .faq-card p {
-  margin: 18px 0 0;
-  color: #333;
+  margin: var(--sx-space-4) 0 0;
+  color: var(--sx-text-light);
 }
 
 .funding-records {
-  margin-top: 54px;
+  margin-top: var(--sx-space-records);
 }
 
 .record-tabs {
   display: flex;
-  gap: 28px;
+  gap: var(--sx-space-7);
 }
 
 .record-tabs button {
   position: relative;
   height: 38px;
   background: transparent;
-  color: #777;
+  color: var(--sx-text-light-muted);
   font-weight: 800;
 }
 
 .record-tabs button.active {
-  color: #111;
+  color: var(--sx-ink-light);
 }
 
 .record-tabs button.active::after {
@@ -2877,28 +2912,28 @@ button.rules-row:hover {
   right: 0;
   bottom: 0;
   height: 3px;
-  background: #111;
+  background: var(--sx-ink-light);
 }
 
 .record-actions {
   justify-content: flex-end;
-  margin: -36px 0 28px;
+  margin: -36px 0 var(--sx-space-7);
 }
 
 .record-actions button {
-  height: 28px;
+  height: var(--sx-space-record-toolbar);
   padding: 0 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--sx-border-light-strong);
   border-radius: 999px;
-  background: #fff;
+  background: var(--sx-surface-light);
 }
 
 .record-table-head {
   display: grid;
   grid-template-columns: 1.1fr 1.5fr 1.2fr .7fr .9fr .9fr;
   padding: 12px 0;
-  border-top: 1px solid #eee;
-  color: #888;
+  border-top: 1px solid var(--sx-border-light);
+  color: var(--sx-text-light-subtle);
 }
 
 .record-table-row {
@@ -2908,7 +2943,7 @@ button.rules-row:hover {
   align-items: center;
   border-top: 1px solid var(--sx-border-subtle);
   color: var(--sx-text-secondary);
-  font-size: 12px;
+  font-size: var(--sx-font-caption);
 }
 
 .record-table-row > span {
@@ -3297,7 +3332,7 @@ button.rules-row:hover {
   }
 
   .mobile-products-menu button {
-    min-height: 36px;
+    min-height: 44px;
     padding: 0 8px;
     border-radius: 8px;
     color: var(--text);

@@ -40,7 +40,7 @@ export function FundingFlowPage({
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [recordsRefresh, setRecordsRefresh] = useState(0);
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
 
   const title = mode === "deposit" ? "充币" : "提币";
   const assetOptions = useMemo(() => fundingAssetOptions(balances, chains), [balances, chains]);
@@ -49,6 +49,22 @@ export function FundingFlowPage({
     [asset, chains, mode]
   );
   const selectedChain = networkOptions.find((chain) => chainKeyFor(chain) === chainKey) ?? null;
+  const withdrawalDraftStorageKey = useMemo(() => {
+    if (mode !== "withdraw" || !session) return "";
+    return `surprising-ex.withdrawal-idempotency.${session.user.userId}.${draftFingerprint({
+      asset,
+      chainKey,
+      toAddress: toAddress.trim(),
+      amount: amount.trim()
+    })}`;
+  }, [amount, asset, chainKey, mode, session?.user.userId, toAddress]);
+
+  useEffect(() => {
+    if (!withdrawalDraftStorageKey) return;
+    const storedKey = readStoredWithdrawalKey(withdrawalDraftStorageKey) ?? crypto.randomUUID();
+    setIdempotencyKey(storedKey);
+    writeStoredWithdrawalKey(withdrawalDraftStorageKey, storedKey);
+  }, [withdrawalDraftStorageKey]);
 
   useEffect(() => {
     if (!session) {
@@ -86,6 +102,7 @@ export function FundingFlowPage({
   useEffect(() => {
     if (!session || !asset || !selectedChain) {
       setRecords([]);
+      setLoadingRecords(false);
       return;
     }
     let cancelled = false;
@@ -107,7 +124,6 @@ export function FundingFlowPage({
     setAddress(null);
     setShowDetails(false);
     setOpenPicker("network");
-    resetWithdrawalKey();
   }
 
   function selectChain(nextChain: WalletChain) {
@@ -115,7 +131,6 @@ export function FundingFlowPage({
     setAddress(null);
     setShowDetails(false);
     setOpenPicker(null);
-    resetWithdrawalKey();
   }
 
   async function continueFlow() {
@@ -176,16 +191,12 @@ export function FundingFlowPage({
       });
       setNotice(`提币请求已受理：${response.status}`);
       setRecordsRefresh((value) => value + 1);
-      setIdempotencyKey(crypto.randomUUID());
+      setIdempotencyKey(rotateWithdrawalKey(withdrawalDraftStorageKey));
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "提币请求失败");
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function resetWithdrawalKey() {
-    setIdempotencyKey(crypto.randomUUID());
   }
 
   return <section className="funding-page">
@@ -236,8 +247,8 @@ export function FundingFlowPage({
               submitting={submitting}
               session={session}
               onCopyAddress={() => address && copyValue(address.address)}
-              onToAddressChange={(value) => { setToAddress(value); resetWithdrawalKey(); }}
-              onAmountChange={(value) => { setAmount(value); resetWithdrawalKey(); }}
+              onToAddressChange={setToAddress}
+              onAmountChange={setAmount}
               onEmailCodeChange={setEmailCode}
               onTotpCodeChange={setTotpCode}
               onSendCode={() => void sendWithdrawalCode()}
@@ -261,4 +272,36 @@ export function FundingFlowPage({
     </div>
     <SupportBubble />
   </section>;
+}
+
+function draftFingerprint(value: { asset: string; chainKey: string; toAddress: string; amount: string }): string {
+  const input = JSON.stringify(value);
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function readStoredWithdrawalKey(storageKey: string): string | null {
+  try {
+    return sessionStorage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredWithdrawalKey(storageKey: string, value: string): void {
+  try {
+    sessionStorage.setItem(storageKey, value);
+  } catch {
+    return;
+  }
+}
+
+function rotateWithdrawalKey(storageKey: string): string {
+  const nextKey = crypto.randomUUID();
+  if (storageKey) writeStoredWithdrawalKey(storageKey, nextKey);
+  return nextKey;
 }
