@@ -195,11 +195,12 @@ export function updateSecurityScene(
   session: AuthSession,
   sceneCode: string,
   enabled: boolean,
+  emailCode?: string,
   totpCode?: string
 ): Promise<SecurityScene> {
   return request<SecurityScene>(`/api/v1/security/scenes/${encodeURIComponent(sceneCode)}`, {
     method: "PUT",
-    body: JSON.stringify({ enabled, totpCode: totpCode || undefined })
+    body: JSON.stringify({ enabled, emailCode: emailCode || undefined, totpCode: totpCode || undefined })
   }, session);
 }
 
@@ -331,12 +332,18 @@ export async function submitProductTransfer(
     asset: string;
     amountUnits: number;
     idempotencyKey: string;
+    emailCode?: string;
+    totpCode?: string;
   }
 ): Promise<{ transferId?: number; status?: string }> {
   try {
     return await request<{ transferId?: number; status?: string }>(gatewayPath("account", "/transfers"), {
       method: "POST",
-      headers: { "Idempotency-Key": input.idempotencyKey },
+      headers: {
+        "Idempotency-Key": input.idempotencyKey,
+        "X-Security-Email-Code": input.emailCode || "",
+        "X-Security-TOTP-Code": input.totpCode || ""
+      },
       body: JSON.stringify({
         sourceAccountType: input.sourceAccountType,
         targetAccountType: input.targetAccountType,

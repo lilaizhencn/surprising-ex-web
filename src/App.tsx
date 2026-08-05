@@ -47,7 +47,7 @@ import {
 import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, config, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
-import { loadSession, saveSession } from "./api/client";
+import { ApiError, loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
@@ -1089,6 +1089,7 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
   const [changePasswordEmailCode, setChangePasswordEmailCode] = useState("");
   const [changePasswordTotpCode, setChangePasswordTotpCode] = useState("");
   const [totpCode, setTotpCode] = useState("");
+  const [securityEmailCode, setSecurityEmailCode] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [apiTotpCode, setApiTotpCode] = useState("");
   const [apiLabel, setApiLabel] = useState("");
@@ -1149,13 +1150,13 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
     );
   }
 
-  async function run(action: () => Promise<void>, successMessage: string) {
+  async function run(action: () => Promise<void | boolean>, successMessage: string) {
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await action();
-      setNotice(successMessage);
+      const completed = await action();
+      if (completed !== false) setNotice(successMessage);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "操作失败");
     } finally {
@@ -1167,6 +1168,23 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
     setApiPermissions((current) => current.includes(permission)
       ? current.filter((item) => item !== permission)
       : [...current, permission]);
+  }
+
+  async function changeSecurityScene(authSession: AuthSession, scene: SecurityScene): Promise<boolean> {
+    try {
+      const saved = await updateSecurityScene(authSession, scene.sceneCode, !scene.enabled,
+        securityEmailCode || undefined, totpCode || undefined);
+      setScenes((current) => current.map((item) => item.sceneCode === saved.sceneCode ? saved : item));
+      setSecurityEmailCode("");
+      return true;
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 428) {
+        const challenge = await issueSecurityChallenge(authSession, "SECURITY_SETTINGS");
+        setNotice(`安全设置需要验证，验证码已发送至 ${challenge.destination}`);
+        return false;
+      }
+      throw cause;
+    }
   }
 
   return (
@@ -1197,11 +1215,11 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
         </section>
         <section className="panel security-card">
           <div className="panel-title"><span><ShieldCheck size={16} />敏感场景</span><strong>可配置</strong></div>
-          <p className="security-muted">关闭场景会降低保护强度。开启 2FA 后，关闭场景必须输入当前动态验证码。</p>
+          <p className="security-muted">修改安全场景需要邮箱验证；开启 2FA 后还需动态验证码。</p>
           <div className="security-scenes">
-            {scenes.map((scene) => <label className="security-scene" key={scene.sceneCode}><span><strong>{scene.label}</strong><small>{scene.sceneCode}</small></span><input type="checkbox" checked={scene.enabled} disabled={busy} onChange={() => void run(async () => { const saved = await updateSecurityScene(session, scene.sceneCode, !scene.enabled, totpCode || undefined); setScenes((current) => current.map((item) => item.sceneCode === saved.sceneCode ? saved : item)); }, `${scene.label}已更新`)} /></label>)}
+            {scenes.map((scene) => <label className="security-scene" key={scene.sceneCode}><span><strong>{scene.label}</strong><small>{scene.sceneCode}</small></span><input type="checkbox" checked={scene.enabled} disabled={busy} onChange={() => void run(() => changeSecurityScene(session, scene), `${scene.label}已更新`)} /></label>)}
           </div>
-          <label>当前 2FA 验证码（关闭场景时需要）<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+          <div className="security-verification-row"><label>安全设置邮箱验证码<input value={securityEmailCode} onChange={(event) => setSecurityEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>2FA 验证码<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, "验证码已发送到邮箱")}>发送验证码</button></div>
         </section>
       </div>
       <section className="panel security-card">

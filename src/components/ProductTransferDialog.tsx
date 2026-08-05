@@ -1,6 +1,7 @@
 import { ArrowDownUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { submitProductTransfer } from "../api/surprising";
+import { issueSecurityChallenge, submitProductTransfer } from "../api/surprising";
+import { ApiError } from "../api/client";
 import { availableUnitsForAsset, isCompletedProductTransfer, productTransferErrorMessage } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
 import { AssetIcon, assetName } from "./AssetPrimitives";
@@ -29,6 +30,9 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
   const [outcomeLocked, setOutcomeLocked] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [verificationRequired, setVerificationRequired] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
@@ -100,7 +104,9 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
         targetAccountType,
         asset,
         amountUnits,
-        idempotencyKey
+        idempotencyKey,
+        emailCode,
+        totpCode
       });
       onCompleted();
       if (!isCompletedProductTransfer(result.status)) {
@@ -113,6 +119,16 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       }
       setNotice(`划转已完成${result.transferId ? `，流水号 ${result.transferId}` : ""}`);
     } catch (reason: unknown) {
+      if (reason instanceof ApiError && reason.status === 428) {
+        setVerificationRequired(true);
+        try {
+          const challenge = await issueSecurityChallenge(session, "LARGE_TRANSFER");
+          setNotice(`大额划转需要验证，验证码已发送至 ${challenge.destination}`);
+        } catch {
+          setError("验证码发送失败，请稍后重试");
+        }
+        return;
+      }
       setOutcomeLocked(true);
       setError(productTransferErrorMessage(reason));
     } finally {
@@ -123,7 +139,7 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section ref={dialogRef} className="modal-panel transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-dialog-title">
       <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button ref={closeRef} className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
-      <p className="security-muted">产品账户之间即时划转，不需要额外验证；服务端使用幂等键避免重复扣款。</p>
+      <p className="security-muted">产品账户之间即时划转，小额无需额外验证；大额划转会按 USDT 估值要求邮箱验证，绑定 2FA 后还需动态验证码。</p>
       <div className="transfer-route">
         <label>从<select disabled={outcomeLocked} value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
         <button className="transfer-swap" type="button" aria-label="交换划转方向" disabled={outcomeLocked} onClick={swapAccounts}><ArrowDownUp size={18} /></button>
@@ -131,6 +147,7 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       </div>
       <label className="transfer-field">币种<select disabled={outcomeLocked} value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></label>
       <label className="transfer-field">数量<input disabled={outcomeLocked} value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
+      {verificationRequired && <div className="security-code-grid"><label>邮箱验证码<input disabled={outcomeLocked} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="请输入 6 位验证码" /></label><label>2FA 验证码<input disabled={outcomeLocked} value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="未绑定可留空" /></label></div>}
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="transfer-success" role="status"><AssetIcon symbol={asset} />{notice}</p>}
       <button className="primary-button" type="button" disabled={submitting || Boolean(notice) || outcomeLocked} onClick={() => void submit()}>{submitting ? "提交中…" : outcomeLocked ? "请查看资金记录" : "确认划转"}</button>
