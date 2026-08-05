@@ -1815,6 +1815,17 @@ button.rules-row:hover {
   color: var(--sx-surface-light);
 }
 
+.transfer-dialog .primary-button:disabled {
+  cursor: not-allowed;
+  border: 1px solid var(--sx-asset-disabled-border);
+  background: var(--sx-asset-disabled);
+  color: var(--sx-asset-disabled-text);
+}
+
+.transfer-dialog :is(button, select, input):disabled {
+  cursor: not-allowed;
+}
+
 .transfer-dialog :is(button, select, input):focus-visible,
 .asset-actions button:focus-visible,
 .asset-table-toolbar button:focus-visible,
@@ -1992,6 +2003,23 @@ button.rules-row:hover {
   --platform-black: #050505;
   --platform-dark: #0b0b0b;
   --platform-line: #2b2b2b;
+  --platform-canvas: #000;
+  --platform-white: #fff;
+  --platform-text: #f2f2f2;
+  --platform-text-muted: #d7d7d7;
+  --platform-text-subtle: #8b8b8b;
+  --platform-search: #222;
+  --platform-search-border: #2f2f2f;
+  --platform-panel: #121212;
+  --platform-scroll-thumb: #555;
+  --platform-scroll-track: #202020;
+  --platform-hover: #222;
+  --platform-thumb-hover: #737373;
+  --platform-border-strong: #464646;
+  --platform-highlight: #f7c843;
+  --platform-border-translucent: rgba(255, 255, 255, .22);
+  --platform-shadow: 0 18px 54px rgba(0, 0, 0, .36);
+  --platform-shell-border: #111;
   --asset-bg: #f4f4f4;
   --asset-card: #ffffff;
   --asset-muted: #8c8c8c;
@@ -2050,6 +2078,9 @@ button.rules-row:hover {
   --sx-asset-loss: #f25a7a;
   --sx-asset-loss-fill: rgba(242, 90, 122, .12);
   --sx-asset-positive: #2c7a1f;
+  --sx-asset-disabled: #d9d9d9;
+  --sx-asset-disabled-text: #8a8a8a;
+  --sx-asset-disabled-border: #c5c5c5;
   --sx-asset-soft: #f1f1f1;
   --sx-asset-card-soft: #f4f4f4;
   --sx-asset-control: #f5f5f5;
@@ -2123,8 +2154,8 @@ button.rules-row:hover {
   gap: 18px;
   margin: 0;
   padding: 0 16px;
-  background: #050505;
-  border-bottom: 1px solid #222;
+  background: var(--platform-black);
+  border-bottom: 1px solid var(--platform-hover);
 }
 
 .brand,
@@ -2140,7 +2171,7 @@ button.rules-row:hover {
   height: 42px;
   padding: 0;
   gap: 9px;
-  color: #fff;
+  color: var(--platform-white);
 }
 
 .platform-brand strong {
@@ -2154,9 +2185,9 @@ button.rules-row:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #050505;
-  background: #f7c843;
-  border: 1px solid rgba(255, 255, 255, .22);
+  color: var(--platform-black);
+  background: var(--platform-highlight);
+  border: 1px solid var(--platform-border-translucent);
 }
 
 .topbar nav {
@@ -2167,13 +2198,13 @@ button.rules-row:hover {
 .topbar nav button {
   min-height: 42px;
   padding: 0;
-  color: #d7d7d7;
+  color: var(--platform-text-muted);
   font-size: 13px;
 }
 
 .topbar nav button.active {
   background: transparent;
-  color: #fff;
+  color: var(--platform-white);
   font-weight: 800;
 }
 
@@ -2185,14 +2216,14 @@ button.rules-row:hover {
 .user-pill {
   min-height: 28px;
   padding: 0;
-  color: #f2f2f2;
+  color: var(--platform-text);
   font-size: 13px;
 }
 
 .asset-charge {
   min-width: 46px;
   padding: 0 14px !important;
-  border: 1px solid #464646 !important;
+  border: 1px solid var(--platform-border-strong) !important;
   border-radius: 999px !important;
 }
 
@@ -2214,8 +2245,8 @@ button.rules-row:hover {
   gap: 7px;
   padding: 0 10px;
   border-radius: 7px;
-  background: #222;
-  color: #777;
+  background: var(--platform-search);
+  color: var(--sx-text-light-muted);
   font-size: 12px;
 }
 
@@ -2234,7 +2265,7 @@ button.rules-row:hover {
 
 .top-search input::placeholder,
 .rail-search input::placeholder {
-  color: #777;
+  color: var(--sx-text-light-muted);
 }
 
 .top-search-results {
@@ -2246,12 +2277,12 @@ button.rules-row:hover {
   max-height: 280px;
   overflow: auto;
   padding: 6px;
-  border: 1px solid #2f2f2f;
+  border: 1px solid var(--platform-search-border);
   border-radius: 8px;
-  background: #121212;
-  box-shadow: 0 18px 54px rgba(0, 0, 0, .36);
+  background: var(--platform-panel);
+  box-shadow: var(--platform-shadow);
   scrollbar-width: thin;
-  scrollbar-color: #555 #202020;
+  scrollbar-color: var(--platform-scroll-thumb) var(--platform-scroll-track);
 }
 
 .top-search-results button {
@@ -2263,16 +2294,16 @@ button.rules-row:hover {
   gap: 12px;
   padding: 0 10px;
   border-radius: 6px;
-  color: #f2f2f2;
+  color: var(--platform-text);
   text-align: left;
 }
 
 .top-search-results button:hover {
-  background: #222;
+  background: var(--platform-hover);
 }
 
 .top-search-results small {
-  color: #8b8b8b;
+  color: var(--platform-text-subtle);
 }
 
 .top-search-results::-webkit-scrollbar {
@@ -2280,24 +2311,24 @@ button.rules-row:hover {
 }
 
 .top-search-results::-webkit-scrollbar-track {
-  background: #202020;
+  background: var(--platform-scroll-track);
 }
 
 .top-search-results::-webkit-scrollbar-thumb {
-  background: #555;
-  border-color: #202020;
+  background: var(--platform-scroll-thumb);
+  border-color: var(--platform-scroll-track);
 }
 
 .top-search-results::-webkit-scrollbar-thumb:hover {
-  background: #737373;
+  background: var(--platform-thumb-hover);
 }
 
 .terminal-grid {
   height: calc(100vh - 42px);
   grid-template-columns: 410px minmax(720px, 1fr) 370px;
   gap: 0;
-  border-top: 1px solid #111;
-  background: #000;
+  border-top: 1px solid var(--platform-shell-border);
+  background: var(--platform-canvas);
 }
 
 .market-rail,
@@ -2308,7 +2339,7 @@ button.rules-row:hover {
 
 .market-rail {
   padding: 10px 12px;
-  background: #050505;
+  background: var(--platform-black);
 }
 
 .rail-search,
@@ -2316,14 +2347,14 @@ button.rules-row:hover {
 .market-header,
 .panel {
   border-color: var(--platform-line);
-  background: #0b0b0b;
+  background: var(--platform-dark);
   border-radius: 0;
   backdrop-filter: none;
 }
 
 .workspace {
   min-height: calc(100vh - 42px);
-  background: #000;
+  background: var(--platform-canvas);
 }
 
 .market-header {
@@ -2352,7 +2383,7 @@ button.rules-row:hover {
 }
 
 .right-stack {
-  background: #050505;
+  background: var(--platform-black);
 }
 
 .ticket {
