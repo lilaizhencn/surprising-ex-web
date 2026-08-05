@@ -60,6 +60,7 @@ type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
 type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
+type LanguageMode = "zh-CN" | "en-US";
 type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
 type TriggerCloseTarget = "LONG" | "SHORT";
@@ -82,6 +83,7 @@ const PRICE_UNIT_SCALE = 100_000_000;
 const PRIVATE_REFRESH_CHANNELS = new Set(["orders", "positions", "positionRisk", "accountRisk", "matches", "executionReports"]);
 const PRIVATE_CHANNELS = new Set([...PRIVATE_REFRESH_CHANNELS, "triggerOrders"]);
 const THEME_KEY = "surprising-ex.theme";
+const LANGUAGE_KEY = "surprising-ex.language";
 const PRODUCT_ROUTES: Record<ProductMode, string> = {
   linear: "/trade/usdt-perpetual",
   inverse: "/trade/coin-perpetual",
@@ -90,14 +92,18 @@ const PRODUCT_ROUTES: Record<ProductMode, string> = {
   option: "/trade/option",
   spot: "/trade/spot"
 };
-const PRODUCT_META: Record<ProductMode, { label: string; shortLabel: string; accountType: ProductAccountType; productLine: ProductLine }> = {
-  linear: { label: "U本位永续", shortLabel: "U本位永续", accountType: "USDT_PERPETUAL", productLine: "LINEAR_PERPETUAL" },
-  inverse: { label: "币本位永续", shortLabel: "币本位永续", accountType: "COIN_PERPETUAL", productLine: "INVERSE_PERPETUAL" },
-  linearDelivery: { label: "U本位交割", shortLabel: "U本位交割", accountType: "USDT_DELIVERY", productLine: "LINEAR_DELIVERY" },
-  inverseDelivery: { label: "币本位交割", shortLabel: "币本位交割", accountType: "COIN_DELIVERY", productLine: "INVERSE_DELIVERY" },
-  option: { label: "期权", shortLabel: "期权", accountType: "OPTION", productLine: "OPTION" },
-  spot: { label: "现货", shortLabel: "现货", accountType: "SPOT", productLine: "SPOT" }
+const PRODUCT_META: Record<ProductMode, { label: string; labelEn: string; shortLabel: string; shortLabelEn: string; accountType: ProductAccountType; productLine: ProductLine }> = {
+  linear: { label: "U本位永续", labelEn: "USDT Perpetual", shortLabel: "U本位永续", shortLabelEn: "USDT Perpetual", accountType: "USDT_PERPETUAL", productLine: "LINEAR_PERPETUAL" },
+  inverse: { label: "币本位永续", labelEn: "Coin Perpetual", shortLabel: "币本位永续", shortLabelEn: "Coin Perpetual", accountType: "COIN_PERPETUAL", productLine: "INVERSE_PERPETUAL" },
+  linearDelivery: { label: "U本位交割", labelEn: "USDT Delivery", shortLabel: "U本位交割", shortLabelEn: "USDT Delivery", accountType: "USDT_DELIVERY", productLine: "LINEAR_DELIVERY" },
+  inverseDelivery: { label: "币本位交割", labelEn: "Coin Delivery", shortLabel: "币本位交割", shortLabelEn: "Coin Delivery", accountType: "COIN_DELIVERY", productLine: "INVERSE_DELIVERY" },
+  option: { label: "期权", labelEn: "Options", shortLabel: "期权", shortLabelEn: "Options", accountType: "OPTION", productLine: "OPTION" },
+  spot: { label: "现货", labelEn: "Spot", shortLabel: "现货", shortLabelEn: "Spot", accountType: "SPOT", productLine: "SPOT" }
 };
+
+function localized(language: LanguageMode, zh: string, en: string): string {
+  return language === "en-US" ? en : zh;
+}
 
 function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -161,6 +167,7 @@ export default function App() {
   const [marketSearch, setMarketSearch] = useState("");
   const [klinePeriod, setKlinePeriod] = useState<string>("1m");
   const [theme, setTheme] = useState<ThemeMode>(() => localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
+  const [language, setLanguage] = useState<LanguageMode>(() => localStorage.getItem(LANGUAGE_KEY) === "en-US" ? "en-US" : "zh-CN");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -354,6 +361,10 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem(LANGUAGE_KEY, language);
+  }, [language]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -816,11 +827,13 @@ export default function App() {
         markets={visibleMarkets}
         marketSearch={marketSearch}
         theme={theme}
+        language={language}
         onPageChange={navigateToPage}
         onProductModeChange={openProductPage}
         onMarketSearchChange={setMarketSearch}
         onMarketSelect={selectMarket}
         onThemeToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+        onLanguageToggle={() => setLanguage((current) => current === "zh-CN" ? "en-US" : "zh-CN")}
         onLogin={() => setAuthMode("login")}
         onRegister={() => setAuthMode("register")}
         onLogout={() => persistSession(null)}
@@ -1412,11 +1425,13 @@ function Topbar({
   markets,
   marketSearch,
   theme,
+  language,
   onPageChange,
   onProductModeChange,
   onMarketSearchChange,
   onMarketSelect,
   onThemeToggle,
+  onLanguageToggle,
   onLogin,
   onRegister,
   onLogout
@@ -1427,11 +1442,13 @@ function Topbar({
   markets: Market[];
   marketSearch: string;
   theme: ThemeMode;
+  language: LanguageMode;
   onPageChange: (page: Page) => void;
   onProductModeChange: (mode: ProductMode) => void;
   onMarketSearchChange: (value: string) => void;
   onMarketSelect: (symbol: string) => void;
   onThemeToggle: () => void;
+  onLanguageToggle: () => void;
   onLogin: () => void;
   onRegister: () => void;
   onLogout: () => void;
@@ -1455,13 +1472,13 @@ function Topbar({
         <strong>Surprising EX</strong>
       </button>
       <nav>
-        <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => onProductModeChange("linear")}><CircleDollarSign size={15} />U本位</button>
-        <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => onProductModeChange("inverse")}><Layers3 size={15} />币本位</button>
-        <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => onProductModeChange("linearDelivery")}><Clock3 size={15} />U交割</button>
-        <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => onProductModeChange("inverseDelivery")}><Clock3 size={15} />币交割</button>
-        <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => onProductModeChange("option")}><Sparkles size={15} />期权</button>
-        <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => onProductModeChange("spot")}><WalletCards size={15} />现货</button>
-        <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />交易规则</button>
+        <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => onProductModeChange("linear")}><CircleDollarSign size={15} />{localized(language, "U本位", "USDT")}</button>
+        <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => onProductModeChange("inverse")}><Layers3 size={15} />{localized(language, "币本位", "Coin")}</button>
+        <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => onProductModeChange("linearDelivery")}><Clock3 size={15} />{localized(language, "U交割", "USDT Delivery")}</button>
+        <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => onProductModeChange("inverseDelivery")}><Clock3 size={15} />{localized(language, "币交割", "Coin Delivery")}</button>
+        <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => onProductModeChange("option")}><Sparkles size={15} />{localized(language, "期权", "Options")}</button>
+        <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => onProductModeChange("spot")}><WalletCards size={15} />{localized(language, "现货", "Spot")}</button>
+        <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />{localized(language, "交易规则", "Rules")}</button>
       </nav>
       <div className="top-actions">
         <div className="top-search-wrap">
@@ -1475,7 +1492,7 @@ function Topbar({
                   openMarket(searchResults[0].symbol);
                 }
               }}
-              placeholder={`搜索${PRODUCT_META[productMode].shortLabel}`}
+              placeholder={`${localized(language, "搜索", "Search ")}${language === "en-US" ? PRODUCT_META[productMode].shortLabelEn : PRODUCT_META[productMode].shortLabel}`}
             />
           </label>
           {searchResults.length > 0 && (
@@ -1489,24 +1506,25 @@ function Topbar({
             </div>
           )}
         </div>
-        <button className="asset-charge" onClick={() => onPageChange("recharge")}>充值</button>
-        <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>资产管理<ChevronDown size={13} /></button>
-        <button className={page === "security" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("security")}><ShieldCheck size={14} />安全中心</button>
-        <button onClick={onThemeToggle} aria-label="切换明暗主题">{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
-        <button className="mobile-product-toggle" aria-expanded={mobileProductsOpen} aria-controls="mobile-product-menu" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />产品线</button>
+        <button className="asset-charge" onClick={() => onPageChange("recharge")}>{localized(language, "充值", "Deposit")}</button>
+        <button className={page === "assets" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("assets")}>{localized(language, "资产管理", "Assets")}<ChevronDown size={13} /></button>
+        <button className={page === "security" ? "user-pill active" : "user-pill"} onClick={() => onPageChange("security")}><ShieldCheck size={14} />{localized(language, "安全中心", "Security")}</button>
+        <button onClick={onThemeToggle} aria-label={localized(language, "切换明暗主题", "Toggle theme")}>{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
+        <button onClick={onLanguageToggle} aria-label={localized(language, "切换语言", "Switch language")}>{language === "zh-CN" ? "EN" : "中文"}</button>
+        <button className="mobile-product-toggle" aria-expanded={mobileProductsOpen} aria-controls="mobile-product-menu" onClick={() => setMobileProductsOpen((current) => !current)}><Layers3 size={14} />{localized(language, "产品线", "Products")}</button>
         {session ? (
           <>
             <button className="user-pill mobile-account" aria-label="打开安全中心" onClick={() => onPageChange("security")}><ShieldCheck size={14} /><span>{session.user.email ?? "账户"}</span></button>
-            <button className="logout-button mobile-logout" aria-label="退出登录" onClick={onLogout}><LogOut size={16} /><span>退出</span></button>
+            <button className="logout-button mobile-logout" aria-label={localized(language, "退出登录", "Log out")} onClick={onLogout}><LogOut size={16} /><span>{localized(language, "退出", "Log out")}</span></button>
           </>
         ) : (
           <>
-            <button className="auth-entry" onClick={onLogin}>登录</button>
-            <button className="auth-entry" onClick={onRegister}>注册</button>
+            <button className="auth-entry" onClick={onLogin}>{localized(language, "登录", "Log in")}</button>
+            <button className="auth-entry" onClick={onRegister}>{localized(language, "注册", "Sign up")}</button>
           </>
         )}
       </div>
-      {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{meta.label}</button>)}</div>}
+      {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{language === "en-US" ? meta.labelEn : meta.label}</button>)}</div>}
     </header>
   );
 }
