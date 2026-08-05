@@ -44,7 +44,7 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
@@ -1080,6 +1080,10 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
   const [kycProvider, setKycProvider] = useState("SELF");
   const [kycProviderReference, setKycProviderReference] = useState("");
   const [kycFaceStatus, setKycFaceStatus] = useState("NOT_REQUIRED");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [changePasswordEmailCode, setChangePasswordEmailCode] = useState("");
+  const [changePasswordTotpCode, setChangePasswordTotpCode] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [apiTotpCode, setApiTotpCode] = useState("");
@@ -1196,6 +1200,20 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
           <label>当前 2FA 验证码（关闭场景时需要）<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
         </section>
       </div>
+      <section className="panel security-card">
+        <div className="panel-title"><span><KeyRound size={16} />修改密码</span><strong>需验证</strong></div>
+        <p className="security-muted">修改密码后，其他登录设备的 refresh session 会立即失效。若开启了修改密码场景，请先发送邮箱验证码。</p>
+        <div className="security-inline-form">
+          <label>当前密码<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+          <label>新密码<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="至少 8 位" /></label>
+        </div>
+        <div className="security-verification-row">
+          <label>邮箱验证码<input value={changePasswordEmailCode} onChange={(event) => setChangePasswordEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+          <label>2FA 验证码<input value={changePasswordTotpCode} onChange={(event) => setChangePasswordTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
+          <button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "CHANGE_PASSWORD"); }, "验证码已发送到邮箱")}>发送验证码</button>
+          <button className="primary-button" disabled={busy || !currentPassword || newPassword.length < 8} onClick={() => void run(async () => { await changePassword(session, currentPassword, newPassword, changePasswordEmailCode, changePasswordTotpCode); setCurrentPassword(""); setNewPassword(""); setChangePasswordEmailCode(""); setChangePasswordTotpCode(""); }, "密码已修改，请重新登录其他设备")}>确认修改</button>
+        </div>
+      </section>
       <section className="panel security-card kyc-card">
         <div className="panel-title"><span><FileText size={16} />身份认证 KYC</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? "未提交"}</strong></div>
         <p className="security-muted">提币前必须完成 KYC。基础认证需要身份证或护照；标准及以上还需要地址证明；企业认证还需要营业执照；启用人脸识别时需要人脸材料。</p>

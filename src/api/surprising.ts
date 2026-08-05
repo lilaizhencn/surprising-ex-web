@@ -210,6 +210,24 @@ export function issueSecurityChallenge(session: AuthSession, sceneCode: string):
   }, session);
 }
 
+export function changePassword(
+  session: AuthSession,
+  currentPassword: string,
+  newPassword: string,
+  emailCode?: string,
+  totpCode?: string
+): Promise<void> {
+  return request<void>("/api/v1/security/password", {
+    method: "POST",
+    body: JSON.stringify({
+      currentPassword,
+      newPassword,
+      emailCode: emailCode || undefined,
+      totpCode: totpCode || undefined
+    })
+  }, session);
+}
+
 export function loadApiKeys(session: AuthSession): Promise<ApiKeyView[]> {
   return request<ApiKeyView[]>("/api/v1/security/api-keys", {}, session);
 }
