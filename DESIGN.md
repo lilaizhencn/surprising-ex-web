@@ -43,6 +43,12 @@ Principles: identity before access, state before decoration, one primary action 
 --sx-space-10: 40px;
 --sx-size-asset-transfer-dialog: 520px;
 --sx-size-asset-transfer-touch: 44px;
+--sx-size-asset-support: 42px;
+--sx-space-asset-support-right: 24px;
+--sx-space-asset-support-bottom: 22px;
+--sx-asset-disabled: #d9d9d9;
+--sx-asset-disabled-text: #8a8a8a;
+--sx-asset-disabled-border: #c5c5c5;
 --sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
 --sx-focus-outline-asset: 2px solid var(--sx-asset-positive);
 --sx-focus-outline-offset: 2px;

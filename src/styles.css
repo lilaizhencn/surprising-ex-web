@@ -1841,6 +1841,14 @@ button.rules-row:hover {
   color: var(--sx-asset-positive);
 }
 
+.transfer-dialog :is(select, input):disabled,
+.transfer-dialog .transfer-swap:disabled {
+  opacity: 1;
+  border-color: var(--sx-asset-disabled-border);
+  background: var(--sx-asset-disabled);
+  color: var(--sx-asset-disabled-text);
+}
+
 .config-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2132,6 +2140,9 @@ button.rules-row:hover {
   --sx-size-asset-valuation-select: 52px;
   --sx-size-asset-transfer-dialog: 520px;
   --sx-size-asset-transfer-touch: var(--sx-size-asset-action-touch-height);
+  --sx-size-asset-support: 42px;
+  --sx-space-asset-support-right: 24px;
+  --sx-space-asset-support-bottom: 22px;
   --sx-size-ledger-min-height: 300px;
   --sx-radius-control: 12px;
   --sx-radius-asset-control: var(--sx-radius-control);
@@ -3209,15 +3220,15 @@ button.rules-row:hover {
 
 .support-bubble {
   position: fixed;
-  right: 24px;
-  bottom: 22px;
-  width: 42px;
-  height: 42px;
+  right: var(--sx-space-asset-support-right);
+  bottom: var(--sx-space-asset-support-bottom);
+  width: var(--sx-size-asset-support);
+  height: var(--sx-size-asset-support);
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: #2c7a1f;
-  color: #fff;
+  border-radius: var(--sx-radius-pill);
+  background: var(--sx-asset-positive);
+  color: var(--sx-surface-light);
 }
 
 .topbar nav button,
