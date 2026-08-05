@@ -1,8 +1,7 @@
 import { ArrowDownUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ApiError } from "../api/client";
 import { submitProductTransfer } from "../api/surprising";
-import { availableUnitsForAsset, isCompletedProductTransfer } from "../productTransfer";
+import { availableUnitsForAsset, isCompletedProductTransfer, productTransferErrorMessage } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
 import { AssetIcon, assetName } from "./AssetPrimitives";
 
@@ -114,14 +113,8 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       }
       setNotice(`划转已完成${result.transferId ? `，流水号 ${result.transferId}` : ""}`);
     } catch (reason: unknown) {
-      const uncertain = reason instanceof ApiError
-        && ([408, 409, 429].includes(reason.status) || reason.status >= 500);
-      if (uncertain) {
-        setOutcomeLocked(true);
-        setError("划转结果未知，请勿重复提交，请查看资金记录");
-      } else {
-        setError(reason instanceof Error ? reason.message : "划转失败，请稍后重试");
-      }
+      setOutcomeLocked(true);
+      setError(productTransferErrorMessage(reason));
     } finally {
       setSubmitting(false);
     }

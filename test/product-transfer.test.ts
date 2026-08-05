@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { availableUnitsForAsset, isCompletedProductTransfer } from "../src/productTransfer.ts";
+import { availableUnitsForAsset, isCompletedProductTransfer, productTransferErrorMessage } from "../src/productTransfer.ts";
 
 test("uses only available balance when frozen funds are present", () => {
   assert.equal(availableUnitsForAsset([
@@ -13,4 +13,10 @@ test("only COMPLETED is shown as a successful transfer", () => {
   assert.equal(isCompletedProductTransfer("FAILED"), false);
   assert.equal(isCompletedProductTransfer("TARGET_CREDIT_UNKNOWN"), false);
   assert.equal(isCompletedProductTransfer(undefined), false);
+});
+
+test("locks unknown transfer errors instead of inviting a new submission", () => {
+  assert.match(productTransferErrorMessage(new TypeError("network failed")), /结果未知/);
+  assert.match(productTransferErrorMessage({ status: 408 }), /结果未知/);
+  assert.match(productTransferErrorMessage({ status: 422 }), /未完成/);
 });
