@@ -1902,6 +1902,22 @@ button.rules-row:hover {
   --asset-bg: #f4f4f4;
   --asset-card: #ffffff;
   --asset-muted: #8c8c8c;
+  --sx-ink-950: #080b10;
+  --sx-ink-900: #0d121a;
+  --sx-ink-800: #151c27;
+  --sx-mineral-050: #f7f9fb;
+  --sx-mineral-100: #edf1f5;
+  --sx-cyan-500: #49d7e8;
+  --sx-cyan-700: #1599ad;
+  --sx-amber-500: #f0b95a;
+  --sx-positive-500: #43d39e;
+  --sx-negative-500: #f06e78;
+  --sx-text-primary: #eff5fb;
+  --sx-text-secondary: #9eabbc;
+  --sx-border-subtle: rgba(170, 194, 214, .16);
+  --sx-radius-control: 12px;
+  --sx-radius-panel: 20px;
+  --sx-radius-pill: 999px;
 }
 
 .app-shell {
@@ -2196,6 +2212,10 @@ button.rules-row:hover {
   color: #111;
 }
 
+.funding-page {
+  --sx-text-secondary: #667085;
+}
+
 .asset-layout,
 .funding-layout {
   width: 980px;
@@ -2476,6 +2496,25 @@ button.rules-row:hover {
   font-size: 30px;
 }
 
+.funding-notice,
+.funding-error {
+  width: 400px;
+  margin: 0 0 14px 40px;
+  padding: 10px 12px;
+  border-radius: var(--sx-radius-control);
+  font-size: 13px;
+}
+
+.funding-notice {
+  background: color-mix(in srgb, var(--sx-positive-500) 14%, var(--asset-card));
+  color: var(--sx-positive-500);
+}
+
+.funding-error {
+  background: color-mix(in srgb, var(--sx-negative-500) 12%, var(--asset-card));
+  color: var(--sx-negative-500);
+}
+
 .funding-step {
   position: relative;
   display: grid;
@@ -2530,9 +2569,9 @@ button.rules-row:hover {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  border-radius: 8px;
-  background: #f1f1f1;
-  color: #111;
+  border-radius: var(--sx-radius-control);
+  background: var(--sx-mineral-100);
+  color: var(--platform-black);
   text-align: left;
 }
 
@@ -2546,14 +2585,21 @@ button.rules-row:hover {
   margin-left: auto;
 }
 
+.funding-select > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .funding-picker {
   width: 400px;
   max-height: 238px;
   margin-top: 8px;
   overflow: auto;
-  border: 1px solid #ececec;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid var(--sx-border-subtle);
+  border-radius: var(--sx-radius-control);
+  background: var(--asset-card);
   box-shadow: 0 18px 54px rgba(0, 0, 0, .08);
   scrollbar-width: thin;
   scrollbar-color: #c9c9c9 #f3f3f3;
@@ -2593,7 +2639,7 @@ button.rules-row:hover {
 
 .funding-picker button.active,
 .funding-picker button:hover {
-  background: #f4f4f4;
+  background: var(--sx-mineral-100);
 }
 
 .funding-picker small {
@@ -2608,16 +2654,16 @@ button.rules-row:hover {
 .primary-flow-button {
   width: 400px;
   height: 42px;
-  border-radius: 999px;
-  background: #111;
-  color: #fff;
+  border-radius: var(--sx-radius-pill);
+  background: var(--sx-ink-950);
+  color: var(--sx-text-primary);
   font-weight: 900;
 }
 
 .primary-flow-button:disabled {
   cursor: not-allowed;
-  background: #d8d8d8;
-  color: #888;
+  background: var(--sx-mineral-100);
+  color: var(--sx-text-secondary);
 }
 
 .funding-detail {
@@ -2633,8 +2679,8 @@ button.rules-row:hover {
   display: grid;
   place-items: center;
   padding: 10px;
-  border-radius: 10px;
-  background: #f1f1f1;
+  border-radius: var(--sx-radius-control);
+  background: var(--sx-mineral-100);
 }
 
 .pc-qr > .asset-icon {
@@ -2671,21 +2717,43 @@ button.rules-row:hover {
 
 .funding-address small,
 .funding-address span {
-  color: #777;
+  color: var(--sx-text-secondary);
+}
+
+.funding-address small {
+  grid-column: 1 / -1;
 }
 
 .funding-address strong {
+  grid-column: 1;
+  grid-row: 2;
   overflow-wrap: anywhere;
   font-size: 17px;
+  color: var(--platform-black);
 }
 
 .funding-address button {
-  width: 34px;
+  width: auto;
+  min-width: 44px;
   height: 34px;
+  padding: 0 8px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: #f2f2f2;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  border-radius: var(--sx-radius-pill);
+  background: var(--sx-mineral-100);
+  white-space: nowrap;
+}
+
+.funding-memo {
+  margin: 8px 0 0;
+  color: var(--sx-text-secondary);
+}
+
+.funding-memo strong {
+  color: var(--platform-black);
 }
 
 .withdraw-detail {
@@ -2697,22 +2765,59 @@ button.rules-row:hover {
 .withdraw-detail label {
   display: grid;
   gap: 8px;
-  color: #555;
+  color: var(--sx-text-secondary);
   font-weight: 700;
 }
 
 .withdraw-detail input {
   height: 44px;
   border: 0;
-  background: #f1f1f1;
-  color: #111;
+  border-radius: var(--sx-radius-control);
+  background: var(--sx-mineral-100);
+  color: var(--platform-black);
+}
+
+.funding-network-note {
+  margin: 0;
+  color: var(--sx-text-secondary);
+  font-size: 13px;
+  word-break: keep-all;
+}
+
+.funding-network-chain {
+  white-space: nowrap;
+}
+
+.security-code-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.security-code-grid label {
+  grid-column: 1 / -1;
+}
+
+.secondary-flow-button {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--sx-radius-control);
+  background: var(--sx-mineral-100);
+  color: var(--platform-black);
+  font-weight: 800;
+}
+
+.secondary-flow-button:disabled {
+  cursor: not-allowed;
+  color: #888;
 }
 
 .funding-info-grid {
   width: 400px;
   margin-left: 40px;
   padding-top: 18px;
-  border-top: 1px solid #e5e5e5;
+  border-top: 1px solid var(--sx-border-subtle);
 }
 
 .funding-info-grid div {
@@ -2726,11 +2831,11 @@ button.rules-row:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #555;
+  color: var(--sx-text-secondary);
 }
 
 .funding-info-grid strong {
-  color: #777;
+  color: var(--sx-text-secondary);
 }
 
 .faq-card {
@@ -2796,6 +2901,53 @@ button.rules-row:hover {
   color: #888;
 }
 
+.record-table-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.5fr 1.2fr .7fr .9fr .9fr;
+  min-height: 46px;
+  align-items: center;
+  border-top: 1px solid var(--sx-border-subtle);
+  color: var(--sx-text-secondary);
+  font-size: 12px;
+}
+
+.record-table-row > span {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.funding-status-positive { color: var(--sx-positive-500); }
+.funding-status-warning { color: var(--sx-amber-500); }
+.funding-status-negative { color: var(--sx-negative-500); }
+.funding-status-neutral { color: var(--sx-text-secondary); }
+
+.funding-spinner {
+  width: 26px;
+  height: 26px;
+  display: block;
+  border: 3px solid var(--sx-border-subtle);
+  border-top-color: var(--sx-cyan-700);
+  border-radius: 999px;
+  animation: funding-spin .8s linear infinite;
+}
+
+@keyframes funding-spin {
+  to { transform: rotate(360deg); }
+}
+
+.faq-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  color: var(--sx-cyan-700);
+  background: transparent;
+  font-weight: 800;
+}
+
 .empty-ledger {
   min-height: 220px;
   display: grid;
@@ -2830,6 +2982,110 @@ button.rules-row:hover {
 }
 
 @media (max-width: 700px) {
+  .top-actions button,
+  .user-pill {
+    min-height: 44px;
+  }
+
+  .asset-tabs {
+    justify-content: flex-start;
+    gap: 22px;
+    overflow-x: auto;
+    padding: 0 20px;
+    scrollbar-width: none;
+  }
+
+  .asset-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .asset-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .record-tabs {
+    gap: 18px;
+    overflow-x: auto;
+  }
+
+  .record-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .record-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin: 8px 0 16px;
+  }
+
+  .record-table {
+    overflow-x: auto;
+  }
+
+  .record-table-head,
+  .record-table-row {
+    min-width: 650px;
+  }
+
+  .funding-select,
+  .funding-picker,
+  .primary-flow-button,
+  .withdraw-detail,
+  .funding-info-grid {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .funding-notice,
+  .funding-error {
+    width: calc(100% - 40px);
+    max-width: 400px;
+  }
+
+  .funding-info-grid {
+    width: calc(100% - 40px);
+  }
+
+  .funding-page .support-bubble {
+    position: static;
+    width: 44px;
+    height: 44px;
+    margin: 16px 20px 24px auto;
+  }
+
+  .primary-flow-button {
+    height: 44px;
+  }
+
+  .record-tabs button,
+  .record-actions button,
+  .funding-address button {
+    min-height: 44px;
+  }
+
+  .record-tabs button {
+    height: 44px;
+  }
+
+  .record-actions button {
+    height: 44px;
+  }
+
+  .funding-address button {
+    height: 44px;
+  }
+
+  .funding-detail {
+    flex-direction: column;
+  }
+
+  .funding-address {
+    width: 100%;
+    max-width: 400px;
+  }
+
   .topbar {
     display: flex;
     align-items: center;

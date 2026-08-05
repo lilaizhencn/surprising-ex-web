@@ -49,6 +49,8 @@ import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
+import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
+import { FundingFlowPage } from "./components/FundingFlowPage";
 import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
 import "./styles.css";
 
@@ -687,6 +689,7 @@ export default function App() {
         <FundingFlowPage
           mode="deposit"
           balances={balances}
+          session={session}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -694,6 +697,7 @@ export default function App() {
         <FundingFlowPage
           mode="withdraw"
           balances={balances}
+          session={session}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -1026,177 +1030,8 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
   );
 }
 
-function FundingFlowPage({
-  mode,
-  balances,
-  onBack,
-  onShowAsset
-}: {
-  mode: "deposit" | "withdraw";
-  balances: Balance[];
-  onBack: () => void;
-  onShowAsset: () => void;
-}) {
-  const assets = fundingAssets(balances);
-  const [asset, setAsset] = useState("");
-  const [network, setNetwork] = useState("");
-  const [openPicker, setOpenPicker] = useState<"asset" | "network" | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const networks = asset ? fundingNetworks(asset) : [];
-  const selectedNetwork = network && networks.includes(network) ? network : "";
-  const title = mode === "deposit" ? "充币" : "提币";
-  const address = asset && selectedNetwork ? demoFundingAddress(asset, selectedNetwork) : "";
-
-  function selectFundingAsset(nextAsset: string) {
-    const nextNetwork = fundingNetworks(nextAsset)[0] ?? "";
-    setAsset(nextAsset);
-    setNetwork(nextNetwork);
-    setShowDetails(false);
-    setOpenPicker("network");
-  }
-
-  function selectFundingNetwork(nextNetwork: string) {
-    setNetwork(nextNetwork);
-    setShowDetails(false);
-    setOpenPicker(null);
-  }
-
-  return (
-    <section className="funding-page">
-      <AssetTabs active="资金账户" />
-      <div className="funding-layout">
-        <div className="funding-main">
-          <button className="funding-back" onClick={onBack}>资产总览</button>
-          <h1>{title}</h1>
-          <div className={showDetails ? "funding-steps completed" : "funding-steps"}>
-            <FundingStep index={1} done={Boolean(asset)} active={openPicker === "asset"} label="选择币种">
-              <button className="funding-select" onClick={() => { setOpenPicker(openPicker === "asset" ? null : "asset"); setShowDetails(false); }}>
-                {asset ? <AssetIcon symbol={asset} /> : <span className="asset-icon asset-placeholder">?</span>}
-                <span>{asset || "请选择币种"}</span>
-                <ChevronDown size={16} />
-              </button>
-              {openPicker === "asset" && (
-                <div className="funding-picker">
-                  {assets.slice(0, 8).map((item) => (
-                    <button className={item.asset === asset ? "active" : ""} key={item.asset} onClick={() => selectFundingAsset(item.asset)}>
-                      <AssetIcon symbol={item.asset} /><span>{item.asset}</span><small>{assetName(item.asset)}</small>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </FundingStep>
-
-            <FundingStep index={2} done={Boolean(selectedNetwork)} active={openPicker === "network"} label="选择网络">
-              <button className="funding-select" disabled={!asset} onClick={() => { if (asset) { setOpenPicker(openPicker === "network" ? null : "network"); setShowDetails(false); } }}>
-                {selectedNetwork ? <AssetIcon symbol={chainSymbol(selectedNetwork)} /> : <span className="asset-icon asset-placeholder">?</span>}
-                <span>{selectedNetwork ? networkLabel(selectedNetwork, asset) : "请先选择币种"}</span>
-                <ChevronDown size={16} />
-              </button>
-              {openPicker === "network" && (
-                <div className="funding-picker network-picker">
-                  {networks.map((item) => (
-                    <button className={item === selectedNetwork ? "active" : ""} key={item} onClick={() => selectFundingNetwork(item)}>
-                      <AssetIcon symbol={chainSymbol(item)} /><span>{networkLabel(item, asset)}</span><small>到账约 {networkEtaPc(item)} · 最小 {minimumAmount(asset)}</small>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </FundingStep>
-
-            <FundingStep index={3} active={showDetails} label={`${title}详情`}>
-              {showDetails ? (
-                mode === "deposit" ? (
-                  <div className="funding-detail">
-                    <div className="pc-qr"><QrPattern /><AssetIcon symbol={asset} /></div>
-                    <div className="funding-address">
-                      <small>地址 〉</small>
-                      <strong>{address}</strong>
-                      <button><Copy size={16} /></button>
-                      <span>切换至 0x 地址 ⇄</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="withdraw-detail">
-                    <label>提币地址<input placeholder="请输入或粘贴地址" /></label>
-                    <label>提币数量<input placeholder={`最小 ${minimumAmount(asset)}`} /></label>
-                  </div>
-                )
-              ) : (
-                <button className="primary-flow-button" disabled={!asset || !selectedNetwork} onClick={() => { setOpenPicker(null); setShowDetails(true); }}>继续</button>
-              )}
-            </FundingStep>
-          </div>
-
-          {showDetails && (
-            <div className="funding-info-grid">
-              <InfoPair label={`最小${title}金额`} value={minimumAmount(asset)} />
-              <InfoPair label={`${title}账户`} value="资金账户" />
-              <InfoPair label={`${title}到账时间`} value={networkEtaPc(selectedNetwork)} />
-              <InfoPair label={mode === "deposit" ? "可提币时间" : "手续费"} value={mode === "deposit" ? networkEtaPc(selectedNetwork) : `0.01 ${asset}`} />
-              <InfoPair label="代币合约" value="查看详情 〉" />
-            </div>
-          )}
-
-          <FundingRecords asset={asset || null} mode={mode} onShowAsset={onShowAsset} />
-        </div>
-        <FaqCard title="常见问题" />
-      </div>
-      <SupportBubble />
-    </section>
-  );
-}
-
-function AssetTabs({ active }: { active: string }) {
-  const tabs = ["资产总览", "资金账户", "交易账户", "金融账户", "资产分析", "订单中心", "手续费", "账户结单", "储备金证明报告"];
-  return <nav className="asset-tabs">{tabs.map((tab) => <button className={tab === active ? "active" : ""} key={tab}>{tab}</button>)}</nav>;
-}
-
 function PortfolioBox({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return <div className="portfolio-box"><span>{icon}</span><small>{title}</small><strong>{value}</strong></div>;
-}
-
-function FundingStep({ index, label, done, active, children }: { index: number; label: string; done?: boolean; active?: boolean; children: ReactNode }) {
-  return (
-    <section className={active ? "funding-step active" : "funding-step"}>
-      <div className={done ? "step-index done" : "step-index"}>{done ? <CheckCircle2 size={18} /> : index}</div>
-      <div className="step-body">
-        <h2>{label}</h2>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function InfoPair({ label, value }: { label: string; value: string }) {
-  return <div><span>{label} <Info size={13} /></span><strong>{value}</strong></div>;
-}
-
-function FundingRecords({ asset, mode, onShowAsset }: { asset: string | null; mode: "deposit" | "withdraw"; onShowAsset: () => void }) {
-  const actionLabel = mode === "deposit" ? "充币" : "提币";
-  return (
-    <section className="funding-records">
-      <div className="record-tabs"><button className="active">{asset ? `${asset} ${actionLabel}记录` : `${actionLabel}记录`}</button><button>全部{actionLabel}记录</button></div>
-      <div className="record-actions"><button><Download size={14} /> 导出</button><button onClick={onShowAsset}><FileText size={14} /> 查看历史记录</button></div>
-      <div className="record-table-head"><span>时间</span><span>地址</span><span>交易 ID</span><span>币种</span><span>{actionLabel}数量</span><span>{actionLabel}状态</span></div>
-      <div className="empty-ledger"><FileText size={54} /><strong>暂无记录</strong><small>{asset ? "开始您的第一笔交易" : "选择币种后查看对应记录"}</small></div>
-    </section>
-  );
-}
-
-function FaqCard({ title }: { title: string }) {
-  return (
-    <aside className="faq-card">
-      <h3>{title}</h3>
-      <p>如何充币？</p>
-      <p>为什么我充的币一直不到账？</p>
-      <p>充币时如何查看地址及标签 (Tag)?</p>
-      <p>如何查看充币进度？</p>
-    </aside>
-  );
-}
-
-function AssetIcon({ symbol }: { symbol: string }) {
-  return <span className={`asset-icon asset-${symbol.toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{symbol.slice(0, 1)}</span>;
 }
 
 function MiniAssetChart() {
@@ -1206,27 +1041,6 @@ function MiniAssetChart() {
   </svg>;
 }
 
-function QrPattern() {
-  return <div className="qr-pattern" aria-label="充值二维码">
-    {Array.from({ length: 121 }).map((_, index) => <i key={index} className={(index * 17 + index % 5) % 3 === 0 ? "on" : ""} />)}
-  </div>;
-}
-
-function SupportBubble() {
-  return <button className="support-bubble"><HelpCircle size={24} /></button>;
-}
-
-function fundingAssets(balances: Balance[]): Balance[] {
-  if (balances.length) return balances;
-  return [
-    { accountType: "FUNDING", asset: "SPEX", availableUnits: 13_500_000_009, lockedUnits: 0, equityUnits: 13_500_000_009 },
-    { accountType: "FUNDING", asset: "BTC", availableUnits: 1_954_640, lockedUnits: 0, equityUnits: 1_954_640 },
-    { accountType: "FUNDING", asset: "A", availableUnits: 67_170_000, lockedUnits: 0, equityUnits: 67_170_000 },
-    { accountType: "FUNDING", asset: "NIGHT", availableUnits: 128_768_890, lockedUnits: 0, equityUnits: 128_768_890 },
-    { accountType: "FUNDING", asset: "ETH", availableUnits: 5, lockedUnits: 0, equityUnits: 5 },
-    { accountType: "FUNDING", asset: "SHIB", availableUnits: 92_099_162, lockedUnits: 0, equityUnits: 92_099_162 }
-  ];
-}
 
 function unitsToNumber(units: number): number {
   return units / 100_000_000;
@@ -1235,46 +1049,6 @@ function unitsToNumber(units: number): number {
 function currencyCny(value: number): string {
   const prefix = value < 0 ? "-¥" : "¥";
   return `${prefix}${Math.abs(value).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function assetName(symbol: string): string {
-  const names: Record<string, string> = { BTC: "Bitcoin", ETH: "Ethereum", SPEX: "Surprising EX", USDT: "USDT", USDC: "USD Coin", SHIB: "Shiba Inu", NIGHT: "Midnight", A: "Vaulta" };
-  return names[symbol] ?? symbol;
-}
-
-function fundingNetworks(asset: string): string[] {
-  if (asset === "BTC") return ["Bitcoin"];
-  if (asset === "ETH") return ["Ethereum (ERC20)", "Arbitrum One", "Avalanche C-Chain"];
-  return ["Surprising Chain", "Tron (TRC20)", "Ethereum (ERC20)", "Aptos", "Arbitrum One", "Avalanche C-Chain", "Berachain"];
-}
-
-function networkLabel(network: string, asset: string): string {
-  if (network === "Surprising Chain") return `Surprising Chain (${asset})`;
-  if (network === "Berachain") return `Berachain (${asset}0)`;
-  return network;
-}
-
-function networkEtaPc(network: string): string {
-  if (network.includes("Ethereum")) return "约 7 分钟";
-  if (network.includes("Arbitrum")) return "约 18 分钟";
-  return "约 1 分钟";
-}
-
-function minimumAmount(asset: string): string {
-  return `0.01 ${asset}`;
-}
-
-function chainSymbol(network: string): string {
-  if (network.includes("Tron")) return "TRX";
-  if (network.includes("Ethereum")) return "ETH";
-  if (network.includes("Bitcoin")) return "BTC";
-  if (network.includes("Surprising")) return "SPEX";
-  return network.slice(0, 1);
-}
-
-function demoFundingAddress(asset: string, network: string): string {
-  if (asset === "USDT" && network === "Surprising Chain") return "SX00861E9d78139CD68Ae6C78A5b5F7384325e60950";
-  return `${asset}${network.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)}9d78139CD68Ae6C78A5b5F7384325e60950`;
 }
 
 function AuthScreen({
