@@ -311,12 +311,14 @@ export async function loadMarkets(allowFallback = true): Promise<Market[]> {
     );
     const instruments = response.instruments ?? response.items ?? [];
     if (!instruments.length) {
-      if (!allowFallback) throw new Error("行情标的为空");
+      if (!allowFallback || !config.enableMockFallback) throw new Error("行情标的为空");
       return fallbackMarkets;
     }
     return instruments.map(toMarket);
-  } catch {
-    if (!allowFallback) throw new Error("行情服务不可用");
+  } catch (error) {
+    if (!allowFallback || !config.enableMockFallback) {
+      throw error instanceof Error ? error : new Error("行情服务不可用");
+    }
     return fallbackMarkets;
   }
 }
@@ -372,7 +374,10 @@ export async function loadInstrumentConfig(symbol: string, productLine?: Product
       { productLine }
     );
     return toMarket(instrument);
-  } catch {
+  } catch (error) {
+    if (!config.enableMockFallback) {
+      throw error instanceof Error ? error : new Error("交易对配置不可用");
+    }
     return fallbackMarkets.find((market) => market.symbol === symbol) ?? fallbackMarkets[0];
   }
 }
@@ -476,8 +481,10 @@ export async function loadOrderBook(
       bids: withTotals(response.bids),
       asks: withTotals(response.asks)
     };
-  } catch {
-    if (!allowFallback) throw new Error("订单簿行情不可用");
+  } catch (error) {
+    if (!allowFallback || !config.enableMockFallback) {
+      throw error instanceof Error ? error : new Error("订单簿行情不可用");
+    }
     const mid = fallbackMarkets.find((market) => market.symbol === symbol)?.lastPriceTicks ?? 65000;
     return fallbackBook(mid);
   }
@@ -501,7 +508,7 @@ export async function loadBalances(
     );
     return response.balances.map((balance) => ({ ...balance, accountType: balance.accountType ?? accountType }));
   } catch (error) {
-    if (!allowFallback) throw error;
+    if (!allowFallback || !config.enableMockFallback) throw error;
     return fallbackBalancesForAccount(accountType);
   }
 }
@@ -529,7 +536,8 @@ export async function loadPositions(session: AuthSession, productLine?: ProductL
       session
     );
     return response.positions;
-  } catch {
+  } catch (error) {
+    if (!config.enableMockFallback) throw error;
     return fallbackPositions;
   }
 }
@@ -611,7 +619,8 @@ export async function loadOpenOrders(
       sort: response.sort ?? "orderId.desc",
       limit: response.limit ?? limit
     };
-  } catch {
+  } catch (error) {
+    if (!config.enableMockFallback) throw error;
     return {
       orders: fallbackOrders.filter((order) => order.symbol === symbol),
       nextCursor: null,
@@ -634,7 +643,8 @@ export async function loadOpenTriggerOrders(
       session
     );
     return response.orders ?? response.items ?? [];
-  } catch {
+  } catch (error) {
+    if (!config.enableMockFallback) throw error;
     return [];
   }
 }
@@ -651,7 +661,8 @@ export async function loadOpenAlgoOrders(
       session
     );
     return response.orders ?? response.items ?? [];
-  } catch {
+  } catch (error) {
+    if (!config.enableMockFallback) throw error;
     return [];
   }
 }

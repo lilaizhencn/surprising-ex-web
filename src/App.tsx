@@ -45,7 +45,7 @@ import {
   type UTCTimestamp
 } from "lightweight-charts";
 import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
-import { compact, displayPpm, displayPrice, displayUnits } from "./config";
+import { compact, config, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
@@ -222,6 +222,8 @@ export default function App() {
       void loadMarkets().then((items) => {
         setMarkets(items);
         if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
+      }).catch(() => {
+        setNotice("交易对服务暂不可用，请稍后重试");
       });
     });
   }, []);
@@ -393,6 +395,8 @@ export default function App() {
           timeUntilFundingSeconds: instrument.timeUntilFundingSeconds ?? market.timeUntilFundingSeconds
         } : market);
       });
+    }).catch(() => {
+      if (alive) setNotice("交易对配置暂不可用，请稍后重试");
     });
     return () => {
       alive = false;
@@ -2364,11 +2368,11 @@ function AccountTable({ title, icon, children }: { title: string; icon: ReactNod
 }
 
 function TradesTape({ events, symbol, productLine, market, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; productLine: ProductLine; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
-  const [trades, setTrades] = useState<TradePrint[]>(() => fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
+  const [trades, setTrades] = useState<TradePrint[]>(() => config.enableMockFallback ? fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS) : []);
 
   useEffect(() => {
-    setTrades(fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS));
-  }, [symbol]);
+    setTrades(config.enableMockFallback ? fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS) : []);
+  }, [mid, symbol]);
 
   useEffect(() => {
     const liveTrades = buildPublicTrades(events, symbol, productLine, mid, false);
@@ -2710,7 +2714,7 @@ function buildTradeRecords(
     .map((event, index) => toTradePrint(event, index, userRole(event.data, userId)))
     .filter((item): item is TradeRecord => Boolean(item))
     .slice(0, 30);
-  if (records.length) return records;
+  if (records.length || !config.enableMockFallback) return records;
   return fallbackTrades(symbol, mid).slice(0, 8).map((item) => ({ ...item, role: "PUBLIC" }));
 }
 
