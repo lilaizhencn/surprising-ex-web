@@ -2020,7 +2020,7 @@ button.rules-row:hover {
   }
 
   .toast {
-    margin-top: 12px;
+    margin-top: var(--sx-space-3);
   }
 }
 
