@@ -75,7 +75,7 @@ export function FaqCard({ title }: { title: string }) {
     <p>为什么充值还没有到账？</p>
     <p>提币需要哪些安全验证？</p>
     <p>如何查看资金流水？</p>
-    <button type="button" className="faq-help"><HelpCircle size={15} /> 联系支持</button>
+    <button type="button" className="faq-help" onClick={() => window.location.assign("/rules")}><HelpCircle size={15} /> 联系支持</button>
   </aside>;
 }
 
