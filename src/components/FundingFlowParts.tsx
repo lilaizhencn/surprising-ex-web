@@ -71,14 +71,24 @@ export function FundingRecords({
   </section>;
 }
 
-export function FaqCard({ title, language = "zh-CN" }: { title: string; language?: "zh-CN" | "en-US" }) {
+export function FaqCard({ title, mode, language = "zh-CN" }: { title: string; mode: "deposit" | "withdraw"; language?: "zh-CN" | "en-US" }) {
   const text = (zh: string, en: string) => language === "en-US" ? en : zh;
+  const questions = mode === "deposit"
+    ? [
+        text("如何生成充值地址？", "How do I generate a deposit address?"),
+        text("为什么充值还没有到账？", "Why has my deposit not arrived?"),
+        text("支持哪些充值网络？", "Which deposit networks are supported?"),
+        text("如何查看资金流水？", "How do I view the funding ledger?")
+      ]
+    : [
+        text("提币需要哪些安全验证？", "What security checks does withdrawal require?"),
+        text("为什么提币还没有完成？", "Why is my withdrawal still pending?"),
+        text("如何确认提币地址和网络？", "How do I confirm the address and network?"),
+        text("如何查看资金流水？", "How do I view the funding ledger?")
+      ];
   return <aside className="faq-card">
     <h3>{title}</h3>
-    <p>{text("如何生成充值地址？", "How do I generate a deposit address?")}</p>
-    <p>{text("为什么充值还没有到账？", "Why has my deposit not arrived?")}</p>
-    <p>{text("提币需要哪些安全验证？", "What security checks does withdrawal require?")}</p>
-    <p>{text("如何查看资金流水？", "How do I view the funding ledger?")}</p>
+    {questions.map((question) => <p key={question}>{question}</p>)}
     <button type="button" className="faq-help" onClick={() => window.location.assign("/rules")}><HelpCircle size={15} /> {text("联系支持", "Contact support")}</button>
   </aside>;
 }

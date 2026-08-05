@@ -284,7 +284,7 @@ export function FundingFlowPage({
         </div>}
         <FundingRecords language={language} asset={asset || null} mode={mode} records={records} loading={loadingRecords} onShowAsset={onShowAsset} onRefresh={() => setRecordsRefresh((value) => value + 1)} />
       </div>
-      <FaqCard language={language} title={text("常见问题", "FAQ")} />
+      <FaqCard language={language} mode={mode} title={text("常见问题", "FAQ")} />
     </div>
     <SupportBubble language={language} onOpen={onHelp} />
   </section>;

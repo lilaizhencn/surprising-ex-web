@@ -960,7 +960,7 @@ export default function App() {
         <ContractInfoDialog market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
       {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
-      {notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
+      {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
     </main>
   );
 }
