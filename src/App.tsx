@@ -58,6 +58,7 @@ type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
 type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
+type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
 type TriggerCloseTarget = "LONG" | "SHORT";
 type TriggerLevelInput = {
@@ -133,6 +134,7 @@ export default function App() {
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [fundingBalances, setFundingBalances] = useState<Balance[]>([]);
+  const [fundingBalanceState, setFundingBalanceState] = useState<FundingBalanceState>("idle");
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [openOrdersNextCursor, setOpenOrdersNextCursor] = useState<string | null>(null);
@@ -201,14 +203,41 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setFundingBalances([]);
+      setFundingBalanceState("idle");
       return;
     }
     let cancelled = false;
-    void loadBalances(session, "SPOT", "SPOT").then((nextBalances) => {
-      if (!cancelled) setFundingBalances(nextBalances);
+    setFundingBalanceState("loading");
+    void loadBalances(session, "SPOT", "SPOT", false).then((nextBalances) => {
+      if (!cancelled) {
+        setFundingBalances(nextBalances);
+        setFundingBalanceState("ready");
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFundingBalances([]);
+        setFundingBalanceState("error");
+      }
     });
     return () => { cancelled = true; };
   }, [session?.accessToken]);
+
+  async function refreshFundingBalances(active = session): Promise<void> {
+    if (!active) return;
+    setFundingBalanceState("loading");
+    try {
+      const nextBalances = await loadBalances(active, "SPOT", "SPOT", false);
+      if (active.accessToken === session?.accessToken) {
+        setFundingBalances(nextBalances);
+        setFundingBalanceState("ready");
+      }
+    } catch {
+      if (active.accessToken === session?.accessToken) {
+        setFundingBalances([]);
+        setFundingBalanceState("error");
+      }
+    }
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -404,6 +433,7 @@ export default function App() {
     openOrdersRequestRef.current += 1;
     setBalances([]);
     setFundingBalances([]);
+    setFundingBalanceState("idle");
     setPositions([]);
     setOrders([]);
     setOpenOrdersNextCursor(null);
@@ -695,6 +725,7 @@ export default function App() {
       ) : page === "assets" ? (
         <AssetsPage
           balances={fundingBalances}
+          fundingBalanceState={fundingBalanceState}
           session={session}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
@@ -704,6 +735,7 @@ export default function App() {
           mode="deposit"
           balances={fundingBalances}
           session={session}
+          onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -712,6 +744,7 @@ export default function App() {
           mode="withdraw"
           balances={fundingBalances}
           session={session}
+          onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -782,11 +815,13 @@ export default function App() {
 
 function AssetsPage({
   balances,
+  fundingBalanceState,
   session,
   onDeposit,
   onWithdraw
 }: {
   balances: Balance[];
+  fundingBalanceState: FundingBalanceState;
   session: AuthSession | null;
   onDeposit: () => void;
   onWithdraw: () => void;
@@ -794,16 +829,11 @@ function AssetsPage({
   const assets = fundingAssets(balances);
   const total = assets.reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
   const totalCny = total * 7.18;
+  const hasFundingBalances = fundingBalanceState === "ready";
   const fundingValue = assets.filter((item) => item.accountType !== "USDT_PERPETUAL" && item.accountType !== "COIN_PERPETUAL")
     .reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
   const tradeValue = Math.max(0, total - fundingValue);
   const todayPnl = -totalCny * 0.0144;
-  const ledger = [
-    { title: "提币 USDT", time: "2026年6月21日 下午02:34", amount: "-99.061119 USDT", tone: "muted" },
-    { title: "从交易账户转入 USDT", time: "2026年6月21日 下午02:33", amount: "99.061119 USDT", tone: "up" },
-    { title: "提币 USDT", time: "2026年6月19日 下午09:13", amount: "-36.442173 USDT", tone: "muted" },
-    { title: "从交易账户转入 USDT", time: "2026年6月19日 下午09:13", amount: "36.442173 USDT", tone: "up" }
-  ];
 
   return (
     <section className="asset-page">
@@ -813,8 +843,8 @@ function AssetsPage({
           <section className="asset-summary-card">
             <div>
               <p className="asset-label">总资产估值 <Eye size={15} /></p>
-              <h1>{currencyCny(totalCny)} <span>CNY <ChevronDown size={13} /></span></h1>
-              <p className="asset-loss">今日收益 {currencyCny(todayPnl)} (-1.44%)</p>
+              <h1>{hasFundingBalances ? currencyCny(totalCny) : "—"} <span>CNY <ChevronDown size={13} /></span></h1>
+              <p className="asset-loss">{hasFundingBalances ? `今日收益 ${currencyCny(todayPnl)} (-1.44%)` : "资金账户数据待同步"}</p>
               <div className="asset-actions">
                 <button className="active" onClick={onDeposit}>充币</button>
                 <button onClick={onWithdraw}>提币</button>
@@ -829,9 +859,9 @@ function AssetsPage({
           <section className="asset-portfolio-card">
             <h2>资产组合</h2>
             <div className="portfolio-cards">
-              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={currencyCny(fundingValue * 7.18)} />
-              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value={currencyCny(tradeValue * 7.18)} />
-              <PortfolioBox icon={<Coins size={18} />} title="赚币" value="¥0" />
+              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={hasFundingBalances ? currencyCny(fundingValue * 7.18) : "—"} />
+              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value={hasFundingBalances ? currencyCny(tradeValue * 7.18) : "—"} />
+              <PortfolioBox icon={<Coins size={18} />} title="赚币" value={hasFundingBalances ? "¥0" : "—"} />
             </div>
             <div className="asset-table-toolbar">
               <div className="asset-search"><Search size={16} />搜索</div>
@@ -852,17 +882,14 @@ function AssetsPage({
               );
             })}
             {!session && <p className="asset-login-note">登录后可同步真实资产和资金记录。</p>}
+            {session && fundingBalanceState === "loading" && <p className="asset-login-note">正在同步资金账户真实余额…</p>}
+            {session && fundingBalanceState === "error" && <p className="asset-login-note" role="alert">资金账户数据暂不可用，已隐藏余额，请稍后重试。</p>}
           </section>
         </div>
 
         <aside className="recent-ledger-card">
-          <div className="ledger-title"><h3>近期资金账单</h3><button>查看更多 <ChevronDown size={13} /></button></div>
-          {ledger.map((item) => (
-            <div className="ledger-item" key={`${item.title}-${item.time}`}>
-              <div><strong>{item.title}</strong><small>{item.time}</small></div>
-              <span className={item.tone === "up" ? "up" : ""}>{item.amount}</span>
-            </div>
-          ))}
+          <div className="ledger-title"><h3>近期资金账单</h3></div>
+          <p className="asset-login-note">真实资金流水将在资金账户记录同步后显示。</p>
         </aside>
       </div>
       <SupportBubble />

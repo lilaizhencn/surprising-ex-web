@@ -410,7 +410,8 @@ export async function loadOrderBook(
 export async function loadBalances(
   session: AuthSession,
   accountType: ProductAccountType = "USDT_PERPETUAL",
-  productLine?: ProductLine
+  productLine?: ProductLine,
+  allowFallback = true
 ): Promise<Balance[]> {
   try {
     const params = new URLSearchParams({
@@ -423,7 +424,8 @@ export async function loadBalances(
       session
     );
     return response.balances.map((balance) => ({ ...balance, accountType: balance.accountType ?? accountType }));
-  } catch {
+  } catch (error) {
+    if (!allowFallback) throw error;
     return fallbackBalancesForAccount(accountType);
   }
 }

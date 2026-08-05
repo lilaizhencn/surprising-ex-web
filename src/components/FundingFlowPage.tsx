@@ -13,13 +13,15 @@ export function FundingFlowPage({
   balances,
   session,
   onBack,
-  onShowAsset
+  onShowAsset,
+  onFundingBalanceRefresh
 }: {
   mode: "deposit" | "withdraw";
   balances: Balance[];
   session: AuthSession | null;
   onBack: () => void;
   onShowAsset: () => void;
+  onFundingBalanceRefresh: () => void;
 }) {
   const [chains, setChains] = useState<WalletChain[]>([]);
   const [asset, setAsset] = useState("");
@@ -41,6 +43,7 @@ export function FundingFlowPage({
   const [sendingCode, setSendingCode] = useState(false);
   const [recordsRefresh, setRecordsRefresh] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
+  const [idempotencyKeyPersisted, setIdempotencyKeyPersisted] = useState(true);
 
   const title = mode === "deposit" ? "充币" : "提币";
   const assetOptions = useMemo(() => fundingAssetOptions(balances, chains), [balances, chains]);
@@ -63,7 +66,7 @@ export function FundingFlowPage({
     if (!withdrawalDraftStorageKey) return;
     const storedKey = readStoredWithdrawalKey(withdrawalDraftStorageKey) ?? crypto.randomUUID();
     setIdempotencyKey(storedKey);
-    writeStoredWithdrawalKey(withdrawalDraftStorageKey, storedKey);
+    setIdempotencyKeyPersisted(writeStoredWithdrawalKey(withdrawalDraftStorageKey, storedKey));
   }, [withdrawalDraftStorageKey]);
 
   useEffect(() => {
@@ -171,6 +174,10 @@ export function FundingFlowPage({
 
   async function submitWithdrawal() {
     if (!session || !selectedChain || !asset) return;
+    if (!idempotencyKeyPersisted) {
+      setError("当前浏览器无法保存提现幂等凭证，请启用本地存储后重试");
+      return;
+    }
     if (!toAddress.trim() || !amount.trim()) {
       setError("请输入提币地址和数量");
       return;
@@ -191,7 +198,10 @@ export function FundingFlowPage({
       });
       setNotice(`提币请求已受理：${response.status}`);
       setRecordsRefresh((value) => value + 1);
-      setIdempotencyKey(rotateWithdrawalKey(withdrawalDraftStorageKey));
+      const rotatedKey = rotateWithdrawalKey(withdrawalDraftStorageKey);
+      setIdempotencyKey(rotatedKey.key);
+      setIdempotencyKeyPersisted(rotatedKey.persisted);
+      onFundingBalanceRefresh();
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "提币请求失败");
     } finally {
@@ -286,22 +296,32 @@ function draftFingerprint(value: { asset: string; chainKey: string; toAddress: s
 
 function readStoredWithdrawalKey(storageKey: string): string | null {
   try {
-    return sessionStorage.getItem(storageKey);
+    const sessionKey = sessionStorage.getItem(storageKey);
+    if (sessionKey) return sessionKey;
+  } catch {
+  }
+  try {
+    return localStorage.getItem(storageKey);
   } catch {
     return null;
   }
 }
 
-function writeStoredWithdrawalKey(storageKey: string, value: string): void {
+function writeStoredWithdrawalKey(storageKey: string, value: string): boolean {
   try {
     sessionStorage.setItem(storageKey, value);
+    return true;
   } catch {
-    return;
+    try {
+      localStorage.setItem(storageKey, value);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
-function rotateWithdrawalKey(storageKey: string): string {
+function rotateWithdrawalKey(storageKey: string): { key: string; persisted: boolean } {
   const nextKey = crypto.randomUUID();
-  if (storageKey) writeStoredWithdrawalKey(storageKey, nextKey);
-  return nextKey;
+  return { key: nextKey, persisted: storageKey ? writeStoredWithdrawalKey(storageKey, nextKey) : false };
 }

@@ -1947,6 +1947,47 @@ button.rules-row:hover {
   --sx-font-body: 13px;
   --sx-font-section: 18px;
   --sx-font-page: 30px;
+  --sx-asset-ink: #111;
+  --sx-asset-text: #333;
+  --sx-asset-muted: #777;
+  --sx-asset-subtle: #888;
+  --sx-asset-secondary: #666;
+  --sx-asset-border: #ececec;
+  --sx-asset-line: #eee;
+  --sx-asset-loss: #f25a7a;
+  --sx-asset-positive: #2c7a1f;
+  --sx-asset-soft: #f1f1f1;
+  --sx-asset-card-soft: #f4f4f4;
+  --sx-asset-control: #f5f5f5;
+  --sx-asset-icon-soft: #e5e5e5;
+  --sx-asset-placeholder: #d8d8d8;
+  --sx-asset-btc: #f7931a;
+  --sx-asset-eth: #627eea;
+  --sx-asset-usdt: #26a17b;
+  --sx-asset-usdc: #2775ca;
+  --sx-asset-shib: #ff5a33;
+  --sx-space-asset-layout: 28px;
+  --sx-space-asset-card: 22px;
+  --sx-space-asset-card-x: 20px;
+  --sx-font-asset-total: 34px;
+  --sx-size-asset-chart-width: 184px;
+  --sx-size-asset-chart-height: 84px;
+  --sx-size-asset-layout: 980px;
+  --sx-size-asset-summary-min-height: 202px;
+  --sx-space-asset-label-gap: 6px;
+  --sx-space-asset-meta-gap: 3px;
+  --sx-space-asset-actions-gap: 10px;
+  --sx-space-asset-chevron-bottom: 18px;
+  --sx-size-asset-action-min-width: 64px;
+  --sx-size-asset-action-height: 30px;
+  --sx-size-asset-portfolio-min-height: 96px;
+  --sx-space-asset-box: 14px;
+  --sx-size-asset-icon: 26px;
+  --sx-size-asset-search-width: 258px;
+  --sx-size-asset-control: 34px;
+  --sx-size-asset-row: 58px;
+  --sx-size-asset-head: 32px;
+  --sx-size-ledger-min-height: 300px;
   --sx-radius-control: 12px;
   --sx-radius-panel: 20px;
   --sx-radius-pill: 999px;
@@ -2241,7 +2282,7 @@ button.rules-row:hover {
 .funding-page {
   min-height: calc(100vh - 42px);
   background: var(--asset-bg);
-  color: #111;
+  color: var(--sx-asset-ink);
 }
 
 .funding-page {
@@ -2250,16 +2291,16 @@ button.rules-row:hover {
 
 .asset-layout,
 .funding-layout {
-  width: 980px;
-  margin: 28px auto 0;
+  width: var(--sx-size-asset-layout);
+  margin: var(--sx-space-asset-layout) auto 0;
   display: grid;
   grid-template-columns: 650px 316px;
-  gap: 20px;
+  gap: var(--sx-space-5);
 }
 
 .asset-main {
   display: grid;
-  gap: 20px;
+  gap: var(--sx-space-5);
 }
 
 .asset-summary-card,
@@ -2268,68 +2309,68 @@ button.rules-row:hover {
 .faq-card {
   background: var(--asset-card);
   border-radius: 16px;
-  border: 1px solid #ececec;
+  border: 1px solid var(--sx-asset-border);
 }
 
 .asset-summary-card {
-  min-height: 202px;
+  min-height: var(--sx-size-asset-summary-min-height);
   position: relative;
   display: flex;
   justify-content: space-between;
-  padding: 22px 28px;
+  padding: var(--sx-space-asset-card) var(--sx-space-7);
 }
 
 .asset-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 8px;
-  color: #777;
+  gap: var(--sx-space-asset-label-gap);
+  margin: 0 0 var(--sx-space-2);
+  color: var(--sx-asset-muted);
   font-weight: 700;
 }
 
 .asset-summary-card h1 {
   margin: 0;
-  font-size: 34px;
+  font-size: var(--sx-font-asset-total);
   letter-spacing: 0;
 }
 
 .asset-summary-card h1 span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  color: #666;
-  font-size: 12px;
+  gap: var(--sx-space-asset-meta-gap);
+  color: var(--sx-asset-secondary);
+  font-size: var(--sx-font-caption);
 }
 
 .asset-loss {
-  margin: 7px 0 20px;
-  color: #f25a7a;
+  margin: 7px 0 var(--sx-space-5);
+  color: var(--sx-asset-loss);
   font-weight: 700;
 }
 
 .asset-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--sx-space-asset-actions-gap);
 }
 
 .asset-actions button {
-  min-width: 64px;
-  height: 30px;
+  min-width: var(--sx-size-asset-action-min-width);
+  height: var(--sx-size-asset-action-height);
   border-radius: 999px;
-  background: #f1f1f1;
-  color: #111;
+  background: var(--sx-asset-soft);
+  color: var(--sx-asset-ink);
   font-weight: 800;
 }
 
 .asset-actions button.active {
-  background: #2c7a1f;
-  color: #fff;
+  background: var(--sx-asset-positive);
+  color: var(--sx-surface-light);
 }
 
 .mini-asset-chart {
-  width: 184px;
-  height: 84px;
+  width: var(--sx-size-asset-chart-width);
+  height: var(--sx-size-asset-chart-height);
   align-self: flex-start;
   margin-top: 16px;
 }
@@ -2340,7 +2381,7 @@ button.rules-row:hover {
 
 .mini-asset-chart polyline {
   fill: none;
-  stroke: #f25a7a;
+  stroke: var(--sx-asset-loss);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 5;
@@ -2349,12 +2390,12 @@ button.rules-row:hover {
 .asset-card-chevron {
   position: absolute;
   left: 50%;
-  bottom: 18px;
-  color: #888;
+  bottom: var(--sx-space-asset-chevron-bottom);
+  color: var(--sx-asset-subtle);
 }
 
 .asset-portfolio-card {
-  padding: 22px 20px 12px;
+  padding: var(--sx-space-asset-card) var(--sx-space-asset-card-x) var(--sx-space-3);
 }
 
 .asset-portfolio-card h2,
@@ -2366,28 +2407,28 @@ button.rules-row:hover {
 .portfolio-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin: 16px 0 26px;
+  gap: var(--sx-space-3);
+  margin: var(--sx-space-4) 0 var(--sx-space-7);
 }
 
 .portfolio-box {
-  min-height: 96px;
+  min-height: var(--sx-size-asset-portfolio-min-height);
   display: grid;
   align-content: center;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 12px;
-  background: #f4f4f4;
+  gap: var(--sx-space-2);
+  padding: var(--sx-space-asset-box);
+  border-radius: var(--sx-radius-control);
+  background: var(--sx-asset-card-soft);
 }
 
 .portfolio-box span {
-  width: 26px;
-  height: 26px;
+  width: var(--sx-size-asset-icon);
+  height: var(--sx-size-asset-icon);
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #e5e5e5;
-  color: #777;
+  background: var(--sx-asset-icon-soft);
+  color: var(--sx-asset-muted);
 }
 
 .portfolio-box small,
@@ -2399,41 +2440,41 @@ button.rules-row:hover {
 }
 
 .portfolio-box strong {
-  font-size: 18px;
+  font-size: var(--sx-font-section);
 }
 
 .asset-table-toolbar {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--sx-space-3);
 }
 
 .asset-search {
-  width: 258px;
-  height: 34px;
+  width: var(--sx-size-asset-search-width);
+  height: var(--sx-size-asset-control);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sx-space-2);
   padding: 0 12px;
   border-radius: 999px;
-  background: #f1f1f1;
+  background: var(--sx-asset-soft);
 }
 
 .asset-table-toolbar button {
-  width: 34px;
-  height: 34px;
+  width: var(--sx-size-asset-control);
+  height: var(--sx-size-asset-control);
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #f5f5f5;
+  background: var(--sx-asset-control);
 }
 
 .pc-asset-row {
-  min-height: 58px;
+  min-height: var(--sx-size-asset-row);
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 150px 180px;
   align-items: center;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--sx-asset-line);
 }
 
 .pc-asset-row > span:last-child {
@@ -2443,7 +2484,7 @@ button.rules-row:hover {
 .pc-asset-name {
   display: grid;
   grid-template-columns: 34px 1fr;
-  column-gap: 10px;
+  column-gap: var(--sx-space-asset-actions-gap);
   align-items: center;
 }
 
@@ -2452,39 +2493,39 @@ button.rules-row:hover {
 }
 
 .pc-asset-head {
-  min-height: 32px;
-  color: #888;
+  min-height: var(--sx-size-asset-head);
+  color: var(--sx-asset-subtle);
 }
 
 .asset-icon {
-  width: 26px;
-  height: 26px;
+  width: var(--sx-size-asset-icon);
+  height: var(--sx-size-asset-icon);
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
-  background: #111;
-  color: #fff;
-  font-size: 12px;
+  background: var(--sx-asset-ink);
+  color: var(--sx-surface-light);
+  font-size: var(--sx-font-caption);
   font-weight: 900;
 }
 
-.asset-btc { background: #f7931a; }
-.asset-eth { background: #627eea; }
-.asset-usdt { background: #26a17b; }
-.asset-usdc { background: #2775ca; }
-.asset-spex { background: #111; }
-.asset-shib { background: #ff5a33; }
-.asset-placeholder { background: #d8d8d8; color: #777; }
+.asset-btc { background: var(--sx-asset-btc); }
+.asset-eth { background: var(--sx-asset-eth); }
+.asset-usdt { background: var(--sx-asset-usdt); }
+.asset-usdc { background: var(--sx-asset-usdc); }
+.asset-spex { background: var(--sx-asset-ink); }
+.asset-shib { background: var(--sx-asset-shib); }
+.asset-placeholder { background: var(--sx-asset-placeholder); color: var(--sx-asset-muted); }
 
 .asset-login-note {
-  margin: 14px 0 0;
-  color: #777;
+  margin: var(--sx-space-3) 0 0;
+  color: var(--sx-asset-muted);
 }
 
 .recent-ledger-card {
-  min-height: 300px;
+  min-height: var(--sx-size-ledger-min-height);
   align-self: start;
-  padding: 22px 20px;
+  padding: var(--sx-space-asset-card) var(--sx-space-asset-card-x);
 }
 
 .ledger-title,
@@ -2492,21 +2533,21 @@ button.rules-row:hover {
 .record-actions {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--sx-space-3);
 }
 
 .ledger-title button,
 .record-actions button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sx-space-1);
   background: transparent;
-  color: #555;
+  color: var(--sx-asset-text);
 }
 
 .ledger-item {
-  padding: 16px 0;
-  border-bottom: 1px solid #eee;
+  padding: var(--sx-space-4) 0;
+  border-bottom: 1px solid var(--sx-asset-line);
 }
 
 .ledger-item div {
@@ -3037,6 +3078,41 @@ button.rules-row:hover {
   .asset-tabs button {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .asset-main,
+  .asset-summary-card,
+  .asset-portfolio-card {
+    min-width: 0;
+  }
+
+  .asset-summary-card {
+    padding: 18px 16px;
+  }
+
+  .asset-summary-card .mini-asset-chart {
+    display: none;
+  }
+
+  .asset-actions {
+    flex-wrap: wrap;
+  }
+
+  .pc-asset-row {
+    grid-template-columns: minmax(112px, 1.1fr) minmax(64px, .7fr) minmax(108px, 1fr);
+    column-gap: 8px;
+  }
+
+  .pc-asset-row > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pc-asset-name {
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: 8px;
   }
 
   .record-tabs {

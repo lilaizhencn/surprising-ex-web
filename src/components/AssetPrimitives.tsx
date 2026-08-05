@@ -17,15 +17,7 @@ export function SupportBubble() {
 }
 
 export function fundingAssets(balances: Balance[]): Balance[] {
-  if (balances.length) return balances;
-  return [
-    { accountType: "FUNDING", asset: "SPEX", availableUnits: 13_500_000_009, lockedUnits: 0, equityUnits: 13_500_000_009 },
-    { accountType: "FUNDING", asset: "BTC", availableUnits: 1_954_640, lockedUnits: 0, equityUnits: 1_954_640 },
-    { accountType: "FUNDING", asset: "A", availableUnits: 67_170_000, lockedUnits: 0, equityUnits: 67_170_000 },
-    { accountType: "FUNDING", asset: "NIGHT", availableUnits: 128_768_890, lockedUnits: 0, equityUnits: 128_768_890 },
-    { accountType: "FUNDING", asset: "ETH", availableUnits: 5, lockedUnits: 0, equityUnits: 5 },
-    { accountType: "FUNDING", asset: "SHIB", availableUnits: 92_099_162, lockedUnits: 0, equityUnits: 92_099_162 }
-  ];
+  return balances;
 }
 
 export function assetName(symbol: string): string {
