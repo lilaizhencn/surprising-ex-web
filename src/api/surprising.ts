@@ -31,7 +31,7 @@ import type {
   TestOrderResult,
   TriggerOrderBatchResponse
 } from "../types";
-import { gatewayPath, request } from "./client";
+import { ApiError, gatewayPath, request } from "./client";
 
 interface BackendInstrument {
   symbol: string;
@@ -303,7 +303,7 @@ export async function loadMarkets(allowFallback = true): Promise<Market[]> {
   }
 }
 
-export function submitProductTransfer(
+export async function submitProductTransfer(
   session: AuthSession,
   input: {
     sourceAccountType: ProductAccountType;
@@ -313,18 +313,36 @@ export function submitProductTransfer(
     idempotencyKey: string;
   }
 ): Promise<{ transferId?: number; status?: string }> {
-  return request<{ transferId?: number; status?: string }>(gatewayPath("account", "/transfers"), {
-    method: "POST",
-    headers: { "Idempotency-Key": input.idempotencyKey },
-    body: JSON.stringify({
-      sourceAccountType: input.sourceAccountType,
-      targetAccountType: input.targetAccountType,
-      asset: input.asset.toUpperCase(),
-      amountUnits: input.amountUnits,
-      referenceId: input.idempotencyKey,
-      reason: "web product transfer"
-    })
-  }, session);
+  try {
+    return await request<{ transferId?: number; status?: string }>(gatewayPath("account", "/transfers"), {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body: JSON.stringify({
+        sourceAccountType: input.sourceAccountType,
+        targetAccountType: input.targetAccountType,
+        asset: input.asset.toUpperCase(),
+        amountUnits: input.amountUnits,
+        referenceId: input.idempotencyKey,
+        reason: "web product transfer"
+      })
+    }, session);
+  } catch (reason: unknown) {
+    if (reason instanceof ApiError) {
+      const result = transferResultFromPayload(reason.payload);
+      if (result) return result;
+    }
+    throw reason;
+  }
+}
+
+function transferResultFromPayload(payload: unknown): { transferId?: number; status: string } | null {
+  if (typeof payload !== "object" || payload === null || !("status" in payload)) return null;
+  const status = payload.status;
+  if (typeof status !== "string" || !status.trim()) return null;
+  const transferId = "transferId" in payload && typeof payload.transferId === "number"
+    ? payload.transferId
+    : undefined;
+  return { transferId, status };
 }
 
 export async function loadInstrumentConfig(symbol: string, productLine?: ProductLine): Promise<Market> {
