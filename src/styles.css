@@ -1815,6 +1815,14 @@ button.rules-row:hover {
   color: var(--sx-surface-light);
 }
 
+.transfer-dialog :is(button, select, input):focus-visible,
+.asset-actions button:focus-visible,
+.asset-table-toolbar button:focus-visible,
+.support-bubble:focus-visible {
+  outline: var(--sx-focus-outline-asset);
+  outline-offset: var(--sx-focus-outline-offset);
+}
+
 .transfer-success {
   display: flex;
   align-items: center;
@@ -2040,6 +2048,7 @@ button.rules-row:hover {
   --sx-asset-border: #ececec;
   --sx-asset-line: #eee;
   --sx-asset-loss: #f25a7a;
+  --sx-asset-loss-fill: rgba(242, 90, 122, .12);
   --sx-asset-positive: #2c7a1f;
   --sx-asset-soft: #f1f1f1;
   --sx-asset-card-soft: #f4f4f4;
@@ -2064,6 +2073,10 @@ button.rules-row:hover {
   --sx-space-asset-label-gap: 6px;
   --sx-space-asset-meta-gap: 3px;
   --sx-space-asset-actions-gap: 10px;
+  --sx-space-asset-chart-top: var(--sx-space-4);
+  --sx-space-asset-search-x: var(--sx-space-3);
+  --sx-space-asset-ledger-gap: var(--sx-space-1);
+  --sx-space-asset-loss-top: 7px;
   --sx-space-asset-chevron-bottom: 18px;
   --sx-size-asset-action-min-width: 64px;
   --sx-size-asset-action-height: 30px;
@@ -2071,6 +2084,12 @@ button.rules-row:hover {
   --sx-size-asset-portfolio-min-height: 96px;
   --sx-space-asset-box: 14px;
   --sx-size-asset-icon: 26px;
+  --sx-size-asset-name-min: 220px;
+  --sx-size-asset-name-column: 34px;
+  --sx-size-asset-quantity-column: 150px;
+  --sx-size-asset-value-column: 180px;
+  --sx-size-asset-chart-stroke: 5px;
+  --sx-size-asset-tab-indicator: 3px;
   --sx-size-asset-search-width: 258px;
   --sx-size-asset-control: 34px;
   --sx-size-asset-row: 58px;
@@ -2087,6 +2106,8 @@ button.rules-row:hover {
   --sx-radius-panel: 20px;
   --sx-radius-pill: 999px;
   --sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
+  --sx-focus-outline-asset: 2px solid var(--sx-asset-positive);
+  --sx-focus-outline-offset: 2px;
 }
 
 .app-shell {
@@ -2370,7 +2391,7 @@ button.rules-row:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 3px;
+  height: var(--sx-size-asset-tab-indicator);
   background: var(--sx-ink-light);
 }
 
@@ -2387,7 +2408,7 @@ button.rules-row:hover {
 }
 
 .funding-page {
-  --sx-text-secondary: #667085;
+  --sx-text-secondary: var(--sx-asset-secondary);
 }
 
 .asset-layout,
@@ -2456,12 +2477,12 @@ button.rules-row:hover {
 }
 
 .asset-valuation-select:focus-visible {
-  outline: 2px solid var(--sx-asset-positive);
-  outline-offset: 2px;
+  outline: var(--sx-focus-outline-asset);
+  outline-offset: var(--sx-focus-outline-offset);
 }
 
 .asset-loss {
-  margin: 7px 0 var(--sx-space-5);
+  margin: var(--sx-space-asset-loss-top) 0 var(--sx-space-5);
   color: var(--sx-asset-loss);
   font-weight: 700;
 }
@@ -2474,7 +2495,7 @@ button.rules-row:hover {
 .asset-actions button {
   min-width: var(--sx-size-asset-action-min-width);
   height: var(--sx-size-asset-action-height);
-  border-radius: 999px;
+  border-radius: var(--sx-radius-pill);
   background: var(--sx-asset-soft);
   color: var(--sx-asset-ink);
   font-weight: 800;
@@ -2489,11 +2510,11 @@ button.rules-row:hover {
   width: var(--sx-size-asset-chart-width);
   height: var(--sx-size-asset-chart-height);
   align-self: flex-start;
-  margin-top: 16px;
+  margin-top: var(--sx-space-asset-chart-top);
 }
 
 .mini-asset-chart path {
-  fill: rgba(242, 90, 122, .12);
+  fill: var(--sx-asset-loss-fill);
 }
 
 .mini-asset-chart polyline {
@@ -2501,7 +2522,7 @@ button.rules-row:hover {
   stroke: var(--sx-asset-loss);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 5;
+  stroke-width: var(--sx-size-asset-chart-stroke);
 }
 
 .asset-card-chevron {
@@ -2543,7 +2564,7 @@ button.rules-row:hover {
   height: var(--sx-size-asset-icon);
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--sx-radius-pill);
   background: var(--sx-asset-icon-soft);
   color: var(--sx-asset-muted);
 }
@@ -2572,8 +2593,8 @@ button.rules-row:hover {
   display: flex;
   align-items: center;
   gap: var(--sx-space-2);
-  padding: 0 12px;
-  border-radius: 999px;
+  padding: 0 var(--sx-space-asset-search-x);
+  border-radius: var(--sx-radius-pill);
   background: var(--sx-asset-soft);
 }
 
@@ -2582,14 +2603,14 @@ button.rules-row:hover {
   height: var(--sx-size-asset-control);
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--sx-radius-control);
   background: var(--sx-asset-control);
 }
 
 .pc-asset-row {
   min-height: var(--sx-size-asset-row);
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 150px 180px;
+  grid-template-columns: minmax(var(--sx-size-asset-name-min), 1fr) var(--sx-size-asset-quantity-column) var(--sx-size-asset-value-column);
   align-items: center;
   border-top: 1px solid var(--sx-asset-line);
 }
@@ -2600,7 +2621,7 @@ button.rules-row:hover {
 
 .pc-asset-name {
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: var(--sx-size-asset-name-column) 1fr;
   column-gap: var(--sx-space-asset-actions-gap);
   align-items: center;
 }
@@ -2619,7 +2640,7 @@ button.rules-row:hover {
   height: var(--sx-size-asset-icon);
   display: inline-grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--sx-radius-pill);
   background: var(--sx-asset-ink);
   color: var(--sx-surface-light);
   font-size: var(--sx-font-caption);
@@ -2669,7 +2690,7 @@ button.rules-row:hover {
 
 .ledger-item div {
   display: grid;
-  gap: 5px;
+  gap: var(--sx-space-asset-ledger-gap);
 }
 
 .funding-main {

@@ -847,6 +847,8 @@ export default function App() {
           onWithdraw={() => navigateToPage("withdraw")}
           onTransfer={() => setTransferOpen(true)}
           onEarn={() => setNotice("赚币产品线即将开放，当前可使用现货、永续、交割和期权账户")}
+          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
+          onTableOptions={() => setNotice("当前资产列表显示全部可用币种，更多列设置即将开放")}
         />
       ) : page === "recharge" ? (
         <FundingFlowPage
@@ -854,6 +856,7 @@ export default function App() {
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
+          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -863,6 +866,7 @@ export default function App() {
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
+          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -946,7 +950,9 @@ function AssetsPage({
   onDeposit,
   onWithdraw,
   onTransfer,
-  onEarn
+  onEarn,
+  onHelp,
+  onTableOptions
 }: {
   balances: Balance[];
   markets: Market[];
@@ -962,6 +968,8 @@ function AssetsPage({
   onWithdraw: () => void;
   onTransfer: () => void;
   onEarn: () => void;
+  onHelp: () => void;
+  onTableOptions: () => void;
 }) {
   const assets = fundingAssets(balances);
   const valuationRate = valuationRates[valuationCurrency];
@@ -1007,7 +1015,7 @@ function AssetsPage({
             </div>
             <div className="asset-table-toolbar">
               <div className="asset-search"><Search size={16} />搜索</div>
-              <button><TableProperties size={16} /></button>
+              <button type="button" aria-label="资产列表设置" title="资产列表设置" onClick={onTableOptions}><TableProperties size={16} /></button>
             </div>
             <h3>代币</h3>
             <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>
@@ -1034,7 +1042,7 @@ function AssetsPage({
           <p className="asset-login-note">真实资金流水将在资金账户记录同步后显示。</p>
         </aside>
       </div>
-      <SupportBubble />
+      <SupportBubble onOpen={onHelp} />
     </section>
   );
 }

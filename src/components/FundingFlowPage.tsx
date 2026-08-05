@@ -14,7 +14,8 @@ export function FundingFlowPage({
   session,
   onBack,
   onShowAsset,
-  onFundingBalanceRefresh
+  onFundingBalanceRefresh,
+  onHelp
 }: {
   mode: "deposit" | "withdraw";
   balances: Balance[];
@@ -22,6 +23,7 @@ export function FundingFlowPage({
   onBack: () => void;
   onShowAsset: () => void;
   onFundingBalanceRefresh: () => void;
+  onHelp: () => void;
 }) {
   const [chains, setChains] = useState<WalletChain[]>([]);
   const [asset, setAsset] = useState("");
@@ -280,7 +282,7 @@ export function FundingFlowPage({
       </div>
       <FaqCard title="常见问题" />
     </div>
-    <SupportBubble />
+    <SupportBubble onOpen={onHelp} />
   </section>;
 }
 
