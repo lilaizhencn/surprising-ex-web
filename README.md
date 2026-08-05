@@ -46,7 +46,7 @@ Core paths:
 - `/api/v1/gateway/account`
   - `/product-balances?accountType=SPOT|USDT_PERPETUAL|COIN_PERPETUAL`
 - `/api/v1/gateway/risk`
-- `ws://localhost:9093/ws/v1`
+- `ws://localhost:9093/ws/v1` (local development; production derives the current origin when the variable is omitted)
 
 ## Deployment
 

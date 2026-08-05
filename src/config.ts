@@ -1,6 +1,12 @@
+function defaultWebSocketBaseUrl(): string {
+  if (typeof window === "undefined") return "";
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/ws/v1`;
+}
+
 export const config = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "",
-  wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || "ws://localhost:9093/ws/v1",
+  wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl(),
   gatewayPrefix: "/api/v1/gateway",
   authPrefix: "/api/v1/auth",
   enableMockFallback: import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true"
