@@ -2218,7 +2218,13 @@ button.rules-row:hover {
 
 .topbar nav {
   gap: 15px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.topbar nav::-webkit-scrollbar {
+  display: none;
 }
 
 .topbar nav button {
