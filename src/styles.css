@@ -1973,6 +1973,8 @@ button.rules-row:hover {
   --sx-size-asset-chart-width: 184px;
   --sx-size-asset-chart-height: 84px;
   --sx-size-asset-layout: 980px;
+  --sx-size-asset-main: 650px;
+  --sx-size-asset-sidebar: 316px;
   --sx-size-asset-summary-min-height: 202px;
   --sx-space-asset-label-gap: 6px;
   --sx-space-asset-meta-gap: 3px;
@@ -1988,6 +1990,10 @@ button.rules-row:hover {
   --sx-size-asset-control: 34px;
   --sx-size-asset-row: 58px;
   --sx-size-asset-head: 32px;
+  --sx-radius-asset-card: 16px;
+  --sx-space-asset-summary-y: 22px;
+  --sx-space-asset-summary-x: 28px;
+  --sx-size-asset-valuation-select: 52px;
   --sx-size-ledger-min-height: 300px;
   --sx-radius-control: 12px;
   --sx-radius-panel: 20px;
@@ -2295,7 +2301,7 @@ button.rules-row:hover {
   width: var(--sx-size-asset-layout);
   margin: var(--sx-space-asset-layout) auto 0;
   display: grid;
-  grid-template-columns: 650px 316px;
+  grid-template-columns: var(--sx-size-asset-main) var(--sx-size-asset-sidebar);
   gap: var(--sx-space-5);
 }
 
@@ -2309,7 +2315,7 @@ button.rules-row:hover {
 .recent-ledger-card,
 .faq-card {
   background: var(--asset-card);
-  border-radius: 16px;
+  border-radius: var(--sx-radius-asset-card);
   border: 1px solid var(--sx-asset-border);
 }
 
@@ -2318,7 +2324,7 @@ button.rules-row:hover {
   position: relative;
   display: flex;
   justify-content: space-between;
-  padding: var(--sx-space-asset-card) var(--sx-space-7);
+  padding: var(--sx-space-asset-summary-y) var(--sx-space-asset-summary-x);
 }
 
 .asset-label {
@@ -2342,6 +2348,22 @@ button.rules-row:hover {
   gap: var(--sx-space-asset-meta-gap);
   color: var(--sx-asset-secondary);
   font-size: var(--sx-font-caption);
+}
+
+.asset-valuation-select {
+  width: var(--sx-size-asset-valuation-select);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.asset-valuation-select:focus-visible {
+  outline: 2px solid var(--sx-asset-positive);
+  outline-offset: 2px;
 }
 
 .asset-loss {

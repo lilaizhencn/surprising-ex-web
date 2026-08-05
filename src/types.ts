@@ -11,6 +11,7 @@ export type ConnectionState = "live" | "degraded" | "offline";
 export type ProductMode = "linear" | "inverse" | "linearDelivery" | "inverseDelivery" | "option" | "spot";
 export type ProductLine = "LINEAR_PERPETUAL" | "INVERSE_PERPETUAL" | "LINEAR_DELIVERY" | "INVERSE_DELIVERY" | "OPTION" | "SPOT";
 export type ProductAccountType = "USDT_PERPETUAL" | "COIN_PERPETUAL" | "USDT_DELIVERY" | "COIN_DELIVERY" | "OPTION" | "SPOT";
+export type ValuationCurrency = "USDT" | "USD" | "CNY";
 export type InstrumentType = "SPOT" | "PERPETUAL" | "DELIVERY" | "OPTION";
 export type ContractType = "SPOT" | "LINEAR" | "INVERSE" | "LINEAR_PERPETUAL" | "INVERSE_PERPETUAL" | "LINEAR_DELIVERY" | "INVERSE_DELIVERY" | "VANILLA_OPTION";
 

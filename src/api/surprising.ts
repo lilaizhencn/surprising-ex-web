@@ -116,6 +116,16 @@ interface BackendOrderBookLevel {
   orderCount: number;
 }
 
+export interface ExchangeRateConversion {
+  fromCurrency: string;
+  toCurrency: string;
+  amount: number;
+  convertedAmount: number;
+  rate: number;
+  route: string;
+  rateTime?: string;
+}
+
 export async function register(email: string, password: string): Promise<AuthSession> {
   return request<AuthSession>(`${config.authPrefix}/register`, {
     method: "POST",
@@ -428,6 +438,21 @@ export async function loadBalances(
     if (!allowFallback) throw error;
     return fallbackBalancesForAccount(accountType);
   }
+}
+
+export async function loadExchangeRateConversion(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string
+): Promise<ExchangeRateConversion> {
+  const params = new URLSearchParams({
+    amount: String(amount),
+    fromCurrency,
+    toCurrency
+  });
+  return request<ExchangeRateConversion>(
+    gatewayPath("price-fx", `/convert?${params}`)
+  );
 }
 
 export async function loadPositions(session: AuthSession, productLine?: ProductLine): Promise<Position[]> {

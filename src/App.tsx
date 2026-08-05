@@ -44,14 +44,14 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
-import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
@@ -135,6 +135,12 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [fundingBalances, setFundingBalances] = useState<Balance[]>([]);
   const [fundingBalanceState, setFundingBalanceState] = useState<FundingBalanceState>("idle");
+  const [valuationCurrency, setValuationCurrency] = useState<ValuationCurrency>(() => {
+    const stored = localStorage.getItem("surprising.valuationCurrency");
+    return stored === "USD" || stored === "CNY" ? stored : "USDT";
+  });
+  const [valuationRates, setValuationRates] = useState<Partial<Record<ValuationCurrency, number>>>({ USDT: 1 });
+  const [valuationRateState, setValuationRateState] = useState<FundingBalanceState>("loading");
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [openOrdersNextCursor, setOpenOrdersNextCursor] = useState<string | null>(null);
@@ -221,6 +227,32 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, [session?.accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setValuationRateState("loading");
+    void Promise.allSettled([
+      loadExchangeRateConversion(1, "USDT", "USD"),
+      loadExchangeRateConversion(1, "USDT", "CNY")
+    ]).then(([usd, cny]) => {
+      if (cancelled) return;
+      const nextRates: Partial<Record<ValuationCurrency, number>> = { USDT: 1 };
+      if (usd.status === "fulfilled" && Number.isFinite(usd.value.convertedAmount) && usd.value.convertedAmount > 0) {
+        nextRates.USD = usd.value.convertedAmount;
+      }
+      if (cny.status === "fulfilled" && Number.isFinite(cny.value.convertedAmount) && cny.value.convertedAmount > 0) {
+        nextRates.CNY = cny.value.convertedAmount;
+      }
+      setValuationRates(nextRates);
+      setValuationRateState("ready");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  function changeValuationCurrency(next: ValuationCurrency) {
+    setValuationCurrency(next);
+    localStorage.setItem("surprising.valuationCurrency", next);
+  }
 
   async function refreshFundingBalances(active = session): Promise<void> {
     if (!active) return;
@@ -725,8 +757,13 @@ export default function App() {
       ) : page === "assets" ? (
         <AssetsPage
           balances={fundingBalances}
+          markets={markets}
           fundingBalanceState={fundingBalanceState}
           session={session}
+          valuationCurrency={valuationCurrency}
+          valuationRates={valuationRates}
+          valuationRateState={valuationRateState}
+          onValuationCurrencyChange={changeValuationCurrency}
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
         />
@@ -815,25 +852,40 @@ export default function App() {
 
 function AssetsPage({
   balances,
+  markets,
   fundingBalanceState,
   session,
+  valuationCurrency,
+  valuationRates,
+  valuationRateState,
+  onValuationCurrencyChange,
   onDeposit,
   onWithdraw
 }: {
   balances: Balance[];
+  markets: Market[];
   fundingBalanceState: FundingBalanceState;
   session: AuthSession | null;
+  valuationCurrency: ValuationCurrency;
+  valuationRates: Partial<Record<ValuationCurrency, number>>;
+  valuationRateState: FundingBalanceState;
+  onValuationCurrencyChange: (currency: ValuationCurrency) => void;
   onDeposit: () => void;
   onWithdraw: () => void;
 }) {
   const assets = fundingAssets(balances);
-  const total = assets.reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
-  const totalCny = total * 7.18;
+  const valuationRate = valuationRates[valuationCurrency];
+  const assetValues = assets.map((asset) => {
+    const usdtPrice = assetValuationPrice(asset.asset, markets);
+    return usdtPrice === null || valuationRate === undefined
+      ? null
+      : unitsToNumber(asset.equityUnits) * usdtPrice * valuationRate;
+  });
   const hasFundingBalances = fundingBalanceState === "ready";
-  const fundingValue = assets.filter((item) => item.accountType !== "USDT_PERPETUAL" && item.accountType !== "COIN_PERPETUAL")
-    .reduce((sum, item) => sum + unitsToNumber(item.equityUnits), 0);
-  const tradeValue = Math.max(0, total - fundingValue);
-  const todayPnl = -totalCny * 0.0144;
+  const hasValuation = hasFundingBalances
+    && valuationRateState === "ready"
+    && assetValues.every((value) => value !== null);
+  const totalValue = hasValuation ? assetValues.reduce((sum, value) => sum + (value ?? 0), 0) : null;
 
   return (
     <section className="asset-page">
@@ -843,8 +895,8 @@ function AssetsPage({
           <section className="asset-summary-card">
             <div>
               <p className="asset-label">总资产估值 <Eye size={15} /></p>
-              <h1>{hasFundingBalances ? currencyCny(totalCny) : "—"} <span>CNY <ChevronDown size={13} /></span></h1>
-              <p className="asset-loss">{hasFundingBalances ? `今日收益 ${currencyCny(todayPnl)} (-1.44%)` : "资金账户数据待同步"}</p>
+              <h1>{totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label="估值货币"><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h1>
+              <p className="asset-login-note">{hasValuation ? "按实时市场价估值，收益以资金账本为准" : "行情或汇率未同步，已隐藏估值"}</p>
               <div className="asset-actions">
                 <button className="active" onClick={onDeposit}>充币</button>
                 <button onClick={onWithdraw}>提币</button>
@@ -852,16 +904,15 @@ function AssetsPage({
                 <button>赚币</button>
               </div>
             </div>
-            <MiniAssetChart />
             <ChevronDown className="asset-card-chevron" size={24} />
           </section>
 
           <section className="asset-portfolio-card">
             <h2>资产组合</h2>
             <div className="portfolio-cards">
-              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={hasFundingBalances ? currencyCny(fundingValue * 7.18) : "—"} />
-              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value={hasFundingBalances ? currencyCny(tradeValue * 7.18) : "—"} />
-              <PortfolioBox icon={<Coins size={18} />} title="赚币" value={hasFundingBalances ? "¥0" : "—"} />
+              <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} />
+              <PortfolioBox icon={<Activity size={18} />} title="交易账户" value="—" />
+              <PortfolioBox icon={<Coins size={18} />} title="赚币" value="—" />
             </div>
             <div className="asset-table-toolbar">
               <div className="asset-search"><Search size={16} />搜索</div>
@@ -869,21 +920,21 @@ function AssetsPage({
             </div>
             <h3>代币</h3>
             <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>
-            {assets.map((asset) => {
+            {assets.map((asset, index) => {
               const amount = unitsToNumber(asset.equityUnits);
-              const value = amount * 7.18;
-              const gain = value * (asset.asset === "ETH" ? -0.3679 : asset.asset === "BTC" ? 0.3239 : 1.2366);
+              const value = assetValues[index];
               return (
                 <div className="pc-asset-row" key={`${asset.accountType}-${asset.asset}`}>
                   <span className="pc-asset-name"><AssetIcon symbol={asset.asset} /><strong>{asset.asset}</strong><small>{assetName(asset.asset)}</small></span>
                   <span>{displayUnits(asset.equityUnits, 8)}</span>
-                  <span><strong>{currencyCny(value)}</strong><small className={gain >= 0 ? "up" : "down"}>{gain >= 0 ? "+" : ""}{currencyCny(gain)} ({gain >= 0 ? "+" : ""}{(gain / Math.max(value, 1) * 100).toFixed(2)}%)</small></span>
+                  <span><strong>{value === null ? "—" : formatValuation(value, valuationCurrency)}</strong><small>实时估值</small></span>
                 </div>
               );
             })}
             {!session && <p className="asset-login-note">登录后可同步真实资产和资金记录。</p>}
             {session && fundingBalanceState === "loading" && <p className="asset-login-note">正在同步资金账户真实余额…</p>}
             {session && fundingBalanceState === "error" && <p className="asset-login-note" role="alert">资金账户数据暂不可用，已隐藏余额，请稍后重试。</p>}
+            {session && hasFundingBalances && !hasValuation && <p className="asset-login-note" role="status">部分资产缺少可用市场价格或汇率，估值将在同步完成后显示。</p>}
           </section>
         </div>
 
@@ -1075,21 +1126,25 @@ function PortfolioBox({ icon, title, value }: { icon: ReactNode; title: string; 
   return <div className="portfolio-box"><span>{icon}</span><small>{title}</small><strong>{value}</strong></div>;
 }
 
-function MiniAssetChart() {
-  return <svg className="mini-asset-chart" viewBox="0 0 220 92" role="img" aria-label="资产走势">
-    <path d="M0 82 L0 42 C18 30 28 54 43 41 C55 30 69 46 82 31 C94 16 108 22 120 12 C135 0 150 27 166 24 C184 21 195 32 206 26 L220 70 L220 92 L0 92 Z" />
-    <polyline points="0,42 18,30 43,41 69,46 82,31 108,22 120,12 150,27 166,24 195,32 206,26 220,70" />
-  </svg>;
-}
-
-
 function unitsToNumber(units: number): number {
   return units / 100_000_000;
 }
 
-function currencyCny(value: number): string {
-  const prefix = value < 0 ? "-¥" : "¥";
-  return `${prefix}${Math.abs(value).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function assetValuationPrice(asset: string, markets: Market[]): number | null {
+  if (asset.toUpperCase() === "USDT") return 1;
+  const market = markets.find((item) => item.baseAsset.toUpperCase() === asset.toUpperCase()
+    && item.quoteAsset.toUpperCase() === "USDT"
+    && item.lastPriceTicks > 0);
+  if (!market) return null;
+  const price = priceFromTicks(market, market.lastPriceTicks);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function formatValuation(value: number, currency: ValuationCurrency): string {
+  const amount = value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (currency === "CNY") return `¥${amount}`;
+  if (currency === "USD") return `$${amount}`;
+  return `${amount} USDT`;
 }
 
 function AuthScreen({
