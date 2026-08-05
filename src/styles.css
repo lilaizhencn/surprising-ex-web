@@ -1912,10 +1912,8 @@ button.rules-row:hover {
 }
 
 .toast {
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
+  margin: 12px 18px 0;
+  width: min(760px, calc(100% - 36px));
   max-width: min(760px, calc(100vw - 24px));
   min-height: 38px;
   display: flex;
@@ -2022,8 +2020,6 @@ button.rules-row:hover {
   }
 
   .toast {
-    position: static;
-    transform: none;
     margin-top: 12px;
   }
 }

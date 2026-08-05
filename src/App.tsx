@@ -851,6 +851,7 @@ export default function App() {
         onRegister={() => setAuthMode("register")}
         onLogout={() => persistSession(null)}
       />
+      {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
 
       {page === "rules" ? (
         <TradingRulesPage
@@ -964,7 +965,6 @@ export default function App() {
         <ContractInfoDialog language={language} market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
       {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
-      {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
     </main>
   );
 }
@@ -1085,6 +1085,7 @@ function formatKycFileSize(bytes: number): string {
 }
 
 function validateKycSubmission(
+  language: LanguageMode,
   applicantType: string,
   kycLevel: string,
   faceVerificationStatus: string,
@@ -1092,13 +1093,14 @@ function validateKycSubmission(
   providerReference: string,
   documents: KycDocument[]
 ) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const types = new Set(documents.map((document) => document.documentType));
-  if (!types.has("ID_CARD") && !types.has("PASSPORT")) throw new Error("请上传身份证或护照。");
-  if (applicantType === "BUSINESS" && !types.has("BUSINESS_LICENSE")) throw new Error("企业认证还需要上传营业执照。");
-  if ((kycLevel === "STANDARD" || kycLevel === "ENHANCED") && !types.has("ADDRESS_PROOF")) throw new Error("标准及以上认证还需要上传地址证明。");
-  if (kycLevel === "ENHANCED" && faceVerificationStatus !== "PENDING") throw new Error("增强认证需要启用人脸识别。");
-  if (faceVerificationStatus === "PENDING" && !types.has("FACE_IMAGE")) throw new Error("启用人脸识别时还需要上传人脸材料。");
-  if (provider === "THIRD_PARTY" && !providerReference.trim()) throw new Error("第三方认证需要填写服务引用。");
+  if (!types.has("ID_CARD") && !types.has("PASSPORT")) throw new Error(text("请上传身份证或护照。", "Upload an ID card or passport."));
+  if (applicantType === "BUSINESS" && !types.has("BUSINESS_LICENSE")) throw new Error(text("企业认证还需要上传营业执照。", "Business verification also requires a business license."));
+  if ((kycLevel === "STANDARD" || kycLevel === "ENHANCED") && !types.has("ADDRESS_PROOF")) throw new Error(text("标准及以上认证还需要上传地址证明。", "Standard and enhanced verification also require proof of address."));
+  if (kycLevel === "ENHANCED" && faceVerificationStatus !== "PENDING") throw new Error(text("增强认证需要启用人脸识别。", "Enhanced verification requires face verification."));
+  if (faceVerificationStatus === "PENDING" && !types.has("FACE_IMAGE")) throw new Error(text("启用人脸识别时还需要上传人脸材料。", "Upload face-verification evidence when face verification is enabled."));
+  if (provider === "THIRD_PARTY" && !providerReference.trim()) throw new Error(text("第三方认证需要填写服务引用。", "Enter the service reference for third-party verification."));
 }
 
 function SecurityPage({ language, session, onLogin }: { language: LanguageMode; session: AuthSession | null; onLogin: () => void }) {
@@ -1169,7 +1171,7 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
     setKycUploadedDocuments([]);
     setKycFile(null);
     if (session) {
-      void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "安全信息加载失败"));
+      void reload().catch((cause) => setError(cause instanceof Error ? cause.message : text("安全信息加载失败", "Failed to load security information")));
     }
   }, [session?.accessToken]);
 
@@ -1194,7 +1196,7 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
       const completed = await action();
       if (completed !== false) setNotice(successMessage);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "操作失败");
+      setError(cause instanceof Error ? cause.message : text("操作失败", "Operation failed"));
     } finally {
       setBusy(false);
     }
@@ -1302,7 +1304,7 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
           <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error(text("请选择 KYC 材料", "Choose a KYC document")); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, text("材料已上传", "Document uploaded"))}>{text("上传材料", "Upload document")}</button>
         </div>
         <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">{text("尚未上传材料。请至少上传主证件；标准及以上认证请同时上传地址证明。", "No documents uploaded. Upload a primary document; standard and above also need proof of address.")}</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? text("已提交", "Submitted") : text("已上传", "Uploaded")}</em></div>)}</div>
-        <div className="security-inline-form kyc-submit-row"><label>{text("人脸状态", "Face verification")}<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">{text("暂不启用", "Not enabled")}</option><option value="PENDING">{text("等待人脸识别", "Face verification pending")}</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, text("KYC 已提交，等待审核", "KYC submitted for review"))}>{text("提交认证", "Submit verification")}</button></div>
+        <div className="security-inline-form kyc-submit-row"><label>{text("人脸状态", "Face verification")}<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">{text("暂不启用", "Not enabled")}</option><option value="PENDING">{text("等待人脸识别", "Face verification pending")}</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(language, kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, text("KYC 已提交，等待审核", "KYC submitted for review"))}>{text("提交认证", "Submit verification")}</button></div>
       </section>
       <section className="panel security-card api-key-card">
         <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>{text("兼容交易 API", "Trading API compatible")}</strong></div>
@@ -1380,7 +1382,7 @@ function AuthScreen({
         setNotice(text("密码已更新，请使用新密码登录。", "Password updated. Sign in with your new password."));
       } else if (step === "verify" && pendingSession) {
         const verified = await verifyEmail(pendingSession, email, code);
-        if (!verified) throw new Error("验证码无效或已过期");
+        if (!verified) throw new Error(text("验证码无效或已过期", "The verification code is invalid or expired"));
         onAuthenticated(pendingSession);
       } else {
         const session = step === "login" ? await login(email, password) : await register(email, password);
