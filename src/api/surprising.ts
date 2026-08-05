@@ -238,7 +238,8 @@ export function createApiKey(
   label: string,
   permissions: string[],
   emailCode: string,
-  totpCode: string
+  totpCode: string,
+  ipAllowlist: string[] = []
 ): Promise<{ apiKey: ApiKeyView; secret: string }> {
   return request(`/api/v1/security/api-keys`, {
     method: "POST",
@@ -246,7 +247,24 @@ export function createApiKey(
       "X-Security-Email-Code": emailCode || "",
       "X-Security-TOTP-Code": totpCode || ""
     },
-    body: JSON.stringify({ label, permissions })
+    body: JSON.stringify({ label, permissions, ipAllowlist })
+  }, session);
+}
+
+export function updateApiKeyIpAllowlist(
+  session: AuthSession,
+  apiKey: string,
+  ipAllowlist: string[],
+  emailCode: string,
+  totpCode: string
+): Promise<void> {
+  return request<void>(`/api/v1/security/api-keys`, {
+    method: "PATCH",
+    headers: {
+      "X-Security-Email-Code": emailCode || "",
+      "X-Security-TOTP-Code": totpCode || ""
+    },
+    body: JSON.stringify({ apiKey, ipAllowlist })
   }, session);
 }
 

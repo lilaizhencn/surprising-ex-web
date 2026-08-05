@@ -54,6 +54,7 @@ export interface ApiKeyView {
   label: string;
   permissions: string;
   status: string;
+  ipAllowlist?: string[];
   createdAt: string;
   lastUsedAt?: string | null;
   revokedAt?: string | null;

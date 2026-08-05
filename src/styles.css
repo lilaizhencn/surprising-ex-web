@@ -1225,6 +1225,26 @@ select:focus {
   gap: 4px;
 }
 
+.api-key-allowlist {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.api-key-allowlist input {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.api-key-allowlist button {
+  grid-column: 2;
+  grid-row: 1;
+}
+
 .danger { color: var(--down); }
 
 .security-locked {
@@ -1243,6 +1263,8 @@ select:focus {
   .security-grid { grid-template-columns: 1fr; }
   .api-key-create,
   .security-verification-row { align-items: stretch; flex-direction: column; }
+  .api-key-allowlist { grid-template-columns: 1fr; }
+  .api-key-allowlist button { grid-column: auto; grid-row: auto; }
   .secret-reveal { align-items: flex-start; flex-direction: column; }
 }
 

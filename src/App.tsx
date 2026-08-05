@@ -44,11 +44,13 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updateApiKeyIpAllowlist, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, config, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { ApiError, loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
+import { localized, localizedNotice } from "./localized";
+import type { LanguageMode } from "./localized";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
 import { ProductTransferDialog } from "./components/ProductTransferDialog";
@@ -60,7 +62,6 @@ type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
 type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
-type LanguageMode = "zh-CN" | "en-US";
 type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
 type TriggerCloseTarget = "LONG" | "SHORT";
@@ -100,19 +101,6 @@ const PRODUCT_META: Record<ProductMode, { label: string; labelEn: string; shortL
   option: { label: "期权", labelEn: "Options", shortLabel: "期权", shortLabelEn: "Options", accountType: "OPTION", productLine: "OPTION" },
   spot: { label: "现货", labelEn: "Spot", shortLabel: "现货", shortLabelEn: "Spot", accountType: "SPOT", productLine: "SPOT" }
 };
-
-function localized(language: LanguageMode, zh: string, en: string): string {
-  return language === "en-US" ? en : zh;
-}
-
-function localizedNotice(language: LanguageMode, notice: string): string {
-  const messages: Record<string, string> = {
-    "连接后端中，若服务未启动会进入离线演示数据。": "Connecting to backend. If the service is unavailable, live data will remain hidden.",
-    "交易对服务暂不可用，请稍后重试": "Market service is unavailable. Please try again later.",
-    "交易对配置暂不可用，请稍后重试": "Market configuration is unavailable. Please try again later."
-  };
-  return language === "en-US" ? messages[notice] ?? notice : notice;
-}
 
 function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -705,7 +693,7 @@ export default function App() {
     try {
       const savedMode = await updatePositionMode(session, nextMode, activeProductLine);
       setPositionMode(savedMode);
-      setNotice(`持仓模式已切换为${positionModeLabel(savedMode)}。`);
+      setNotice(`${localized(language, "持仓模式已切换为", "Position mode changed to ")}${positionModeLabel(language, savedMode)}${localized(language, "。", ".")}`);
       void refreshPrivateData(session);
     } catch (error) {
       setNotice(error instanceof Error ? `切换持仓模式失败：${error.message}` : "切换持仓模式失败");
@@ -903,14 +891,14 @@ export default function App() {
         <SecurityPage language={language} session={session} onLogin={() => setAuthMode("login")} />
       ) : (
         <div className="terminal-grid" key={productMode}>
-          <MarketRail productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
+          <MarketRail language={language} productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
           <section className="workspace">
-            <MarketHeader market={selectedMarket} loading={loading} nowMs={nowMs} onInfo={() => setInstrumentInfoOpen(true)} />
-            <DerivativeLifecyclePanel market={selectedMarket} markets={markets} nowMs={nowMs} />
+            <MarketHeader language={language} market={selectedMarket} loading={loading} nowMs={nowMs} onInfo={() => setInstrumentInfoOpen(true)} />
+            <DerivativeLifecyclePanel language={language} market={selectedMarket} markets={markets} nowMs={nowMs} />
             <div className="main-grid">
               <section className="chart-panel panel">
                 <div className="panel-title">
-                  <span><CandlestickChart size={16} />K线</span>
+                  <span><CandlestickChart size={16} />{localized(language, "K线", "Candles")}</span>
                   <div className="segmented">
                     {KLINE_PERIODS.map((period) => (
                       <button
@@ -926,10 +914,11 @@ export default function App() {
                 </div>
                 <KlineChart candles={candles} />
               </section>
-              <OrderBook asks={asks} bids={bids} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
+              <OrderBook language={language} asks={asks} bids={bids} market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
             </div>
             <BottomDeck
               productMode={productMode}
+              language={language}
               positionMode={positionMode}
               balances={balances}
               positions={positions}
@@ -949,15 +938,15 @@ export default function App() {
             />
           </section>
           <aside className="right-stack">
-            <TradesTape events={realtime.events} symbol={symbol} productLine={activeProductLine}
+            <TradesTape language={language} events={realtime.events} symbol={symbol} productLine={activeProductLine}
               market={selectedMarket} mid={selectedMarket?.lastPriceTicks ?? 0} onPickPrice={pickOrderPrice} />
-            <OrderTicket productMode={activeProductMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
+            <OrderTicket language={language} productMode={activeProductMode} positionMode={positionMode} symbol={symbol} market={selectedMarket} pricePreset={pickedPrice} onSubmit={submitOrder} onSubmitAlgo={submitAlgoOrder} onSubmitTriggers={submitTriggerOrders} />
           </aside>
         </div>
       )}
 
       {instrumentInfoOpen && selectedMarket && (
-        <ContractInfoDialog market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
+        <ContractInfoDialog language={language} market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
       {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
       {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
@@ -1125,6 +1114,7 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
   const [apiTotpCode, setApiTotpCode] = useState("");
   const [apiLabel, setApiLabel] = useState("");
   const [apiPermissions, setApiPermissions] = useState<string[]>(["TRADE"]);
+  const [apiKeyAllowlistDrafts, setApiKeyAllowlistDrafts] = useState<Record<string, string>>({});
   const [createdSecret, setCreatedSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -1199,6 +1189,18 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
     setApiPermissions((current) => current.includes(permission)
       ? current.filter((item) => item !== permission)
       : [...current, permission]);
+  }
+
+  function updateApiKeyAllowlistDraft(apiKey: string, value: string) {
+    setApiKeyAllowlistDrafts((current) => ({ ...current, [apiKey]: value }));
+  }
+
+  function apiKeyAllowlistDraft(apiKey: ApiKeyView): string {
+    return apiKeyAllowlistDrafts[apiKey.apiKey] ?? (apiKey.ipAllowlist ?? []).join(", ");
+  }
+
+  function parseIpAllowlist(value: string): string[] {
+    return Array.from(new Set(value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean)));
   }
 
   async function changeSecurityScene(authSession: AuthSession, scene: SecurityScene): Promise<boolean> {
@@ -1297,7 +1299,7 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
         </div>
         <div className="security-verification-row"><label>{text("邮箱验证码", "Email code")}<input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>{text("2FA 验证码", "2FA code")}<input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送邮箱验证码", "Send email code")}</button></div>
         {createdSecret && <div className="secret-reveal"><strong>{text("Secret 仅显示这一次", "Secret is shown only once")}</strong><code>{createdSecret}</code><button className="ghost-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>{text("复制 Secret", "Copy Secret")}</button></div>}
-        <div className="api-key-list">{keys.length === 0 ? <p className="empty">{text("暂无 API Key", "No API keys")}</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small></div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, text("API Key 已撤销", "API key revoked"))}>{text("撤销", "Revoke")}</button>}</div>)}</div>
+        <div className="api-key-list">{keys.length === 0 ? <p className="empty">{text("暂无 API Key", "No API keys")}</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small>{apiKey.status === "ACTIVE" && <label className="api-key-allowlist">{text("IP 白名单", "IP allowlist")}<input value={apiKeyAllowlistDraft(apiKey)} onChange={(event) => updateApiKeyAllowlistDraft(apiKey.apiKey, event.target.value)} placeholder={text("多个 IP 用逗号或空格分隔；留空即不限制", "Separate IPs with commas or spaces; leave empty for no restriction")} /><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await updateApiKeyIpAllowlist(session, apiKey.apiKey, parseIpAllowlist(apiKeyAllowlistDraft(apiKey)), emailCode, apiTotpCode); await reload(); }, text("IP 白名单已更新", "IP allowlist updated"))}>{text("更新白名单", "Update allowlist")}</button></label>}</div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, text("API Key 已撤销", "API key revoked"))}>{text("撤销", "Revoke")}</button>}</div>)}</div>
       </section>
     </section>
   );
@@ -1477,7 +1479,7 @@ function Topbar({
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const query = marketSearch.trim().toUpperCase();
   const searchResults = query
-    ? markets.filter((market) => `${market.symbol} ${market.displayName}`.toUpperCase().includes(query)).slice(0, 6)
+    ? markets.filter((market) => `${market.symbol} ${displayMarketName(language, market)}`.toUpperCase().includes(query)).slice(0, 6)
     : [];
 
   function openMarket(symbol: string) {
@@ -1521,7 +1523,7 @@ function Topbar({
               {searchResults.map((market) => (
                 <button key={market.symbol} onClick={() => openMarket(market.symbol)}>
                   <span>{market.symbol}</span>
-                  <small>{market.displayName}</small>
+                  <small>{displayMarketName(language, market)}</small>
                 </button>
               ))}
             </div>
@@ -1551,6 +1553,7 @@ function Topbar({
 }
 
 function MarketRail({
+  language,
   productMode,
   markets,
   marketSearch,
@@ -1558,6 +1561,7 @@ function MarketRail({
   onSearchChange,
   onSelect
 }: {
+  language: LanguageMode;
   productMode: ProductMode;
   markets: Market[];
   marketSearch: string;
@@ -1565,9 +1569,10 @@ function MarketRail({
   onSearchChange: (value: string) => void;
   onSelect: (symbol: string) => void;
 }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const query = marketSearch.trim().toUpperCase();
   const filteredMarkets = query
-    ? markets.filter((market) => `${market.symbol} ${market.displayName}`.toUpperCase().includes(query))
+    ? markets.filter((market) => `${market.symbol} ${displayMarketName(language, market)}`.toUpperCase().includes(query))
     : markets;
 
   return (
@@ -1582,63 +1587,64 @@ function MarketRail({
               onSelect(filteredMarkets[0].symbol);
             }
           }}
-          placeholder={`搜索${PRODUCT_META[productMode].shortLabel}`}
+          placeholder={`${text("搜索", "Search ")}${language === "en-US" ? PRODUCT_META[productMode].shortLabelEn : PRODUCT_META[productMode].shortLabel}`}
         />
       </label>
-      {markets.length === 0 && <p className="empty rail-empty">暂无{PRODUCT_META[productMode].label}市场</p>}
-      {markets.length > 0 && filteredMarkets.length === 0 && <p className="empty rail-empty">没有匹配的币对</p>}
+      {markets.length === 0 && <p className="empty rail-empty">{text(`暂无${PRODUCT_META[productMode].label}市场`, `No ${PRODUCT_META[productMode].labelEn} markets`)}</p>}
+      {markets.length > 0 && filteredMarkets.length === 0 && <p className="empty rail-empty">{text("没有匹配的币对", "No matching markets")}</p>}
       {filteredMarkets.map((market) => (
-        <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${market.displayName}`} onClick={() => onSelect(market.symbol)}>
+        <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${displayMarketName(language, market)}`} onClick={() => onSelect(market.symbol)}>
           <span><Star size={13} />{market.symbol}</span>
           <strong>{displayMarketPrice(market, market.lastPriceTicks)}</strong>
           <small className={market.change24hPpm >= 0 ? "up" : "down"}>{displayPpm(market.change24hPpm)}</small>
-          <em>{PRODUCT_META[marketProduct(market)].shortLabel} · {marketProduct(market) === "spot" ? market.quoteAsset : `${market.settleAsset ?? market.quoteAsset} · ${market.maxLeverage}x`}</em>
+          <em>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel} · {marketProduct(market) === "spot" ? market.quoteAsset : `${market.settleAsset ?? market.quoteAsset} · ${market.maxLeverage}x`}</em>
         </button>
       ))}
     </aside>
   );
 }
 
-function MarketHeader({ market, loading, nowMs, onInfo }: { market?: Market; loading: boolean; nowMs: number; onInfo: () => void }) {
+function MarketHeader({ language, market, loading, nowMs, onInfo }: { language: LanguageMode; market?: Market; loading: boolean; nowMs: number; onInfo: () => void }) {
   if (!market) return null;
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const product = marketProduct(market);
   const isSpot = product === "spot";
   const isFunding = isFundingProduct(product);
   const fundingTone = market.fundingRatePpm >= 0 ? "up" : "down";
   return (
     <section className={loading ? "market-header syncing" : "market-header"}>
-      <div className="pair-title" title={`${market.symbol} ${market.displayName}`}>
+      <div className="pair-title" title={`${market.symbol} ${displayMarketName(language, market)}`}>
         <Flame size={16} />
-        <strong>{market.displayName}</strong>
-        <span>{isSpot ? PRODUCT_META[product].shortLabel : `${market.maxLeverage}x`}</span>
-        <button className="mini-icon-button" onClick={onInfo} aria-label="产品配置"><Info size={14} /></button>
+        <strong>{displayMarketName(language, market)}</strong>
+        <span>{isSpot ? language === "en-US" ? PRODUCT_META[product].shortLabelEn : PRODUCT_META[product].shortLabel : `${market.maxLeverage}x`}</span>
+        <button className="mini-icon-button" onClick={onInfo} aria-label={text("产品配置", "Product configuration")}><Info size={14} /></button>
       </div>
-      <Metric label="最新" value={priceWithQuote(market, market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
+      <Metric label={text("最新", "Last")} value={priceWithQuote(market, market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       <Metric label="24H" value={displayPpm(market.change24hPpm)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
       {isSpot ? (
         <>
-          <Metric label="基础资产" value={market.baseAsset} tone="gold" />
-          <Metric label="计价资产" value={market.quoteAsset} />
-          <Metric label="数量step" value={String(market.quantityStepUnits ?? "-")} />
+          <Metric label={text("基础资产", "Base asset")} value={market.baseAsset} tone="gold" />
+          <Metric label={text("计价资产", "Quote asset")} value={market.quoteAsset} />
+          <Metric label={text("数量 step", "Quantity step")} value={String(market.quantityStepUnits ?? "-")} />
         </>
       ) : (
         <>
-          <Metric label="标记" value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
-          <Metric label="指数" value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
+          <Metric label={text("标记", "Mark")} value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
+          <Metric label={text("指数", "Index")} value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
           {isFunding ? (
             <>
-              <Metric label="资金费率" value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
-              <Metric label="资金费倒计时" value={formatFundingCountdown(market, nowMs)} tone="gold" />
+              <Metric label={text("资金费率", "Funding rate")} value={displayPpm(market.fundingRatePpm, 4)} tone={fundingTone} />
+              <Metric label={text("资金费倒计时", "Funding countdown")} value={formatFundingCountdown(market, nowMs)} tone="gold" />
             </>
           ) : (
             <>
-              <Metric label={product === "option" ? "行权方向" : "到期时间"} value={product === "option" ? market.optionType ?? "-" : market.expiryTime ?? "-"} tone="gold" />
-              <Metric label="交割时间" value={market.deliveryTime ?? "-"} />
+              <Metric label={product === "option" ? text("行权方向", "Option type") : text("到期时间", "Expiry")} value={product === "option" ? market.optionType ?? "-" : market.expiryTime ?? "-"} tone="gold" />
+              <Metric label={text("交割时间", "Delivery")} value={market.deliveryTime ?? "-"} />
             </>
           )}
         </>
       )}
-      <Metric label="24H量" value={compact(market.volume24hUnits)} />
+      <Metric label={text("24H量", "24H volume")} value={compact(market.volume24hUnits)} />
     </section>
   );
 }
@@ -1647,25 +1653,26 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   return <div className="metric"><span>{label}</span><strong className={tone ? `tone-${tone}` : ""}>{value}</strong></div>;
 }
 
-function DerivativeLifecyclePanel({ market, markets, nowMs }: { market?: Market; markets: Market[]; nowMs: number }) {
+function DerivativeLifecyclePanel({ language, market, markets, nowMs }: { language: LanguageMode; market?: Market; markets: Market[]; nowMs: number }) {
   if (!market) return null;
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const product = marketProduct(market);
   if (product === "spot" || isFundingProduct(product)) return null;
   const isOption = product === "option";
   const lifecycleRows: Array<[string, ReactNode]> = [
-    ["产品线", PRODUCT_META[product].productLine],
-    ["状态", market.status ?? "TRADING"],
-    ["到期时间", market.expiryTime ?? "-"],
-    [isOption ? "行权时间" : "交割时间", market.deliveryTime ?? "-"],
-    ["剩余时间", formatLifecycleCountdown(market, nowMs)],
-    ["结算方式", market.settlementMethod ?? "-"]
+    [text("产品线", "Product line"), PRODUCT_META[product].productLine],
+    [text("状态", "Status"), market.status ?? "TRADING"],
+    [text("到期时间", "Expiry"), market.expiryTime ?? "-"],
+    [isOption ? text("行权时间", "Exercise time") : text("交割时间", "Delivery"), market.deliveryTime ?? "-"],
+    [text("剩余时间", "Time remaining"), formatLifecycleCountdown(language, market, nowMs)],
+    [text("结算方式", "Settlement"), market.settlementMethod ?? "-"]
   ];
   const optionChain = isOption ? optionChainForMarket(market, markets) : [];
-  const optionMetrics = isOption ? optionMetricRows(market, markets) : [];
+  const optionMetrics = isOption ? optionMetricRows(language, market, markets) : [];
   return (
     <section className="product-insight panel">
       <div className="panel-title">
-        <span>{isOption ? <Sparkles size={16} /> : <Clock3 size={16} />}{isOption ? "期权链路" : "交割合约生命周期"}</span>
+        <span>{isOption ? <Sparkles size={16} /> : <Clock3 size={16} />}{isOption ? text("期权链路", "Options chain") : text("交割合约生命周期", "Delivery lifecycle")}</span>
         <button>{market.symbol}</button>
       </div>
       <div className="lifecycle-grid">
@@ -1684,22 +1691,22 @@ function DerivativeLifecyclePanel({ market, markets, nowMs }: { market?: Market;
             ))}
           </div>
           <div className="option-chain">
-            <div className="option-chain-head"><span>到期/行权价</span><span>CALL</span><span>PUT</span></div>
+            <div className="option-chain-head"><span>{text("到期/行权价", "Expiry / strike")}</span><span>CALL</span><span>PUT</span></div>
             {optionChain.length ? optionChain.map((row) => (
               <div className="option-chain-row" key={`${row.expiry}-${row.strike}`}>
                 <span>{row.expiry} · {row.strike}</span>
                 <strong className={row.call === market.symbol ? "active" : ""}>{row.call ?? "-"}</strong>
                 <strong className={row.put === market.symbol ? "active" : ""}>{row.put ?? "-"}</strong>
               </div>
-            )) : <p className="empty option-empty">暂无同到期日期权链</p>}
+            )) : <p className="empty option-empty">{text("暂无同到期日期权链", "No options with this expiry")}</p>}
           </div>
         </div>
       ) : (
         <div className="delivery-note">
-          <Metric label="标记价格" value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
-          <Metric label="指数价格" value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
-          <Metric label="结算资产" value={market.settleAsset ?? market.quoteAsset} />
-          <Metric label="合约方向" value={isInverseProduct(product) ? "币本位反向" : "U本位正向"} />
+          <Metric label={text("标记价格", "Mark price")} value={priceWithQuote(market, market.markPriceTicks, market.quoteAsset)} tone="gold" />
+          <Metric label={text("指数价格", "Index price")} value={priceWithQuote(market, market.indexPriceTicks, market.quoteAsset)} />
+          <Metric label={text("结算资产", "Settlement asset")} value={market.settleAsset ?? market.quoteAsset} />
+          <Metric label={text("合约方向", "Contract direction")} value={isInverseProduct(product) ? text("币本位反向", "Coin-margined inverse") : text("U本位正向", "USDT-margined linear")} />
         </div>
       )}
     </section>
@@ -1715,26 +1722,30 @@ function displayMarketPrice(market: Market | undefined, priceTicks: number): str
   return displayPrice(priceFromTicks(market, priceTicks));
 }
 
-function positionModeLabel(mode: PositionMode): string {
-  return mode === "HEDGE" ? "双向持仓" : "净仓";
+function displayMarketName(language: LanguageMode, market: Market): string {
+  if (language !== "en-US") return market.displayName;
+  return `${market.symbol} ${PRODUCT_META[marketProduct(market)].shortLabelEn}`;
 }
 
-function positionSideLabel(side: PositionSide | "NET"): string {
-  if (side === "LONG") return "多仓";
-  if (side === "SHORT") return "空仓";
-  return "净仓";
+function positionModeLabel(language: LanguageMode, mode: PositionMode): string {
+  return mode === "HEDGE" ? localized(language, "双向持仓", "Hedge") : localized(language, "净仓", "One-way");
 }
 
-function triggerTypeLabel(type: TriggerOrderType): string {
-  if (type === "TAKE_PROFIT") return "止盈";
-  if (type === "TRAILING_STOP") return "追踪止损";
-  return "止损";
+function positionSideLabel(language: LanguageMode, side: PositionSide | "NET"): string {
+  if (side === "LONG") return localized(language, "多仓", "Long");
+  if (side === "SHORT") return localized(language, "空仓", "Short");
+  return localized(language, "净仓", "Net");
 }
 
-function triggerCloseLabel(side: OrderSide, positionSide: PositionSide | "NET" | undefined): string {
-  if (positionSide === "LONG") return "平多";
-  if (positionSide === "SHORT") return "平空";
-  return side === "SELL" ? "平多" : "平空";
+function triggerTypeLabel(language: LanguageMode, type: TriggerOrderType): string {
+  if (type === "TAKE_PROFIT") return localized(language, "止盈", "Take profit");
+  if (type === "TRAILING_STOP") return localized(language, "追踪止损", "Trailing stop");
+  return localized(language, "止损", "Stop loss");
+}
+
+function triggerCloseLabel(language: LanguageMode, side: OrderSide, positionSide: PositionSide | "NET" | undefined): string {
+  const closingLong = positionSide === "LONG" || (positionSide !== "SHORT" && side === "SELL");
+  return closingLong ? localized(language, "平多", "Close long") : localized(language, "平空", "Close short");
 }
 
 function priceToTicks(market: Market | undefined, price: number): number {
@@ -1901,7 +1912,8 @@ function candlePriceRange(candles: CandlePoint[]): { min: number; max: number; c
   return { min, max, center: (min + max) / 2 };
 }
 
-function OrderBook({ asks, bids, market, mid, onPickPrice }: { asks: OrderBookLevel[]; bids: OrderBookLevel[]; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
+function OrderBook({ language, asks, bids, market, mid, onPickPrice }: { language: LanguageMode; asks: OrderBookLevel[]; bids: OrderBookLevel[]; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const [precision, setPrecision] = useState<number>(ORDER_BOOK_PRECISIONS[0]);
   const groupedAsks = useMemo(() => groupOrderBookLevels(asks, "ask", precision, ORDER_BOOK_SIDE_ROWS), [asks, precision]);
   const groupedBids = useMemo(() => groupOrderBookLevels(bids, "bid", precision, ORDER_BOOK_SIDE_ROWS), [bids, precision]);
@@ -1915,10 +1927,10 @@ function OrderBook({ asks, bids, market, mid, onPickPrice }: { asks: OrderBookLe
   return (
     <section className="panel orderbook">
       <div className="panel-title">
-        <span><BookOpen size={16} />盘口</span>
-        <button type="button" onClick={nextPrecision} title="切换盘口精度">{formatPrecision(market, precision)}</button>
+        <span><BookOpen size={16} />{text("盘口", "Order book")}</span>
+        <button type="button" onClick={nextPrecision} title={text("切换盘口精度", "Change order book precision")}>{formatPrecision(market, precision)}</button>
       </div>
-      <div className="book-head"><span>价格</span><span>数量</span><span>累计</span></div>
+      <div className="book-head"><span>{text("价格", "Price")}</span><span>{text("数量", "Size")}</span><span>{text("累计", "Total")}</span></div>
       {[...groupedAsks].reverse().map((level) => <BookRow key={`a-${level.priceTicks}`} level={level} market={market} max={max} side="ask" onPickPrice={onPickPrice} />)}
       <button className="mid-price" onClick={() => onPickPrice(mid)}><strong>{displayMarketPrice(market, mid)}</strong></button>
       {groupedBids.map((level) => <BookRow key={`b-${level.priceTicks}`} level={level} market={market} max={max} side="bid" onPickPrice={onPickPrice} />)}
@@ -1938,6 +1950,7 @@ function BookRow({ level, market, max, side, onPickPrice }: { level: OrderBookLe
 }
 
 function OrderTicket({
+  language,
   productMode,
   positionMode,
   symbol,
@@ -1947,6 +1960,7 @@ function OrderTicket({
   onSubmitAlgo,
   onSubmitTriggers
 }: {
+  language: LanguageMode;
   productMode: ProductMode;
   positionMode: PositionMode;
   symbol: string;
@@ -1956,6 +1970,7 @@ function OrderTicket({
   onSubmitAlgo: (draft: PlaceAlgoOrderDraft) => void;
   onSubmitTriggers: (drafts: PlaceTriggerOrderDraft[]) => void;
 }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const [side, setSide] = useState<OrderSide>("BUY");
   const [orderType, setOrderType] = useState<OrderType>("LIMIT");
   const [timeInForce, setTimeInForce] = useState<TimeInForce>("GTC");
@@ -2062,25 +2077,25 @@ function OrderTicket({
 
   return (
     <section className="panel ticket">
-      <div className="panel-title"><span><CircleDollarSign size={16} />{PRODUCT_META[productMode].shortLabel}下单</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${positionModeLabel(positionMode)} · ${leverage}x`}</button></div>
+      <div className="panel-title"><span><CircleDollarSign size={16} />{language === "en-US" ? PRODUCT_META[productMode].shortLabelEn : PRODUCT_META[productMode].shortLabel}{text("下单", " order")}</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${positionModeLabel(language, positionMode)} · ${leverage}x`}</button></div>
       <div className="side-switch">
-        <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isHedgeMode ? "买入" : isSpot ? "买入" : "开多 / 买入"}</button>
-        <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isHedgeMode ? "卖出" : isSpot ? "卖出" : "开空 / 卖出"}</button>
+        <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isHedgeMode || isSpot ? text("买入", "Buy") : text("开多 / 买入", "Open long / Buy")}</button>
+        <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isHedgeMode || isSpot ? text("卖出", "Sell") : text("开空 / 卖出", "Open short / Sell")}</button>
       </div>
       <div className={isSpot ? "order-select-row two" : "order-select-row"}>
-        <label className="compact-select">类型
+        <label className="compact-select">{text("类型", "Type")}
           <select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}>
             {orderTypes.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
         {!isSpot && (
-          <label className="compact-select">模式
+          <label className="compact-select">{text("模式", "Mode")}
             <select value={marginMode} onChange={(event) => setMarginMode(event.target.value as MarginMode)}>
               {(["CROSS", "ISOLATED"] as MarginMode[]).map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
         )}
-        <label className="compact-select">时效
+        <label className="compact-select">{text("时效", "Time in force")}
           <select value={timeInForce} onChange={(event) => setTimeInForce(event.target.value as TimeInForce)}>
             {tifOptions.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
@@ -2095,14 +2110,14 @@ function OrderTicket({
               type="button"
               onClick={() => setPositionSide(item)}
             >
-              {positionSideLabel(item)}
+              {positionSideLabel(language, item)}
             </button>
           ))}
         </div>
       )}
-      <label>价格 ticks<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
-      <label>数量 steps<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
-      {!isSpot && <label>杠杆 <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
+      <label>{text("价格 ticks", "Price ticks")}<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
+      <label>{text("数量 steps", "Quantity steps")}<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
+      {!isSpot && <label>{text("杠杆", "Leverage")} <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
       {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />Reduce-only</label>}
       <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />Post-only</label>
       {!isSpot && (
@@ -2123,9 +2138,9 @@ function OrderTicket({
             </div>
           </div>
           <div className="algo-grid">
-            <label>切片<input value={algoChildQuantitySteps} onChange={(event) => setAlgoChildQuantitySteps(event.target.value)} /></label>
-            <label>间隔s<input value={algoIntervalSeconds} onChange={(event) => setAlgoIntervalSeconds(event.target.value)} /></label>
-            <label>时长s<input value={algoDurationSeconds} onChange={(event) => setAlgoDurationSeconds(event.target.value)} /></label>
+            <label>{text("切片", "Slice size")}<input value={algoChildQuantitySteps} onChange={(event) => setAlgoChildQuantitySteps(event.target.value)} /></label>
+            <label>{text("间隔s", "Interval (s)")}<input value={algoIntervalSeconds} onChange={(event) => setAlgoIntervalSeconds(event.target.value)} /></label>
+            <label>{text("时长s", "Duration (s)")}<input value={algoDurationSeconds} onChange={(event) => setAlgoDurationSeconds(event.target.value)} /></label>
           </div>
           <button
             className="submit-algo"
@@ -2147,18 +2162,18 @@ function OrderTicket({
               timeInForce: algoType === "TWAP" ? "IOC" : postOnly ? "GTX" : "GTC"
             })}
           >
-            <Clock3 size={14} />提交 {algoType}
+            <Clock3 size={14} />{text("提交 ", "Submit ")}{algoType}
           </button>
         </div>
       )}
       {!isSpot && (
         <div className="trigger-panel">
           <div className="trigger-head">
-            <span>止盈止损</span>
+            <span>{text("止盈止损", "Take profit / stop loss")}</span>
             <div>
-              <button type="button" title="新增止盈" onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />TP</button>
-              <button type="button" title="新增止损" onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />SL</button>
-              <button type="button" title="新增追踪止损" onClick={() => addTriggerLevel("TRAILING_STOP")}><Plus size={13} />TS</button>
+              <button type="button" title={text("新增止盈", "Add take profit")} onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />TP</button>
+              <button type="button" title={text("新增止损", "Add stop loss")} onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />SL</button>
+              <button type="button" title={text("新增追踪止损", "Add trailing stop")} onClick={() => addTriggerLevel("TRAILING_STOP")}><Plus size={13} />TS</button>
             </div>
           </div>
           {triggerLevels.map((level) => (
@@ -2177,14 +2192,14 @@ function OrderTicket({
                 <option value="TRAILING_STOP">TS</option>
               </select>
               <select value={level.closeTarget} onChange={(event) => patchTriggerLevel(level.id, { closeTarget: event.target.value as TriggerCloseTarget })}>
-                <option value="LONG">平多</option>
-                <option value="SHORT">平空</option>
+                <option value="LONG">{text("平多", "Close long")}</option>
+                <option value="SHORT">{text("平空", "Close short")}</option>
               </select>
-              <input title="触发价 ticks" value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
-              <input title="激活价 ticks" disabled={level.triggerType !== "TRAILING_STOP"} value={level.activationPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { activationPriceTicks: event.target.value })} />
-              <input title="回调 ppm" disabled={level.triggerType !== "TRAILING_STOP"} value={level.callbackRatePpm} onChange={(event) => patchTriggerLevel(level.id, { callbackRatePpm: event.target.value })} />
-              <input title="数量 steps" value={level.quantitySteps} onChange={(event) => patchTriggerLevel(level.id, { quantitySteps: event.target.value })} />
-              <button type="button" title="删除" onClick={() => removeTriggerLevel(level.id)}><Trash2 size={13} /></button>
+              <input title={text("触发价 ticks", "Trigger price ticks")} value={level.triggerPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { triggerPriceTicks: event.target.value })} />
+              <input title={text("激活价 ticks", "Activation price ticks")} disabled={level.triggerType !== "TRAILING_STOP"} value={level.activationPriceTicks} onChange={(event) => patchTriggerLevel(level.id, { activationPriceTicks: event.target.value })} />
+              <input title={text("回调 ppm", "Callback ppm")} disabled={level.triggerType !== "TRAILING_STOP"} value={level.callbackRatePpm} onChange={(event) => patchTriggerLevel(level.id, { callbackRatePpm: event.target.value })} />
+              <input title={text("数量 steps", "Quantity steps")} value={level.quantitySteps} onChange={(event) => patchTriggerLevel(level.id, { quantitySteps: event.target.value })} />
+              <button type="button" title={text("删除", "Remove")} onClick={() => removeTriggerLevel(level.id)}><Trash2 size={13} /></button>
             </div>
           ))}
           {triggerLevels.length > 0 && (
@@ -2209,15 +2224,15 @@ function OrderTicket({
                 positionSide: isHedgeMode ? level.closeTarget : "NET"
               })))}
             >
-              <Bell size={14} />提交止盈止损
+              <Bell size={14} />{text("提交止盈止损", "Submit take profit / stop loss")}
             </button>
           )}
         </div>
       )}
       <div className="order-preview">
-        <span>{marketProduct(market) === "inverse" ? "合约面值" : "预估成交额"} {displayPrice(notional)} {marketProduct(market) === "inverse" ? market?.quoteAsset : market?.quoteAsset}</span>
-        <span>{isSpot ? `扣减资产 ${side === "BUY" ? market?.quoteAsset ?? "-" : market?.baseAsset ?? "-"}` : `预估保证金 ${displayPrice(margin)} ${market?.settleAsset ?? ""}`}</span>
-        <span>单笔限制 {market?.minQuantitySteps ?? "-"} - {market?.maxQuantitySteps ?? "-"} steps</span>
+        <span>{marketProduct(market) === "inverse" ? text("合约面值", "Contract value") : text("预估成交额", "Estimated notional")} {displayPrice(notional)} {marketProduct(market) === "inverse" ? market?.quoteAsset : market?.quoteAsset}</span>
+        <span>{isSpot ? `${text("扣减资产", "Debit asset")} ${side === "BUY" ? market?.quoteAsset ?? "-" : market?.baseAsset ?? "-"}` : `${text("预估保证金", "Estimated margin")} ${displayPrice(margin)} ${market?.settleAsset ?? ""}`}</span>
+        <span>{text("单笔限制", "Order limits")} {market?.minQuantitySteps ?? "-"} - {market?.maxQuantitySteps ?? "-"} steps</span>
       </div>
       <button className={`submit-order ${side === "BUY" ? "buy" : "sell"}`} onClick={() => onSubmit({
         symbol,
@@ -2230,12 +2245,13 @@ function OrderTicket({
         positionSide: isHedgeMode ? positionSide : "NET",
         reduceOnly: isSpot ? false : reduceOnly,
         postOnly: orderType === "MARKET" ? false : postOnly
-      })}>{side === "BUY" ? "确认买入" : "确认卖出"}</button>
+      })}>{side === "BUY" ? text("确认买入", "Confirm buy") : text("确认卖出", "Confirm sell")}</button>
     </section>
   );
 }
 
-function BottomDeck({ productMode, positionMode, balances, positions, orders, openOrdersHasMore, loadingMoreOpenOrders, algoOrders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onLoadMoreOpenOrders, onCancelAlgo, onCancelTrigger }: {
+function BottomDeck({ language, productMode, positionMode, balances, positions, orders, openOrdersHasMore, loadingMoreOpenOrders, algoOrders, triggerOrders, trades, market, markets, onPositionModeChange, onCancel, onLoadMoreOpenOrders, onCancelAlgo, onCancelTrigger }: {
+  language: LanguageMode;
   productMode: ProductMode;
   positionMode: PositionMode;
   balances: Balance[];
@@ -2254,6 +2270,7 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
   onCancelAlgo: (order: AlgoOrder) => void;
   onCancelTrigger: (order: OpenTriggerOrder) => void;
 }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const equity = balances.reduce((sum, item) => sum + item.equityUnits, 0);
   const available = balances.reduce((sum, item) => sum + item.availableUnits, 0);
   const locked = balances.reduce((sum, item) => sum + item.lockedUnits, 0);
@@ -2266,9 +2283,9 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
   return (
     <section className="bottom-deck panel">
       <div className="panel-title">
-        <span><WalletCards size={16} />{PRODUCT_META[productMode].label}账户</span>
+        <span><WalletCards size={16} />{language === "en-US" ? PRODUCT_META[productMode].labelEn : PRODUCT_META[productMode].label}{text("账户", " account")}</span>
         {!isSpot && (
-          <div className="mode-switch" aria-label="持仓模式">
+          <div className="mode-switch" aria-label={text("持仓模式", "Position mode")}>
             {(["ONE_WAY", "HEDGE"] as PositionMode[]).map((mode) => (
               <button
                 key={mode}
@@ -2276,34 +2293,34 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
                 type="button"
                 onClick={() => onPositionModeChange(mode)}
               >
-                {positionModeLabel(mode)}
+                {positionModeLabel(language, mode)}
               </button>
             ))}
           </div>
         )}
       </div>
       <div className="account-summary">
-        <Metric label="总权益" value={hasBalanceData ? displayUnits(equity) : "—"} />
-        <Metric label="可用" value={hasBalanceData ? displayUnits(available) : "—"} />
-        <Metric label="冻结" value={hasBalanceData ? displayUnits(locked) : "—"} />
+        <Metric label={text("总权益", "Total equity")} value={hasBalanceData ? displayUnits(equity) : "—"} />
+        <Metric label={text("可用", "Available")} value={hasBalanceData ? displayUnits(available) : "—"} />
+        <Metric label={text("冻结", "Locked")} value={hasBalanceData ? displayUnits(locked) : "—"} />
         {isSpot ? (
           <>
-            <Metric label="资产数" value={hasBalanceData ? String(balances.length) : "—"} />
-            <Metric label="账户类型" value={PRODUCT_META[productMode].accountType} tone="gold" />
+            <Metric label={text("资产数", "Assets")} value={hasBalanceData ? String(balances.length) : "—"} />
+            <Metric label={text("账户类型", "Account type")} value={PRODUCT_META[productMode].accountType} tone="gold" />
           </>
         ) : (
           <>
-            <Metric label="未实现盈亏" value={hasPositionData ? displayUnits(pnl) : "—"} tone={hasPositionData ? pnl >= 0 ? "up" : "down" : undefined} />
-            <Metric label="最高保证金率" value={marginRatio === null ? "—" : displayPpm(marginRatio)} tone={marginRatio === null ? undefined : marginRatio > 800000 ? "down" : "up"} />
+            <Metric label={text("未实现盈亏", "Unrealized PnL")} value={hasPositionData ? displayUnits(pnl) : "—"} tone={hasPositionData ? pnl >= 0 ? "up" : "down" : undefined} />
+            <Metric label={text("最高保证金率", "Highest margin ratio")} value={marginRatio === null ? "—" : displayPpm(marginRatio)} tone={marginRatio === null ? undefined : marginRatio > 800000 ? "down" : "up"} />
           </>
         )}
       </div>
       <div className="deck-grid">
-        <AccountTable title="产品资产" icon={<WalletCards size={15} />}>
+        <AccountTable title={text("产品资产", "Product assets")} icon={<WalletCards size={15} />}>
           <div className="asset-row table-head">
-            <span>资产</span><span>可用</span><span>冻结</span><span>权益</span>
+            <span>{text("资产", "Asset")}</span><span>{text("可用", "Available")}</span><span>{text("冻结", "Locked")}</span><span>{text("权益", "Equity")}</span>
           </div>
-          {balances.length === 0 ? <p className="empty">暂无资产</p> : balances.map((item) => (
+          {balances.length === 0 ? <p className="empty">{text("暂无资产", "No assets")}</p> : balances.map((item) => (
             <div className="asset-row" key={`${item.accountType ?? PRODUCT_META[productMode].accountType}-${item.asset}`}>
               <strong>{item.asset}</strong>
               <span>{displayUnits(item.availableUnits)}</span>
@@ -2313,14 +2330,14 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
           ))}
         </AccountTable>
         {!isSpot && (
-          <AccountTable title="持仓 / 风险" icon={<TrendingUp size={15} />}>
+          <AccountTable title={text("持仓 / 风险", "Positions / risk")} icon={<TrendingUp size={15} />}>
             <div className="position-row table-head">
-              <span>市场</span><span>仓位</span><span>方向数量</span><span>入场/标记</span><span>浮盈亏</span><span>维持保证金</span><span>保证金率</span><span>状态</span>
+              <span>{text("市场", "Market")}</span><span>{text("仓位", "Position")}</span><span>{text("方向数量", "Side / size")}</span><span>{text("入场/标记", "Entry / mark")}</span><span>{text("浮盈亏", "Unrealized PnL")}</span><span>{text("维持保证金", "Maintenance margin")}</span><span>{text("保证金率", "Margin ratio")}</span><span>{text("状态", "Status")}</span>
             </div>
-            {positions.length === 0 ? <p className="empty">暂无持仓</p> : positions.map((item) => (
+            {positions.length === 0 ? <p className="empty">{text("暂无持仓", "No positions")}</p> : positions.map((item) => (
               <div className="position-row" key={`${item.symbol}-${item.marginMode}-${item.positionSide ?? "NET"}`}>
                 <strong>{item.symbol}</strong>
-                <span>{positionSideLabel(item.positionSide ?? "NET")}</span>
+                <span>{positionSideLabel(language, item.positionSide ?? "NET")}</span>
                 <span className={item.signedQuantitySteps >= 0 ? "up" : "down"}>{item.signedQuantitySteps >= 0 ? "LONG" : "SHORT"} {Math.abs(item.signedQuantitySteps)}</span>
                 <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.entryPriceTicks)} / {displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.markPriceTicks || market?.markPriceTicks || 0)}</span>
                 <span className={item.unrealizedPnlUnits >= 0 ? "up" : "down"}>{displayUnits(item.unrealizedPnlUnits)}</span>
@@ -2331,37 +2348,37 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
             ))}
           </AccountTable>
         )}
-        <AccountTable title="当前委托" icon={<TableProperties size={15} />}>
+        <AccountTable title={text("当前委托", "Open orders")} icon={<TableProperties size={15} />}>
           <div className="order-row table-head">
-            <span>市场</span><span>方向</span><span>仓位</span><span>类型</span><span>价格</span><span>成交/剩余</span><span>模式</span><span>状态</span><span></span>
+            <span>{text("市场", "Market")}</span><span>{text("方向", "Side")}</span><span>{text("仓位", "Position")}</span><span>{text("类型", "Type")}</span><span>{text("价格", "Price")}</span><span>{text("成交/剩余", "Filled / remaining")}</span><span>{text("模式", "Mode")}</span><span>{text("状态", "Status")}</span><span></span>
           </div>
-          {orders.length === 0 ? <p className="empty">暂无委托</p> : orders.map((item) => (
+          {orders.length === 0 ? <p className="empty">{text("暂无委托", "No open orders")}</p> : orders.map((item) => (
             <div className="order-row" key={item.orderId}>
               <strong>{item.symbol}</strong>
               <span className={item.side === "BUY" ? "up" : "down"}>{item.side}</span>
-              <span>{positionSideLabel(item.positionSide ?? "NET")}</span>
+              <span>{positionSideLabel(language, item.positionSide ?? "NET")}</span>
               <span>{item.orderType}</span>
               <span>{displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.priceTicks)}</span>
               <span>{item.executedQuantitySteps}/{item.remainingQuantitySteps}</span>
               <span>{item.marginMode}</span>
               <span>{item.status}</span>
-              <button onClick={() => onCancel(item)}>撤单</button>
+              <button onClick={() => onCancel(item)}>{text("撤单", "Cancel")}</button>
             </div>
           ))}
           {openOrdersHasMore && (
             <div className="table-load-more">
               <button type="button" onClick={onLoadMoreOpenOrders} disabled={loadingMoreOpenOrders}>
-                {loadingMoreOpenOrders ? "加载中..." : "加载更多委托"}
+                {loadingMoreOpenOrders ? text("加载中...", "Loading...") : text("加载更多委托", "Load more orders")}
               </button>
             </div>
           )}
         </AccountTable>
         {!isSpot && (
-          <AccountTable title="算法单" icon={<Clock3 size={15} />}>
+          <AccountTable title={text("算法单", "Algo orders")} icon={<Clock3 size={15} />}>
             <div className="algo-order-row table-head">
-              <span>市场</span><span>类型</span><span>方向</span><span>价格</span><span>进度</span><span>切片</span><span>状态</span><span></span>
+              <span>{text("市场", "Market")}</span><span>{text("类型", "Type")}</span><span>{text("方向", "Side")}</span><span>{text("价格", "Price")}</span><span>{text("进度", "Progress")}</span><span>{text("切片", "Slice")}</span><span>{text("状态", "Status")}</span><span></span>
             </div>
-            {algoOrders.length === 0 ? <p className="empty">暂无算法单</p> : algoOrders.map((item) => (
+            {algoOrders.length === 0 ? <p className="empty">{text("暂无算法单", "No algo orders")}</p> : algoOrders.map((item) => (
               <div className="algo-order-row" key={item.algoOrderId}>
                 <strong>{item.symbol}</strong>
                 <span>{item.algoType}</span>
@@ -2370,37 +2387,37 @@ function BottomDeck({ productMode, positionMode, balances, positions, orders, op
                 <span>{item.executedQuantitySteps + item.activeQuantitySteps}/{item.quantitySteps}</span>
                 <span>{item.childQuantitySteps} / {item.intervalSeconds}s</span>
                 <span>{item.status}</span>
-                <button onClick={() => onCancelAlgo(item)}>撤销</button>
+                <button onClick={() => onCancelAlgo(item)}>{text("撤销", "Cancel")}</button>
               </div>
             ))}
           </AccountTable>
         )}
         {!isSpot && (
-          <AccountTable title="止盈止损" icon={<Bell size={15} />}>
+          <AccountTable title={text("止盈止损", "Take profit / stop loss")} icon={<Bell size={15} />}>
             <div className="trigger-order-row table-head">
-              <span>市场</span><span>类型</span><span>目标</span><span>触发价</span><span>数量</span><span>委托</span><span>状态</span><span></span>
+              <span>{text("市场", "Market")}</span><span>{text("类型", "Type")}</span><span>{text("目标", "Target")}</span><span>{text("触发价", "Trigger price")}</span><span>{text("数量", "Size")}</span><span>{text("委托", "Order")}</span><span>{text("状态", "Status")}</span><span></span>
             </div>
-            {triggerOrders.length === 0 ? <p className="empty">暂无止盈止损</p> : triggerOrders.map((item) => (
+            {triggerOrders.length === 0 ? <p className="empty">{text("暂无止盈止损", "No take profit / stop loss orders")}</p> : triggerOrders.map((item) => (
               <div className="trigger-order-row" key={item.triggerOrderId}>
                 <strong>{item.symbol}</strong>
-                <span>{triggerTypeLabel(item.triggerType)}</span>
-                <span className={triggerCloseLabel(item.side, item.positionSide) === "平多" ? "down" : "up"}>
-                  {triggerCloseLabel(item.side, item.positionSide)}
+                <span>{triggerTypeLabel(language, item.triggerType)}</span>
+                <span className={item.positionSide === "LONG" || (item.positionSide !== "SHORT" && item.side === "SELL") ? "down" : "up"}>
+                  {triggerCloseLabel(language, item.side, item.positionSide)}
                 </span>
                 <span>{item.triggerType === "TRAILING_STOP"
-                  ? `${item.activationPriceTicks ? displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.activationPriceTicks) : "立即"} / ${((item.callbackRatePpm ?? 0) / 10_000).toFixed(2)}%`
+                  ? `${item.activationPriceTicks ? displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.activationPriceTicks) : text("立即", "Immediate")} / ${((item.callbackRatePpm ?? 0) / 10_000).toFixed(2)}%`
                   : displayMarketPrice(marketForSymbol(markets, item.symbol, market), item.triggerPriceTicks)}</span>
                 <span>{item.quantitySteps}</span>
                 <span>{item.orderType}/{item.timeInForce}</span>
                 <span>{item.status}</span>
-                <button onClick={() => onCancelTrigger(item)}>撤销</button>
+                <button onClick={() => onCancelTrigger(item)}>{text("撤销", "Cancel")}</button>
               </div>
             ))}
           </AccountTable>
         )}
-        <AccountTable title="成交记录" icon={<Activity size={15} />}>
+        <AccountTable title={text("成交记录", "Trade history")} icon={<Activity size={15} />}>
           <div className="trade-history-row table-head">
-            <span>市场</span><span>角色</span><span>方向</span><span>价格</span><span>数量</span><span>时间</span><span>Trace</span>
+            <span>{text("市场", "Market")}</span><span>{text("角色", "Role")}</span><span>{text("方向", "Side")}</span><span>{text("价格", "Price")}</span><span>{text("数量", "Size")}</span><span>{text("时间", "Time")}</span><span>Trace</span>
           </div>
           {trades.slice(0, 14).map((item) => (
             <div className="trade-history-row" key={item.id}>
@@ -2428,7 +2445,8 @@ function AccountTable({ title, icon, children }: { title: string; icon: ReactNod
   );
 }
 
-function TradesTape({ events, symbol, productLine, market, mid, onPickPrice }: { events: WsEnvelope[]; symbol: string; productLine: ProductLine; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
+function TradesTape({ language, events, symbol, productLine, market, mid, onPickPrice }: { language: LanguageMode; events: WsEnvelope[]; symbol: string; productLine: ProductLine; market?: Market; mid: number; onPickPrice: (priceTicks: number) => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const [trades, setTrades] = useState<TradePrint[]>(() => config.enableMockFallback ? fallbackTrades(symbol, mid).slice(0, TRADE_TAPE_ROWS) : []);
 
   useEffect(() => {
@@ -2443,7 +2461,7 @@ function TradesTape({ events, symbol, productLine, market, mid, onPickPrice }: {
 
   return (
     <section className="panel trades">
-      <div className="panel-title"><span><Activity size={16} />最新成交</span><button>WS</button></div>
+      <div className="panel-title"><span><Activity size={16} />{text("最新成交", "Recent trades")}</span><button>WS</button></div>
       <div className="trades-list">
         {trades.map((item) => (
           <button className={`trade-row ${item.side === "BUY" ? "bid" : "ask"}`} key={item.id} onClick={() => onPickPrice(item.priceTicks)}>
@@ -2457,41 +2475,42 @@ function TradesTape({ events, symbol, productLine, market, mid, onPickPrice }: {
   );
 }
 
-function ContractInfoDialog({ market, onClose }: { market: Market; onClose: () => void }) {
+function ContractInfoDialog({ language, market, onClose }: { language: LanguageMode; market: Market; onClose: () => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
   const product = marketProduct(market);
   const isSpot = product === "spot";
   const isFunding = isFundingProduct(product);
   const items: Array<[string, ReactNode]> = [
-    ["产品类型", PRODUCT_META[product].label],
-    ["后端类型", `${market.instrumentType ?? "PERPETUAL"} / ${market.contractType ?? "LINEAR_PERPETUAL"}`],
-    ["基础/计价", `${market.baseAsset} / ${market.quoteAsset}`],
-    [isSpot ? "现货账户" : "结算资产", isSpot ? PRODUCT_META.spot.accountType : market.settleAsset ?? market.quoteAsset],
-    ["价格 tick", market.priceTickUnits ?? "-"],
-    ["数量 step", market.quantityStepUnits ?? "-"],
-    ["最小/最大数量", `${market.minQuantitySteps ?? "-"} / ${market.maxQuantitySteps ?? "-"}`],
-    ["最小/最大名义价值", `${formatUnitsOrDash(market.minNotionalUnits)} / ${formatUnitsOrDash(market.maxNotionalUnits)}`],
+    [text("产品类型", "Product type"), language === "en-US" ? PRODUCT_META[product].labelEn : PRODUCT_META[product].label],
+    [text("后端类型", "Backend type"), `${market.instrumentType ?? "PERPETUAL"} / ${market.contractType ?? "LINEAR_PERPETUAL"}`],
+    [text("基础/计价", "Base / quote"), `${market.baseAsset} / ${market.quoteAsset}`],
+    [isSpot ? text("现货账户", "Spot account") : text("结算资产", "Settlement asset"), isSpot ? PRODUCT_META.spot.accountType : market.settleAsset ?? market.quoteAsset],
+    [text("价格 tick", "Price tick"), market.priceTickUnits ?? "-"],
+    [text("数量 step", "Quantity step"), market.quantityStepUnits ?? "-"],
+    [text("最小/最大数量", "Min / max quantity"), `${market.minQuantitySteps ?? "-"} / ${market.maxQuantitySteps ?? "-"}`],
+    [text("最小/最大名义价值", "Min / max notional"), `${formatUnitsOrDash(market.minNotionalUnits)} / ${formatUnitsOrDash(market.maxNotionalUnits)}`],
     ["Maker/Taker", `${displayOptionalPpm(market.makerFeeRatePpm, 4)} / ${displayOptionalPpm(market.takerFeeRatePpm, 4)}`],
-    ["状态/版本", `${market.status ?? "TRADING"} / v${market.version ?? "-"}`],
+    [text("状态/版本", "Status / version"), `${market.status ?? "TRADING"} / v${market.version ?? "-"}`],
     ...(isSpot ? [] : [
-      ["最大杠杆", `${market.maxLeverage}x`],
-      ["起始/维持保证金率", `${displayOptionalPpm(market.initialMarginRatePpm)} / ${displayOptionalPpm(market.maintenanceMarginRatePpm)}`],
-      ...(isFunding ? [["资金费率周期", `${market.fundingIntervalHours ?? "-"} 小时`]] as Array<[string, ReactNode]> : []),
-      ...(market.expiryTime ? [["到期时间", market.expiryTime]] as Array<[string, ReactNode]> : []),
-      ...(market.deliveryTime ? [["交割时间", market.deliveryTime]] as Array<[string, ReactNode]> : []),
+      [text("最大杠杆", "Maximum leverage"), `${market.maxLeverage}x`],
+      [text("起始/维持保证金率", "Initial / maintenance margin"), `${displayOptionalPpm(market.initialMarginRatePpm)} / ${displayOptionalPpm(market.maintenanceMarginRatePpm)}`],
+      ...(isFunding ? [[text("资金费率周期", "Funding interval"), `${market.fundingIntervalHours ?? "-"} ${text("小时", "hours")}`]] as Array<[string, ReactNode]> : []),
+      ...(market.expiryTime ? [[text("到期时间", "Expiry"), market.expiryTime]] as Array<[string, ReactNode]> : []),
+      ...(market.deliveryTime ? [[text("交割时间", "Delivery"), market.deliveryTime]] as Array<[string, ReactNode]> : []),
       ...(product === "option" ? [
-        ["底层标的", market.underlyingSymbol ?? "-"],
-        ["行权价", market.strikePriceUnits ?? "-"],
-        ["期权方向/行权方式", `${market.optionType ?? "-"} / ${market.optionExerciseStyle ?? "-"}`],
+        [text("底层标的", "Underlying"), market.underlyingSymbol ?? "-"],
+        [text("行权价", "Strike price"), market.strikePriceUnits ?? "-"],
+        [text("期权方向/行权方式", "Option type / exercise style"), `${market.optionType ?? "-"} / ${market.optionExerciseStyle ?? "-"}`],
       ] as Array<[string, ReactNode]> : []),
-      ...(market.settlementMethod ? [["结算方式", market.settlementMethod]] as Array<[string, ReactNode]> : []),
-      ["指数有效源数", market.minValidIndexSources ?? "-"],
+      ...(market.settlementMethod ? [[text("结算方式", "Settlement"), market.settlementMethod]] as Array<[string, ReactNode]> : []),
+      [text("指数有效源数", "Valid index sources"), market.minValidIndexSources ?? "-"],
     ] as Array<[string, ReactNode]>)
   ];
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal-panel" onClick={(event) => event.stopPropagation()}>
-        <div className="panel-title"><span><Info size={16} />{market.symbol} 产品配置</span><button onClick={onClose}>关闭</button></div>
+        <div className="panel-title"><span><Info size={16} />{market.symbol} {text("产品配置", "Product configuration")}</span><button onClick={onClose}>{text("关闭", "Close")}</button></div>
         <div className="config-grid">
           {items.map(([label, value]) => (
             <div className="config-item" key={label}>
@@ -2501,16 +2520,16 @@ function ContractInfoDialog({ market, onClose }: { market: Market; onClose: () =
           ))}
         </div>
         <div className="config-section">
-          <h3>订单能力</h3>
+          <h3>{text("订单能力", "Order capabilities")}</h3>
           <p>{(market.supportedOrderTypes ?? ["LIMIT", "MARKET"]).join(" / ")} · {(market.supportedTimeInForce ?? ["GTC", "IOC", "FOK", "GTX"]).join(" / ")}</p>
-          <p>Post-only: {market.postOnlyEnabled === false ? "关闭" : "开启"} · {isSpot ? "现货无 Reduce-only" : `Reduce-only: ${market.reduceOnlyEnabled === false ? "关闭" : "开启"}`} · Market: {market.marketOrderEnabled === false ? "关闭" : "开启"}</p>
+          <p>Post-only: {market.postOnlyEnabled === false ? text("关闭", "Disabled") : text("开启", "Enabled")} · {isSpot ? text("现货无 Reduce-only", "Reduce-only is unavailable for spot") : `Reduce-only: ${market.reduceOnlyEnabled === false ? text("关闭", "Disabled") : text("开启", "Enabled")}`} · Market: {market.marketOrderEnabled === false ? text("关闭", "Disabled") : text("开启", "Enabled")}</p>
         </div>
         {!isSpot && (
           <div className="config-section">
-            <h3>指数价格来源</h3>
+            <h3>{text("指数价格来源", "Index price sources")}</h3>
             {market.indexSources?.length ? market.indexSources.map((source, index) => (
-              <p key={`${source.exchangeCode}-${index}`}>{source.exchangeCode ?? "-"} {source.sourceSymbol ?? ""} 权重 {displayOptionalPpm(source.weightPpm)}</p>
-            )) : <p>后端未返回指数源明细。</p>}
+              <p key={`${source.exchangeCode}-${index}`}>{source.exchangeCode ?? "-"} {source.sourceSymbol ?? ""} {text("权重", "Weight")} {displayOptionalPpm(source.weightPpm)}</p>
+            )) : <p>{text("后端未返回指数源明细。", "The backend did not return index-source details.")}</p>}
           </div>
         )}
       </section>
@@ -2640,7 +2659,7 @@ function optionChainForMarket(market: Market, markets: Market[]) {
   return Array.from(rows.values()).sort((left, right) => left.strikeValue - right.strikeValue);
 }
 
-function optionMetricRows(market: Market, markets: Market[]): Array<[string, string, "up" | "down" | "gold" | undefined]> {
+function optionMetricRows(language: LanguageMode, market: Market, markets: Market[]): Array<[string, string, "up" | "down" | "gold" | undefined]> {
   const underlying = markets.find((item) => item.symbol === market.underlyingSymbol)
     ?? markets.find((item) => item.symbol === `${market.baseAsset}-${market.quoteAsset}`)
     ?? markets.find((item) => item.baseAsset === market.baseAsset && marketProduct(item) !== "option");
@@ -2652,10 +2671,10 @@ function optionMetricRows(market: Market, markets: Market[]): Array<[string, str
   const moneyness = strike > 0 ? (call ? underlyingPrice / strike : strike / Math.max(underlyingPrice, 1)) : 0;
   const delta = market.deltaPpm ?? estimatedOptionDeltaPpm(call, underlyingPrice, strike);
   return [
-    ["底层价格", underlyingPrice > 0 ? `${displayPrice(underlyingPrice)} ${market.quoteAsset}` : "-", undefined],
-    ["行权价", strike > 0 ? `${displayPrice(strike)} ${market.quoteAsset}` : "-", "gold"],
-    ["权利金标记", premium > 0 ? `${displayPrice(premium)} ${market.quoteAsset}` : "-", undefined],
-    ["内在价值", `${displayPrice(intrinsic)} ${market.quoteAsset}`, intrinsic > 0 ? "up" : undefined],
+    [localized(language, "底层价格", "Underlying price"), underlyingPrice > 0 ? `${displayPrice(underlyingPrice)} ${market.quoteAsset}` : "-", undefined],
+    [localized(language, "行权价", "Strike price"), strike > 0 ? `${displayPrice(strike)} ${market.quoteAsset}` : "-", "gold"],
+    [localized(language, "权利金标记", "Premium mark"), premium > 0 ? `${displayPrice(premium)} ${market.quoteAsset}` : "-", undefined],
+    [localized(language, "内在价值", "Intrinsic value"), `${displayPrice(intrinsic)} ${market.quoteAsset}`, intrinsic > 0 ? "up" : undefined],
     ["Moneyness", moneyness > 0 ? moneyness.toFixed(4) : "-", moneyness >= 1 ? "up" : "down"],
     ["IV", displayOptionalPpm(market.impliedVolatilityPpm ?? undefined, 2), "gold"],
     ["Delta", displayGreekPpm(delta), delta >= 0 ? "up" : "down"],
@@ -2690,16 +2709,16 @@ function dateKey(value?: string | null): string {
   return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
 }
 
-function formatLifecycleCountdown(market: Market, nowMs: number): string {
+function formatLifecycleCountdown(language: LanguageMode, market: Market, nowMs: number): string {
   const raw = market.deliveryTime ?? market.expiryTime;
   if (!raw) return "-";
   const target = Date.parse(raw);
   if (Number.isNaN(target)) return raw;
   const seconds = Math.floor((target - nowMs) / 1000);
-  if (seconds <= 0) return "已到期";
+  if (seconds <= 0) return localized(language, "已到期", "Expired");
   const days = Math.floor(seconds / 86400);
   const remain = seconds % 86400;
-  return days > 0 ? `${days}天 ${formatDuration(remain)}` : formatDuration(remain);
+  return days > 0 ? localized(language, `${days}天 ${formatDuration(remain)}`, `${days}d ${formatDuration(remain)}`) : formatDuration(remain);
 }
 
 function filterPositionsByProduct(positions: Position[], markets: Market[], productMode: ProductMode): Position[] {
