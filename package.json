@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc -b --pretty false",
+    "test:valuation": "node --experimental-strip-types --test test/valuation.test.ts",
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {

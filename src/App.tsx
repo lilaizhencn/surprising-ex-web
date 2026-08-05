@@ -51,6 +51,7 @@ import { loadSession, saveSession } from "./api/client";
 import { useRealtime } from "./hooks/useRealtime";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
+import { applyMarketPriceTicks, priceFromTicks } from "./valuation";
 import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
 
@@ -288,20 +289,21 @@ export default function App() {
       try {
         const books = await Promise.all(targetMarkets.map((market) => loadOrderBook(market.symbol, "SPOT", false)));
         const prices = new Map<string, number>();
+        const priceTicksBySymbol = new Map<string, number>();
         targetMarkets.forEach((market, index) => {
           const book = books[index];
           const bid = book.bids[0]?.priceTicks;
           const ask = book.asks[0]?.priceTicks;
-          const price = bid && ask ? (bid + ask) / 2 : bid ?? ask;
-          if (price === undefined || !Number.isFinite(price) || price <= 0) throw new Error("spot order book is empty");
-          prices.set(market.baseAsset.toUpperCase(), price);
+          const priceTicks = bid && ask ? (bid + ask) / 2 : bid ?? ask;
+          if (priceTicks === undefined || !Number.isFinite(priceTicks) || priceTicks <= 0) throw new Error("spot order book is empty");
+          const priceUnits = priceFromTicks(market, priceTicks);
+          if (!Number.isFinite(priceUnits) || priceUnits <= 0) throw new Error("spot order book price is invalid");
+          prices.set(market.baseAsset.toUpperCase(), priceUnits);
+          priceTicksBySymbol.set(market.symbol, priceTicks);
         });
         if (cancelled) return;
         setValuationPrices(Object.fromEntries(prices));
-        setMarkets((current) => current.map((market) => {
-          const price = prices.get(market.baseAsset.toUpperCase());
-          return price === undefined ? market : { ...market, lastPriceTicks: price, markPriceTicks: price, indexPriceTicks: price };
-        }));
+        setMarkets((current) => applyMarketPriceTicks(current, priceTicksBySymbol));
       } catch {
         if (!cancelled) {
           setValuationPrices({});
@@ -1620,13 +1622,6 @@ function triggerCloseLabel(side: OrderSide, positionSide: PositionSide | "NET" |
   if (positionSide === "LONG") return "平多";
   if (positionSide === "SHORT") return "平空";
   return side === "SELL" ? "平多" : "平空";
-}
-
-function priceFromTicks(market: Market | undefined, priceTicks: number): number {
-  if (!Number.isFinite(priceTicks)) return 0;
-  const tickUnits = market?.priceTickUnits;
-  if (!tickUnits || tickUnits === 1) return priceTicks;
-  return priceTicks * tickUnits / PRICE_UNIT_SCALE;
 }
 
 function priceToTicks(market: Market | undefined, price: number): number {
