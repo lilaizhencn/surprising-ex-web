@@ -1,7 +1,7 @@
 import { ArrowDownUp, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { submitProductTransfer } from "../api/surprising";
-import { availableUnitsForAsset } from "../productTransfer";
+import { availableUnitsForAsset, isCompletedProductTransfer } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
 import { AssetIcon, assetName } from "./AssetPrimitives";
 
@@ -67,8 +67,15 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
         amountUnits,
         idempotencyKey
       });
-      setNotice(`划转已完成${result.transferId ? `，流水号 ${result.transferId}` : ""}`);
       onCompleted();
+      if (!isCompletedProductTransfer(result.status)) {
+        const status = result.status?.toUpperCase();
+        setError(status?.includes("UNKNOWN") || status === "PENDING" || status === "SOURCE_DEBITED" || status === "COMPENSATION_REQUIRED"
+          ? `划转处理中${result.transferId ? `，流水号 ${result.transferId}` : ""}，请勿重复提交`
+          : `划转未完成${result.transferId ? `，流水号 ${result.transferId}` : ""}，请查看资金记录`);
+        return;
+      }
+      setNotice(`划转已完成${result.transferId ? `，流水号 ${result.transferId}` : ""}`);
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "划转失败，请稍后重试");
     } finally {
@@ -81,9 +88,9 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
       <p className="security-muted">产品账户之间即时划转，不需要额外验证；服务端使用幂等键避免重复扣款。</p>
       <div className="transfer-route">
-        <label>从<select value={sourceAccountType} onChange={(event) => setSourceAccountType(event.target.value as ProductAccountType)}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <label>从<select value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
         <button className="transfer-swap" type="button" aria-label="交换划转方向" onClick={swapAccounts}><ArrowDownUp size={18} /></button>
-        <label>到<select value={targetAccountType} onChange={(event) => setTargetAccountType(event.target.value as ProductAccountType)}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <label>到<select value={targetAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setTargetAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
       </div>
       <label className="transfer-field">币种<select value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></label>
       <label className="transfer-field">数量<input value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
