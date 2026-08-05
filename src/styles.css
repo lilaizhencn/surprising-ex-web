@@ -1980,6 +1980,7 @@ button.rules-row:hover {
   --sx-space-asset-chevron-bottom: 18px;
   --sx-size-asset-action-min-width: 64px;
   --sx-size-asset-action-height: 30px;
+  --sx-size-asset-action-touch-height: 44px;
   --sx-size-asset-portfolio-min-height: 96px;
   --sx-space-asset-box: 14px;
   --sx-size-asset-icon: 26px;
@@ -3096,6 +3097,11 @@ button.rules-row:hover {
 
   .asset-actions {
     flex-wrap: wrap;
+  }
+
+  .asset-actions button {
+    min-height: var(--sx-size-asset-action-touch-height);
+    height: var(--sx-size-asset-action-touch-height);
   }
 
   .pc-asset-row {
