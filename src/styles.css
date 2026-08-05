@@ -1738,20 +1738,20 @@ button.rules-row:hover {
 }
 
 .transfer-dialog {
-  width: min(520px, 100%);
-  padding: 24px;
+  width: min(var(--sx-size-asset-transfer-dialog), 100%);
+  padding: var(--sx-space-6);
   border-radius: var(--sx-radius-asset-card);
   border-color: var(--sx-asset-border);
   background: var(--sx-surface-light);
   color: var(--sx-asset-ink);
-  box-shadow: 0 24px 60px rgba(17, 17, 17, .18);
+  box-shadow: var(--sx-shadow-asset-dialog);
 }
 
 .transfer-dialog-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--sx-space-4);
 }
 
 .transfer-dialog-header small,
@@ -1761,34 +1761,34 @@ button.rules-row:hover {
 }
 
 .transfer-dialog-header h2 {
-  margin: 4px 0 0;
+  margin: var(--sx-space-1) 0 0;
 }
 
 .icon-button,
 .transfer-swap {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--sx-size-asset-transfer-touch);
+  min-height: var(--sx-size-asset-transfer-touch);
   display: grid;
   place-items: center;
   border: 1px solid var(--sx-asset-border);
-  border-radius: 10px;
+  border-radius: var(--sx-radius-asset-control);
   background: var(--sx-asset-soft);
   color: var(--sx-asset-ink);
 }
 
 .transfer-route {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--sx-size-asset-transfer-touch) minmax(0, 1fr);
   align-items: end;
-  gap: 10px;
-  margin-top: 22px;
+  gap: var(--sx-space-asset-actions-gap);
+  margin-top: var(--sx-space-asset-card);
 }
 
 .transfer-route label,
 .transfer-field {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  gap: var(--sx-space-2);
+  margin-top: var(--sx-space-4);
   color: var(--sx-asset-secondary);
   font-size: var(--sx-font-body);
 }
@@ -1797,10 +1797,10 @@ button.rules-row:hover {
 .transfer-field select,
 .transfer-field input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: var(--sx-size-asset-transfer-touch);
+  padding: 0 var(--sx-space-3);
   border: 1px solid var(--sx-asset-border);
-  border-radius: 10px;
+  border-radius: var(--sx-radius-asset-control);
   background: var(--sx-asset-card-soft);
   color: var(--sx-asset-ink);
 }
@@ -1812,14 +1812,14 @@ button.rules-row:hover {
 
 .transfer-dialog .primary-button {
   background: var(--sx-asset-positive);
-  color: #fff;
+  color: var(--sx-surface-light);
 }
 
 .transfer-success {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--buy);
+  gap: var(--sx-space-2);
+  color: var(--sx-asset-positive);
 }
 
 .config-grid {
@@ -2079,10 +2079,14 @@ button.rules-row:hover {
   --sx-space-asset-summary-y: 22px;
   --sx-space-asset-summary-x: 28px;
   --sx-size-asset-valuation-select: 52px;
+  --sx-size-asset-transfer-dialog: 520px;
+  --sx-size-asset-transfer-touch: var(--sx-size-asset-action-touch-height);
   --sx-size-ledger-min-height: 300px;
   --sx-radius-control: 12px;
+  --sx-radius-asset-control: var(--sx-radius-control);
   --sx-radius-panel: 20px;
   --sx-radius-pill: 999px;
+  --sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
 }
 
 .app-shell {

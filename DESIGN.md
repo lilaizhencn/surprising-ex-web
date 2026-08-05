@@ -41,6 +41,9 @@ Principles: identity before access, state before decoration, one primary action 
 --sx-space-6: 24px;
 --sx-space-8: 32px;
 --sx-space-10: 40px;
+--sx-size-asset-transfer-dialog: 520px;
+--sx-size-asset-transfer-touch: 44px;
+--sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
 ```
 
 Typography uses the system UI sans stack for dense trading surfaces, a slightly expanded display weight for auth headings, and tabular numerals for prices, quantities, balances, and risk values.
