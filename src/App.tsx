@@ -1046,6 +1046,20 @@ function formatKycFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function validateKycSubmission(
+  applicantType: string,
+  kycLevel: string,
+  faceVerificationStatus: string,
+  documents: KycDocument[]
+) {
+  const types = new Set(documents.map((document) => document.documentType));
+  if (!types.has("ID_CARD") && !types.has("PASSPORT")) throw new Error("请上传身份证或护照。");
+  if (applicantType === "BUSINESS" && !types.has("BUSINESS_LICENSE")) throw new Error("企业认证还需要上传营业执照。");
+  if ((kycLevel === "STANDARD" || kycLevel === "ENHANCED") && !types.has("ADDRESS_PROOF")) throw new Error("标准及以上认证还需要上传地址证明。");
+  if (kycLevel === "ENHANCED" && faceVerificationStatus !== "PENDING") throw new Error("增强认证需要启用人脸识别。");
+  if (faceVerificationStatus === "PENDING" && !types.has("FACE_IMAGE")) throw new Error("启用人脸识别时还需要上传人脸材料。");
+}
+
 function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLogin: () => void }) {
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null);
@@ -1181,7 +1195,7 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
       </div>
       <section className="panel security-card kyc-card">
         <div className="panel-title"><span><FileText size={16} />身份认证 KYC</span><strong className={kyc?.status === "VERIFIED" ? "tone-up" : kyc?.status === "REJECTED" ? "tone-down" : "tone-gold"}>{kyc?.status ?? "未提交"}</strong></div>
-        <p className="security-muted">提币前必须完成 KYC。材料会存入对象存储，审核只读取已上传的材料元数据和原件。</p>
+        <p className="security-muted">提币前必须完成 KYC。基础认证需要身份证或护照；标准及以上还需要地址证明；企业认证还需要营业执照；启用人脸识别时需要人脸材料。</p>
         {kyc?.rejectionReason && <div className="security-alert error">审核意见：{kyc.rejectionReason}</div>}
         <div className="kyc-form-grid">
           <label>申请主体<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">个人</option><option value="BUSINESS">企业</option></select></label>
@@ -1196,8 +1210,8 @@ function SecurityPage({ session, onLogin }: { session: AuthSession | null; onLog
           <label>选择 PDF 或图片<input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></label>
           <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error("请选择 KYC 材料"); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, "材料已上传")}>上传材料</button>
         </div>
-        <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">尚未上传材料。请至少上传主证件，地址证明按审核要求补充。</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? "已提交" : "已上传"}</em></div>)}</div>
-        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
+        <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">尚未上传材料。请至少上传主证件；标准及以上认证请同时上传地址证明。</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? "已提交" : "已上传"}</em></div>)}</div>
+        <div className="security-inline-form kyc-submit-row"><label>人脸状态<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">暂不启用</option><option value="PENDING">等待人脸识别</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(kycApplicantType, kycLevel, kycFaceStatus, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, "KYC 已提交，等待审核")}>提交认证</button></div>
       </section>
       <section className="panel security-card api-key-card">
         <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>兼容交易 API</strong></div>
