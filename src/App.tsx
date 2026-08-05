@@ -609,7 +609,7 @@ export default function App() {
       if (markPrice) patchMarket(targetSymbol, markPrice, targetProductMode);
     } catch (error) {
       if (requestId !== marketDataRequestRef.current) return;
-      setNotice(error instanceof Error ? error.message : "行情同步失败");
+      setNotice(error instanceof Error ? error.message : localized(language, "行情同步失败", "Market data sync failed"));
     } finally {
       if (requestId === marketDataRequestRef.current) {
         setLoading(false);
@@ -643,9 +643,10 @@ export default function App() {
       setAlgoOrders(nextAlgoOrders);
       setTriggerOrders(nextTriggerOrders);
       setPositionMode(nextPositionMode);
-      setNotice(`${PRODUCT_META[activeProductMode].label}资产、${activeProductMode === "spot" ? "委托" : "持仓和委托"}已从 gateway 同步。`);
+      const productLabel = language === "en-US" ? PRODUCT_META[activeProductMode].labelEn : PRODUCT_META[activeProductMode].label;
+      setNotice(`${productLabel}${localized(language, "资产、", " assets and ")}${activeProductMode === "spot" ? localized(language, "委托", "orders") : localized(language, "持仓和委托", "positions and orders")}${localized(language, "已从 gateway 同步。", " synced from the gateway.")}`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "私有数据同步失败");
+      setNotice(error instanceof Error ? error.message : localized(language, "私有数据同步失败", "Private data sync failed"));
     }
   }
 
@@ -674,7 +675,7 @@ export default function App() {
       setOpenOrdersHasMore(nextPage.hasMore);
     } catch (error) {
       if (ordersRequestId === openOrdersRequestRef.current) {
-        setNotice(error instanceof Error ? error.message : "加载更多委托失败");
+        setNotice(error instanceof Error ? error.message : localized(language, "加载更多委托失败", "Loading more orders failed"));
       }
     } finally {
       if (ordersRequestId === openOrdersRequestRef.current) {
@@ -685,7 +686,7 @@ export default function App() {
 
   async function changePositionMode(nextMode: PositionMode) {
     if (!session) {
-      setNotice("请先登录后再切换持仓模式。");
+      setNotice(localized(language, "请先登录后再切换持仓模式。", "Sign in before changing position mode."));
       setAuthMode("login");
       return;
     }
@@ -696,29 +697,33 @@ export default function App() {
       setNotice(`${localized(language, "持仓模式已切换为", "Position mode changed to ")}${positionModeLabel(language, savedMode)}${localized(language, "。", ".")}`);
       void refreshPrivateData(session);
     } catch (error) {
-      setNotice(error instanceof Error ? `切换持仓模式失败：${error.message}` : "切换持仓模式失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "切换持仓模式失败：", "Changing position mode failed: ")}${error.message}`
+        : localized(language, "切换持仓模式失败", "Changing position mode failed"));
     }
   }
 
   async function submitOrder(draft: PlaceOrderDraft) {
     if (!session) {
-      setNotice("请先登录后再下单。");
+      setNotice(localized(language, "请先登录后再下单。", "Sign in before placing an order."));
       setAuthMode("login");
       return;
     }
     try {
       const order = await placeOrder(session, draft, productLineForSymbol(draft.symbol, markets, productMode));
       setOrders((current) => [order, ...current.filter((item) => item.orderId !== order.orderId)]);
-      setNotice(`订单已提交：${order.orderId}`);
+      setNotice(`${localized(language, "订单已提交：", "Order submitted: ")}${order.orderId}`);
       void refreshPrivateData(session);
     } catch (error) {
-      setNotice(error instanceof Error ? `下单失败：${error.message}` : "下单失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "下单失败：", "Order submission failed: ")}${error.message}`
+        : localized(language, "下单失败", "Order submission failed"));
     }
   }
 
   async function submitTriggerOrders(drafts: PlaceTriggerOrderDraft[]) {
     if (!session) {
-      setNotice("请先登录后再提交止盈止损。");
+      setNotice(localized(language, "请先登录后再提交止盈止损。", "Sign in before submitting take-profit or stop-loss orders."));
       setAuthMode("login");
       return;
     }
@@ -734,7 +739,7 @@ export default function App() {
       return draft.triggerPriceTicks > 0;
     });
     if (!validDrafts.length) {
-      setNotice("条件单参数无效。");
+      setNotice(localized(language, "条件单参数无效。", "Conditional order parameters are invalid."));
       return;
     }
     try {
@@ -747,26 +752,30 @@ export default function App() {
         ...created,
         ...current.filter((item) => !created.some((createdItem) => createdItem.triggerOrderId === item.triggerOrderId))
       ]);
-      setNotice(`止盈止损已提交：${created.length}档`);
+      setNotice(`${localized(language, "止盈止损已提交：", "Take-profit / stop-loss submitted: ")}${created.length}`);
       void refreshPrivateData(session);
     } catch (error) {
-      setNotice(error instanceof Error ? `止盈止损提交失败：${error.message}` : "止盈止损提交失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "止盈止损提交失败：", "Take-profit / stop-loss submission failed: ")}${error.message}`
+        : localized(language, "止盈止损提交失败", "Take-profit / stop-loss submission failed"));
     }
   }
 
   async function submitAlgoOrder(draft: PlaceAlgoOrderDraft) {
     if (!session) {
-      setNotice("请先登录后再提交算法单。");
+      setNotice(localized(language, "请先登录后再提交算法单。", "Sign in before submitting an algo order."));
       setAuthMode("login");
       return;
     }
     try {
       const order = await placeAlgoOrder(session, draft, productLineForSymbol(draft.symbol, markets, productMode));
       setAlgoOrders((current) => [order, ...current.filter((item) => item.algoOrderId !== order.algoOrderId)]);
-      setNotice(`算法单已提交：${order.algoOrderId}`);
+      setNotice(`${localized(language, "算法单已提交：", "Algo order submitted: ")}${order.algoOrderId}`);
       void refreshPrivateData(session);
     } catch (error) {
-      setNotice(error instanceof Error ? `算法单提交失败：${error.message}` : "算法单提交失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "算法单提交失败：", "Algo order submission failed: ")}${error.message}`
+        : localized(language, "算法单提交失败", "Algo order submission failed"));
     }
   }
 
@@ -775,10 +784,12 @@ export default function App() {
     try {
       const canceled = await cancelOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setOrders((current) => current.filter((item) => item.orderId !== canceled.orderId));
-      setNotice(`撤单请求已提交：${order.orderId}`);
+      setNotice(`${localized(language, "撤单请求已提交：", "Cancel request submitted: ")}${order.orderId}`);
       void refreshPrivateData(session);
     } catch (error) {
-      setNotice(error instanceof Error ? `撤单失败：${error.message}` : "撤单失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "撤单失败：", "Cancel failed: ")}${error.message}`
+        : localized(language, "撤单失败", "Cancel failed"));
     }
   }
 
@@ -787,9 +798,11 @@ export default function App() {
     try {
       const canceled = await cancelTriggerOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setTriggerOrders((current) => current.filter((item) => item.triggerOrderId !== canceled.triggerOrderId));
-      setNotice(`条件单撤销已提交：${order.triggerOrderId}`);
+      setNotice(`${localized(language, "条件单撤销已提交：", "Conditional order cancel submitted: ")}${order.triggerOrderId}`);
     } catch (error) {
-      setNotice(error instanceof Error ? `条件单撤销失败：${error.message}` : "条件单撤销失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "条件单撤销失败：", "Conditional order cancel failed: ")}${error.message}`
+        : localized(language, "条件单撤销失败", "Conditional order cancel failed"));
     }
   }
 
@@ -798,9 +811,11 @@ export default function App() {
     try {
       const canceled = await cancelAlgoOrder(session, order, productLineForSymbol(order.symbol, markets, productMode));
       setAlgoOrders((current) => current.map((item) => item.algoOrderId === canceled.algoOrderId ? canceled : item));
-      setNotice(`算法单取消已提交：${order.algoOrderId}`);
+      setNotice(`${localized(language, "算法单取消已提交：", "Algo order cancel submitted: ")}${order.algoOrderId}`);
     } catch (error) {
-      setNotice(error instanceof Error ? `算法单取消失败：${error.message}` : "算法单取消失败");
+      setNotice(error instanceof Error
+        ? `${localized(language, "算法单取消失败：", "Algo order cancel failed: ")}${error.message}`
+        : localized(language, "算法单取消失败", "Algo order cancel failed"));
     }
   }
 
