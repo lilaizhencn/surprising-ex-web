@@ -846,9 +846,7 @@ export default function App() {
           onDeposit={() => navigateToPage("recharge")}
           onWithdraw={() => navigateToPage("withdraw")}
           onTransfer={() => setTransferOpen(true)}
-          onEarn={() => setNotice("赚币产品线即将开放，当前可使用现货、永续、交割和期权账户")}
-          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
-          onTableOptions={() => setNotice("当前资产列表显示全部可用币种，更多列设置即将开放")}
+          onHelp={() => navigateToPage("rules")}
         />
       ) : page === "recharge" ? (
         <FundingFlowPage
@@ -856,7 +854,7 @@ export default function App() {
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
-          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
+          onHelp={() => navigateToPage("rules")}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -866,7 +864,7 @@ export default function App() {
           balances={fundingBalances}
           session={session}
           onFundingBalanceRefresh={() => { void refreshFundingBalances(); }}
-          onHelp={() => setNotice("帮助中心正在准备中，资金问题可先查看安全中心和资金记录")}
+          onHelp={() => navigateToPage("rules")}
           onBack={() => navigateToPage("assets")}
           onShowAsset={() => navigateToPage("assets")}
         />
@@ -950,9 +948,7 @@ function AssetsPage({
   onDeposit,
   onWithdraw,
   onTransfer,
-  onEarn,
-  onHelp,
-  onTableOptions
+  onHelp
 }: {
   balances: Balance[];
   markets: Market[];
@@ -967,10 +963,9 @@ function AssetsPage({
   onDeposit: () => void;
   onWithdraw: () => void;
   onTransfer: () => void;
-  onEarn: () => void;
   onHelp: () => void;
-  onTableOptions: () => void;
 }) {
+  const [compactTable, setCompactTable] = useState(false);
   const assets = fundingAssets(balances);
   const valuationRate = valuationRates[valuationCurrency];
   const assetValues = assets.map((asset) => {
@@ -1000,13 +995,12 @@ function AssetsPage({
                 <button className="active" onClick={onDeposit}>充币</button>
                 <button onClick={onWithdraw}>提币</button>
                 <button onClick={onTransfer}>资金划转</button>
-                <button onClick={onEarn}>赚币</button>
               </div>
             </div>
             <ChevronDown className="asset-card-chevron" size={24} />
           </section>
 
-          <section className="asset-portfolio-card">
+          <section className={`asset-portfolio-card${compactTable ? " compact" : ""}`}>
             <h2>资产组合</h2>
             <div className="portfolio-cards">
               <PortfolioBox icon={<WalletCards size={18} />} title="资金账户" value={totalValue === null ? "—" : formatValuation(totalValue, valuationCurrency)} />
@@ -1015,7 +1009,7 @@ function AssetsPage({
             </div>
             <div className="asset-table-toolbar">
               <div className="asset-search"><Search size={16} />搜索</div>
-              <button type="button" aria-label="资产列表设置" title="资产列表设置" onClick={onTableOptions}><TableProperties size={16} /></button>
+              <button type="button" aria-label="切换资产列表密度" title="切换资产列表密度" aria-pressed={compactTable} onClick={() => setCompactTable((current) => !current)}><TableProperties size={16} /></button>
             </div>
             <h3>代币</h3>
             <div className="pc-asset-row pc-asset-head"><span>名称</span><span>数量</span><span>估值/现货收益</span></div>

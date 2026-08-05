@@ -1,5 +1,5 @@
 import { ArrowDownUp, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { submitProductTransfer } from "../api/surprising";
 import { availableUnitsForAsset, isCompletedProductTransfer } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
@@ -26,8 +26,13 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
   const [amount, setAmount] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [submitting, setSubmitting] = useState(false);
+  const [outcomeLocked, setOutcomeLocked] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const available = useMemo(
     () => availableUnitsForAsset(balances, asset),
     [asset, balances]
@@ -35,7 +40,37 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
 
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID());
+    setOutcomeLocked(false);
   }, [amount, asset, sourceAccountType, targetAccountType]);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>("button:not([disabled]), select:not([disabled]), input:not([disabled])");
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, []);
 
   function swapAccounts() {
     setSourceAccountType(targetAccountType);
@@ -69,6 +104,7 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       });
       onCompleted();
       if (!isCompletedProductTransfer(result.status)) {
+        setOutcomeLocked(true);
         const status = result.status?.toUpperCase();
         setError(status?.includes("UNKNOWN") || status === "PENDING" || status === "SOURCE_DEBITED" || status === "COMPENSATION_REQUIRED"
           ? `划转处理中${result.transferId ? `，流水号 ${result.transferId}` : ""}，请勿重复提交`
@@ -84,8 +120,8 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
   }
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="modal-panel transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-dialog-title">
-      <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
+    <section ref={dialogRef} className="modal-panel transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-dialog-title">
+      <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button ref={closeRef} className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
       <p className="security-muted">产品账户之间即时划转，不需要额外验证；服务端使用幂等键避免重复扣款。</p>
       <div className="transfer-route">
         <label>从<select value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
@@ -96,7 +132,7 @@ export function ProductTransferDialog({ session, balances, onClose, onCompleted 
       <label className="transfer-field">数量<input value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="transfer-success" role="status"><AssetIcon symbol={asset} />{notice}</p>}
-      <button className="primary-button" type="button" disabled={submitting || Boolean(notice)} onClick={() => void submit()}>{submitting ? "提交中…" : "确认划转"}</button>
+      <button className="primary-button" type="button" disabled={submitting || Boolean(notice) || outcomeLocked} onClick={() => void submit()}>{submitting ? "提交中…" : outcomeLocked ? "请查看资金记录" : "确认划转"}</button>
     </section>
   </div>;
 }
