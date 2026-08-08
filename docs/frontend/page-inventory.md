@@ -6,7 +6,7 @@
 
 | 页面 | 路由 | 场景/入口 | 核心组件 | API/Topic | 权限 | 状态 | 响应式要求 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 公共首页 | `/` | 品牌入口、登录前市场概览 | Hero、LiveStatus、产品线卡片、MarketTable | instrument/market、candles/depth/trades | 公开 | 重建中 | 1440/1280/1024/768；移动端单列 |
+| 公共首页 | `/` | 品牌入口、登录前市场概览 | Hero、LiveStatus、产品线卡片、MarketTable | instrument/market、candles/depth/trades | 公开 | 阶段基线已完成 | 1440/1280/1024/768；移动端单列 |
 | 登录/注册 | `/` modal/screen | 未登录交易/资产入口 | AuthForm、邮箱验证、重置密码 | auth register/login/verify/forgot/reset | 公开 | 已有真实基础，重建中 | 375/768/1280 |
 | 行情中心 | `/markets` | 搜索/筛选产品线 | MarketToolbar、MarketTable | instrument/market、public topics | 公开 | 重建中 | 768 以下表格转卡片 |
 | 交易对详情 | `/market/:productLine/:symbol` | 阅读单市场 | Header、Kline、Depth、Trades、Rules | candles/depth/trades/index/mark/funding | 公开 | 规划中 | 交易入口保持可见 |
@@ -32,7 +32,7 @@
 | 页面 | 入口 | 核心组件 | API/Topic | 权限 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | Splash/恢复 | 冷启动 | SessionRestore、Biometric、NetworkState | refresh/me、secure storage | 公开/本机 | 重建中 |
-| 首页 | Bottom nav Home | AccountSummary、QuickActions、MarketPreview、RiskBadge | instrument/market、account/wallet、public topics | 登录前后 | 已有基础，重建中 |
+| 首页 | Bottom nav Home | AccountSummary、QuickActions、MarketPreview、RiskBadge、AuthCTA | instrument/market、account/wallet、public topics | 登录前后 | 阶段基线已完成 |
 | 行情 | Bottom nav Markets | Search、ProductPicker、TickerList、Kline | instrument/market/candles/depth/trades | 公开 | 已有基础，重建中 |
 | 现货交易 | Trade + `SPOT` | OrderTicket BottomSheet、OrderBook、OrderDeck | spot order/account + public/private topics | 登录 | 已有真实基础，重建中 |
 | 合约 | Contract + perpetual/delivery | Leverage、Margin、Position、Risk、Trigger | derivative order/account/risk/trigger/algo | 登录 | 已有真实基础，重建中 |
