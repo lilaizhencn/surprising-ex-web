@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Activity,
+  ArrowUpRight,
   Bell,
   BookOpen,
   CandlestickChart,
@@ -17,13 +18,16 @@ import {
   Flame,
   Globe2,
   HelpCircle,
+  House,
   Info,
   KeyRound,
+  LockKeyhole,
   Layers3,
   LogOut,
   MoonStar,
   Plus,
   Radio,
+  RefreshCw,
   Search,
   Sparkles,
   ShieldCheck,
@@ -33,7 +37,10 @@ import {
   TrendingUp,
   Trash2,
   Upload,
+  UserRound,
   WalletCards,
+  WalletMinimal,
+  WifiOff,
 } from "lucide-react";
 import {
   CandlestickSeries,
@@ -55,12 +62,12 @@ import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from ".
 import { FundingFlowPage } from "./components/FundingFlowPage";
 import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
-import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
+import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
-type Page = "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
+type Page = "home" | "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
 type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
@@ -105,6 +112,7 @@ const PRODUCT_META: Record<ProductMode, { label: string; labelEn: string; shortL
 function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMode = productModeFromPath(path) ?? "linear";
+  if (path === "/" || path === "/home") return { page: "home", productMode };
   if (path === "/rules") return { page: "rules", productMode };
   if (path === "/assets") return { page: "assets", productMode };
   if (path === "/recharge") return { page: "recharge", productMode };
@@ -120,6 +128,7 @@ function productModeFromPath(path: string): ProductMode | null {
 }
 
 function routeForPage(page: Page, productMode: ProductMode): string {
+  if (page === "home") return "/";
   if (page === "trade") return PRODUCT_ROUTES[productMode];
   return `/${page}`;
 }
@@ -156,7 +165,7 @@ export default function App() {
   const [algoOrders, setAlgoOrders] = useState<AlgoOrder[]>([]);
   const [triggerOrders, setTriggerOrders] = useState<OpenTriggerOrder[]>([]);
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
-  const [notice, setNotice] = useState("连接后端中，若服务未启动会进入离线演示数据。");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [page, setPage] = useState<Page>(initialRoute.page);
@@ -548,7 +557,7 @@ export default function App() {
     saveSession(next);
     if (next) {
       setAuthMode(null);
-      navigateToPage("trade");
+      navigateToPage("home");
       return;
     }
     openOrdersRequestRef.current += 1;
@@ -850,10 +859,31 @@ export default function App() {
         onLogin={() => setAuthMode("login")}
         onRegister={() => setAuthMode("register")}
         onLogout={() => persistSession(null)}
+        connectionState={realtime.state}
+        lastEventAt={realtime.lastEventAt}
+        onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
       />
       {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
 
-      {page === "rules" ? (
+      {page === "home" ? (
+        <HomePage
+          session={session}
+          markets={markets}
+          balances={fundingBalances}
+          positions={positions}
+          orders={orders}
+          language={language}
+          connectionState={realtime.state}
+          lastEventAt={realtime.lastEventAt}
+          onLogin={() => setAuthMode("login")}
+          onRegister={() => setAuthMode("register")}
+          onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
+          onOpenProduct={openProductPage}
+          onOpenMarket={(market) => { setSymbol(market.symbol); openProductPage(marketProduct(market)); }}
+          onAssets={() => navigateToPage("assets")}
+          onDeposit={() => navigateToPage("recharge")}
+        />
+      ) : page === "rules" ? (
         <TradingRulesPage
           markets={markets}
           selectedMarket={selectedMarket}
@@ -967,6 +997,111 @@ export default function App() {
       {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
     </main>
   );
+}
+
+function HomePage({
+  session,
+  markets,
+  balances,
+  positions,
+  orders,
+  language,
+  connectionState,
+  lastEventAt,
+  onLogin,
+  onRegister,
+  onRefresh,
+  onOpenProduct,
+  onOpenMarket,
+  onAssets,
+  onDeposit
+}: {
+  session: AuthSession | null;
+  markets: Market[];
+  balances: Balance[];
+  positions: Position[];
+  orders: OpenOrder[];
+  language: LanguageMode;
+  connectionState: ConnectionState;
+  lastEventAt?: Date;
+  onLogin: () => void;
+  onRegister: () => void;
+  onRefresh: () => void;
+  onOpenProduct: (mode: ProductMode) => void;
+  onOpenMarket: (market: Market) => void;
+  onAssets: () => void;
+  onDeposit: () => void;
+}) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
+  const featuredMarkets = markets.filter((market) => market.status !== "HALTED").slice(0, 8);
+  const productModes = (Object.keys(PRODUCT_META) as ProductMode[]).filter((mode) => markets.some((market) => marketProduct(market) === mode));
+  const greeting = session ? text("欢迎回来", "Welcome back") : text("为每一次决策保留清晰上下文", "A clearer context for every decision");
+
+  return (
+    <div className="home-page">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <span className="eyebrow">SURPRISING EX · EXECUTION DESK</span>
+          <h1>{greeting}</h1>
+          <p>{session
+            ? text("从账户状态、实时行情到订单风险，继续你的交易计划。", "Continue your trading plan with live markets, account state, and order risk in one place.")
+            : text("一个有自己节奏的交易终端。先看市场，再决定是否进入交易。", "A trading terminal with its own rhythm. Read the market first, then decide when to execute.")}</p>
+          <div className="home-hero-actions">
+            {session ? (
+              <>
+                <button className="home-button home-button-primary" onClick={() => onOpenProduct("linear")}><CandlestickChart size={16} />{text("进入交易工作台", "Open trading desk")}<ArrowUpRight size={15} /></button>
+                <button className="home-button home-button-quiet" onClick={onAssets}><WalletMinimal size={16} />{text("查看资产", "View assets")}</button>
+              </>
+            ) : (
+              <>
+                <button className="home-button home-button-primary" onClick={onRegister}><UserRound size={16} />{text("创建账户", "Create account")}<ArrowUpRight size={15} /></button>
+                <button className="home-button home-button-quiet" onClick={onLogin}>{text("登录交易", "Sign in to trade")}</button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="home-hero-state">
+          <LiveStatus state={connectionState} lastEventAt={lastEventAt} onRefresh={onRefresh} />
+          <div className="hero-signal"><span className="hero-signal-dot" /><strong>{text("实时市场数据", "Live market data")}</strong><small>{text("行情、盘口和成交统一来自 gateway / WebSocket", "Market, depth, and trades are sourced from gateway / WebSocket")}</small></div>
+        </div>
+      </section>
+
+      {session && <section className="home-account-strip" aria-label={text("账户概览", "Account overview")}>
+        <div><span>{text("资金账户资产种类", "Funding assets")}</span><strong>{balances.length}</strong></div>
+        <div><span>{text("当前持仓", "Open positions")}</span><strong>{positions.length}</strong></div>
+        <div><span>{text("当前委托", "Open orders")}</span><strong>{orders.length}</strong></div>
+        <button onClick={onDeposit}><Plus size={15} />{text("充值资金", "Fund account")}</button>
+      </section>}
+
+      <section className="home-section-heading"><div><span className="eyebrow">MARKET UNIVERSE</span><h2>{text("市场概览", "Market overview")}</h2><p>{text("按产品线浏览真实可交易的市场，进入后会重新加载对应 instrument 与实时订阅。", "Browse live markets by product line. Entering a market reloads its instrument and realtime subscription.")}</p></div><button className="home-inline-action" onClick={onRefresh}><RefreshCw size={14} />{text("刷新行情", "Refresh")}</button></section>
+      <div className="home-product-tabs">
+        {productModes.map((mode) => <button key={mode} onClick={() => onOpenProduct(mode)}><span>{PRODUCT_META[mode].label}</span><small>{markets.filter((market) => marketProduct(market) === mode).length} {text("个市场", "markets")}</small><ArrowUpRight size={14} /></button>)}
+      </div>
+      <section className="home-market-card">
+        <div className="home-market-head"><span>{text("交易对", "Market")}</span><span>{text("最新价", "Last")}</span><span>{text("24h 变化", "24h")}</span><span>{text("24h 成交量", "Volume")}</span><span /></div>
+        {featuredMarkets.length === 0 ? <div className="home-empty"><WifiOff size={18} /><span>{text("等待后端返回可交易市场", "Waiting for tradable markets from the gateway")}</span><button onClick={onRefresh}>{text("重试", "Retry")}</button></div> : featuredMarkets.map((market) => {
+          const change = market.change24hPpm >= 0;
+          return <button className="home-market-row" key={`${marketProduct(market)}:${market.symbol}`} onClick={() => onOpenMarket(market)}>
+            <span className="home-market-symbol"><strong>{market.symbol}</strong><small>{displayMarketName(language, market)} · {PRODUCT_META[marketProduct(market)].shortLabel}</small></span>
+            <strong className="home-market-price">{displayMarketPrice(market, market.lastPriceTicks)}</strong>
+            <span className={change ? "home-market-up" : "home-market-down"}>{change ? "+" : ""}{displayPpm(market.change24hPpm)}</span>
+            <span className="home-market-volume">{compact(unitsToNumber(market.volume24hUnits))}</span>
+            <ArrowUpRight size={16} />
+          </button>;
+        })}
+      </section>
+      <section className="home-trust-grid">
+        <article><ShieldCheck size={18} /><div><strong>{text("资金动作可追踪", "Traceable money movement")}</strong><p>{text("充值、提现和划转都进入独立流程，并保留状态反馈。", "Deposits, withdrawals, and transfers use dedicated flows with explicit status feedback.")}</p></div></article>
+        <article><Activity size={18} /><div><strong>{text("产品线严格隔离", "Product-line isolation")}</strong><p>{text("现货、永续、交割、期权使用各自的账户与 instrument 上下文。", "Spot, perpetual, delivery, and options keep their own account and instrument context.")}</p></div></article>
+        <article><LockKeyhole size={18} /><div><strong>{text("安全从登录开始", "Security starts at access")}</strong><p>{text("邮箱验证、2FA、API Key 和安全场景统一在安全中心管理。", "Email verification, 2FA, API keys, and security scenes are managed in one center.")}</p></div></article>
+      </section>
+    </div>
+  );
+}
+
+function LiveStatus({ state, lastEventAt, onRefresh }: { state: ConnectionState; lastEventAt?: Date; onRefresh: () => void }) {
+  const label = state === "live" ? "LIVE" : state === "degraded" ? "RECONNECTING" : "WAITING";
+  return <div className={`live-status live-status-${state}`}><span className="live-status-dot" /><span>{label}</span><small>{lastEventAt ? lastEventAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "--:--:--"}</small><button aria-label="Refresh market data" onClick={onRefresh}><RefreshCw size={13} /></button></div>;
 }
 
 function AssetsPage({
@@ -1474,7 +1609,10 @@ function Topbar({
   onLanguageToggle,
   onLogin,
   onRegister,
-  onLogout
+  onLogout,
+  connectionState,
+  lastEventAt,
+  onRefresh
 }: {
   session: AuthSession | null;
   page: Page;
@@ -1492,6 +1630,9 @@ function Topbar({
   onLogin: () => void;
   onRegister: () => void;
   onLogout: () => void;
+  connectionState: ConnectionState;
+  lastEventAt?: Date;
+  onRefresh: () => void;
 }) {
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const query = marketSearch.trim().toUpperCase();
@@ -1507,11 +1648,12 @@ function Topbar({
 
   return (
     <header className={mobileProductsOpen ? "topbar product-menu-open" : "topbar"}>
-      <button className="brand platform-brand" onClick={() => onPageChange("trade")}>
+      <button className="brand platform-brand" onClick={() => onPageChange("home")}>
         <span className="platform-mark"><Sparkles size={16} /></span>
         <strong>Surprising EX</strong>
       </button>
       <nav>
+        <button className={page === "home" ? "active home-nav-link" : "home-nav-link"} onClick={() => onPageChange("home")}><House size={15} />{localized(language, "首页", "Home")}</button>
         <button className={page === "trade" && productMode === "linear" ? "active" : ""} onClick={() => onProductModeChange("linear")}><CircleDollarSign size={15} />{localized(language, "U本位", "USDT")}</button>
         <button className={page === "trade" && productMode === "inverse" ? "active" : ""} onClick={() => onProductModeChange("inverse")}><Layers3 size={15} />{localized(language, "币本位", "Coin")}</button>
         <button className={page === "trade" && productMode === "linearDelivery" ? "active" : ""} onClick={() => onProductModeChange("linearDelivery")}><Clock3 size={15} />{localized(language, "U交割", "USDT Delivery")}</button>
@@ -1521,6 +1663,7 @@ function Topbar({
         <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />{localized(language, "交易规则", "Rules")}</button>
       </nav>
       <div className="top-actions">
+        <LiveStatus state={connectionState} lastEventAt={lastEventAt} onRefresh={onRefresh} />
         <div className="top-search-wrap">
           <label className="top-search">
             <Search size={14} />
