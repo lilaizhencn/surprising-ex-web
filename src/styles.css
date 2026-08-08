@@ -3608,7 +3608,7 @@ button.rules-row:hover {
   letter-spacing: -.04em;
 }
 
-.home-hero-copy h1 { max-width: 760px; font-size: clamp(36px, 5vw, 64px); line-height: 1.04; }
+.home-hero-copy h1 { max-width: 900px; font-size: clamp(38px, 4.2vw, 56px); line-height: 1.08; text-wrap: balance; }
 .home-hero-copy p,
 .home-section-heading p { max-width: 650px; margin: 0; color: var(--sx-text-secondary); font-size: 15px; line-height: 1.75; }
 .home-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
@@ -3702,7 +3702,7 @@ button.rules-row:hover {
   .top-actions .live-status { display: none; }
   .home-page { width: min(100% - 24px, 560px); padding: 22px 0 56px; }
   .home-hero { gap: 24px; padding: 24px 20px; border-radius: 18px; }
-  .home-hero-copy h1 { font-size: clamp(34px, 11vw, 48px); }
+  .home-hero-copy h1 { max-width: 100%; font-size: clamp(34px, 11vw, 48px); text-wrap: balance; }
   .home-hero-copy p { font-size: 14px; }
   .home-button { flex: 1 1 160px; }
   .home-account-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px; }

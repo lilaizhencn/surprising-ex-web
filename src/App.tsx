@@ -1034,7 +1034,7 @@ function HomePage({
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
   const featuredMarkets = markets.filter((market) => market.status !== "HALTED").slice(0, 8);
-  const productModes = (Object.keys(PRODUCT_META) as ProductMode[]).filter((mode) => markets.some((market) => marketProduct(market) === mode));
+  const productModes = Object.keys(PRODUCT_META) as ProductMode[];
   const greeting = session ? text("欢迎回来", "Welcome back") : text("为每一次决策保留清晰上下文", "A clearer context for every decision");
 
   return (
