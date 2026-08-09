@@ -9,7 +9,7 @@ export const config = {
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl(),
   gatewayPrefix: "/api/v1/gateway",
   authPrefix: "/api/v1/auth",
-  enableMockFallback: import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true"
+  enableMockFallback: import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true"
 };
 
 export const storageKeys = {

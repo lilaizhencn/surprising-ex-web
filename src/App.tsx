@@ -140,6 +140,7 @@ function pushRoute(path: string): void {
 
 export default function App() {
   const initialRoute = routeStateFromLocation();
+  const initialAuthMode = window.location.pathname === "/register" ? "register" : window.location.pathname === "/login" ? "login" : null;
   const [session, setSession] = useState<AuthSession | null>(() => loadSession());
   const [markets, setMarkets] = useState<Market[]>([]);
   const [symbol, setSymbol] = useState("BTC-USDT");
@@ -167,7 +168,7 @@ export default function App() {
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(initialAuthMode);
   const [page, setPage] = useState<Page>(initialRoute.page);
   const [productMode, setProductMode] = useState<ProductMode>(initialRoute.productMode);
   const [marketSearch, setMarketSearch] = useState("");
@@ -382,6 +383,8 @@ export default function App() {
       const nextRoute = routeStateFromLocation();
       setPage(nextRoute.page);
       setProductMode(nextRoute.productMode);
+      const nextAuthMode = window.location.pathname === "/register" ? "register" : window.location.pathname === "/login" ? "login" : null;
+      setAuthMode(nextAuthMode);
     };
     window.addEventListener("popstate", syncRoute);
     return () => window.removeEventListener("popstate", syncRoute);
@@ -574,6 +577,18 @@ export default function App() {
     setPositionMode("ONE_WAY");
   }
 
+  function openAuth(mode: AuthMode) {
+    setAuthMode(mode);
+    pushRoute(`/${mode}`);
+  }
+
+  function closeAuth() {
+    setAuthMode(null);
+    if (window.location.pathname === "/login" || window.location.pathname === "/register") {
+      pushRoute("/");
+    }
+  }
+
   function navigateToPage(nextPage: Page) {
     setPage(nextPage);
     pushRoute(routeForPage(nextPage, productMode));
@@ -696,7 +711,7 @@ export default function App() {
   async function changePositionMode(nextMode: PositionMode) {
     if (!session) {
       setNotice(localized(language, "请先登录后再切换持仓模式。", "Sign in before changing position mode."));
-      setAuthMode("login");
+      openAuth("login");
       return;
     }
     if (nextMode === positionMode) return;
@@ -715,7 +730,7 @@ export default function App() {
   async function submitOrder(draft: PlaceOrderDraft) {
     if (!session) {
       setNotice(localized(language, "请先登录后再下单。", "Sign in before placing an order."));
-      setAuthMode("login");
+      openAuth("login");
       return;
     }
     try {
@@ -733,7 +748,7 @@ export default function App() {
   async function submitTriggerOrders(drafts: PlaceTriggerOrderDraft[]) {
     if (!session) {
       setNotice(localized(language, "请先登录后再提交止盈止损。", "Sign in before submitting take-profit or stop-loss orders."));
-      setAuthMode("login");
+      openAuth("login");
       return;
     }
     const validDrafts = drafts.filter((draft) => {
@@ -773,7 +788,7 @@ export default function App() {
   async function submitAlgoOrder(draft: PlaceAlgoOrderDraft) {
     if (!session) {
       setNotice(localized(language, "请先登录后再提交算法单。", "Sign in before submitting an algo order."));
-      setAuthMode("login");
+      openAuth("login");
       return;
     }
     try {
@@ -835,7 +850,7 @@ export default function App() {
         initialMode={authMode}
         language={language}
         onAuthenticated={persistSession}
-        onBack={() => setAuthMode(null)}
+        onBack={closeAuth}
       />
     );
   }
@@ -856,8 +871,8 @@ export default function App() {
         onMarketSelect={selectMarket}
         onThemeToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")}
         onLanguageToggle={() => setLanguage((current) => current === "zh-CN" ? "en-US" : "zh-CN")}
-        onLogin={() => setAuthMode("login")}
-        onRegister={() => setAuthMode("register")}
+        onLogin={() => openAuth("login")}
+        onRegister={() => openAuth("register")}
         onLogout={() => persistSession(null)}
         connectionState={realtime.state}
         lastEventAt={realtime.lastEventAt}
@@ -875,8 +890,8 @@ export default function App() {
           language={language}
           connectionState={realtime.state}
           lastEventAt={realtime.lastEventAt}
-          onLogin={() => setAuthMode("login")}
-          onRegister={() => setAuthMode("register")}
+          onLogin={() => openAuth("login")}
+          onRegister={() => openAuth("register")}
           onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
           onOpenProduct={openProductPage}
           onOpenMarket={(market) => { setSymbol(market.symbol); openProductPage(marketProduct(market)); }}
@@ -934,7 +949,7 @@ export default function App() {
           onShowAsset={() => navigateToPage("assets")}
         />
       ) : page === "security" ? (
-        <SecurityPage language={language} session={session} onLogin={() => setAuthMode("login")} />
+        <SecurityPage language={language} session={session} onLogin={() => openAuth("login")} />
       ) : (
         <div className="terminal-grid" key={productMode}>
           <MarketRail language={language} productMode={productMode} markets={visibleMarkets} marketSearch={marketSearch} symbol={symbol} onSearchChange={setMarketSearch} onSelect={selectMarket} />
