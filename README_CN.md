@@ -51,8 +51,8 @@ VITE_WS_BASE_URL=ws://localhost:9093/ws/v1
 ## 部署配置
 
 ```bash
-VITE_API_BASE_URL=https://api.example.com
-VITE_WS_BASE_URL=wss://ws.example.com/ws/v1
+VITE_API_BASE_URL=https://ex-api.tokdou.com
+VITE_WS_BASE_URL=wss://ex-api.tokdou.com/ws/v1
 ```
 
 生产环境应只暴露 gateway 和 websocket，不直接暴露内部 provider。

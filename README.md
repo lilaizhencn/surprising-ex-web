@@ -51,8 +51,8 @@ Core paths:
 ## Deployment
 
 ```bash
-VITE_API_BASE_URL=https://api.example.com
-VITE_WS_BASE_URL=wss://ws.example.com/ws/v1
+VITE_API_BASE_URL=https://ex-api.tokdou.com
+VITE_WS_BASE_URL=wss://ex-api.tokdou.com/ws/v1
 ```
 
 Production deployments should expose only the gateway and websocket services, not internal providers.
