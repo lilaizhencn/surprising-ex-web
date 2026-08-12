@@ -113,18 +113,22 @@ const PRODUCT_META: Record<ProductMode, { label: string; labelEn: string; shortL
 
 const PRODUCT_MODES = Object.keys(PRODUCT_META) as ProductMode[];
 
-function routeStateFromLocation(): { page: Page; productMode: ProductMode; assetProductMode: ProductMode | null } {
+function routeStateFromLocation(isAuthenticated: boolean): { page: Page; productMode: ProductMode; assetProductMode: ProductMode | null; authMode: AuthMode | null } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const assetProductMode = assetProductModeFromPath(path);
   const productMode = productModeFromPath(path) ?? assetProductMode ?? "linear";
-  if (path === "/" || path === "/home") return { page: "home", productMode, assetProductMode: null };
-  if (path === "/rules") return { page: "rules", productMode, assetProductMode: null };
-  if (path === "/assets" || assetProductMode) return { page: "assets", productMode, assetProductMode };
-  if (path === "/ledger") return { page: "ledger", productMode, assetProductMode: null };
-  if (path === "/recharge") return { page: "recharge", productMode, assetProductMode: null };
-  if (path === "/withdraw") return { page: "withdraw", productMode, assetProductMode: null };
-  if (path === "/security") return { page: "security", productMode, assetProductMode: null };
-  return { page: "trade", productMode, assetProductMode: null };
+  if (path === "/login" || path === "/register") return { page: "home", productMode, assetProductMode: null, authMode: path === "/register" ? "register" : "login" };
+  if (path === "/assets" || assetProductMode || path === "/ledger") {
+    return isAuthenticated
+      ? { page: path === "/ledger" ? "ledger" : "assets", productMode, assetProductMode, authMode: null }
+      : { page: "home", productMode, assetProductMode: null, authMode: "login" };
+  }
+  if (path === "/" || path === "/home") return { page: "home", productMode, assetProductMode: null, authMode: null };
+  if (path === "/rules") return { page: "rules", productMode, assetProductMode: null, authMode: null };
+  if (path === "/recharge") return { page: "recharge", productMode, assetProductMode: null, authMode: null };
+  if (path === "/withdraw") return { page: "withdraw", productMode, assetProductMode: null, authMode: null };
+  if (path === "/security") return { page: "security", productMode, assetProductMode: null, authMode: null };
+  return { page: "trade", productMode, assetProductMode: null, authMode: null };
 }
 
 function assetProductModeFromPath(path: string): ProductMode | null {
@@ -156,9 +160,9 @@ function pushRoute(path: string): void {
 }
 
 export default function App() {
-  const initialRoute = routeStateFromLocation();
-  const initialAuthMode = window.location.pathname === "/register" ? "register" : window.location.pathname === "/login" ? "login" : null;
-  const [session, setSession] = useState<AuthSession | null>(() => loadSession());
+  const initialSession = loadSession();
+  const initialRoute = routeStateFromLocation(initialSession !== null);
+  const [session, setSession] = useState<AuthSession | null>(initialSession);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [symbol, setSymbol] = useState("BTC-USDT");
   const [candles, setCandles] = useState<CandlePoint[]>([]);
@@ -190,7 +194,7 @@ export default function App() {
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode | null>(initialAuthMode);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(initialRoute.authMode);
   const [page, setPage] = useState<Page>(initialRoute.page);
   const [productMode, setProductMode] = useState<ProductMode>(initialRoute.productMode);
   const [assetProductMode, setAssetProductMode] = useState<ProductMode | null>(initialRoute.assetProductMode);
@@ -447,17 +451,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!session && (window.location.pathname === "/assets" || window.location.pathname.startsWith("/assets/") || window.location.pathname === "/ledger")) {
+      pushRoute("/login");
+    }
+  }, [session]);
+
+  useEffect(() => {
     const syncRoute = () => {
-      const nextRoute = routeStateFromLocation();
+      const nextRoute = routeStateFromLocation(session !== null);
       setPage(nextRoute.page);
       setProductMode(nextRoute.productMode);
       setAssetProductMode(nextRoute.assetProductMode);
-      const nextAuthMode = window.location.pathname === "/register" ? "register" : window.location.pathname === "/login" ? "login" : null;
-      setAuthMode(nextAuthMode);
+      setAuthMode(nextRoute.authMode);
     };
     window.addEventListener("popstate", syncRoute);
     return () => window.removeEventListener("popstate", syncRoute);
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (!visibleMarkets.length) return;
@@ -664,6 +673,10 @@ export default function App() {
   }
 
   function navigateToPage(nextPage: Page) {
+    if ((nextPage === "assets" || nextPage === "ledger") && !session) {
+      openAuth("login");
+      return;
+    }
     setAuthMode(null);
     setAssetProductMode(null);
     setPage(nextPage);
@@ -671,6 +684,10 @@ export default function App() {
   }
 
   function openAssetProductPage(nextMode: ProductMode) {
+    if (!session) {
+      openAuth("login");
+      return;
+    }
     setAuthMode(null);
     setAssetProductMode(nextMode);
     setPage("assets");
@@ -1740,7 +1757,7 @@ function Topbar({
           )}
         </div>
         <button className="asset-charge" onClick={() => onPageChange("recharge")}>{localized(language, "充值", "Deposit")}</button>
-        <button className={`user-pill asset-management-button ${page === "assets" ? "active" : ""}`} onClick={() => onPageChange("assets")}>{localized(language, "资产管理", "Assets")}<ChevronDown size={13} /></button>
+        <button className={`user-pill asset-management-button ${page === "assets" ? "active" : ""}`} onClick={() => onPageChange("assets")}>{localized(language, "资产管理", "Assets")}</button>
         <button className={`user-pill security-center-button ${page === "security" ? "active" : ""}`} onClick={() => onPageChange("security")}><ShieldCheck size={14} />{localized(language, "安全中心", "Security")}</button>
         <button onClick={onThemeToggle} aria-label={localized(language, "切换明暗主题", "Toggle theme")}>{theme === "dark" ? <Sun size={16} /> : <MoonStar size={16} />}</button>
         <button onClick={onLanguageToggle} aria-label={localized(language, "切换语言", "Switch language")}>{language === "zh-CN" ? "EN" : "中文"}</button>
