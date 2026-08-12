@@ -27,6 +27,14 @@ export function filterTradableMarkets<T extends Pick<Market, "status">>(markets:
   return markets.filter(marketIsTradable);
 }
 
+export function selectFeaturedTradableMarkets<T extends Pick<Market, "status">>(markets: T[], limit = 8): T[] {
+  return filterTradableMarkets(markets).slice(0, limit);
+}
+
+export function selectReadyTradableMarkets<T extends Pick<Market, "status" | "tickerReady">>(markets: T[]): T[] {
+  return filterTradableMarkets(markets).filter((market) => market.tickerReady === true);
+}
+
 export function mergeMarketSnapshots(current: Market[], incoming: Market[], preserveCurrentSnapshot: boolean): Market[] {
   const currentByKey = new Map(current.map((market) => [`${marketProductForPresentation(market)}:${market.symbol}`, market]));
   return incoming.map((market) => {

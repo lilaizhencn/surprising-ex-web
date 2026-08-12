@@ -64,7 +64,7 @@ import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
 import { MarketsPage, type MarketCenterState } from "./components/MarketsPage";
-import { filterTradableMarkets, mergeMarketSnapshots } from "./marketPresentation";
+import { filterTradableMarkets, mergeMarketSnapshots, selectFeaturedTradableMarkets, selectReadyTradableMarkets } from "./marketPresentation";
 import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
@@ -1172,7 +1172,8 @@ function HomePage({
   onDeposit: () => void;
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const featuredMarkets = filterTradableMarkets(markets).slice(0, 8);
+  const featuredMarkets = selectFeaturedTradableMarkets(markets);
+  const tradableMarkets = filterTradableMarkets(markets);
   const productModes = Object.keys(PRODUCT_META) as ProductMode[];
   const greeting = session ? text("欢迎回来", "Welcome back") : text("为每一次决策保留清晰上下文", "A clearer context for every decision");
 
@@ -1187,7 +1188,7 @@ function HomePage({
 
       <section className="home-section-heading"><div><span className="eyebrow">MARKET UNIVERSE</span><h2>{text("市场概览", "Market overview")}</h2><p>{text("按产品线浏览真实可交易的市场，进入后会重新加载对应 instrument 与实时订阅。", "Browse live markets by product line. Entering a market reloads its instrument and realtime subscription.")}</p></div><button className="home-inline-action" onClick={onRefresh}><RefreshCw size={14} />{text("刷新行情", "Refresh")}</button></section>
       <div className="home-product-tabs">
-        {productModes.map((mode) => <button key={mode} onClick={() => onOpenProduct(mode)}><span>{PRODUCT_META[mode].label}</span><small>{markets.filter((market) => marketProduct(market) === mode).length} {text("个市场", "markets")}</small><ArrowUpRight size={14} /></button>)}
+        {productModes.map((mode) => <button key={mode} onClick={() => onOpenProduct(mode)}><span>{PRODUCT_META[mode].label}</span><small>{tradableMarkets.filter((market) => marketProduct(market) === mode).length} {text("个市场", "markets")}</small><ArrowUpRight size={14} /></button>)}
       </div>
       <section className="home-market-card">
         <div className="home-market-head"><span>{text("交易对", "Market")}</span><span>{text("最新价", "Last")}</span><span>{text("24h 变化", "24h")}</span><span>{text("24h 成交量", "Volume")}</span><span /></div>
@@ -1209,7 +1210,7 @@ function HomePage({
 
 function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const tickerMarkets = filterTradableMarkets(markets).filter((market) => market.tickerReady);
+  const tickerMarkets = selectReadyTradableMarkets(markets);
   const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
   const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
   return <section className="home-insights" aria-label={text("市场排行", "Market rankings")}>
