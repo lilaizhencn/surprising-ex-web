@@ -616,7 +616,7 @@ export default function App() {
       if (event.channel === "trades") {
         const lastPriceTicks = priceTicksFromPayload(data, selectedMarket, "priceTicks", "price");
         if (lastPriceTicks > 0) {
-          patchMarket(targetSymbol, { lastPriceTicks });
+          patchMarket(targetSymbol, { lastPriceTicks }, activeProductMode);
         }
         continue;
       }
@@ -624,7 +624,7 @@ export default function App() {
       if (event.channel === "index") {
         const indexPriceTicks = priceTicksFromPayload(data, selectedMarket, "indexPriceTicks", "indexPrice", "indexPriceUnits");
         if (indexPriceTicks > 0) {
-          patchMarket(targetSymbol, { indexPriceTicks });
+          patchMarket(targetSymbol, { indexPriceTicks }, activeProductMode);
         }
         continue;
       }
@@ -638,7 +638,7 @@ export default function App() {
           ...(indexPriceTicks > 0 ? { indexPriceTicks } : {}),
           ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
           ...fundingTimingPatch(data)
-        });
+        }, activeProductMode);
         continue;
       }
 
@@ -647,7 +647,7 @@ export default function App() {
         patchMarket(targetSymbol, {
           ...(fundingRatePpm !== undefined ? { fundingRatePpm } : {}),
           ...fundingTimingPatch(data)
-        });
+        }, activeProductMode);
       }
     }
   }, [activeProductLine, klinePeriod, realtime.events, selectedMarket, symbol]);

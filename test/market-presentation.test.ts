@@ -52,3 +52,10 @@ test("a live instrument without ticker data does not inherit fallback ticker val
   assert.equal(merged.tickerReady, false);
   assert.equal(merged.lastPriceTicks, 0);
 });
+
+test("market identity keys keep duplicate symbols isolated across perpetual and spot", () => {
+  const perpetual = { symbol: "BTC-USDT", instrumentType: "PERPETUAL", contractType: "LINEAR", settleAsset: "USDT", baseAsset: "BTC" };
+  const spot = { symbol: "BTC-USDT", instrumentType: "SPOT", contractType: "SPOT", settleAsset: "USDT", baseAsset: "BTC" };
+
+  assert.notEqual(marketFavoriteKey(perpetual), marketFavoriteKey(spot));
+});
