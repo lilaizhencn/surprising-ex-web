@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 公共首页 | `/` | 品牌入口、登录前市场概览 | Hero、LiveStatus、产品线卡片、MarketTable | instrument/market、candles/depth/trades | 公开 | 阶段基线已完成 | 1440/1280/1024/768；移动端单列 |
 | 登录/注册 | `/` modal/screen | 未登录交易/资产入口 | AuthForm、邮箱验证、重置密码 | auth register/login/verify/forgot/reset | 公开 | 已有真实基础，重建中 | 375/768/1280 |
-| 行情中心 | `/markets` | 搜索/筛选产品线 | MarketToolbar、MarketTable | instrument/market、public topics | 公开 | 重建中 | 768 以下表格转卡片 |
+| 行情中心 | `/markets` | 搜索/筛选产品线、涨跌榜、成交额榜、收藏 | MarketToolbar、MarketTable、MarketRankings | instrument/market、public topics | 公开 | 已有真实基础，增量重构完成 | 768 以下横向数据表可滚动，筛选和搜索保持可用 |
 | 交易对详情 | `/market/:productLine/:symbol` | 阅读单市场 | Header、Kline、Depth、Trades、Rules | candles/depth/trades/index/mark/funding | 公开 | 规划中 | 交易入口保持可见 |
 | 现货交易 | `/trade/spot` | Spot 下单、委托、成交 | ProductContext、Kline、OrderBook、OrderTicket、OrderDeck | instrument/candlestick/market/trading/account、candles/depth/trades、orders/matches/executionReports | 登录 | 已有真实基础，重建中 | 1024/768 堆叠而非压缩 |
 | U 本位永续 | `/trade/usdt-perpetual` | 合约开平仓和风险 | ContractLifecycle、Leverage、Position/Risk | order/account/risk/trigger/algo、mark/index/funding | 登录 | 已有真实基础，重建中 | 高密度桌面 + 移动独立页 |
@@ -18,7 +18,7 @@
 | 资产总览 | `/assets` | 多账户余额、估值、资金动作 | AssetSummary、AssetTable、TransferDialog | product-balances、wallet app assets/orders | 登录 | 已有真实基础，重建中 | 1024 转双列/单列 |
 | 充值 | `/recharge` | 获取地址、查看链配置 | AssetSelect、NetworkSelect、AddressCard、QR | wallet chains/address/deposits | 登录/KYC/风险由后端决定 | 已有真实基础，重建中 | 复制/二维码/状态可见 |
 | 提现 | `/withdraw` | 安全提现 | Address、Amount、Fee、Verification、Result | wallet withdrawals/rules | 登录/KYC/安全验证 | 已有真实基础，重建中 | unknown-result 禁止重复提交 |
-| 资金记录 | `/assets/records` | 充值/提现/划转/流水 | Filters、PaginatedTable | 当前用户端 Gateway 能力待补 | 登录 | 后端缺口 | 后端分页协议确认后实现 |
+| 资金记录 | `/assets/records` | 充值/提现/划转/流水 | Filters、PaginatedTable | 当前用户端 Gateway 能力待补 | 登录 | 后端缺口；资产中心提供最近 10 条与入口 | 后端分页协议确认后实现 |
 | 安全中心 | `/security` | 密码/MFA/API Key/安全场景 | SecurityCards、VerificationChallenge | security/mfa/scenes/api-keys | 登录 | 已有真实基础，重建中 | 关键写操作二次确认 |
 | KYC | `/compliance` | 认证和审核 | KycStatus、DocumentUpload、ReviewTimeline | compliance/kyc/documents | 登录 | API 已有，页面重建中 | 文档错误局部显示 |
 | 个人设置 | `/settings` | 语言、法币、主题、涨跌色、时区 | SettingsForm | 目前主要本地偏好 | 登录/公开部分 | 框架规划 | 不伪造后端持久化 |

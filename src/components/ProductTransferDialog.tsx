@@ -5,6 +5,7 @@ import { ApiError } from "../api/client";
 import { availableUnitsForAsset, isCompletedProductTransfer, productTransferErrorMessage } from "../productTransfer";
 import type { AuthSession, Balance, ProductAccountType } from "../types";
 import { AssetIcon, assetName } from "./AssetPrimitives";
+import { UiButton, UiField } from "./UiPrimitives";
 
 const ACCOUNT_OPTIONS: Array<{ value: ProductAccountType; label: string }> = [
   { value: "SPOT", label: "资金账户" },
@@ -144,16 +145,16 @@ export function ProductTransferDialog({ session, balances, initialAsset, initial
       <header className="transfer-dialog-header"><div><small>账户资金管理</small><h2 id="transfer-dialog-title">资金划转</h2></div><button ref={closeRef} className="icon-button" type="button" aria-label="关闭资金划转" onClick={onClose}><X size={18} /></button></header>
       <p className="security-muted">产品账户之间即时划转，小额无需额外验证；大额划转会按 USDT 估值要求邮箱验证，绑定 2FA 后还需动态验证码。</p>
       <div className="transfer-route">
-        <label>从<select disabled={outcomeLocked} value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <UiField label="从" className="transfer-field transfer-route-field"><select disabled={outcomeLocked} value={sourceAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setSourceAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></UiField>
         <button className="transfer-swap" type="button" aria-label="交换划转方向" disabled={outcomeLocked} onClick={swapAccounts}><ArrowDownUp size={18} /></button>
-        <label>到<select disabled={outcomeLocked} value={targetAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setTargetAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <UiField label="到" className="transfer-field transfer-route-field"><select disabled={outcomeLocked} value={targetAccountType} onChange={(event) => { const next = ACCOUNT_OPTIONS.find((item) => item.value === event.target.value)?.value; if (next) setTargetAccountType(next); }}>{ACCOUNT_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></UiField>
       </div>
-      <label className="transfer-field">币种<select disabled={outcomeLocked} value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></label>
-      <label className="transfer-field">数量<input disabled={outcomeLocked} value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /><span>可用 {sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} {asset}</span></label>
-      {verificationRequired && <div className="security-code-grid"><label>邮箱验证码<input disabled={outcomeLocked} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="请输入 6 位验证码" /></label><label>2FA 验证码<input disabled={outcomeLocked} value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="未绑定可留空" /></label></div>}
+      <UiField label="币种" className="transfer-field"><select disabled={outcomeLocked} value={asset} onChange={(event) => setAsset(event.target.value)}>{balances.map((item) => <option value={item.asset} key={item.asset}>{item.asset} · {assetName(item.asset)}</option>)}</select></UiField>
+      <UiField label="数量" hint={`可用 ${sourceAccountType === "SPOT" ? unitsToDisplay(available) : "由目标账户实时校验"} ${asset}`} className="transfer-field"><input disabled={outcomeLocked} value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="请输入划转数量" /></UiField>
+      {verificationRequired && <div className="security-code-grid"><UiField label="邮箱验证码"><input disabled={outcomeLocked} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="请输入 6 位验证码" /></UiField><UiField label="2FA 验证码"><input disabled={outcomeLocked} value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="未绑定可留空" /></UiField></div>}
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="transfer-success" role="status"><AssetIcon symbol={asset} />{notice}</p>}
-      <button className="primary-button" type="button" disabled={submitting || Boolean(notice) || outcomeLocked} onClick={() => void submit()}>{submitting ? "提交中…" : outcomeLocked ? "请查看资金记录" : "确认划转"}</button>
+      <UiButton variant="primary" className="primary-button" type="button" busy={submitting} disabled={Boolean(notice) || outcomeLocked} onClick={() => void submit()}>{outcomeLocked ? "请查看资金记录" : "确认划转"}</UiButton>
     </section>
   </div>;
 }

@@ -117,6 +117,7 @@ Typography uses the system UI sans stack for dense trading surfaces, a slightly 
 - `ActionButton`: `primary`, `secondary`, `quiet`, `danger`; every state includes keyboard focus and pending state.
 - `StatusBadge`: `positive`, `warning`, `negative`, `neutral`.
 - `State`: `Alert`, `EmptyState`, and `LoadingState` for explicit async and data states.
+- `AsyncState`: `Skeleton` and `ErrorState` for layout-preserving loads and recoverable failures.
 - `ProductContext`: always displays the active product line and account context.
 - `VerificationStep`: destination masking, code input, resend cooldown, expired, invalid, success.
 

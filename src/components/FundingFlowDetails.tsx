@@ -4,6 +4,7 @@ import type { WalletAddress, WalletChain } from "../api/wallet";
 import { AssetIcon } from "./AssetPrimitives";
 import { FundingAddress, FundingMemo } from "./FundingFlowParts";
 import { chainLabel, minimumAmount } from "./funding";
+import { UiButton, UiField } from "./UiPrimitives";
 
 export function FundingDetails({
   mode,
@@ -56,13 +57,13 @@ export function FundingDetails({
   }
   return <div className="withdraw-detail">
     <p className="funding-network-note"><span className="funding-network-chain">{chainLabel(chain, asset)}</span> · <span className="no-wrap">{text("提现从资金账户扣除", "Withdrawal is deducted from Funding")}</span></p>
-    <label>{text("提币地址", "Withdrawal address")}<input value={toAddress} onChange={(event) => onToAddressChange(event.target.value)} placeholder={text("请输入或粘贴地址", "Enter or paste address")} autoComplete="off" /></label>
-    <label>{text("提币数量", "Withdrawal amount")}<input value={amount} onChange={(event) => onAmountChange(event.target.value)} placeholder={`${text("最低", "Minimum")} ${minimumAmount(asset, chain)}`} inputMode="decimal" /></label>
+    <UiField label={text("提币地址", "Withdrawal address")} className="withdraw-detail-field"><input value={toAddress} onChange={(event) => onToAddressChange(event.target.value)} placeholder={text("请输入或粘贴地址", "Enter or paste address")} autoComplete="off" /></UiField>
+    <UiField label={text("提币数量", "Withdrawal amount")} hint={`${text("最低", "Minimum")} ${minimumAmount(asset, chain)}`} className="withdraw-detail-field"><input value={amount} onChange={(event) => onAmountChange(event.target.value)} placeholder={`${text("最低", "Minimum")} ${minimumAmount(asset, chain)}`} inputMode="decimal" /></UiField>
     <div className="security-code-grid">
-      <label>{text("邮箱验证码", "Email code")}<input value={emailCode} onChange={(event) => onEmailCodeChange(event.target.value)} placeholder={text("如需验证请输入", "Enter if required")} inputMode="numeric" /></label>
-      <button type="button" className="secondary-flow-button" disabled={!session || sendingCode} onClick={onSendCode}>{sendingCode ? text("发送中…", "Sending…") : text("发送验证码", "Send code")}</button>
-      <label>{text("2FA 验证码", "2FA code")}<input value={totpCode} onChange={(event) => onTotpCodeChange(event.target.value)} placeholder={text("未绑定可留空", "Leave blank if not bound")} inputMode="numeric" /></label>
+      <UiField label={text("邮箱验证码", "Email code")}><input value={emailCode} onChange={(event) => onEmailCodeChange(event.target.value)} placeholder={text("如需验证请输入", "Enter if required")} inputMode="numeric" /></UiField>
+      <UiButton variant="secondary" className="secondary-flow-button" disabled={!session} busy={sendingCode} onClick={onSendCode}>{text("发送验证码", "Send code")}</UiButton>
+      <UiField label={text("2FA 验证码", "2FA code")}><input value={totpCode} onChange={(event) => onTotpCodeChange(event.target.value)} placeholder={text("未绑定可留空", "Leave blank if not bound")} inputMode="numeric" /></UiField>
     </div>
-    <button className="primary-flow-button" type="button" disabled={!session || submitting} onClick={onSubmit}>{submitting ? text("提交中…", "Submitting…") : text("提交提币", "Submit withdrawal")}</button>
+    <UiButton variant="primary" className="primary-flow-button" type="button" disabled={!session} busy={submitting} onClick={onSubmit}>{text("提交提币", "Submit withdrawal")}</UiButton>
   </div>;
 }

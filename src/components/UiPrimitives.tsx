@@ -70,6 +70,14 @@ export function UiLoadingState({ label }: { label: ReactNode }) {
   return <div className="ui-state ui-loading-state" role="status" aria-live="polite" aria-busy="true"><span className="ui-loading-orb" aria-hidden="true" /><span>{label}</span></div>;
 }
 
+export function UiSkeleton({ className }: { className?: string }) {
+  return <span className={joinClassNames("ui-skeleton", className)} aria-hidden="true" />;
+}
+
+export function UiErrorState({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
+  return <div className="ui-state ui-error-state" role="alert"><span className="ui-state-icon" aria-hidden="true">!</span><strong>{title}</strong>{description ? <p>{description}</p> : null}{action ? <div className="ui-state-action">{action}</div> : null}</div>;
+}
+
 export function UiAlert({ tone = "info", className, children }: { tone?: UiAlertTone; className?: string; children: ReactNode }) {
   return <div className={joinClassNames(`ui-alert ui-alert-${tone}`, className)} role={tone === "error" ? "alert" : "status"}>{children}</div>;
 }

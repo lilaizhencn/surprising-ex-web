@@ -63,6 +63,7 @@ import { FundingFlowPage } from "./components/FundingFlowPage";
 import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
+import { MarketsPage, type MarketCenterState } from "./components/MarketsPage";
 import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
@@ -70,7 +71,7 @@ import "./styles.css";
 
 type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
-type Page = "home" | "trade" | "rules" | "assets" | "ledger" | "recharge" | "withdraw" | "security";
+type Page = "home" | "markets" | "trade" | "rules" | "assets" | "ledger" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
 type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
@@ -119,15 +120,14 @@ function routeStateFromLocation(isAuthenticated: boolean): { page: Page; product
   const assetProductMode = assetProductModeFromPath(path);
   const productMode = productModeFromPath(path) ?? assetProductMode ?? "linear";
   if (path === "/login" || path === "/register") return { page: "home", productMode, assetProductMode: null, authMode: path === "/register" ? "register" : "login" };
-  if (path === "/assets" || assetProductMode || path === "/ledger") {
+  if (path === "/assets" || assetProductMode || path === "/ledger" || path === "/recharge" || path === "/withdraw") {
     return isAuthenticated
-      ? { page: path === "/ledger" ? "ledger" : "assets", productMode, assetProductMode, authMode: null }
+      ? { page: path === "/ledger" ? "ledger" : path === "/recharge" ? "recharge" : path === "/withdraw" ? "withdraw" : "assets", productMode, assetProductMode, authMode: null }
       : { page: "home", productMode, assetProductMode: null, authMode: "login" };
   }
   if (path === "/" || path === "/home") return { page: "home", productMode, assetProductMode: null, authMode: null };
   if (path === "/rules") return { page: "rules", productMode, assetProductMode: null, authMode: null };
-  if (path === "/recharge") return { page: "recharge", productMode, assetProductMode: null, authMode: null };
-  if (path === "/withdraw") return { page: "withdraw", productMode, assetProductMode: null, authMode: null };
+  if (path === "/markets") return { page: "markets", productMode, assetProductMode: null, authMode: null };
   if (path === "/security") return { page: "security", productMode, assetProductMode: null, authMode: null };
   return { page: "trade", productMode, assetProductMode: null, authMode: null };
 }
@@ -165,6 +165,7 @@ export default function App() {
   const initialRoute = routeStateFromLocation(initialSession !== null);
   const [session, setSession] = useState<AuthSession | null>(initialSession);
   const [markets, setMarkets] = useState<Market[]>([]);
+  const [marketState, setMarketState] = useState<MarketCenterState>("loading");
   const [symbol, setSymbol] = useState("BTC-USDT");
   const [candles, setCandles] = useState<CandlePoint[]>([]);
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
@@ -221,6 +222,35 @@ export default function App() {
     marketsRef.current = markets;
   }, [markets]);
 
+  async function refreshMarketsFromGateway(): Promise<void> {
+    setMarketState("loading");
+    setValuationMarketState("loading");
+    try {
+      const items = await loadMarkets(false);
+      setMarkets(items);
+      setMarketState("ready");
+      setValuationPrices({});
+      setValuationMarketState("ready");
+      if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
+      return;
+    } catch {
+      try {
+        const items = await loadMarkets();
+        setMarkets(items);
+        setMarketState("degraded");
+        setValuationPrices({});
+        setValuationMarketState("ready");
+        if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
+        return;
+      } catch {
+        setMarketState("error");
+        setValuationMarketState("error");
+        setValuationPrices({});
+        setNotice("交易对服务暂不可用，请稍后重试");
+      }
+    }
+  }
+
   useEffect(() => {
     processedTriggerEventKeysRef.current.clear();
     triggerOrderEventVersionsRef.current.clear();
@@ -254,21 +284,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    void loadMarkets(false).then((items) => {
-      setMarkets(items);
-      setValuationPrices({});
-      setValuationMarketState("ready");
-      if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
-    }).catch(() => {
-      setValuationMarketState("error");
-      setValuationPrices({});
-      void loadMarkets().then((items) => {
-        setMarkets(items);
-        if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
-      }).catch(() => {
-        setNotice("交易对服务暂不可用，请稍后重试");
-      });
-    });
+    void refreshMarketsFromGateway();
   }, []);
 
   useEffect(() => {
@@ -452,7 +468,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!session && (window.location.pathname === "/assets" || window.location.pathname.startsWith("/assets/") || window.location.pathname === "/ledger")) {
+    if (!session && (window.location.pathname === "/assets" || window.location.pathname.startsWith("/assets/") || window.location.pathname === "/ledger" || window.location.pathname === "/recharge" || window.location.pathname === "/withdraw")) {
       pushRoute("/login");
     }
   }, [session]);
@@ -674,7 +690,7 @@ export default function App() {
   }
 
   function navigateToPage(nextPage: Page) {
-    if ((nextPage === "assets" || nextPage === "ledger") && !session) {
+    if ((nextPage === "assets" || nextPage === "ledger" || nextPage === "recharge" || nextPage === "withdraw") && !session) {
       openAuth("login");
       return;
     }
@@ -1003,6 +1019,15 @@ export default function App() {
           onAssets={() => navigateToPage("assets")}
           onDeposit={() => navigateToPage("recharge")}
         />
+      ) : page === "markets" ? (
+        <MarketsPage
+          markets={markets}
+          marketState={marketState}
+          language={language}
+          productMeta={PRODUCT_META}
+          onRefresh={() => { void refreshMarketsFromGateway(); }}
+          onOpenMarket={(market) => { setSymbol(market.symbol); openProductPage(marketProduct(market)); }}
+        />
       ) : page === "rules" ? (
         <TradingRulesPage
           markets={markets}
@@ -1165,8 +1190,27 @@ function HomePage({
           </button>;
         })}
       </section>
+      <HomeMarketInsights markets={markets} language={language} onOpenMarket={onOpenMarket} />
     </div>
   );
+}
+
+function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
+  const gainers = [...markets].filter((market) => market.status !== "HALTED").sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
+  const volumeLeaders = [...markets].filter((market) => market.status !== "HALTED").sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
+  return <section className="home-insights" aria-label={text("市场排行", "Market rankings")}>
+    <div className="home-insights-heading"><div><span className="eyebrow">MARKET SIGNALS</span><h2>{text("市场信号", "Market signals")}</h2></div><span>{text("基于当前后端市场快照", "Based on the current gateway snapshot")}</span></div>
+    <div className="home-insight-grid">
+      <HomeRankingCard title={text("涨跌榜", "Change leaders")} markets={gainers} language={language} onOpenMarket={onOpenMarket} value="change" />
+      <HomeRankingCard title={text("成交额榜", "Volume leaders")} markets={volumeLeaders} language={language} onOpenMarket={onOpenMarket} value="volume" />
+    </div>
+  </section>;
+}
+
+function HomeRankingCard({ title, markets, language, onOpenMarket, value }: { title: string; markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void; value: "change" | "volume" }) {
+  const text = (zh: string, en: string) => localized(language, zh, en);
+  return <article className="home-ranking-card"><h3><TrendingUp size={16} />{title}</h3>{markets.length === 0 ? <div className="home-ranking-empty"><WifiOff size={15} />{text("等待真实市场数据", "Waiting for live market data")}</div> : markets.map((market) => <button className="home-ranking-row" type="button" key={market.symbol} onClick={() => onOpenMarket(market)}><span><strong>{market.symbol}</strong><small>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel}</small></span>{value === "change" ? <b className={market.change24hPpm >= 0 ? "home-market-up" : "home-market-down"}>{market.change24hPpm >= 0 ? "+" : ""}{displayPpm(market.change24hPpm)}</b> : <b>{compact(market.volume24hUnits)}</b>}</button>)}</article>;
 }
 
 function LiveStatus({ state, lastEventAt, onRefresh }: { state: ConnectionState; lastEventAt?: Date; onRefresh: () => void }) {
@@ -1724,6 +1768,7 @@ function Topbar({
         <button className={page === "trade" && productMode === "inverseDelivery" ? "active" : ""} onClick={() => onProductModeChange("inverseDelivery")}><Clock3 size={15} />{localized(language, "币交割", "Coin Delivery")}</button>
         <button className={page === "trade" && productMode === "option" ? "active" : ""} onClick={() => onProductModeChange("option")}><Sparkles size={15} />{localized(language, "期权", "Options")}</button>
         <button className={page === "trade" && productMode === "spot" ? "active" : ""} onClick={() => onProductModeChange("spot")}><WalletCards size={15} />{localized(language, "现货", "Spot")}</button>
+        <button className={page === "markets" ? "active" : ""} onClick={() => onPageChange("markets")}><TrendingUp size={15} />{localized(language, "行情", "Markets")}</button>
         <button className={page === "rules" ? "active" : ""} onClick={() => onPageChange("rules")}><FileText size={15} />{localized(language, "交易规则", "Rules")}</button>
       </nav>
       <div className="top-actions">
