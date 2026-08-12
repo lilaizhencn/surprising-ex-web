@@ -63,6 +63,7 @@ import { FundingFlowPage } from "./components/FundingFlowPage";
 import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
+import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
@@ -1382,12 +1383,12 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
   if (!session) {
     return (
       <section className="security-page">
-        <section className="panel security-locked">
+        <UiCard className="panel security-locked">
           <ShieldCheck size={42} />
           <h1>{text("安全中心", "Security center")}</h1>
           <p>{text("登录后管理 2FA、敏感操作验证和 API 访问权限。", "Log in to manage 2FA, sensitive-action verification, and API access.")}</p>
-          <button className="primary-button" onClick={onLogin}>{text("登录后继续", "Log in to continue")}</button>
-        </section>
+          <UiButton variant="primary" className="primary-button" onClick={onLogin}>{text("登录后继续", "Log in to continue")}</UiButton>
+        </UiCard>
       </section>
     );
   }
@@ -1451,21 +1452,21 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
         </div>
         <div className="security-account"><ShieldCheck size={18} />{session.user.email ?? text("账户", "Account")}</div>
       </div>
-      {(notice || error) && <div className={error ? "security-alert error" : "security-alert success"} role={error ? "alert" : "status"}>{error || notice}</div>}
+      {(notice || error) && <UiAlert className={error ? "security-alert error" : "security-alert success"} tone={error ? "error" : "success"}>{error || notice}</UiAlert>}
       <div className="security-grid">
         <section className="panel security-card">
-          <div className="panel-title"><span><KeyRound size={16} />{text("登录保护", "Login protection")}</span><strong className={mfa?.enabled ? "tone-up" : "tone-gold"}>{mfa?.enabled ? text("已启用", "Enabled") : text("未启用", "Disabled")}</strong></div>
+          <div className="panel-title"><span><KeyRound size={16} />{text("登录保护", "Login protection")}</span><UiStatusBadge tone={mfa?.enabled ? "positive" : "warning"}>{mfa?.enabled ? text("已启用", "Enabled") : text("未启用", "Disabled")}</UiStatusBadge></div>
           <p className="security-muted">{text("绑定验证器后，关闭安全场景和 API 敏感权限会额外要求动态验证码。", "After binding an authenticator, disabling security scenes or sensitive API permissions also requires a one-time code.")}</p>
-          {!mfa?.enabled && !enrollment && <button className="primary-button" disabled={busy} onClick={() => void run(async () => setEnrollment(await enrollMfa(session)), text("已生成 2FA 绑定信息", "2FA enrollment details generated"))}>{text("绑定 2FA", "Bind 2FA")}</button>}
+          {!mfa?.enabled && !enrollment && <UiButton variant="primary" className="primary-button" busy={busy} onClick={() => void run(async () => setEnrollment(await enrollMfa(session)), text("已生成 2FA 绑定信息", "2FA enrollment details generated"))}>{text("绑定 2FA", "Bind 2FA")}</UiButton>}
           {enrollment && !mfa?.enabled && (
             <div className="security-enrollment">
-              <label>{text("密钥", "Secret")}<input readOnly value={enrollment.secret} /></label>
-              <label>{text("验证器 URI", "Authenticator URI")}<input readOnly value={enrollment.provisioningUri} /></label>
-              <label>{text("输入验证器 6 位验证码", "Enter the 6-digit authenticator code")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-              <button className="primary-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await confirmMfa(session, totpCode)); setEnrollment(null); setTotpCode(""); }, text("2FA 已启用", "2FA enabled"))}>{text("确认绑定", "Confirm binding")}</button>
+              <UiField label={text("密钥", "Secret")}><input readOnly value={enrollment.secret} /></UiField>
+              <UiField label={text("验证器 URI", "Authenticator URI")}><input readOnly value={enrollment.provisioningUri} /></UiField>
+              <UiField label={text("输入验证器 6 位验证码", "Enter the 6-digit authenticator code")}><input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField>
+              <UiButton variant="primary" className="security-primitive-button" busy={busy} disabled={totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await confirmMfa(session, totpCode)); setEnrollment(null); setTotpCode(""); }, text("2FA 已启用", "2FA enabled"))}>{text("确认绑定", "Confirm binding")}</UiButton>
             </div>
           )}
-          {mfa?.enabled && <div className="security-inline-form"><label>{text("关闭 2FA 验证码", "Code to disable 2FA")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy || totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await disableMfa(session, totpCode)); setTotpCode(""); }, text("2FA 已关闭", "2FA disabled"))}>{text("关闭 2FA", "Disable 2FA")}</button></div>}
+          {mfa?.enabled && <div className="security-inline-form"><UiField label={text("关闭 2FA 验证码", "Code to disable 2FA")}><input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField><UiButton variant="secondary" className="security-primitive-button" busy={busy} disabled={totpCode.length !== 6} onClick={() => void run(async () => { setMfa(await disableMfa(session, totpCode)); setTotpCode(""); }, text("2FA 已关闭", "2FA disabled"))}>{text("关闭 2FA", "Disable 2FA")}</UiButton></div>}
         </section>
         <section className="panel security-card">
           <div className="panel-title"><span><ShieldCheck size={16} />{text("敏感场景", "Sensitive scenes")}</span><strong>{text("可配置", "Configurable")}</strong></div>
@@ -1473,21 +1474,21 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
           <div className="security-scenes">
             {scenes.map((scene) => <label className="security-scene" key={scene.sceneCode}><span><strong>{scene.label}</strong><small>{scene.sceneCode}</small></span><input type="checkbox" checked={scene.enabled} disabled={busy} onChange={() => void run(() => changeSecurityScene(session, scene), `${scene.label}已更新`)} /></label>)}
           </div>
-          <div className="security-verification-row"><label>{text("安全设置邮箱验证码", "Security settings email code")}<input value={securityEmailCode} onChange={(event) => setSecurityEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>{text("2FA 验证码", "2FA code")}<input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</button></div>
+          <div className="security-verification-row"><UiField label={text("安全设置邮箱验证码", "Security settings email code")}><input value={securityEmailCode} onChange={(event) => setSecurityEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField><UiField label={text("2FA 验证码", "2FA code")}><input value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField><UiButton variant="secondary" className="security-primitive-button" busy={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</UiButton></div>
         </section>
       </div>
       <section className="panel security-card">
         <div className="panel-title"><span><KeyRound size={16} />{text("修改密码", "Change password")}</span><strong>{text("需验证", "Verification required")}</strong></div>
         <p className="security-muted">{text("修改密码后，其他登录设备的 refresh session 会立即失效。若开启了修改密码场景，请先发送邮箱验证码。", "Other refresh sessions are invalidated after a password change. If the password-change scene is enabled, send an email code first.")}</p>
         <div className="security-inline-form">
-          <label>{text("当前密码", "Current password")}<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
-          <label>{text("新密码", "New password")}<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder={text("至少 8 位", "At least 8 characters")} /></label>
+          <UiField label={text("当前密码", "Current password")}><input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></UiField>
+          <UiField label={text("新密码", "New password")}><input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder={text("至少 8 位", "At least 8 characters")} /></UiField>
         </div>
         <div className="security-verification-row">
-          <label>{text("邮箱验证码", "Email code")}<input value={changePasswordEmailCode} onChange={(event) => setChangePasswordEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-          <label>{text("2FA 验证码", "2FA code")}<input value={changePasswordTotpCode} onChange={(event) => setChangePasswordTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label>
-          <button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "CHANGE_PASSWORD"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</button>
-          <button className="primary-button" disabled={busy || !currentPassword || newPassword.length < 8} onClick={() => void run(async () => { await changePassword(session, currentPassword, newPassword, changePasswordEmailCode, changePasswordTotpCode); setCurrentPassword(""); setNewPassword(""); setChangePasswordEmailCode(""); setChangePasswordTotpCode(""); }, text("密码已修改，请重新登录其他设备", "Password changed; other sessions must sign in again"))}>{text("确认修改", "Confirm change")}</button>
+          <UiField label={text("邮箱验证码", "Email code")}><input value={changePasswordEmailCode} onChange={(event) => setChangePasswordEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField>
+          <UiField label={text("2FA 验证码", "2FA code")}><input value={changePasswordTotpCode} onChange={(event) => setChangePasswordTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField>
+          <UiButton variant="secondary" className="security-primitive-button" busy={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "CHANGE_PASSWORD"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送验证码", "Send code")}</UiButton>
+          <UiButton variant="primary" className="security-primitive-button" busy={busy} disabled={!currentPassword || newPassword.length < 8} onClick={() => void run(async () => { await changePassword(session, currentPassword, newPassword, changePasswordEmailCode, changePasswordTotpCode); setCurrentPassword(""); setNewPassword(""); setChangePasswordEmailCode(""); setChangePasswordTotpCode(""); }, text("密码已修改，请重新登录其他设备", "Password changed; other sessions must sign in again"))}>{text("确认修改", "Confirm change")}</UiButton>
         </div>
       </section>
       <section className="panel security-card kyc-card">
@@ -1495,31 +1496,31 @@ function SecurityPage({ language, session, onLogin }: { language: LanguageMode; 
         <p className="security-muted">{text("提币前必须完成 KYC。基础认证需要身份证或护照；标准及以上还需要地址证明；企业认证还需要营业执照；启用人脸识别时需要人脸材料。", "KYC is required before withdrawals. Basic verification needs an ID card or passport; standard and above also need proof of address; business verification needs a license; face verification needs face material.")}</p>
         {kyc?.rejectionReason && <div className="security-alert error">{text("审核意见：", "Review note: ")}{kyc.rejectionReason}</div>}
         <div className="kyc-form-grid">
-          <label>{text("申请主体", "Applicant type")}<select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">{text("个人", "Individual")}</option><option value="BUSINESS">{text("企业", "Business")}</option></select></label>
-          <label>{text("认证等级", "Verification level")}<select value={kycLevel} onChange={(event) => setKycLevel(event.target.value)}><option value="BASIC">{text("基础", "Basic")}</option><option value="STANDARD">{text("标准", "Standard")}</option><option value="ENHANCED">{text("增强", "Enhanced")}</option></select></label>
-          <label>{text("国家/地区代码", "Country / region code")}<input value={kycCountry} onChange={(event) => setKycCountry(event.target.value.toUpperCase().slice(0, 2))} placeholder="CN" maxLength={2} /></label>
-          <label>{text("主证件类型", "Primary document")}<select value={kycDocumentType} onChange={(event) => setKycDocumentType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option></select></label>
-          <label>{text("认证服务", "Verification provider")}<select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">{text("平台审核", "Platform review")}</option><option value="THIRD_PARTY">{text("第三方服务", "Third-party service")}</option></select></label>
-          <label>{text("服务引用", "Provider reference")}{kycProvider === "THIRD_PARTY" ? "" : text("（可选）", " (optional)")}<input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder={kycProvider === "THIRD_PARTY" ? text("第三方返回的核验编号", "Reference from provider") : "provider-reference"} /></label>
+          <UiField label={text("申请主体", "Applicant type")}><select value={kycApplicantType} onChange={(event) => setKycApplicantType(event.target.value)}><option value="INDIVIDUAL">{text("个人", "Individual")}</option><option value="BUSINESS">{text("企业", "Business")}</option></select></UiField>
+          <UiField label={text("认证等级", "Verification level")}><select value={kycLevel} onChange={(event) => setKycLevel(event.target.value)}><option value="BASIC">{text("基础", "Basic")}</option><option value="STANDARD">{text("标准", "Standard")}</option><option value="ENHANCED">{text("增强", "Enhanced")}</option></select></UiField>
+          <UiField label={text("国家/地区代码", "Country / region code")}><input value={kycCountry} onChange={(event) => setKycCountry(event.target.value.toUpperCase().slice(0, 2))} placeholder="CN" maxLength={2} /></UiField>
+          <UiField label={text("主证件类型", "Primary document")}><select value={kycDocumentType} onChange={(event) => setKycDocumentType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option></select></UiField>
+          <UiField label={text("认证服务", "Verification provider")}><select value={kycProvider} onChange={(event) => setKycProvider(event.target.value)}><option value="SELF">{text("平台审核", "Platform review")}</option><option value="THIRD_PARTY">{text("第三方服务", "Third-party service")}</option></select></UiField>
+          <UiField label={<>{text("服务引用", "Provider reference")}{kycProvider === "THIRD_PARTY" ? "" : text("（可选）", " (optional)")}</>}><input value={kycProviderReference} onChange={(event) => setKycProviderReference(event.target.value)} placeholder={kycProvider === "THIRD_PARTY" ? text("第三方返回的核验编号", "Reference from provider") : "provider-reference"} /></UiField>
         </div>
         <div className="kyc-upload-grid">
-          <label>{text("上传材料类型", "Document type")}<select value={kycUploadType} onChange={(event) => setKycUploadType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="ADDRESS_PROOF">{text("地址证明", "Proof of address")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option><option value="FACE_IMAGE">{text("人脸照片", "Face image")}</option></select></label>
-          <label>{text("选择 PDF 或图片", "Choose PDF or image")}<input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></label>
-          <button className="ghost-button" disabled={busy || !kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error(text("请选择 KYC 材料", "Choose a KYC document")); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, text("材料已上传", "Document uploaded"))}>{text("上传材料", "Upload document")}</button>
+          <UiField label={text("上传材料类型", "Document type")}><select value={kycUploadType} onChange={(event) => setKycUploadType(event.target.value)}><option value="ID_CARD">{text("身份证", "ID card")}</option><option value="PASSPORT">{text("护照", "Passport")}</option><option value="ADDRESS_PROOF">{text("地址证明", "Proof of address")}</option><option value="BUSINESS_LICENSE">{text("企业营业执照", "Business license")}</option><option value="FACE_IMAGE">{text("人脸照片", "Face image")}</option></select></UiField>
+          <UiField label={text("选择 PDF 或图片", "Choose PDF or image")}><input ref={kycFileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setKycFile(event.target.files?.[0] ?? null)} /></UiField>
+          <UiButton variant="secondary" className="security-primitive-button" busy={busy} disabled={!kycFile} onClick={() => void run(async () => { if (!kycFile) throw new Error(text("请选择 KYC 材料", "Choose a KYC document")); const uploaded = await uploadKycDocument(session, kycUploadType, kycFile); setKycUploadedDocuments((current) => [uploaded, ...current]); setKycFile(null); if (kycFileInputRef.current) kycFileInputRef.current.value = ""; }, text("材料已上传", "Document uploaded"))}>{text("上传材料", "Upload document")}</UiButton>
         </div>
         <div className="kyc-document-list" aria-live="polite">{kycUploadedDocuments.length === 0 ? <small className="security-muted">{text("尚未上传材料。请至少上传主证件；标准及以上认证请同时上传地址证明。", "No documents uploaded. Upload a primary document; standard and above also need proof of address.")}</small> : kycUploadedDocuments.map((document) => <div className="kyc-document-row" key={document.documentId}><span><strong>{document.originalFilename}</strong><small>{document.documentType} · {formatKycFileSize(document.fileSize)}</small></span><em>{document.status === "SUBMITTED" ? text("已提交", "Submitted") : text("已上传", "Uploaded")}</em></div>)}</div>
-        <div className="security-inline-form kyc-submit-row"><label>{text("人脸状态", "Face verification")}<select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">{text("暂不启用", "Not enabled")}</option><option value="PENDING">{text("等待人脸识别", "Face verification pending")}</option></select></label><button className="primary-button" disabled={busy || !kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(language, kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, text("KYC 已提交，等待审核", "KYC submitted for review"))}>{text("提交认证", "Submit verification")}</button></div>
+        <div className="security-inline-form kyc-submit-row"><UiField label={text("人脸状态", "Face verification")}><select value={kycFaceStatus} onChange={(event) => setKycFaceStatus(event.target.value)}><option value="NOT_REQUIRED">{text("暂不启用", "Not enabled")}</option><option value="PENDING">{text("等待人脸识别", "Face verification pending")}</option></select></UiField><UiButton variant="primary" className="security-primitive-button" busy={busy} disabled={!kycCountry || kycCountry.length !== 2 || kycUploadedDocuments.length === 0} onClick={() => void run(async () => { validateKycSubmission(language, kycApplicantType, kycLevel, kycFaceStatus, kycProvider, kycProviderReference, kycUploadedDocuments); setKyc(await submitKyc(session, { applicantType: kycApplicantType, kycLevel, country: kycCountry, documentType: kycDocumentType, provider: kycProvider, providerReference: kycProviderReference || undefined, faceVerificationStatus: kycFaceStatus, documentIds: kycUploadedDocuments.map((document) => document.documentId) })); }, text("KYC 已提交，等待审核", "KYC submitted for review"))}>{text("提交认证", "Submit verification")}</UiButton></div>
       </section>
       <section className="panel security-card api-key-card">
         <div className="panel-title"><span><KeyRound size={16} />API Key</span><strong>{text("兼容交易 API", "Trading API compatible")}</strong></div>
         <p className="security-muted">{text("Secret 只在创建成功时显示一次。提现权限默认关闭，签名、时间戳和幂等键由服务端校验。", "The Secret is shown only once. Withdrawal permission is off by default; the server validates signatures, timestamps, and idempotency keys.")}</p>
         <div className="api-key-create">
-          <label>{text("名称", "Label")}<input value={apiLabel} onChange={(event) => setApiLabel(event.target.value)} placeholder={text("例如：量化主账户", "e.g. primary trading bot")} /></label>
+          <UiField label={text("名称", "Label")}><input value={apiLabel} onChange={(event) => setApiLabel(event.target.value)} placeholder={text("例如：量化主账户", "e.g. primary trading bot")} /></UiField>
           <div className="permission-picker">{["TRADE", "WITHDRAW"].map((permission) => <label key={permission}><input type="checkbox" checked={apiPermissions.includes(permission)} onChange={() => togglePermission(permission)} />{permission === "TRADE" ? text("交易", "Trade") : text("提现", "Withdraw")}</label>)}</div>
-          <button className="primary-button" disabled={busy || !apiLabel.trim()} onClick={() => void run(async () => { const created = await createApiKey(session, apiLabel.trim(), apiPermissions, emailCode, apiTotpCode); setCreatedSecret(created.secret); setApiLabel(""); setEmailCode(""); setApiTotpCode(""); await reload(); }, text("API Key 已创建，请立即保存 Secret", "API Key created; save the Secret now"))}>{text("创建 Key", "Create key")}</button>
+          <UiButton variant="primary" className="security-primitive-button" busy={busy} disabled={!apiLabel.trim()} onClick={() => void run(async () => { const created = await createApiKey(session, apiLabel.trim(), apiPermissions, emailCode, apiTotpCode); setCreatedSecret(created.secret); setApiLabel(""); setEmailCode(""); setApiTotpCode(""); await reload(); }, text("API Key 已创建，请立即保存 Secret", "API Key created; save the Secret now"))}>{text("创建 Key", "Create key")}</UiButton>
         </div>
-        <div className="security-verification-row"><label>{text("邮箱验证码", "Email code")}<input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><label>{text("2FA 验证码", "2FA code")}<input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></label><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送邮箱验证码", "Send email code")}</button></div>
-        {createdSecret && <div className="secret-reveal"><strong>{text("Secret 仅显示这一次", "Secret is shown only once")}</strong><code>{createdSecret}</code><button className="ghost-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>{text("复制 Secret", "Copy Secret")}</button></div>}
+        <div className="security-verification-row"><UiField label={text("邮箱验证码", "Email code")}><input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField><UiField label={text("2FA 验证码", "2FA code")}><input value={apiTotpCode} onChange={(event) => setApiTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" /></UiField><UiButton variant="secondary" className="security-primitive-button" busy={busy} onClick={() => void run(async () => { await issueSecurityChallenge(session, "SECURITY_SETTINGS"); }, text("验证码已发送到邮箱", "Verification code sent by email"))}>{text("发送邮箱验证码", "Send email code")}</UiButton></div>
+        {createdSecret && <div className="secret-reveal"><strong>{text("Secret 仅显示这一次", "Secret is shown only once")}</strong><code>{createdSecret}</code><UiButton variant="secondary" className="security-primitive-button" onClick={() => void navigator.clipboard?.writeText(createdSecret)}>{text("复制 Secret", "Copy Secret")}</UiButton></div>}
         <div className="api-key-list">{keys.length === 0 ? <p className="empty">{text("暂无 API Key", "No API keys")}</p> : keys.map((apiKey) => <div className="api-key-row" key={apiKey.apiKey}><div><strong>{apiKey.label}</strong><small>{apiKey.apiKey} · {apiKey.permissions}</small>{apiKey.status === "ACTIVE" && <label className="api-key-allowlist">{text("IP 白名单", "IP allowlist")}<input value={apiKeyAllowlistDraft(apiKey)} onChange={(event) => updateApiKeyAllowlistDraft(apiKey.apiKey, event.target.value)} placeholder={text("多个 IP 用逗号或空格分隔；留空即不限制", "Separate IPs with commas or spaces; leave empty for no restriction")} /><button className="ghost-button" disabled={busy} onClick={() => void run(async () => { await updateApiKeyIpAllowlist(session, apiKey.apiKey, parseIpAllowlist(apiKeyAllowlistDraft(apiKey)), emailCode, apiTotpCode); await reload(); }, text("IP 白名单已更新", "IP allowlist updated"))}>{text("更新白名单", "Update allowlist")}</button></label>}</div><span className={apiKey.status === "ACTIVE" ? "tone-up" : "security-muted"}>{apiKey.status}</span>{apiKey.status === "ACTIVE" && <button className="ghost-button danger" disabled={busy} onClick={() => void run(async () => { await revokeApiKey(session, apiKey.apiKey, emailCode, apiTotpCode); await reload(); }, text("API Key 已撤销", "API key revoked"))}>{text("撤销", "Revoke")}</button>}</div>)}</div>
       </section>
     </section>
@@ -1624,36 +1625,32 @@ function AuthScreen({
           </div>
         )}
         {step !== "verify" && (
-          <label>
-            {text("邮箱地址", "Email address")}
+          <UiField label={text("邮箱地址", "Email address")}>
             <input value={email} onChange={(event) => setEmail(event.target.value.trim())} type="email" inputMode="email" autoComplete="email" placeholder="name@example.com" aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
-          </label>
+          </UiField>
         )}
         {step === "verify" && <p className="hint">{text("验证码已发送至", "A code was sent to")} {email.replace(/(^.).*(@.*$)/, "$1•••$2")}{text("，有效期 10 分钟。", "; it expires in 10 minutes.")}</p>}
         {(step === "login" || step === "register") && (
-          <label>
-            {text("密码", "Password")}
+          <UiField label={text("密码", "Password")}>
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={step === "login" ? "current-password" : "new-password"} placeholder={text("至少 8 位", "At least 8 characters")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
-          </label>
+          </UiField>
         )}
         {(step === "verify" || step === "reset") && (
-          <label>
-            {text("邮箱验证码", "Email code")}
+          <UiField label={text("邮箱验证码", "Email code")}>
             <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder={text("6 位数字", "6 digits")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
-          </label>
+          </UiField>
         )}
         {step === "reset" && (
-          <label>
-            {text("新密码", "New password")}
+          <UiField label={text("新密码", "New password")}>
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder={text("至少 8 位", "At least 8 characters")} aria-invalid={error ? true : undefined} aria-describedby={statusDescription} />
-          </label>
+          </UiField>
         )}
         {step === "login" && <button disabled={busy} className="link-button" onClick={() => { setStep("forgot"); setError(""); setNotice(""); }}>{text("忘记密码？", "Forgot password?")}</button>}
         {notice && <p id="auth-status" className="success" role="status" aria-live="polite">{notice}</p>}
         {error && <p id="auth-status" className="error" role="alert" aria-live="assertive">{error}</p>}
-        <button className="primary-button" disabled={busy} onClick={submit}>
+        <UiButton variant="primary" className="primary-button" busy={busy} onClick={submit}>
           {busy ? text("处理中...", "Processing...") : step === "login" ? text("登录", "Log in") : step === "register" ? text("注册", "Sign up") : step === "verify" ? text("完成邮箱验证", "Verify email") : step === "reset" ? text("更新密码", "Update password") : text("发送验证码", "Send code")}
-        </button>
+        </UiButton>
         {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); setNotice(""); try { await resendEmailVerification(pendingSession); setNotice(text("新的验证码已发送。", "A new code was sent.")); } catch (err) { setError(err instanceof Error ? err.message : text("验证码发送失败", "Failed to send code")); } finally { setBusy(false); } }}>{text("重新发送验证码", "Resend code")}</button>}
         {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>{text("返回登录", "Back to log in")}</button>}
       </section>

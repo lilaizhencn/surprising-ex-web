@@ -6,6 +6,7 @@ import { localized } from "../localized";
 import type { LanguageMode } from "../localized";
 import type { AccountLedgerEntry, AuthSession, LedgerPage, ProductAccountType, ProductLine, ProductMode } from "../types";
 import { AssetIcon } from "./AssetPrimitives";
+import { UiAlert, UiButton, UiCard, UiEmptyState, UiLoadingState } from "./UiPrimitives";
 import type { ProductAssetMeta } from "./AssetCenter";
 import { formatLedgerTime } from "./AssetCenter";
 
@@ -52,14 +53,14 @@ export function FundingLedgerPage({ session, language, productMeta, onBack }: { 
   const entries = useMemo(() => page?.entries ?? [], [page?.entries]);
   return <section className="asset-page funding-ledger-page">
     <div className="ledger-page-heading">
-      <div><button className="asset-back-button" type="button" onClick={onBack}><ArrowLeft size={15} />{text("返回资产总览", "Back to overview")}</button><span className="asset-eyebrow">FUNDING LEDGER</span><h1>{text("资金流水", "Funding ledger")}</h1><p>{text("查看账户总资金变化，或按产品线账户隔离查询。", "Review account-wide funding changes or isolate a product account.")}</p></div><button className="asset-refresh-button" type="button" onClick={() => setReloadKey((current) => current + 1)}><RefreshCw size={15} />{text("刷新", "Refresh")}</button>
+      <div><UiButton variant="quiet" className="asset-back-button" type="button" onClick={onBack}><ArrowLeft size={15} />{text("返回资产总览", "Back to overview")}</UiButton><span className="asset-eyebrow">FUNDING LEDGER</span><h1>{text("资金流水", "Funding ledger")}</h1><p>{text("查看账户总资金变化，或按产品线账户隔离查询。", "Review account-wide funding changes or isolate a product account.")}</p></div><UiButton variant="secondary" className="asset-refresh-button" type="button" onClick={() => setReloadKey((current) => current + 1)}><RefreshCw size={15} />{text("刷新", "Refresh")}</UiButton>
     </div>
     <div className="ledger-filter-bar"><label>{text("流水范围", "Ledger scope")}<select value={filter} onChange={(event) => { setFilter(event.target.value as LedgerFilter); setPage(null); }}><option value="all">{text("全部账户", "All accounts")}</option>{(Object.keys(productMeta) as ProductMode[]).map((product) => <option value={product} key={product}>{language === "en-US" ? productMeta[product].labelEn : productMeta[product].label} · {productMeta[product].accountType}</option>)}</select><ChevronDown size={14} /></label><span>{page ? `${entries.length}${page.hasMore ? "+" : ""} ${text("条", "entries")}` : "—"}</span></div>
-    <section className="ledger-table-card">
-      {loading && <p className="ledger-inline-status">{text("正在同步资金流水…", "Syncing funding ledger…")}</p>}
-      {!session ? <div className="asset-center-empty"><FileText size={20} />{text("登录后查看资金流水", "Log in to view funding ledger")}</div> : error ? <p className="asset-center-alert" role="alert">{error}</p> : entries.length === 0 && !loading ? <div className="asset-center-empty"><FileText size={20} />{text("暂无资金流水", "No funding ledger entries")}</div> : <div className="funding-ledger-table"><div className="funding-ledger-row funding-ledger-head"><span>{text("时间", "Time")}</span><span>{text("账户", "Account")}</span><span>{text("资产", "Asset")}</span><span>{text("变化", "Change")}</span><span>{text("余额", "Balance")}</span><span>{text("原因", "Reason")}</span></div>{entries.map((entry) => <LedgerRow entry={entry} language={language} productMeta={productMeta} key={entry.entryId} />)}</div>}
-      {page?.hasMore && <div className="ledger-load-more"><button type="button" disabled={loading} onClick={loadMore}>{loading ? text("加载中…", "Loading…") : text("加载更多", "Load more")}</button></div>}
-    </section>
+    <UiCard className="ledger-table-card">
+      {loading && <UiLoadingState label={text("正在同步资金流水…", "Syncing funding ledger…")} />}
+      {!session ? <UiEmptyState icon={<FileText size={20} />} title={text("登录后查看资金流水", "Log in to view funding ledger")} /> : error ? <UiAlert tone="error">{error}</UiAlert> : entries.length === 0 && !loading ? <UiEmptyState icon={<FileText size={20} />} title={text("暂无资金流水", "No funding ledger entries")} /> : <div className="funding-ledger-table"><div className="funding-ledger-row funding-ledger-head"><span>{text("时间", "Time")}</span><span>{text("账户", "Account")}</span><span>{text("资产", "Asset")}</span><span>{text("变化", "Change")}</span><span>{text("余额", "Balance")}</span><span>{text("原因", "Reason")}</span></div>{entries.map((entry) => <LedgerRow entry={entry} language={language} productMeta={productMeta} key={entry.entryId} />)}</div>}
+      {page?.hasMore && <div className="ledger-load-more"><UiButton variant="secondary" busy={loading} type="button" onClick={loadMore}>{text("加载更多", "Load more")}</UiButton></div>}
+    </UiCard>
   </section>;
 }
 

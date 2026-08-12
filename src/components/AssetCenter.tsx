@@ -5,6 +5,7 @@ import type { LanguageMode } from "../localized";
 import { displayUnits } from "../config";
 import type { AccountLedgerEntry, Balance, ProductAccountType, ProductMode, ProductLine, ValuationCurrency } from "../types";
 import { AssetIcon, SupportBubble, assetName } from "./AssetPrimitives";
+import { UiButton, UiCard, UiEmptyState, UiLoadingState } from "./UiPrimitives";
 
 export type ProductAssetMeta = Record<ProductMode, {
   label: string;
@@ -111,18 +112,18 @@ export function AssetCenter({
         <h1>{text("资产总览", "Asset overview")}</h1>
         <p>{text("统一查看六条产品线的真实账户资产，进入独立页面后只展示该账户上下文。", "View real balances across six isolated product accounts, then open each account in its own context.")}</p>
       </div>
-      <button className="asset-refresh-button" type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新", "Refresh")}</button>
+      <UiButton variant="secondary" className="asset-refresh-button" type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新", "Refresh")}</UiButton>
     </div>
     <div className="asset-overview-layout">
       <div className="asset-overview-main">
-        <section className="asset-summary-card asset-overview-summary">
+        <UiCard className="asset-summary-card asset-overview-summary">
           <div>
             <p className="asset-label"><WalletCards size={15} />{text("全部产品线总权益", "Total equity across products")} <Eye size={15} /></p>
             <h2>{session && balanceState !== "loading" && totalValue !== null ? formatValuation(totalValue, valuationCurrency) : "—"} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
             <p className="asset-login-note">{!session ? text("登录后同步真实资产。", "Log in to sync real balances.") : balanceState === "loading" ? text("正在同步六条产品线余额…", "Syncing balances across six products…") : totalValue === null ? text("行情或汇率未同步，暂不显示总估值。", "Valuation is hidden until prices and FX are synchronized.") : text("估值只用于展示，账户余额以后台账本为准。", "Valuation is for display; backend ledger remains authoritative.")}</p>
           </div>
           <div className="asset-summary-stat"><strong>{allBalances.length}</strong><span>{text("资产记录", "Asset records")}</span></div>
-        </section>
+        </UiCard>
         <section className="asset-product-grid" aria-label={text("产品线资产", "Product assets")}>
           {(Object.keys(productMeta) as ProductMode[]).map((product) => <ProductAssetCard key={product} product={product} balances={balancesByProduct[product]} productMeta={productMeta} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationPrices={valuationPrices} onOpen={() => onOpenProduct(product)} />)}
         </section>
@@ -162,24 +163,24 @@ function ProductAssetsPage({ product, balances, balanceState, language, productM
   return <section className="asset-page asset-center-page">
     <div className="asset-center-heading">
       <div>
-        <button className="asset-back-button" type="button" onClick={onBack}><ArrowLeft size={15} />{text("返回资产总览", "Back to overview")}</button>
+        <UiButton variant="quiet" className="asset-back-button" type="button" onClick={onBack}><ArrowLeft size={15} />{text("返回资产总览", "Back to overview")}</UiButton>
         <span className="asset-eyebrow">{meta.labelEn.toUpperCase()}</span>
         <h1>{language === "en-US" ? meta.labelEn : meta.label}{text("资产", " assets")}</h1>
         <p>{text(`账户类型：${meta.accountType} · 产品线独立隔离`, `Account: ${meta.accountType} · isolated product context`)}</p>
       </div>
-      <button className="asset-refresh-button" type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新", "Refresh")}</button>
+      <UiButton variant="secondary" className="asset-refresh-button" type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新", "Refresh")}</UiButton>
     </div>
-    <section className="asset-summary-card asset-product-summary">
+    <UiCard className="asset-summary-card asset-product-summary">
       <div>
         <p className="asset-label"><WalletCards size={15} />{text("账户权益", "Account equity")} <Eye size={15} /></p>
         <h2>{formatBalanceValuation(balances, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
         <p className="asset-login-note">{balanceState === "loading" ? text("正在同步该产品线余额…", "Syncing this product balance…") : text(`${balances.length} 个资产记录，余额按 ${meta.accountType} 账户返回。`, `${balances.length} asset records returned from ${meta.accountType}.`)}</p>
       </div>
       <div className="asset-actions">
-        {isSpot && <><button className="active" type="button" onClick={onDeposit}>{text("充值", "Deposit")}</button><button type="button" onClick={onWithdraw}>{text("提现", "Withdraw")}</button></>}
-        <button type="button" onClick={() => onTransfer()}><Send size={14} />{text("划转", "Transfer")}</button>
+        {isSpot && <><UiButton variant="primary" className="active" type="button" onClick={onDeposit}>{text("充值", "Deposit")}</UiButton><UiButton variant="secondary" type="button" onClick={onWithdraw}>{text("提现", "Withdraw")}</UiButton></>}
+        <UiButton variant="secondary" type="button" onClick={() => onTransfer()}><Send size={14} />{text("划转", "Transfer")}</UiButton>
       </div>
-    </section>
+    </UiCard>
     <section className="asset-holdings-card">
       <div className="asset-section-heading"><div><span className="asset-eyebrow">HOLDINGS</span><h2>{text("资产明细", "Asset details")}</h2></div><span className="asset-account-chip">{meta.accountType}</span></div>
       <AssetHoldingsTable balances={balances} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationRateState={valuationRateState} valuationMarketState={valuationMarketState} valuationPrices={valuationPrices} onTransfer={onTransfer} />
@@ -208,11 +209,11 @@ function AssetHoldingsTable({ balances, language, valuationCurrency, valuationRa
     <div className="asset-table-toolbar"><label className="asset-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text("搜索币种", "Search assets")} aria-label={text("搜索币种", "Search assets")} /></label><span>{rows.length} / {balances.length}</span></div>
     <div className="asset-holdings-table">
       <div className="asset-holdings-row asset-holdings-head"><span>{text("资产", "Asset")}</span><span>{text("可用", "Available")}</span><span>{text("冻结", "Locked")}</span><span>{text("总额", "Total")}</span><span>{text("估值", "Valuation")}</span><span /></div>
-      {rows.length === 0 ? <div className="asset-center-empty">{text("暂无资产记录", "No asset records")}</div> : rows.map((balance) => <div className="asset-holdings-row" key={`${balance.accountType ?? "account"}-${balance.asset}`}>
+      {rows.length === 0 ? <UiEmptyState title={text("暂无资产记录", "No asset records")} /> : rows.map((balance) => <div className="asset-holdings-row" key={`${balance.accountType ?? "account"}-${balance.asset}`}>
         <span className="asset-holding-name"><AssetIcon symbol={balance.asset} /><strong>{balance.asset}</strong><small>{assetName(balance.asset)}</small></span>
         <span>{displayUnits(balance.availableUnits, 8)}</span><span>{displayUnits(balance.lockedUnits, 8)}</span><strong>{displayUnits(balance.equityUnits, 8)}</strong>
         <span>{formatSingleBalanceValuation(balance, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices)}</span>
-        <button className="asset-row-transfer" type="button" onClick={() => onTransfer(balance.asset)}><Send size={13} />{text("划转", "Transfer")}</button>
+        <UiButton variant="secondary" className="asset-row-transfer" type="button" onClick={() => onTransfer(balance.asset)}><Send size={13} />{text("划转", "Transfer")}</UiButton>
       </div>)}
     </div>
   </>;
@@ -220,10 +221,10 @@ function AssetHoldingsTable({ balances, language, valuationCurrency, valuationRa
 
 function LedgerPreview({ language, entries, state, hasMore, onOpenLedger, onRefresh, productMeta, text }: { language: LanguageMode; entries: AccountLedgerEntry[]; state: "idle" | "loading" | "ready" | "error"; hasMore: boolean; onOpenLedger: () => void; onRefresh: () => void; productMeta: ProductAssetMeta; text: (zh: string, en: string) => string }) {
   return <aside className="recent-ledger-card asset-ledger-preview">
-    <div className="ledger-title"><div><span className="asset-eyebrow">LEDGER</span><h2>{text("最近资金变化", "Recent funding changes")}</h2></div><button type="button" onClick={onRefresh} aria-label={text("刷新资金变化", "Refresh funding changes")}><RefreshCw size={15} /></button></div>
+    <div className="ledger-title"><div><span className="asset-eyebrow">LEDGER</span><h2>{text("最近资金变化", "Recent funding changes")}</h2></div><UiButton variant="quiet" className="ledger-refresh-button" type="button" onClick={onRefresh} aria-label={text("刷新资金变化", "Refresh funding changes")}><RefreshCw size={15} /></UiButton></div>
     <p className="asset-login-note">{text("默认显示最近 10 条，完整记录支持按账户和产品线分页查看。", "Showing the latest 10 entries; full history is paginated by account and product line.")}</p>
-    {state === "loading" ? <div className="asset-center-empty">{text("正在加载资金变化…", "Loading funding changes…")}</div> : state === "error" ? <div className="asset-center-empty">{text("资金变化暂不可用", "Funding changes unavailable")}</div> : entries.length === 0 ? <div className="asset-center-empty"><FileText size={20} />{text("暂无资金变化", "No funding changes")}</div> : <div className="asset-ledger-list">{entries.slice(0, 10).map((entry) => <div className="asset-ledger-item" key={entry.entryId}><span className={`asset-ledger-dot ${entry.amountUnits >= 0 ? "positive" : "negative"}`} /><div><strong>{ledgerReason(entry, language)}</strong><small>{entry.asset} · {formatLedgerTime(entry.createdAt, language)}</small></div><b className={entry.amountUnits >= 0 ? "up" : "down"}>{entry.amountUnits >= 0 ? "+" : ""}{displayUnits(entry.amountUnits, 8)}</b></div>)}</div>}
-    {hasMore && <button className="asset-ledger-more" type="button" onClick={onOpenLedger}>{text("查看全部资金流水", "View full funding ledger")}<ArrowRight size={14} /></button>}
+    {state === "loading" ? <UiLoadingState label={text("正在加载资金变化…", "Loading funding changes…")} /> : state === "error" ? <UiEmptyState title={text("资金变化暂不可用", "Funding changes unavailable")} /> : entries.length === 0 ? <UiEmptyState icon={<FileText size={20} />} title={text("暂无资金变化", "No funding changes")} /> : <div className="asset-ledger-list">{entries.slice(0, 10).map((entry) => <div className="asset-ledger-item" key={entry.entryId}><span className={`asset-ledger-dot ${entry.amountUnits >= 0 ? "positive" : "negative"}`} /><div><strong>{ledgerReason(entry, language)}</strong><small>{entry.asset} · {formatLedgerTime(entry.createdAt, language)}</small></div><b className={entry.amountUnits >= 0 ? "up" : "down"}>{entry.amountUnits >= 0 ? "+" : ""}{displayUnits(entry.amountUnits, 8)}</b></div>)}</div>}
+    {hasMore && <UiButton variant="quiet" className="asset-ledger-more" type="button" onClick={onOpenLedger}>{text("查看全部资金流水", "View full funding ledger")}<ArrowRight size={14} /></UiButton>}
   </aside>;
 }
 

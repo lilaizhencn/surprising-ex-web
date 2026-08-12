@@ -39,8 +39,45 @@ Principles: identity before access, state before decoration, one primary action 
 --sx-space-4: 16px;
 --sx-space-5: 20px;
 --sx-space-6: 24px;
+--sx-space-7: 28px;
 --sx-space-8: 32px;
+--sx-space-9: 40px;
 --sx-space-10: 40px;
+--sx-space-11: 44px;
+--sx-radius-control-sm: 8px;
+--sx-radius-card: 16px;
+--sx-shadow-panel: 0 18px 50px rgba(0, 0, 0, .08);
+--sx-motion-fast: 140ms;
+--sx-motion-standard: 180ms;
+--sx-surface-canvas: var(--sx-ink-950);
+--sx-surface-panel: var(--sx-ink-900);
+--sx-surface-raised: var(--sx-ink-800);
+--sx-surface-soft: rgba(255, 255, 255, .04);
+--sx-info-500: #71a7ff;
+--sx-border-width: 1px;
+--sx-radius-circle: 50%;
+--sx-size-ui-touch: 44px;
+--sx-size-ui-spinner: 12px;
+--sx-size-ui-spinner-border: 2px;
+--sx-size-ui-status: 26px;
+--sx-size-ui-dot: 6px;
+--sx-size-ui-icon: 36px;
+--sx-size-ui-state: 150px;
+--sx-size-ui-loading: 76px;
+--sx-space-ui-badge-inline: 9px;
+--sx-size-ui-copy: 44ch;
+--sx-font-ui-label: 12px;
+--sx-font-ui-message: 11px;
+--sx-font-ui-state: 13px;
+--sx-font-ui-alert: 13px;
+--sx-font-weight-label: 700;
+--sx-font-weight-action: 800;
+--sx-line-ui: 1.45;
+--sx-line-ui-relaxed: 1.5;
+--sx-motion-spin: 700ms;
+--sx-alpha-ui-danger: 15%;
+--sx-alpha-ui-alert-border: 40%;
+--sx-alpha-ui-alert-fill: 8%;
 --sx-size-asset-transfer-dialog: 520px;
 --sx-size-asset-transfer-touch: 44px;
 --sx-size-asset-support: 42px;
@@ -52,6 +89,7 @@ Principles: identity before access, state before decoration, one primary action 
 --sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
 --sx-focus-outline-asset: 2px solid var(--sx-asset-positive);
 --sx-focus-outline-offset: 2px;
+--sx-focus-outline: 2px solid var(--sx-cyan-500);
 --sx-size-asset-tab-indicator: 3px;
 ```
 
@@ -61,7 +99,7 @@ Typography uses the system UI sans stack for dense trading surfaces, a slightly 
 
 - App canvas: layered ink gradient with a fixed, pointer-transparent radial cyan glow; no scrolling blur.
 - Panel: `--sx-ink-900` plus a 1px `--sx-border-subtle` rim and a restrained inset highlight.
-- Elevated panel: nested outer shell (`--sx-ink-800`) and inner core (`--sx-ink-900`) with a 0 16px 48px rgba(0,0,0,.24) shadow.
+- Elevated panel: nested outer shell (`--sx-ink-800`) and inner core (`--sx-ink-900`) with the `--sx-shadow-panel` elevation token.
 - Light mode: mineral canvas, white core, ink text, and the same semantic action ramp; do not invert risk colors.
 
 ## 4. Layout and responsive behavior
@@ -74,10 +112,11 @@ Typography uses the system UI sans stack for dense trading surfaces, a slightly 
 
 ## 5. Reusable primitives and states
 
-- `Surface`: `base`, `raised`, `focus`, `disabled`.
+- `Surface`: `base`, `raised`, `focus`, `disabled` variants on shared cards.
 - `Field`: `idle`, `focused`, `invalid`, `verified`, `disabled` with label and message slots.
 - `ActionButton`: `primary`, `secondary`, `quiet`, `danger`; every state includes keyboard focus and pending state.
 - `StatusBadge`: `positive`, `warning`, `negative`, `neutral`.
+- `State`: `Alert`, `EmptyState`, and `LoadingState` for explicit async and data states.
 - `ProductContext`: always displays the active product line and account context.
 - `VerificationStep`: destination masking, code input, resend cooldown, expired, invalid, success.
 

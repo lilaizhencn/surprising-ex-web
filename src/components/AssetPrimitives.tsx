@@ -1,5 +1,6 @@
 import { HelpCircle } from "lucide-react";
 import type { Balance } from "../types";
+import { UiButton } from "./UiPrimitives";
 
 export function AssetTabs({ active, language = "zh-CN" }: { active: string; language?: "zh-CN" | "en-US" }) {
   const tabs = language === "en-US"
@@ -15,7 +16,7 @@ export function AssetIcon({ symbol }: { symbol: string }) {
 }
 
 export function SupportBubble({ onOpen, language = "zh-CN" }: { onOpen: () => void; language?: "zh-CN" | "en-US" }) {
-  return <button className="support-bubble" type="button" aria-label={language === "en-US" ? "Open help center" : "打开帮助中心"} onClick={onOpen}><HelpCircle size={24} /></button>;
+  return <UiButton variant="quiet" className="support-bubble" type="button" aria-label={language === "en-US" ? "Open help center" : "打开帮助中心"} onClick={onOpen}><HelpCircle size={24} /></UiButton>;
 }
 
 export function fundingAssets(balances: Balance[]): Balance[] {
