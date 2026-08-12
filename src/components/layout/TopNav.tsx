@@ -4,6 +4,8 @@ import type { AuthSession } from "../../api/types"
 import { IconButton } from "../ui/Primitives"
 import { publicNavigation } from "./navigation"
 
+const THEME_KEY = "theme"
+
 export function TopNav({
   session,
   onLogout,
@@ -12,12 +14,12 @@ export function TopNav({
   readonly onLogout: () => void
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [dark, setDark] = useState(document.documentElement.dataset["theme"] === "dark")
+  const [dark, setDark] = useState(document.documentElement.dataset[THEME_KEY] === "dark")
   const pathname = window.location.pathname
   const toggleTheme = () => {
     const next = !dark
     setDark(next)
-    document.documentElement.dataset["theme"] = next ? "dark" : "light"
+    document.documentElement.dataset[THEME_KEY] = next ? "dark" : "light"
     localStorage.setItem("surprising-ex.theme", next ? "dark" : "light")
   }
   return (

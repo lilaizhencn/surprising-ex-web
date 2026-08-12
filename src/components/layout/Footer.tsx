@@ -13,6 +13,7 @@ export function Footer() {
       <div>
         <strong>Support</strong>
         <a href="/notifications">Announcements</a>
+        <a href="/help">Help center</a>
         <a href="/docs/api/README.md">API Documentation</a>
       </div>
       <div>

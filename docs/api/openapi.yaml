@@ -15,6 +15,8 @@ tags:
   - name: Trading
   - name: Security
   - name: Compliance
+  - name: Notifications
+  - name: Help
 paths:
   /auth/login:
     post:
@@ -196,11 +198,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
-  /security/mfa/status:
+  /security/mfa:
     get:
       tags: [Security]
       summary: Get MFA status
-      x-status: partial
+      x-status: confirmed-by-backend-audit
       responses:
         '200':
           description: MFA status.
@@ -208,6 +210,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
+  /security/mfa/enroll:
+    post:
+      tags: [Security]
+      summary: Start MFA enrollment
+      x-status: confirmed-by-backend-audit
+      responses:
+        '200':
+          description: MFA enrollment challenge.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /security/mfa/confirm:
+    post:
+      tags: [Security]
+      summary: Confirm MFA enrollment
+      x-status: confirmed-by-backend-audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: MFA confirmed.
+  /security/mfa/disable:
+    post:
+      tags: [Security]
+      summary: Disable MFA
+      x-status: confirmed-by-backend-audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: MFA disabled.
   /compliance/kyc:
     get:
       tags: [Compliance]
@@ -220,6 +268,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
+    post:
+      tags: [Compliance]
+      summary: Submit KYC application
+      x-status: confirmed-by-backend-audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KycSubmissionRequest'
+      responses:
+        '200':
+          description: KYC profile in backend review state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /compliance/kyc/documents:
+    post:
+      tags: [Compliance]
+      summary: Upload a KYC document
+      x-status: confirmed-by-backend-audit
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [documentType, file]
+              properties:
+                documentType: { type: string }
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Stored document metadata.
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List user notifications
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema: { type: boolean, default: false }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Notifications for the authenticated user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+  /notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Updated notification.
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      x-status: confirmed-by-backend-audit
+      responses:
+        '200':
+          description: Number of notifications updated.
+          content:
+            application/json:
+              schema: { type: integer }
+  /help/articles:
+    get:
+      tags: [Help]
+      summary: Search public help articles
+      security: []
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - name: query
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Matching help articles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HelpArticle' }
 components:
   securitySchemes:
     bearerAuth:
@@ -278,6 +426,41 @@ components:
     AuthSession:
       type: object
       additionalProperties: true
+    KycSubmissionRequest:
+      type: object
+      required: [applicantType, kycLevel, country, documentType]
+      properties:
+        applicantType: { type: string }
+        kycLevel: { type: string }
+        country: { type: string, minLength: 2, maxLength: 2 }
+        documentType: { type: string }
+        provider: { type: string }
+        providerReference: { type: string }
+        submittedDocuments: { type: string }
+        faceVerificationStatus: { type: string }
+        documentIds:
+          type: array
+          items: { type: integer, format: int64 }
+    Notification:
+      type: object
+      required: [notificationId, category, title, body, createdAt]
+      properties:
+        notificationId: { type: integer, format: int64 }
+        category: { type: string }
+        title: { type: string }
+        body: { type: string }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    HelpArticle:
+      type: object
+      required: [articleId, title, category, summary, body, updatedAt]
+      properties:
+        articleId: { type: string }
+        title: { type: string }
+        category: { type: string }
+        summary: { type: string }
+        body: { type: string }
+        updatedAt: { type: string, format: date-time }
       properties:
         accessToken:
           type: string

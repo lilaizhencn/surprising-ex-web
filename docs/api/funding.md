@@ -5,10 +5,16 @@
 | 方法 | URL | 状态 |
 | --- | --- | --- |
 | POST | `/api/v1/gateway/account/transfers` | Confirmed |
-| GET | 划转记录 | Partial，路径待补充 |
+| GET | 划转记录 | Pending，后端待补 |
 
 划转 body 至少包含来源产品线、目标产品线、资产和最小单位数量。请求必须携带 `Idempotency-Key`；超时后使用 request id 或后端查询接口确认，不重复扣款。当前前端会把失败转换为可读错误，并显示受理状态，不声称资金已到账。
 
 ## 充值与提现
 
-地址生成、网络校验、提现提交、安全验证、审核状态和记录接口尚未形成完整公开 contract。需要后端补充精确路径、状态枚举、金额单位、限额、手续费、地址簿和白名单规则后再接入。
+| GET | `/api/v1/wallet/chains` | Confirmed |
+| POST | `/api/v1/wallet/addresses` | Confirmed |
+| GET | `/api/v1/wallet/deposits` | Confirmed |
+| GET | `/api/v1/wallet/withdrawals` | Confirmed |
+| POST | `/api/v1/wallet/withdrawals` | Confirmed；需要 `Idempotency-Key`、邮箱验证码、TOTP、已验证 KYC |
+
+Memo/Tag、确认次数、限额、手续费和地址簿字段由托管服务返回；当前前端不推断或伪造这些值。

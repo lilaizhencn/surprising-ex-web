@@ -1,17 +1,27 @@
 import { z } from "zod"
 import type { ProductLine } from "../types/domain"
 import { request } from "./client"
-import type { ApiBalance, ApiCandle, ApiMarket, AuthSession } from "./types"
+import type { ApiBalance, ApiCandle, ApiMarket, ApiOrder, AuthSession } from "./types"
 import {
   AuthSessionSchema,
   BalanceListSchema,
   CandleListSchema,
   GenericObjectSchema,
+  HelpArticleListSchema,
+  KycProfileSchema,
   MarketListSchema,
+  OrderBookSchema,
+  OrderListSchema,
+  SecurityApiKeyListSchema,
+  WalletRecordsSchema,
 } from "./types"
 
 const ArraySchema = z.array(GenericObjectSchema)
-const ObjectOrArraySchema = z.union([ArraySchema, z.object({ items: ArraySchema }).passthrough()])
+const CLIENT_ORDER_ID_KEY = "clientOrderId"
+const ObjectOrArraySchema = z.union([
+  ArraySchema,
+  z.object({ items: ArraySchema.optional(), orders: ArraySchema.optional() }).passthrough(),
+])
 
 export const authApi = {
   login: (identifier: string, password: string, totpCode?: string) =>
@@ -37,11 +47,10 @@ export const authApi = {
 }
 
 export async function loadMarkets(productLine?: ProductLine): Promise<readonly ApiMarket[]> {
-  const options = productLine ? { productLine } : {}
   const response = await request(
     "/api/v1/gateway/instrument/list?status=TRADING",
     MarketListSchema,
-    options,
+    productLine ? { productLine } : {},
   )
   return response.instruments ?? response.items ?? []
 }
@@ -78,8 +87,113 @@ export function loadMfaStatus() {
   return request("/api/v1/security/mfa", GenericObjectSchema)
 }
 
+export function enrollMfa() {
+  return request("/api/v1/security/mfa/enroll", GenericObjectSchema, { method: "POST" })
+}
+
+export function confirmMfa(totpCode: string) {
+  return request("/api/v1/security/mfa/confirm", GenericObjectSchema, {
+    method: "POST",
+    body: { totpCode },
+  })
+}
+
+export function disableMfa(totpCode: string) {
+  return request("/api/v1/security/mfa/disable", GenericObjectSchema, {
+    method: "POST",
+    body: { totpCode },
+  })
+}
+
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  emailCode: string,
+  totpCode: string,
+) {
+  return request("/api/v1/security/password", z.unknown(), {
+    method: "POST",
+    body: { currentPassword, newPassword, emailCode, totpCode },
+  })
+}
+
+export function issueSecurityChallenge(sceneCode: string) {
+  return request("/api/v1/security/verification/challenge", GenericObjectSchema, {
+    method: "POST",
+    body: { sceneCode },
+  })
+}
+
+export function verifySecurityChallenge(sceneCode: string, emailCode: string, totpCode: string) {
+  return request("/api/v1/security/verification/verify", z.boolean(), {
+    method: "POST",
+    body: { sceneCode, emailCode, totpCode },
+  })
+}
+
+export function updateSecurityScene(
+  sceneCode: string,
+  enabled: boolean,
+  emailCode: string,
+  totpCode: string,
+) {
+  return request(`/api/v1/security/scenes/${encodeURIComponent(sceneCode)}`, GenericObjectSchema, {
+    method: "PUT",
+    body: { enabled, emailCode, totpCode },
+  })
+}
+
+export function loadApiKeys() {
+  return request("/api/v1/security/api-keys", SecurityApiKeyListSchema)
+}
+
+export function createApiKey(
+  label: string,
+  permissions: readonly string[],
+  ipAllowlist: readonly string[],
+  emailCode: string,
+  totpCode: string,
+) {
+  return request("/api/v1/security/api-keys", GenericObjectSchema, {
+    method: "POST",
+    headers: {
+      "X-Security-Email-Code": emailCode,
+      "X-Security-TOTP-Code": totpCode,
+    },
+    body: { label, permissions, ipAllowlist },
+  })
+}
+
+export function revokeApiKey(apiKey: string, emailCode: string, totpCode: string) {
+  return request("/api/v1/security/api-keys", z.unknown(), {
+    method: "DELETE",
+    headers: {
+      "X-Security-Email-Code": emailCode,
+      "X-Security-TOTP-Code": totpCode,
+    },
+    body: { apiKey },
+  })
+}
+
 export function loadKyc() {
-  return request("/api/v1/compliance/kyc", GenericObjectSchema.nullable())
+  return request("/api/v1/compliance/kyc", KycProfileSchema)
+}
+
+export function uploadKycDocument(documentType: string, file: File) {
+  const body = new FormData()
+  body.append("documentType", documentType)
+  body.append("file", file)
+  return request("/api/v1/compliance/kyc/documents", GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
+}
+
+export function submitKyc(body: Readonly<Record<string, unknown>>) {
+  return request("/api/v1/compliance/kyc", GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
 }
 
 export function createTransfer(
@@ -103,18 +217,165 @@ export function createTransfer(
   })
 }
 
+export function loadPositionMode(productLine: ProductLine) {
+  return request(
+    `/api/v1/gateway/account/position-mode?productLine=${encodeURIComponent(productLine)}`,
+    GenericObjectSchema,
+    { productLine },
+  )
+}
+
+export function updatePositionMode(productLine: ProductLine, positionMode: string) {
+  return request("/api/v1/gateway/account/position-mode", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body: { productLine, positionMode },
+  })
+}
+
+export async function loadPositions(
+  productLine: ProductLine,
+): Promise<readonly Record<string, unknown>[]> {
+  const response = await request(
+    `/api/v1/gateway/account/positions?productLine=${encodeURIComponent(productLine)}`,
+    ObjectOrArraySchema,
+    { productLine },
+  )
+  return Array.isArray(response) ? response : (response.items ?? response.orders ?? [])
+}
+
 export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
   return request("/api/v1/gateway/trading/orders", GenericObjectSchema, {
     method: "POST",
     productLine,
-    idempotencyKey: String(body["clientOrderId"] ?? ""),
+    idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
     body,
   })
 }
 
-export function loadOpenOrders(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, productLine })
-  return request(`/api/v1/gateway/trading/orders/open?${query.toString()}`, ObjectOrArraySchema, {
+function binancePrefix(productLine: ProductLine): string {
+  if (productLine === "SPOT") return "/api/v3"
+  if (productLine === "OPTION") return "/eapi/v1"
+  if (productLine === "INVERSE_PERPETUAL" || productLine === "INVERSE_DELIVERY") return "/dapi/v1"
+  return "/fapi/v1"
+}
+
+function querySymbol(symbol: string, _productLine: ProductLine, limit = "50"): string {
+  return new URLSearchParams({ symbol, limit }).toString()
+}
+
+export async function loadOpenOrders(symbol: string, productLine: ProductLine) {
+  const response = await request(
+    `${binancePrefix(productLine)}/openOrders?${querySymbol(symbol, productLine)}`,
+    OrderListSchema,
+    { productLine },
+  )
+  return orderRows(response)
+}
+
+export async function loadOrderHistory(symbol: string, productLine: ProductLine) {
+  const response = await request(
+    `${binancePrefix(productLine)}/allOrders?${querySymbol(symbol, productLine)}`,
+    OrderListSchema,
+    { productLine },
+  )
+  return orderRows(response)
+}
+
+export function cancelOrder(symbol: string, orderId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol, orderId }).toString()
+  return request(`${binancePrefix(productLine)}/order?${query}`, GenericObjectSchema, {
+    method: "DELETE",
+    productLine,
+    idempotencyKey: `cancel-${orderId}`,
+  })
+}
+
+export function loadOrderBook(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol, limit: "20" }).toString()
+  return request(`${binancePrefix(productLine)}/depth?${query}`, OrderBookSchema, { productLine })
+}
+
+export async function loadLatestTrade(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol }).toString()
+  return request(`${binancePrefix(productLine)}/ticker/price?${query}`, GenericObjectSchema, {
     productLine,
   })
+}
+
+export function loadWalletChains() {
+  return request("/api/v1/wallet/chains", WalletRecordsSchema)
+}
+
+export function createDepositAddress(chain: string) {
+  return request("/api/v1/wallet/addresses", GenericObjectSchema, {
+    method: "POST",
+    body: { chain, addressVersion: 1 },
+  })
+}
+
+export function loadDepositHistory(asset?: string, chain?: string) {
+  const query = new URLSearchParams()
+  if (asset) query.set("asset", asset)
+  if (chain) query.set("chain", chain)
+  query.set("limit", "50")
+  return request(`/api/v1/wallet/deposits?${query.toString()}`, WalletRecordsSchema)
+}
+
+export function loadWithdrawalHistory(asset?: string, chain?: string) {
+  const query = new URLSearchParams()
+  if (asset) query.set("asset", asset)
+  if (chain) query.set("chain", chain)
+  query.set("limit", "50")
+  return request(`/api/v1/wallet/withdrawals?${query.toString()}`, WalletRecordsSchema)
+}
+
+export function loadNotifications(unreadOnly = false) {
+  const query = new URLSearchParams({ unreadOnly: String(unreadOnly), limit: "100" })
+  return request(`/api/v1/notifications?${query.toString()}`, ArraySchema)
+}
+
+export function loadHelpArticles(query = "", category = "") {
+  const params = new URLSearchParams()
+  if (query.trim()) params.set("query", query.trim())
+  if (category) params.set("category", category)
+  return request(`/api/v1/help/articles?${params.toString()}`, HelpArticleListSchema)
+}
+
+export function markNotificationRead(notificationId: string) {
+  return request(
+    `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
+    GenericObjectSchema,
+    {
+      method: "POST",
+    },
+  )
+}
+
+export function markAllNotificationsRead() {
+  return request("/api/v1/notifications/read-all", z.number(), { method: "POST" })
+}
+
+export function createWithdrawal(
+  chain: string,
+  assetSymbol: string,
+  toAddress: string,
+  amount: string,
+  externalReference: string,
+  emailCode: string,
+  totpCode: string,
+) {
+  return request("/api/v1/wallet/withdrawals", GenericObjectSchema, {
+    method: "POST",
+    idempotencyKey: externalReference,
+    headers: {
+      "X-Security-Email-Code": emailCode,
+      "X-Security-TOTP-Code": totpCode,
+    },
+    body: { chain, assetSymbol, toAddress, amount, externalReference },
+  })
+}
+
+function orderRows(response: z.infer<typeof OrderListSchema>): readonly ApiOrder[] {
+  return Array.isArray(response) ? response : (response.orders ?? response.items ?? [])
 }

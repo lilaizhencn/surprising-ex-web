@@ -931,6 +931,71 @@ button:disabled {
   margin: 0 0 var(--space-5);
   font-size: 20px;
 }
+.deposit-address {
+  display: grid;
+  grid-template-columns: 144px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: center;
+}
+.qr-placeholder {
+  display: grid;
+  width: 144px;
+  height: 144px;
+  place-items: center;
+  border: 10px solid var(--color-ink);
+  outline: 5px solid var(--color-surface);
+  background:
+    linear-gradient(45deg, var(--color-surface) 25%, transparent 25%) 0 0 / 18px 18px,
+    linear-gradient(-45deg, var(--color-surface) 25%, transparent 25%) 0 0 / 18px 18px,
+    var(--color-ink);
+  color: var(--color-surface);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.qr-code {
+  display: block;
+  width: 144px;
+  height: 144px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+.address-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  overflow-wrap: anywhere;
+}
+.address-value small {
+  grid-column: 1 / -1;
+  color: var(--color-ink-muted);
+}
+.security-action-panel {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  border-color: var(--color-primary-soft);
+}
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.inline-form input {
+  width: 110px;
+  min-height: 34px;
+}
+.notification-list {
+  display: grid;
+}
+.notification-unread {
+  border-left: 3px solid var(--color-primary);
+  padding-left: var(--space-4);
+}
+.notification-read {
+  opacity: 0.72;
+}
 .security-tips h2 {
   display: flex;
   align-items: center;
@@ -1065,16 +1130,25 @@ button:disabled {
 .trade-page {
   min-height: calc(100vh - var(--top-nav-height));
   background: var(--color-canvas);
+  color: var(--color-ink);
 }
 .trade-dark {
   --color-canvas: #111318;
   --color-surface: #191c23;
   --color-surface-muted: #222630;
+  --color-surface-active: #24345d;
   --color-border: #343a49;
   --color-border-soft: #292e39;
   --color-ink: #f2f0f3;
   --color-ink-muted: #aeb4c2;
   --color-ink-subtle: #7f8798;
+  --color-primary: #7c9aff;
+  --color-positive: #55df9a;
+  --color-negative: #ff7d86;
+  --color-warning: #f6bd63;
+}
+.trade-page button:not(.button):not(.icon-button) {
+  color: var(--color-ink);
 }
 .trade-shell {
   display: grid;
@@ -1416,6 +1490,81 @@ button:disabled {
   margin: 0;
   color: var(--color-ink-muted);
 }
+.notification-list .notification-item {
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space-4);
+}
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+  gap: var(--space-5);
+}
+.help-search {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.help-search .segment-control {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.help-search .segment-control button {
+  flex: 1 1 120px;
+}
+.help-articles {
+  display: grid;
+}
+.help-article {
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.help-article:last-child {
+  border-bottom: 0;
+}
+.help-article > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border: 0;
+  background: transparent;
+  padding: var(--space-5) 0;
+  color: var(--color-ink);
+  text-align: left;
+}
+.help-article > button span {
+  display: grid;
+  gap: var(--space-2);
+}
+.help-article > button small {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.help-article > button strong {
+  font-size: 17px;
+}
+.help-article > button em {
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  font-style: normal;
+}
+.help-article-body {
+  padding: 0 0 var(--space-5);
+  color: var(--color-ink-muted);
+}
+.help-article-body p {
+  margin: 0 0 var(--space-2);
+  line-height: 1.7;
+}
+.help-featured {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
 
 .auth-page {
   position: relative;
@@ -1549,6 +1698,7 @@ button:disabled {
   }
   .account-layout {
     grid-template-columns: 1fr;
+    align-content: start;
   }
   .account-sidebar-heading {
     display: none;
@@ -1614,6 +1764,7 @@ button:disabled {
   .asset-overview-grid,
   .funding-layout,
   .kyc-layout,
+  .help-layout,
   .notification-grid,
   .security-grid {
     grid-template-columns: 1fr;
@@ -1624,6 +1775,17 @@ button:disabled {
   .network-grid,
   .tier-grid {
     grid-template-columns: 1fr;
+  }
+  .deposit-address {
+    grid-template-columns: 1fr;
+  }
+  .qr-placeholder {
+    width: 128px;
+    height: 128px;
+  }
+  .qr-code {
+    width: 128px;
+    height: 128px;
   }
   .market-toolbar,
   .page-heading {

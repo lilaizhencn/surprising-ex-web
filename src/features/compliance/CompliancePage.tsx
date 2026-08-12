@@ -1,21 +1,22 @@
 import { Check, FileText, Upload, UserRound } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
-import { loadKyc } from "../../api/endpoints"
-import { Button, Panel, StateView } from "../../components/ui/Primitives"
+import { loadKyc, submitKyc, uploadKycDocument } from "../../api/endpoints"
+import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { loadSession } from "../../state/session"
+
+type RecordRow = Readonly<Record<string, unknown>>
+const DOCUMENT_ID_KEY = "documentId"
 
 export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
   const session = loadSession()
-  const [kyc, setKyc] = useState<Record<string, unknown> | null>(null)
+  const [kyc, setKyc] = useState<RecordRow | null>(null)
   const [message, setMessage] = useState("")
   useEffect(() => {
     if (!session) return
     void loadKyc()
       .then(setKyc)
-      .catch((reason: unknown) =>
-        setMessage(reason instanceof Error ? reason.message : "KYC service unavailable."),
-      )
+      .catch((reason: unknown) => setMessage(readError(reason)))
   }, [session])
   if (!session)
     return (
@@ -28,18 +29,19 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
         </Panel>
       </div>
     )
-  const level = typeof kyc?.["kycLevel"] === "string" ? String(kyc["kycLevel"]) : "NOT_VERIFIED"
+  const level = text(kyc, "kycLevel") || "NOT_VERIFIED"
+  const status = text(kyc, "status") || "NOT_STARTED"
   return (
     <div className="account-content">
       <div className="page-heading">
         <div>
           <h1>Identity Verification</h1>
           <p>
-            Complete the steps required by the backend compliance workflow. This page does not claim
-            real identity verification by itself.
+            Submit documents to the backend compliance workflow. Approval is never simulated by this
+            page.
           </p>
         </div>
-        <span className="verification-status">{level}</span>
+        <span className="verification-status">{status}</span>
       </div>
       {message ? (
         <div className="inline-error" role="alert">
@@ -55,14 +57,23 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
               label="Personal information"
             />
             <Step
-              active={level === "BASIC" || level === "ADVANCED"}
+              active={status === "PENDING" || status === "VERIFIED"}
               icon={<FileText />}
               label="Document review"
             />
-            <Step active={level === "ADVANCED"} icon={<Upload />} label="Face verification" />
+            <Step
+              active={text(kyc, "faceVerificationStatus") === "VERIFIED"}
+              icon={<Upload />}
+              label="Face verification"
+            />
           </div>
           {flow ? (
-            <KycForm onMessage={setMessage} />
+            <KycForm
+              onDone={(value, profile) => {
+                setMessage(value)
+                if (profile) setKyc(profile)
+              }}
+            />
           ) : (
             <div className="kyc-intro">
               <h2>Verification tiers</h2>
@@ -94,16 +105,17 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
           )}
         </Panel>
         <Panel className="kyc-notice">
-          <h2>Review states</h2>
+          <h2>Backend review state</h2>
           <p className="muted">
-            Pending, approved, rejected and resubmission states must come from the compliance API.
+            Current status: <strong>{status}</strong>. Rejection reason:{" "}
+            {text(kyc, "rejectionReason") || "—"}
           </p>
           <div className="notice-list">
             <span>
               <Check size={16} /> No mock approval
             </span>
             <span>
-              <Check size={16} /> Documents stay client-side until upload
+              <Check size={16} /> Documents upload through the real API
             </span>
             <span>
               <Check size={16} /> Risk decisions remain server-side
@@ -133,7 +145,7 @@ function Step({
 }
 function Tier({
   title,
-  text,
+  text: description,
   active,
 }: {
   readonly title: string
@@ -143,50 +155,116 @@ function Tier({
   return (
     <div className={active ? "tier active" : "tier"}>
       <strong>{title}</strong>
-      <p>{text}</p>
+      <p>{description}</p>
       <span>{active ? "Current backend status" : "Available after previous step"}</span>
     </div>
   )
 }
-function KycForm({ onMessage }: { readonly onMessage: (message: string) => void }) {
+
+function KycForm({ onDone }: { readonly onDone: (message: string, profile?: RecordRow) => void }) {
+  const [country, setCountry] = useState("")
+  const [documentType, setDocumentType] = useState("PASSPORT")
+  const [level, setLevel] = useState("BASIC")
+  const [documentIds, setDocumentIds] = useState<readonly number[]>([])
+  const [fileName, setFileName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const submit = async () => {
+    if (!/^[A-Z]{2}$/.test(country)) {
+      onDone("请输入两个字母的国家/地区代码，例如 SG。")
+      return
+    }
+    if (documentIds.length === 0) {
+      onDone("请先上传至少一份证件。后端会保存文档并返回 documentId。")
+      return
+    }
+    setLoading(true)
+    try {
+      const profile = await submitKyc({
+        applicantType: "INDIVIDUAL",
+        kycLevel: level,
+        country,
+        documentType,
+        provider: "WEB_UPLOAD",
+        submittedDocuments: JSON.stringify(
+          documentIds.map((documentId) => ({ documentId, documentType })),
+        ),
+        faceVerificationStatus: "NOT_REQUIRED",
+        documentIds,
+      })
+      onDone("KYC 资料已提交，当前状态由后端审核服务返回。", profile)
+    } catch (reason: unknown) {
+      onDone(readError(reason))
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className="kyc-form">
-      <h2>Personal Information</h2>
+      <h2>Submit identity information</h2>
       <div className="grid-2">
-        <label className="field">
-          <span className="field-label">Country or region</span>
-          <select>
-            <option>Select country</option>
-            <option>United States</option>
-            <option>Singapore</option>
+        <Field label="Country or region">
+          <input
+            value={country}
+            onChange={(event) => setCountry(event.target.value.toUpperCase())}
+            placeholder="SG"
+            maxLength={2}
+          />
+        </Field>
+        <Field label="Verification level">
+          <select value={level} onChange={(event) => setLevel(event.target.value)}>
+            <option value="BASIC">Basic</option>
+            <option value="INTERMEDIATE">Intermediate</option>
+            <option value="ADVANCED">Advanced</option>
           </select>
-        </label>
-        <label className="field">
-          <span className="field-label">Document type</span>
-          <select>
-            <option>Passport</option>
-            <option>National ID</option>
+        </Field>
+        <Field label="Document type">
+          <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
+            <option value="PASSPORT">Passport</option>
+            <option value="ID_CARD">National ID</option>
+            <option value="ADDRESS_PROOF">Address proof</option>
           </select>
-        </label>
+        </Field>
       </div>
       <label className="upload-box">
         <Upload size={22} />
-        <span>Upload document</span>
+        <span>{fileName || "Upload document"}</span>
         <input
           type="file"
-          onChange={() =>
-            onMessage(
-              "Document is selected locally. Upload is not submitted until the backend document endpoint is confirmed.",
-            )
-          }
+          accept="image/*,.pdf"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (!file) return
+            setFileName(file.name)
+            setLoading(true)
+            void uploadKycDocument(documentType, file)
+              .then(
+                (result) => {
+                  const idValue = result[DOCUMENT_ID_KEY]
+                  if (typeof idValue === "number")
+                    setDocumentIds((current) => [...current, idValue])
+                  onDone("证件已上传，点击提交完成 KYC 申请。")
+                },
+                (reason: unknown) => onDone(readError(reason)),
+              )
+              .finally(() => setLoading(false))
+          }}
         />
       </label>
-      <Button
-        tone="outline"
-        onClick={() => onMessage("演示流程：当前不会伪造审核通过，等待真实 KYC 提交接口。")}
-      >
-        Save draft
+      <p className="muted">
+        Supported by the real `/api/v1/compliance/kyc/documents` endpoint. The page does not claim
+        face recognition capability.
+      </p>
+      <Button loading={loading} onClick={() => void submit()}>
+        Submit for review
       </Button>
     </div>
   )
+}
+
+function text(row: RecordRow | null | undefined, key: string): string {
+  const value = row?.[key]
+  return typeof value === "string" || typeof value === "number" ? String(value) : ""
+}
+function readError(reason: unknown): string {
+  return reason instanceof Error ? reason.message : "合规服务暂不可用，请稍后重试。"
 }

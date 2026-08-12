@@ -30,6 +30,8 @@
 | 错误与一致性 | [errors.md](./errors.md) |
 | 前端接口矩阵 | [frontend-integration-matrix.md](./frontend-integration-matrix.md) |
 | 后端待补清单 | [backend-gaps.md](./backend-gaps.md) |
+| 通知 | [notifications.md](./notifications.md) |
+| 帮助中心 | [help.md](./help.md) |
 | OpenAPI 草案 | [openapi.yaml](./openapi.yaml) |
 
 ## 证据与状态

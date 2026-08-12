@@ -10,7 +10,8 @@ if (import.meta.env.DEV) {
 
 const savedTheme = window.localStorage.getItem("surprising-ex.theme")
 const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-document.documentElement.dataset["theme"] =
+const THEME_KEY = "theme"
+document.documentElement.dataset[THEME_KEY] =
   savedTheme === "dark" || (savedTheme === null && systemDark) ? "dark" : "light"
 
 const rootElement = document.getElementById("root")

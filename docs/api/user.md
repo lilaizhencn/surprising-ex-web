@@ -4,10 +4,11 @@
 
 | 能力 | 路径 | 状态 | 说明 |
 | --- | --- | --- | --- |
-| KYC 状态 | `/api/v1/compliance/kyc` | Partial | controller/service 存在，完整 DTO 与审核状态需补充 |
-| KYC 提交 | `/api/v1/compliance/kyc` | Pending | 新前端只展示演示流程，不宣称真实认证 |
+| KYC 状态 | `/api/v1/compliance/kyc` | Confirmed | 返回后端审核状态、等级、拒绝原因和过期时间 |
+| KYC 提交 | `/api/v1/compliance/kyc` | Confirmed | `documentIds` 必须来自真实上传接口 |
+| KYC 文件 | `/api/v1/compliance/kyc/documents` | Confirmed | multipart；内容类型和大小由后端存储服务校验 |
 | 用户资料 | gateway/account 相关接口 | Partial | 后端待补充独立 user profile contract |
-| 通知 | 未确认 | Pending | 当前前端展示待接入状态 |
+| 通知 | `/api/v1/notifications` | Confirmed | 查询、单条已读、全部已读 |
 
 KYC 状态至少需要稳定枚举：`NOT_VERIFIED`、`BASIC`、`ADVANCED`、`PENDING`、`APPROVED`、`REJECTED`。如果实际后端枚举不同，应在 mapper 中集中适配，不应散落在页面中。
 

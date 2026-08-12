@@ -5,6 +5,7 @@ import { AuthPage } from "../features/auth/AuthPage"
 import { CompliancePage } from "../features/compliance/CompliancePage"
 import { NotificationsPage } from "../features/notifications/NotificationsPage"
 import { OrdersPage } from "../features/orders/OrdersPage"
+import { HelpPage } from "../features/public/HelpPage"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
 import { SecurityPage } from "../features/security/SecurityPage"
@@ -83,6 +84,12 @@ export function App() {
     return (
       <AppShell>
         <NotificationsPage />
+      </AppShell>
+    )
+  if (path === "/help")
+    return (
+      <AppShell showFooter>
+        <HelpPage />
       </AppShell>
     )
   return (

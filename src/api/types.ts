@@ -1,6 +1,9 @@
 import { z } from "zod"
 
 const NumericSchema = z.union([z.string(), z.number()])
+const NullableNumericSchema = NumericSchema.nullable().optional()
+
+export const GenericObjectSchema = z.record(z.string(), z.unknown())
 
 export const UserSchema = z
   .object({
@@ -85,9 +88,60 @@ export const BalanceListSchema = z
   })
   .passthrough()
 
-export const GenericObjectSchema = z.record(z.string(), z.unknown())
+export const OrderSchema = z
+  .object({
+    orderId: z.union([z.string(), z.number()]).optional(),
+    clientOrderId: z.string().optional(),
+    symbol: z.string().optional(),
+    side: z.string().optional(),
+    type: z.string().optional(),
+    status: z.string().optional(),
+    price: NullableNumericSchema,
+    origQty: NullableNumericSchema,
+    executedQty: NullableNumericSchema,
+    time: z.union([z.string(), z.number()]).optional(),
+    updateTime: z.union([z.string(), z.number()]).optional(),
+  })
+  .passthrough()
+
+export const OrderListSchema = z.union([
+  z.array(OrderSchema),
+  z
+    .object({ orders: z.array(OrderSchema).optional(), items: z.array(OrderSchema).optional() })
+    .passthrough(),
+])
+
+export const OrderBookLevelSchema = z.tuple([NumericSchema, NumericSchema])
+export const OrderBookSchema = z
+  .object({
+    lastUpdateId: z.union([z.string(), z.number()]).optional(),
+    bids: z.array(OrderBookLevelSchema).optional(),
+    asks: z.array(OrderBookLevelSchema).optional(),
+  })
+  .passthrough()
+
+export const WalletRecordSchema = GenericObjectSchema
+export const WalletRecordsSchema = z.array(WalletRecordSchema)
+
+export const KycProfileSchema = GenericObjectSchema.nullable()
+export const SecurityApiKeySchema = GenericObjectSchema
+export const SecurityApiKeyListSchema = z.array(SecurityApiKeySchema)
+export const HelpArticleSchema = z.object({
+  articleId: z.string(),
+  title: z.string(),
+  category: z.string(),
+  summary: z.string(),
+  body: z.string(),
+  updatedAt: z.string(),
+})
+export const HelpArticleListSchema = z.array(HelpArticleSchema)
 
 export type AuthSession = z.infer<typeof AuthSessionSchema>
 export type ApiMarket = z.infer<typeof MarketSchema>
 export type ApiCandle = z.infer<typeof CandleSchema>
 export type ApiBalance = z.infer<typeof BalanceSchema>
+export type ApiOrder = z.infer<typeof OrderSchema>
+export type ApiOrderBook = z.infer<typeof OrderBookSchema>
+export type ApiOrderBookLevel = z.infer<typeof OrderBookLevelSchema>
+export type ApiWalletRecord = z.infer<typeof WalletRecordSchema>
+export type ApiHelpArticle = z.infer<typeof HelpArticleSchema>

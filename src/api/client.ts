@@ -40,7 +40,8 @@ export async function request<T>(
   if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
   if (options.productLine) headers.set("X-Product-Line", options.productLine)
   if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
-  if (options.body !== undefined) headers.set("Content-Type", "application/json")
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData
+  if (options.body !== undefined && !isFormData) headers.set("Content-Type", "application/json")
 
   const requestOptions: Options = {
     method,
@@ -49,7 +50,9 @@ export async function request<T>(
     retry: method === "GET" ? { limit: 1, methods: ["get"] } : { limit: 0 },
     throwHttpErrors: false,
   }
-  if (options.body !== undefined) requestOptions.body = JSON.stringify(options.body)
+  if (options.body !== undefined) {
+    requestOptions.body = isFormData ? options.body : JSON.stringify(options.body)
+  }
   if (options.signal !== undefined) requestOptions.signal = options.signal
   const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
   const raw = await response.text()
