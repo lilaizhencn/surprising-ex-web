@@ -84,11 +84,13 @@ export function useRealtime(
             token: accessToken,
           }),
         )
-        subscribe(socket, privateSubscriptions(symbol, productLine))
       }
       socket.onmessage = (message) => {
         const event = parseEvent(message.data)
         if (!event) return
+        if (Reflect.get(event, "type") === "authenticated") {
+          subscribe(socket, privateSubscriptions(symbol, productLine))
+        }
         setLastEventAt(new Date().toISOString())
         setEvents((current) => [event, ...current].slice(0, 80))
       }

@@ -35,17 +35,15 @@ export function decimalProductExceedsUnits(
   availableUnits: string | number | undefined,
   scale: UnitScale | undefined,
 ): boolean {
-  if (availableUnits === undefined || scale === undefined) return false
-  try {
-    const leftDecimal = parseDecimal(left)
-    const rightDecimal = parseDecimal(right)
-    const available = integerToBigInt(availableUnits)
-    const product = leftDecimal.coefficient * rightDecimal.coefficient * scaleToBigInt(scale)
-    const divisor = ten(leftDecimal.fractionDigits + rightDecimal.fractionDigits)
-    return product > available * divisor
-  } catch {
-    return false
+  if (availableUnits === undefined || scale === undefined) {
+    throw new Error("余额单位或资产精度尚未加载，未提交。")
   }
+  const leftDecimal = parseDecimal(left)
+  const rightDecimal = parseDecimal(right)
+  const available = integerToBigInt(availableUnits)
+  const product = leftDecimal.coefficient * rightDecimal.coefficient * scaleToBigInt(scale)
+  const divisor = ten(leftDecimal.fractionDigits + rightDecimal.fractionDigits)
+  return product > available * divisor
 }
 
 export function unitsToDecimal(units: string | number, scale: UnitScale): string {
@@ -72,13 +70,7 @@ function parseDecimal(value: string): Decimal {
 }
 
 function scaleToBigInt(scale: UnitScale): bigint {
-  const normalized =
-    typeof scale === "number"
-      ? scale.toLocaleString("fullwide", {
-          useGrouping: false,
-          maximumFractionDigits: 0,
-        })
-      : scale.trim()
+  const normalized = typeof scale === "number" ? integerNumber(scale) : scale.trim()
   if (!/^\d+$/.test(normalized) || normalized === "0") {
     throw new Error("资产精度规格无效，未提交。")
   }
@@ -86,15 +78,19 @@ function scaleToBigInt(scale: UnitScale): bigint {
 }
 
 function integerToBigInt(value: string | number): bigint {
-  const normalized =
-    typeof value === "number"
-      ? value.toLocaleString("fullwide", {
-          useGrouping: false,
-          maximumFractionDigits: 0,
-        })
-      : value.trim()
+  const normalized = typeof value === "number" ? integerNumber(value) : value.trim()
   if (!/^\d+$/.test(normalized)) throw new Error("余额单位无效。")
   return BigInt(normalized)
+}
+
+function integerNumber(value: number): string {
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+    throw new Error("整数单位无效。")
+  }
+  if (!Number.isSafeInteger(value)) {
+    throw new Error("整数单位必须以字符串传输。")
+  }
+  return String(value)
 }
 
 function ten(exponent: number): bigint {

@@ -17,6 +17,17 @@ describe("market mapper", () => {
     expect(market.change24h).toBe(1.25)
     expect(market.volume24h).toBe(120000)
   })
+
+  it("preserves backend price and quantity unit scales", () => {
+    const market = mapMarket({
+      symbol: "BTCUSDT",
+      priceTickUnits: "5",
+      quantityStepUnits: "25",
+    })
+
+    expect(market.priceTickUnits).toBe("5")
+    expect(market.quantityStepUnits).toBe("25")
+  })
 })
 
 describe("balance mapper", () => {

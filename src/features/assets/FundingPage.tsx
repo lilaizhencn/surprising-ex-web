@@ -588,9 +588,18 @@ function valueAt(record: RecordRow | null | undefined, key: string): unknown {
 }
 
 function requestStatusAccepted(status: string): boolean {
-  return !["FAILED", "REJECTED", "CANCELLED", "COMPENSATION_REQUIRED"].includes(
-    status.trim().toUpperCase(),
-  )
+  return [
+    "PENDING",
+    "PENDING_APPROVAL",
+    "PROCESSING",
+    "DEBIT_UNKNOWN",
+    "DEBITED",
+    "SUBMITTED",
+    "BROADCAST_UNKNOWN",
+    "SOURCE_DEBITED",
+    "TARGET_CREDIT_UNKNOWN",
+    "COMPLETED",
+  ].includes(status.trim().toUpperCase())
 }
 
 async function copyText(value: string) {
@@ -598,11 +607,5 @@ async function copyText(value: string) {
 }
 
 async function loadFundingBalances(): Promise<readonly RecordRow[]> {
-  const results = await Promise.allSettled(
-    Object.values(PRODUCT_LINES).map((productLine) => loadBalances(productLine)),
-  )
-  const rows = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
-  if (rows.length > 0 || results.some((result) => result.status === "fulfilled")) return rows
-  const rejected = results.find((result) => result.status === "rejected")
-  throw rejected?.status === "rejected" ? rejected.reason : new Error("账户服务暂不可用")
+  return loadBalances(PRODUCT_LINES.spot, "FUNDING")
 }

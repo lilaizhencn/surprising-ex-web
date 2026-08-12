@@ -296,25 +296,48 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       return
     }
     let quantitySteps: string
+    let priceTicks: string | 0
     try {
-      quantitySteps = decimalToUnits(quantity, powerOfTen(current.quantityPrecision))
+      quantitySteps = decimalToUnits(
+        quantity,
+        current.quantityStepUnits ?? powerOfTen(current.quantityPrecision),
+      )
+      priceTicks =
+        orderType === "MARKET"
+          ? 0
+          : decimalToUnits(price, current.priceTickUnits ?? powerOfTen(current.pricePrecision))
+
+      const balanceScale = balance ? assetScales[balance.asset] : undefined
+      if (!balance || !balanceScale) {
+        throw new Error("可用余额或资产精度尚未加载，订单未提交。")
+      }
+      const availableUnits =
+        balance.availableUnits ??
+        (balance.free === undefined
+          ? undefined
+          : decimalToUnits(String(balance.free), balanceScale))
+      const referencePrice = orderType === "MARKET" ? current.price : price
+      if (side === "BUY" && referencePrice === null) {
+        throw new Error("市场参考价尚未加载，无法校验可用余额。")
+      }
+      if (availableUnits === undefined) {
+        throw new Error("可用余额单位尚未加载，订单未提交。")
+      }
+      const exceedsBalance =
+        side === "SELL"
+          ? decimalProductExceedsUnits(quantity, "1", availableUnits, balanceScale)
+          : decimalProductExceedsUnits(
+              quantity,
+              String(referencePrice),
+              availableUnits,
+              balanceScale,
+            )
+      if (exceedsBalance) {
+        throw new Error("可用余额不足，订单未提交。")
+      }
     } catch (reason: unknown) {
       setSubmitState("error")
       setSubmitMessage(reason instanceof Error ? reason.message : "数量精度无效。")
-      return
-    }
-    const balanceScale = balance ? assetScales[balance.asset] : undefined
-    const exceedsBalance =
-      balance && balanceScale
-        ? side === "SELL"
-          ? decimalProductExceedsUnits(quantity, "1", balance.availableUnits, balanceScale)
-          : orderType === "MARKET"
-            ? false
-            : decimalProductExceedsUnits(quantity, price, balance.availableUnits, balanceScale)
-        : false
-    if (exceedsBalance) {
-      setSubmitState("error")
-      setSubmitMessage("可用余额不足，订单未提交。")
       return
     }
     setSubmitState("loading")
@@ -328,8 +351,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           side,
           orderType,
           timeInForce: orderType === "MARKET" ? "IOC" : "GTC",
-          priceTicks:
-            orderType === "MARKET" ? 0 : decimalToUnits(price, powerOfTen(current.pricePrecision)),
+          priceTicks,
           quantitySteps,
           marginMode: "CROSS",
           positionSide: "NET",

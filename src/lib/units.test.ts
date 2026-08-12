@@ -17,6 +17,10 @@ describe("asset unit conversion", () => {
     expect(() => decimalToUnits("0.000000001", "100000000")).toThrow()
   })
 
+  it("rejects unsafe numeric unit values instead of rounding them", () => {
+    expect(() => unitsToDecimal(1e18, "1000000000000000000")).toThrow()
+  })
+
   it("checks quote and base balances using integer arithmetic", () => {
     expect(decimalProductExceedsUnits("1.5", "2", "300000000", "100000000")).toBe(false)
     expect(decimalProductExceedsUnits("1.50000001", "2", "300000000", "100000000")).toBe(true)

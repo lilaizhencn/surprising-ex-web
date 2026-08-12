@@ -153,8 +153,14 @@ export async function loadCandles(
   return response.candles ?? response.items ?? []
 }
 
-export async function loadBalances(productLine?: ProductLine): Promise<readonly ApiBalance[]> {
-  const query = productLine ? `?accountType=${encodeURIComponent(productLine)}` : ""
+export async function loadBalances(
+  productLine?: ProductLine,
+  accountType?: string,
+): Promise<readonly ApiBalance[]> {
+  const requestedAccountType = accountType ?? productLine
+  const query = requestedAccountType
+    ? `?accountType=${encodeURIComponent(requestedAccountType)}`
+    : ""
   const response = await request(
     `/api/v1/gateway/account/product-balances${query}`,
     BalanceListSchema,

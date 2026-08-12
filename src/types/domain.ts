@@ -21,6 +21,8 @@ export type Market = {
   readonly low24h: number | null
   readonly pricePrecision: number
   readonly quantityPrecision: number
+  readonly priceTickUnits?: string
+  readonly quantityStepUnits?: string
   readonly maxLeverage: number | null
   readonly instrumentType?: string | undefined
   readonly contractValueAsset?: string | undefined
