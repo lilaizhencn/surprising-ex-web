@@ -10,6 +10,9 @@
 | POST | `/api/v1/auth/reset-password` | Confirmed | 否 |
 | POST | `/api/v1/auth/refresh` | Partial，字段需后端确认 | 否，使用 refresh token |
 | POST | `/api/v1/auth/logout` | Confirmed，按 refresh token 撤销当前会话 | 否，提交 refresh token |
+| GET | `/api/v1/auth/me` | Confirmed，返回当前 JWT principal | Bearer |
+| POST | `/api/v1/auth/verify-email` | Confirmed | 否 |
+| POST | `/api/v1/auth/resend-email-verification` | Confirmed | Bearer |
 
 ## 请求与响应
 

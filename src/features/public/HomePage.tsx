@@ -17,6 +17,7 @@ import type { Market } from "../../types/domain"
 
 export function HomePage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
+  const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     void loadMarkets()
@@ -25,8 +26,10 @@ export function HomePage() {
         setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
       )
   }, [])
-  const displayed =
-    markets.length > 0 ? markets.slice(0, 3) : config.demoDataEnabled ? demoMarkets.slice(0, 3) : []
+  const source = markets.length > 0 ? markets : config.demoDataEnabled ? demoMarkets : []
+  const displayed = source
+    .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 3)
   return (
     <div className="home-page">
       <section className="hero container">
@@ -39,6 +42,8 @@ export function HomePage() {
           <div className="hero-search">
             <Search size={18} />
             <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search coins, tokens, pairs..."
               aria-label="Search coins, tokens, pairs"
             />

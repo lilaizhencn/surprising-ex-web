@@ -99,10 +99,11 @@ export function App() {
   )
 }
 
-function authMode(path: string): "login" | "register" | "forgot" | "reset" {
+function authMode(path: string): "login" | "register" | "forgot" | "reset" | "verify" {
   if (path === "/auth/register") return "register"
   if (path === "/auth/reset-password") return "reset"
   if (path === "/auth/forgot-password") return "forgot"
+  if (path === "/auth/verify-email") return "verify"
   return "login"
 }
 

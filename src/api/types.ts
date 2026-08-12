@@ -8,7 +8,12 @@ export const GenericObjectSchema = z.record(z.string(), z.unknown())
 export const UserSchema = z
   .object({
     userId: z.union([z.string(), z.number()]),
+    username: z.string().nullable().optional(),
     email: z.string().optional(),
+    phone: z.string().nullable().optional(),
+    status: z.string().optional(),
+    roles: z.array(z.string()).optional(),
+    createdAt: z.string().optional(),
   })
   .passthrough()
 
@@ -17,7 +22,26 @@ export const AuthSessionSchema = z
     accessToken: z.string(),
     refreshToken: z.string().optional(),
     expiresAt: z.string().optional(),
+    requiresEmailVerification: z.boolean().optional(),
     user: UserSchema,
+  })
+  .passthrough()
+
+export const JwtPrincipalSchema = z
+  .object({
+    userId: z.union([z.string(), z.number()]),
+    username: z.string().nullable().optional(),
+    status: z.string(),
+    roles: z.array(z.string()),
+    expiresAt: z.string(),
+  })
+  .passthrough()
+
+export const EmailVerificationChallengeSchema = z
+  .object({
+    challengeId: z.union([z.string(), z.number()]).optional(),
+    expiresAt: z.string().optional(),
+    accepted: z.boolean().optional(),
   })
   .passthrough()
 
@@ -89,6 +113,7 @@ export const CandleListSchema = z
 export const BalanceSchema = z
   .object({
     asset: z.string(),
+    accountType: z.string().optional(),
     availableUnits: z.number().optional(),
     lockedUnits: z.number().optional(),
     free: NumericSchema.optional(),
@@ -102,6 +127,8 @@ export const BalanceListSchema = z
     items: z.array(BalanceSchema).optional(),
   })
   .passthrough()
+
+export const AssetScalesSchema = z.record(z.string(), z.number().int().positive())
 
 export const OrderSchema = z
   .object({
@@ -301,6 +328,54 @@ export const WalletRecordsSchema = z.array(WalletRecordSchema)
 export const KycProfileSchema = GenericObjectSchema.nullable()
 export const SecurityApiKeySchema = GenericObjectSchema
 export const SecurityApiKeyListSchema = z.array(SecurityApiKeySchema)
+
+export const UserSessionSchema = z
+  .object({
+    sessionId: z.union([z.string(), z.number()]),
+    userId: z.union([z.string(), z.number()]),
+    active: z.boolean(),
+    expiresAt: z.string(),
+    revokedAt: z.string().nullable().optional(),
+    userAgent: z.string().nullable().optional(),
+    ipAddress: z.string().nullable().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .passthrough()
+
+export const UserSessionPageSchema = z
+  .object({
+    count: z.number(),
+    sessions: z.array(UserSessionSchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
+
+export const LoginHistoryEntrySchema = z
+  .object({
+    loginId: z.union([z.string(), z.number()]),
+    userId: z.union([z.string(), z.number()]).nullable().optional(),
+    result: z.string(),
+    reason: z.string().nullable().optional(),
+    userAgent: z.string().nullable().optional(),
+    ipAddress: z.string().nullable().optional(),
+    createdAt: z.string(),
+  })
+  .passthrough()
+
+export const LoginHistoryPageSchema = z
+  .object({
+    count: z.number(),
+    logs: z.array(LoginHistoryEntrySchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
 export const HelpArticleSchema = z.object({
   articleId: z.string(),
   title: z.string(),
@@ -312,6 +387,9 @@ export const HelpArticleSchema = z.object({
 export const HelpArticleListSchema = z.array(HelpArticleSchema)
 
 export type AuthSession = z.infer<typeof AuthSessionSchema>
+export type JwtPrincipal = z.infer<typeof JwtPrincipalSchema>
+export type ApiUserSession = z.infer<typeof UserSessionSchema>
+export type ApiLoginHistoryEntry = z.infer<typeof LoginHistoryEntrySchema>
 export type ApiMarket = z.infer<typeof MarketSchema>
 export type ApiCandle = z.infer<typeof CandleSchema>
 export type ApiBalance = z.infer<typeof BalanceSchema>

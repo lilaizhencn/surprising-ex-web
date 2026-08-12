@@ -13,6 +13,7 @@ export function HelpPage() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
   useEffect(() => {
     setLoading(true)
     void loadHelpArticles(query, category)
@@ -24,7 +25,7 @@ export function HelpPage() {
         setError(reason instanceof Error ? reason.message : "帮助内容暂不可用。"),
       )
       .finally(() => setLoading(false))
-  }, [category, query])
+  }, [category, query, reloadKey])
   const featured = useMemo(() => articles.slice(0, 3), [articles])
   return (
     <div className="container section help-page">
@@ -60,7 +61,11 @@ export function HelpPage() {
       </Panel>
       {error ? (
         <Panel>
-          <StateView kind="error" message={error} retry={() => setQuery((value) => value)} />
+          <StateView
+            kind="error"
+            message={error}
+            retry={() => setReloadKey((value) => value + 1)}
+          />
         </Panel>
       ) : loading ? (
         <Panel>

@@ -1,4 +1,4 @@
-import { Download, Filter, RefreshCw, XCircle } from "lucide-react"
+import { Download, RefreshCw, XCircle } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import {
   cancelOrder,
@@ -13,7 +13,7 @@ import { loadSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
 type RecordRow = ApiOrder | ApiAccountLedgerEntry | ApiProductTransferRecord
-type Tab = "open" | "history" | "ledger" | "transfers"
+type Tab = "open" | "history" | "fills" | "ledger" | "transfers"
 
 export function OrdersPage() {
   const session = loadSession()
@@ -21,6 +21,9 @@ export function OrdersPage() {
   const [productLine, setProductLine] = useState<ProductLine>(PRODUCT_LINES.spot)
   const [symbol, setSymbol] = useState("")
   const [search, setSearch] = useState("")
+  const [status, setStatus] = useState("ALL")
+  const [from, setFrom] = useState("")
+  const [to, setTo] = useState("")
   const [rows, setRows] = useState<readonly RecordRow[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -33,10 +36,12 @@ export function OrdersPage() {
       tab === "open"
         ? loadOpenOrders(symbol, productLine)
         : tab === "history"
-          ? loadOrderHistory(symbol, productLine)
-          : tab === "ledger"
-            ? loadAccountLedger(symbol)
-            : loadTransferHistory(productLine, symbol)
+          ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
+          : tab === "fills"
+            ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
+            : tab === "ledger"
+              ? loadAccountLedger(symbol)
+              : loadTransferHistory(productLine, symbol)
     void task
       .then(
         (result) => setRows(result),
@@ -46,9 +51,15 @@ export function OrdersPage() {
   }
   useEffect(load, [productLine, session, tab])
   const filtered = useMemo(
-    () => rows.filter((row) => JSON.stringify(row).toLowerCase().includes(search.toLowerCase())),
-    [rows, search],
+    () =>
+      rows.filter(
+        (row) =>
+          JSON.stringify(row).toLowerCase().includes(search.toLowerCase()) &&
+          (status === "ALL" || text(row, "status").toUpperCase() === status),
+      ),
+    [rows, search, status],
   )
+  const displayRows = tab === "fills" ? filtered.filter((row) => isFilled(row)) : filtered
   if (!session)
     return (
       <div className="account-content">
@@ -75,8 +86,8 @@ export function OrdersPage() {
         </div>
         <Button
           tone="outline"
-          disabled={filtered.length === 0}
-          onClick={() => downloadCsv(filtered, tab)}
+          disabled={displayRows.length === 0}
+          onClick={() => downloadCsv(displayRows, tab)}
         >
           <Download size={16} /> Export
         </Button>
@@ -105,9 +116,29 @@ export function OrdersPage() {
         <Button tone="outline" onClick={load}>
           <RefreshCw size={16} /> Refresh
         </Button>
-        <Button tone="outline">
-          <Filter size={16} /> Filters
-        </Button>
+        <select
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          aria-label="Order status"
+        >
+          <option value="ALL">All statuses</option>
+          <option value="NEW">New</option>
+          <option value="PARTIALLY_FILLED">Partially filled</option>
+          <option value="FILLED">Filled</option>
+          <option value="CANCELED">Canceled</option>
+        </select>
+        <input
+          type="date"
+          value={from}
+          onChange={(event) => setFrom(event.target.value)}
+          aria-label="From date"
+        />
+        <input
+          type="date"
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          aria-label="To date"
+        />
       </div>
       <div className="segment-control history-tabs">
         <button
@@ -123,6 +154,13 @@ export function OrdersPage() {
           onClick={() => setTab("history")}
         >
           Order history
+        </button>
+        <button
+          type="button"
+          className={tab === "fills" ? "active" : ""}
+          onClick={() => setTab("fills")}
+        >
+          Fills
         </button>
         <button
           type="button"
@@ -144,7 +182,7 @@ export function OrdersPage() {
           <StateView kind="error" message={error} retry={load} />
         ) : loading ? (
           <StateView kind="loading" message="Loading order state" />
-        ) : filtered.length === 0 ? (
+        ) : displayRows.length === 0 ? (
           <StateView
             kind="empty"
             message={
@@ -152,16 +190,18 @@ export function OrdersPage() {
                 ? "No open orders returned by the trading service."
                 : tab === "history"
                   ? "No historical orders returned by the trading service."
-                  : tab === "ledger"
-                    ? "No account ledger entries returned by the account service."
-                    : "No transfer records returned by the account service."
+                  : tab === "fills"
+                    ? "No filled orders returned by the trading service."
+                    : tab === "ledger"
+                      ? "No account ledger entries returned by the account service."
+                      : "No transfer records returned by the account service."
             }
           />
         ) : tab === "ledger" || tab === "transfers" ? (
-          <RecordTable rows={filtered} mode={tab} />
+          <RecordTable rows={displayRows} mode={tab} />
         ) : (
           <OrderTable
-            rows={filtered}
+            rows={displayRows}
             canCancel={tab === "open"}
             productLine={productLine}
             onDone={(message) => {
@@ -311,6 +351,17 @@ function text(row: RecordRow | null | undefined, key: string): string {
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "订单服务暂不可用，请稍后重试。"
+}
+
+function dateValue(value: string): number | undefined {
+  if (!value) return undefined
+  const parsed = Date.parse(`${value}T00:00:00Z`)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function isFilled(row: RecordRow): boolean {
+  const value = text(row, "status").toUpperCase()
+  return value === "FILLED" || value === "PARTIALLY_FILLED" || Number(text(row, "executedQty")) > 0
 }
 
 function downloadCsv(rows: readonly RecordRow[], tab: Tab): void {

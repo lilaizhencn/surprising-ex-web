@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { storageKeys } from "../../lib/config"
 import { formatNumber, formatPercent, formatUsd } from "../../lib/format"
 import type { Market } from "../../types/domain"
 import { AssetIcon, Badge, Button, FavoriteButton, Price, Sparkline } from "../ui/Primitives"
@@ -7,13 +8,33 @@ import { AssetIcon, Badge, Button, FavoriteButton, Price, Sparkline } from "../u
 export function MarketTable({
   markets,
   demo = false,
+  favoriteOnly = false,
 }: {
   readonly markets: readonly Market[]
   readonly demo?: boolean
+  readonly favoriteOnly?: boolean
 }) {
-  const [favorites, setFavorites] = useState<readonly string[]>([])
+  const [favorites, setFavorites] = useState<readonly string[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKeys.favorites)
+      const parsed: unknown = raw ? JSON.parse(raw) : []
+      return Array.isArray(parsed) && parsed.every((value) => typeof value === "string")
+        ? parsed
+        : []
+    } catch {
+      return []
+    }
+  })
   const [sort, setSort] = useState<"symbol" | "price" | "change" | "volume">("symbol")
-  const sorted = [...markets].sort((left, right) => {
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKeys.favorites, JSON.stringify(favorites))
+    } catch {}
+  }, [favorites])
+  const visibleMarkets = favoriteOnly
+    ? markets.filter((market) => favorites.includes(market.symbol))
+    : markets
+  const sorted = [...visibleMarkets].sort((left, right) => {
     if (sort === "symbol") return left.symbol.localeCompare(right.symbol)
     const a = sort === "price" ? left.price : sort === "change" ? left.change24h : left.volume24h
     const b = sort === "price" ? right.price : sort === "change" ? right.change24h : right.volume24h
@@ -21,11 +42,12 @@ export function MarketTable({
   })
   const favoriteSet = new Set(favorites)
   const toggleFavorite = (symbol: string) =>
-    setFavorites(
-      favorites.includes(symbol)
-        ? favorites.filter((value) => value !== symbol)
-        : [...favorites, symbol],
-    )
+    setFavorites((current) => {
+      const next = current.includes(symbol)
+        ? current.filter((value) => value !== symbol)
+        : [...current, symbol]
+      return next
+    })
   return (
     <div className="table-wrap">
       <table className="data-table markets-table">
@@ -58,6 +80,13 @@ export function MarketTable({
           </tr>
         </thead>
         <tbody>
+          {sorted.length === 0 ? (
+            <tr>
+              <td colSpan={8}>
+                No favorite markets yet. Select the star beside a trading pair to pin it here.
+              </td>
+            </tr>
+          ) : null}
           {sorted.map((market) => {
             const positive = (market.change24h ?? 0) >= 0
             return (

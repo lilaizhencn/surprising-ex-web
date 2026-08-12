@@ -46,11 +46,13 @@ export function mapCandle(raw: ApiCandle): Candle {
 }
 
 export function mapBalance(raw: ApiBalance): Balance {
+  const accountType = typeof raw.accountType === "string" ? raw.accountType : undefined
   return {
     asset: raw.asset,
     available: numeric(raw.free) ?? scaled(raw.availableUnits, 100_000_000) ?? 0,
     locked: numeric(raw.locked) ?? scaled(raw.lockedUnits, 100_000_000) ?? 0,
     estimatedUsd: null,
+    ...(accountType ? { accountType } : {}),
   }
 }
 

@@ -1,6 +1,6 @@
 import { Filter } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { loadMarkets } from "../../api/endpoints"
+import { loadMarkets, loadTicker24h } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import { MarketTable } from "../../components/market/MarketTable"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
@@ -11,11 +11,31 @@ import type { Market } from "../../types/domain"
 export function MarketsPage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
-  const [scope, setScope] = useState<"all" | "spot" | "futures">("all")
+  const [scope, setScope] = useState<"all" | "spot" | "futures" | "favorites">("all")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     void loadMarkets()
-      .then((rows) => setMarkets(rows.map(mapMarket)))
+      .then((rows) => {
+        const mapped = rows.map(mapMarket)
+        setMarkets(mapped)
+        void Promise.allSettled(
+          mapped
+            .slice(0, 50)
+            .map((market) =>
+              loadTicker24h(
+                market.symbol,
+                market.productLine === "UNKNOWN" ? "SPOT" : market.productLine,
+              ),
+            ),
+        ).then((quotes) => {
+          setMarkets((current) =>
+            current.map((market, index) => {
+              const quote = quotes[index]
+              return quote?.status === "fulfilled" ? mergeTicker(market, quote.value) : market
+            }),
+          )
+        })
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
       )
@@ -27,6 +47,7 @@ export function MarketsPage() {
         (market) =>
           market.symbol.toLowerCase().includes(query.toLowerCase()) &&
           (scope === "all" ||
+            scope === "favorites" ||
             (scope === "spot" ? market.productLine === "SPOT" : market.productLine !== "SPOT")),
       ),
     [query, scope, source],
@@ -62,7 +83,14 @@ export function MarketsPage() {
             className={scope === "all" ? "active" : ""}
             onClick={() => setScope("all")}
           >
-            ☆ All Markets
+            All Markets
+          </button>
+          <button
+            type="button"
+            className={scope === "favorites" ? "active" : ""}
+            onClick={() => setScope("favorites")}
+          >
+            ☆ Favorites
           </button>
           <button
             type="button"
@@ -91,7 +119,11 @@ export function MarketsPage() {
           <StateView kind="error" message={error} retry={() => window.location.reload()} />
         </Panel>
       ) : filtered.length > 0 ? (
-        <MarketTable markets={filtered} demo={config.demoDataEnabled && markets.length === 0} />
+        <MarketTable
+          markets={filtered}
+          favoriteOnly={scope === "favorites"}
+          demo={config.demoDataEnabled && markets.length === 0}
+        />
       ) : (
         <Panel>
           <StateView
@@ -106,4 +138,25 @@ export function MarketsPage() {
       )}
     </div>
   )
+}
+
+function mergeTicker(market: Market, quote: Readonly<Record<string, unknown>>): Market {
+  return {
+    ...market,
+    price: numberValue(quote, "lastPrice") ?? numberValue(quote, "price") ?? market.price,
+    change24h:
+      numberValue(quote, "priceChangePercent") ??
+      numberValue(quote, "change24h") ??
+      market.change24h,
+    volume24h:
+      numberValue(quote, "quoteVolume") ?? numberValue(quote, "volume") ?? market.volume24h,
+    high24h: numberValue(quote, "highPrice") ?? market.high24h,
+    low24h: numberValue(quote, "lowPrice") ?? market.low24h,
+  }
+}
+
+function numberValue(row: Readonly<Record<string, unknown>>, key: string): number | null {
+  const value = row[key]
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN
+  return Number.isFinite(parsed) ? parsed : null
 }

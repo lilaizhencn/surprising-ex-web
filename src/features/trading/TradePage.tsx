@@ -3,18 +3,28 @@ import { useEffect, useMemo, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
   cancelOrder,
+  loadAssetScales,
+  loadBalances,
   loadCandles,
   loadFundingPayments,
   loadFundingRate,
+  loadIndexPrice,
   loadLatestTrade,
   loadMarkets,
+  loadMarkPrice,
   loadOpenOrders,
   loadOrderBook,
   loadPositions,
   placeOrder,
 } from "../../api/endpoints"
 import { mapCandle, mapMarket } from "../../api/mappers"
-import type { ApiFundingPayment, ApiFundingRate, ApiOrder, ApiOrderBook } from "../../api/types"
+import type {
+  ApiBalance,
+  ApiFundingPayment,
+  ApiFundingRate,
+  ApiOrder,
+  ApiOrderBook,
+} from "../../api/types"
 import { PriceChart } from "../../components/trading/PriceChart"
 import {
   Badge,
@@ -25,6 +35,7 @@ import {
   SearchField,
   StateView,
 } from "../../components/ui/Primitives"
+import { useRealtime } from "../../hooks/useRealtime"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
@@ -95,8 +106,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [book, setBook] = useState<ApiOrderBook | null>(null)
   const [latestTrade, setLatestTrade] = useState<Record<string, unknown> | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
+  const [balance, setBalance] = useState<ApiBalance | null>(null)
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, number>>>({})
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
   const [funding, setFunding] = useState<ApiFundingRate | null>(null)
+  const [markPrice, setMarkPrice] = useState<Record<string, unknown> | null>(null)
+  const [indexPrice, setIndexPrice] = useState<Record<string, unknown> | null>(null)
   const [fundingPayments, setFundingPayments] = useState<readonly ApiFundingPayment[]>([])
   const [fundingPaymentsError, setFundingPaymentsError] = useState("")
   const [marketsRequestFinished, setMarketsRequestFinished] = useState(false)
@@ -118,6 +133,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null,
     [availableMarkets, selected],
   )
+  const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period)
 
   useEffect(() => {
     setMarketsRequestFinished(false)
@@ -148,14 +164,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       session && view.line !== PRODUCT_LINES.spot
         ? loadPositions(view.line)
         : Promise.resolve([] as readonly Record<string, unknown>[]),
+      session ? loadBalances(view.line) : Promise.resolve([] as readonly ApiBalance[]),
+      loadAssetScales(),
     ])
-      .then(([candleRows, bookResult, tradeResult, orderRows, positionRows]) => {
-        setCandles(candleRows.map(mapCandle))
-        setBook(bookResult)
-        setLatestTrade(tradeResult)
-        setOpenOrders(orderRows)
-        setPositions(positionRows)
-      })
+      .then(
+        ([candleRows, bookResult, tradeResult, orderRows, positionRows, balanceRows, scales]) => {
+          setCandles(candleRows.map(mapCandle))
+          setBook(bookResult)
+          setLatestTrade(tradeResult)
+          setOpenOrders(orderRows)
+          setPositions(positionRows)
+          setBalance(balanceRows[0] ?? null)
+          setAssetScales(scales)
+        },
+      )
       .catch((reason: unknown) => setError(readError(reason)))
   }, [current, period, session, view.line])
 
@@ -183,20 +205,60 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       })
   }, [current, session, view.line])
 
+  useEffect(() => {
+    if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
+      setMarkPrice(null)
+      setIndexPrice(null)
+      return
+    }
+    void Promise.allSettled([
+      loadMarkPrice(current.symbol, view.line),
+      loadIndexPrice(current.symbol, view.line),
+    ]).then(([markResult, indexResult]) => {
+      setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
+      setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
+    })
+  }, [current, view.line])
+
   const submit = async () => {
     if (!session) {
       setSubmitState("error")
       setSubmitMessage("请先登录后再提交订单。")
       return
     }
-    if (!current || !quantity || Number(quantity) <= 0) {
+    const numericQuantity = Number(quantity)
+    const numericPrice = Number(price)
+    if (!current || !Number.isFinite(numericQuantity) || numericQuantity <= 0) {
       setSubmitState("error")
       setSubmitMessage("请输入有效数量。")
+      return
+    }
+    if (orderType !== "MARKET" && (!Number.isFinite(numericPrice) || numericPrice <= 0)) {
+      setSubmitState("error")
+      setSubmitMessage("限价单需要有效价格。")
       return
     }
     if (orderType === "STOP") {
       setSubmitState("error")
       setSubmitMessage("条件单需要触发价与专用风控参数，当前入口暂不提交普通订单。")
+      return
+    }
+    const quantityScale = 10 ** current.quantityPrecision
+    const quantitySteps = Math.round(numericQuantity * quantityScale)
+    if (quantitySteps <= 0 || Math.abs(quantitySteps / quantityScale - numericQuantity) > 1e-9) {
+      setSubmitState("error")
+      setSubmitMessage(`数量最多支持 ${current.quantityPrecision} 位小数。`)
+      return
+    }
+    const availableAmount = balanceAmount(balance, assetScales)
+    const requiredAmount = side === "SELL" ? numericQuantity : numericQuantity * numericPrice
+    if (
+      availableAmount !== null &&
+      Number.isFinite(requiredAmount) &&
+      requiredAmount > availableAmount + 1e-12
+    ) {
+      setSubmitState("error")
+      setSubmitMessage("可用余额不足，订单未提交。")
       return
     }
     setSubmitState("loading")
@@ -211,8 +273,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           orderType,
           timeInForce: orderType === "MARKET" ? "IOC" : "GTC",
           priceTicks:
-            orderType === "MARKET" ? 0 : Math.round(Number(price) * 10 ** current.pricePrecision),
-          quantitySteps: Math.round(Number(quantity) * 10 ** current.quantityPrecision),
+            orderType === "MARKET" ? 0 : Math.round(numericPrice * 10 ** current.pricePrecision),
+          quantitySteps,
           marginMode: "CROSS",
           positionSide: "NET",
           reduceOnly: false,
@@ -234,10 +296,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     void Promise.all([
       loadOrderBook(current.symbol, view.line),
       loadOpenOrders(current.symbol, view.line),
+      session ? loadBalances(view.line) : Promise.resolve([] as readonly ApiBalance[]),
     ])
-      .then(([bookResult, orderRows]) => {
+      .then(([bookResult, orderRows, balanceRows]) => {
         setBook(bookResult)
         setOpenOrders(orderRows)
+        setBalance(balanceRows[0] ?? null)
       })
       .catch((reason: unknown) => setError(readError(reason)))
   }
@@ -279,9 +343,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <h1>
                 {current?.symbol ?? view.symbol} <Info size={18} />
               </h1>
-              <span>
+              <span className="cluster">
                 {view.title} · {current?.baseAsset ?? "Asset"}
+                <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
+                  {realtime.state === "live" ? "Realtime" : realtime.state}
+                </Badge>
               </span>
+              {realtime.lastEventAt ? (
+                <small className="muted">Updated {formatDate(realtime.lastEventAt)}</small>
+              ) : null}
             </div>
             <div>
               <small>Last Price</small>
@@ -311,6 +381,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </div>
             {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
               <>
+                <div>
+                  <small>Mark price</small>
+                  <strong className="mono">
+                    <Price value={numberValue(markPrice, "markPrice")} />
+                  </strong>
+                </div>
+                <div>
+                  <small>Index price</small>
+                  <strong className="mono">
+                    <Price value={numberValue(indexPrice, "indexPrice")} />
+                  </strong>
+                </div>
                 <div>
                   <small>Funding rate</small>
                   <strong className="mono positive">{fundingRate(funding)}</strong>
@@ -376,6 +458,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     <tr>
                       <th>Symbol</th>
                       <th>Side</th>
+                      <th>Quantity</th>
                       <th>Entry</th>
                       <th>Unrealized PnL</th>
                     </tr>
@@ -480,9 +563,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           </div>
           <div className="ticket-summary">
             <span>Available</span>
-            <span className="mono">{session ? "Backend balance" : "Login required"}</span>
+            <span className="mono">
+              {session
+                ? `${balanceAmount(balance, assetScales) ?? "—"} ${balance?.asset ?? current?.quoteAsset ?? ""}`
+                : "Login required"}
+            </span>
             <span>Est. fee</span>
-            <span className="mono">—</span>
+            <span className="mono">{estimatedFee(current, price, quantity)}</span>
           </div>
           {submitMessage ? (
             <p
@@ -702,6 +789,49 @@ function formatDate(value: string | null | undefined): string {
 
 function ppmValue(value: number | undefined): string {
   return value === undefined ? "—" : `${(value / 10_000).toFixed(4)}%`
+}
+
+function balanceAmount(
+  balance: ApiBalance | null,
+  assetScales: Readonly<Record<string, number>>,
+): number | null {
+  if (!balance) return null
+  const direct = numericValue(balance.free)
+  if (direct !== null) return direct
+  const scale = assetScales[balance.asset]
+  return balance.availableUnits === undefined || scale === undefined
+    ? null
+    : balance.availableUnits / scale
+}
+
+function estimatedFee(market: Market | null, price: string, quantity: string): string {
+  const rate = market?.takerFeeRatePpm
+  const priceValue = Number(price)
+  const quantityValue = Number(quantity)
+  if (
+    rate === undefined ||
+    !Number.isFinite(priceValue) ||
+    !Number.isFinite(quantityValue) ||
+    priceValue <= 0 ||
+    quantityValue <= 0
+  ) {
+    return "—"
+  }
+  return `${((priceValue * quantityValue * rate) / 1_000_000).toFixed(8)} ${market?.quoteAsset ?? ""}`
+}
+
+function numericValue(value: string | number | undefined): number | null {
+  if (value === undefined) return null
+  const result = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(result) ? result : null
+}
+
+function numberValue(row: Record<string, unknown> | null, key: string): number | null {
+  const value = row?.[key]
+  if (typeof value === "number") return Number.isFinite(value) ? value : null
+  if (typeof value !== "string" || value.trim() === "") return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function text(row: Record<string, unknown> | null | undefined, key: string): string {

@@ -15,22 +15,27 @@ import type {
 } from "./types"
 import {
   AccountLedgerPageSchema,
+  AssetScalesSchema,
   AuthSessionSchema,
   BalanceListSchema,
   CandleListSchema,
   DepositAddressSchema,
+  EmailVerificationChallengeSchema,
   FundingPaymentPageSchema,
   FundingRatePageSchema,
   FundingRateSchema,
   GenericObjectSchema,
   HelpArticleListSchema,
+  JwtPrincipalSchema,
   KycProfileSchema,
+  LoginHistoryPageSchema,
   MarketListSchema,
   OrderBookSchema,
   OrderListSchema,
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
+  UserSessionPageSchema,
   WalletRecordsSchema,
   WithdrawalSubmissionSchema,
 } from "./types"
@@ -53,10 +58,10 @@ export const authApi = {
       method: "POST",
       body: { refreshToken },
     }),
-  register: (email: string, password: string) =>
+  register: (identifier: string, password: string, contactMode: "email" | "phone" = "email") =>
     request<AuthSession>("/api/v1/auth/register", AuthSessionSchema, {
       method: "POST",
-      body: { email, password },
+      body: { [contactMode]: identifier, password },
     }),
   forgotPassword: (identifier: string) =>
     request("/api/v1/auth/forgot-password", GenericObjectSchema, {
@@ -68,6 +73,16 @@ export const authApi = {
       method: "POST",
       body: { identifier, code, newPassword },
     }),
+  verifyEmail: (email: string, code: string) =>
+    request("/api/v1/auth/verify-email", z.boolean(), {
+      method: "POST",
+      body: { email, code },
+    }),
+  resendEmailVerification: () =>
+    request("/api/v1/auth/resend-email-verification", EmailVerificationChallengeSchema, {
+      method: "POST",
+    }),
+  me: () => request("/api/v1/auth/me", JwtPrincipalSchema),
 }
 
 export async function loadMarkets(productLine?: ProductLine): Promise<readonly ApiMarket[]> {
@@ -82,6 +97,20 @@ export async function loadMarkets(productLine?: ProductLine): Promise<readonly A
 export function loadFundingRate(symbol: string, productLine: ProductLine): Promise<ApiFundingRate> {
   const query = new URLSearchParams({ symbol })
   return request(`/api/v1/gateway/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
+    productLine,
+  })
+}
+
+export function loadMarkPrice(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol })
+  return request(`/api/v1/gateway/price-mark/latest?${query.toString()}`, GenericObjectSchema, {
+    productLine,
+  })
+}
+
+export function loadIndexPrice(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol })
+  return request(`/api/v1/gateway/price-index/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
 }
@@ -132,6 +161,10 @@ export async function loadBalances(productLine?: ProductLine): Promise<readonly 
     productLine ? { productLine } : {},
   )
   return response.balances ?? response.items ?? []
+}
+
+export function loadAssetScales() {
+  return request("/api/v1/gateway/instrument/asset-scales", AssetScalesSchema)
 }
 
 export function loadSecurityScenes() {
@@ -200,6 +233,31 @@ export function updateSecurityScene(
 
 export function loadApiKeys() {
   return request("/api/v1/security/api-keys", SecurityApiKeyListSchema)
+}
+
+export function loadUserSessions(active = true) {
+  const query = new URLSearchParams({ active: String(active), limit: "100" })
+  return request(`/api/v1/security/sessions?${query.toString()}`, UserSessionPageSchema)
+}
+
+export function revokeUserSession(sessionId: string | number) {
+  return request(
+    `/api/v1/security/sessions/${encodeURIComponent(String(sessionId))}/revoke`,
+    z.unknown(),
+    {
+      method: "POST",
+    },
+  )
+}
+
+export function revokeAllUserSessions() {
+  return request("/api/v1/security/sessions/revoke-all", GenericObjectSchema, { method: "POST" })
+}
+
+export function loadLoginHistory(result?: string) {
+  const query = new URLSearchParams({ limit: "100" })
+  if (result) query.set("result", result)
+  return request(`/api/v1/security/login-history?${query.toString()}`, LoginHistoryPageSchema)
 }
 
 export function createApiKey(
@@ -325,18 +383,16 @@ export async function loadProductLedger(accountType: ProductLine, asset?: string
 }
 
 export async function loadTransferHistory(
-  accountType: ProductLine,
+  accountType?: ProductLine,
   asset?: string,
 ): Promise<readonly ApiProductTransferRecord[]> {
-  const query = new URLSearchParams({
-    accountType,
-    limit: "100",
-  })
+  const query = new URLSearchParams({ limit: "100" })
+  if (accountType) query.set("accountType", accountType)
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
   const response = await request(
     `/api/v1/gateway/account/transfers?${query.toString()}`,
     ProductTransferRecordPageSchema,
-    { productLine: accountType },
+    accountType ? { productLine: accountType } : {},
   )
   return response.transfers
 }
@@ -370,9 +426,17 @@ export async function loadOpenOrders(symbol: string, productLine: ProductLine) {
   return orderRows(response)
 }
 
-export async function loadOrderHistory(symbol: string, productLine: ProductLine) {
+export async function loadOrderHistory(
+  symbol: string,
+  productLine: ProductLine,
+  startTime?: number,
+  endTime?: number,
+) {
+  const query = new URLSearchParams(querySymbol(symbol, productLine))
+  if (startTime !== undefined) query.set("startTime", String(startTime))
+  if (endTime !== undefined) query.set("endTime", String(endTime))
   const response = await request(
-    `${binancePrefix(productLine)}/allOrders?${querySymbol(symbol, productLine)}`,
+    `${binancePrefix(productLine)}/allOrders?${query.toString()}`,
     OrderListSchema,
     { productLine },
   )
@@ -398,6 +462,17 @@ export async function loadLatestTrade(symbol: string, productLine: ProductLine) 
   return request(`${binancePrefix(productLine)}/ticker/price?${query}`, GenericObjectSchema, {
     productLine,
   })
+}
+
+export function loadTicker24h(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol })
+  return request(
+    `${binancePrefix(productLine)}/ticker/24hr?${query.toString()}`,
+    GenericObjectSchema,
+    {
+      productLine,
+    },
+  )
 }
 
 export function loadWalletChains() {

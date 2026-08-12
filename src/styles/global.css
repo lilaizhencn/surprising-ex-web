@@ -1059,7 +1059,7 @@ button:disabled {
   padding: 4px;
 }
 .history-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .segment-control button,
 .order-type-tabs button,

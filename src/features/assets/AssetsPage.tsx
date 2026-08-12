@@ -1,30 +1,59 @@
 import { Eye, EyeOff, PieChart, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadBalances } from "../../api/endpoints"
-import { mapBalance } from "../../api/mappers"
+import { loadBalances, loadMarkets } from "../../api/endpoints"
+import { mapBalance, mapMarket } from "../../api/mappers"
+import type { ApiBalance, ApiMarket } from "../../api/types"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
 import { formatUsd } from "../../lib/format"
 import { loadSession } from "../../state/session"
-import type { Balance } from "../../types/domain"
+import type { Balance, Market } from "../../types/domain"
 
 export function AssetsPage() {
   const [balances, setBalances] = useState<readonly Balance[]>([])
   const [error, setError] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
+  const [loading, setLoading] = useState(false)
   const session = loadSession()
   useEffect(() => {
     if (!session) return
-    void loadBalances()
-      .then((rows) => setBalances(rows.map(mapBalance)))
+    setLoading(true)
+    void Promise.allSettled([
+      loadBalances("SPOT"),
+      loadBalances("LINEAR_PERPETUAL"),
+      loadBalances("INVERSE_PERPETUAL"),
+      loadBalances("LINEAR_DELIVERY"),
+      loadBalances("INVERSE_DELIVERY"),
+      loadBalances("OPTION"),
+      loadMarkets(),
+    ])
+      .then((results) => {
+        const balanceResults = results.slice(0, 6)
+        const rows = balanceResults.flatMap((result) =>
+          result.status === "fulfilled" ? result.value.filter(isBalanceRow).map(mapBalance) : [],
+        )
+        const marketResult = results[6]
+        const marketRows =
+          marketResult?.status === "fulfilled"
+            ? marketResult.value.filter(isMarketRow).map(mapMarket)
+            : []
+        if (rows.length === 0) {
+          const rejected = balanceResults.find((result) => result.status === "rejected")
+          throw rejected?.status === "rejected" ? rejected.reason : new Error("账户服务暂不可用")
+        }
+        setBalances(rows.map((row) => withUsdEstimate(row, marketRows)))
+        setError(null)
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "账户服务暂不可用"),
       )
+      .finally(() => setLoading(false))
   }, [session])
   const demo = config.demoDataEnabled && balances.length === 0 && !session
   const rows = balances.length > 0 ? balances : demo ? demoBalances : []
   const total = rows.reduce((sum, balance) => sum + (balance.estimatedUsd ?? 0), 0)
+  const distribution = aggregateAssets(rows)
   return (
     <div className="account-content">
       <div className="page-heading">
@@ -85,7 +114,7 @@ export function AssetsPage() {
             </span>
           </div>
           <div className="distribution-rows">
-            {rows.slice(0, 3).map((balance, index) => (
+            {distribution.slice(0, 3).map((balance, index) => (
               <div key={balance.asset}>
                 <span>
                   <i className={`dot dot-${index}`} />
@@ -113,14 +142,20 @@ export function AssetsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={4}>
+                  <StateView kind="loading" message="Loading account balances" />
+                </td>
+              </tr>
+            ) : rows.length > 0 ? (
               rows.map((balance) => (
-                <tr key={balance.asset}>
+                <tr key={`${balance.accountType ?? "ACCOUNT"}-${balance.asset}`}>
                   <td>
                     <span className="market-name">
                       <AssetIcon asset={balance.asset} />
                       <strong>{balance.asset}</strong>
-                      <span className="muted">Wallet balance</span>
+                      <span className="muted">{accountLabel(balance.accountType)}</span>
                     </span>
                   </td>
                   <td className="number mono">
@@ -155,4 +190,59 @@ export function AssetsPage() {
       </div>
     </div>
   )
+}
+
+function withUsdEstimate(balance: Balance, markets: readonly Market[]): Balance {
+  const amount = balance.available + balance.locked
+  const asset = balance.asset.toUpperCase()
+  if (["USD", "USDT", "USDC"].includes(asset)) {
+    return { ...balance, estimatedUsd: amount }
+  }
+  const market = markets.find(
+    (candidate) =>
+      candidate.baseAsset.toUpperCase() === asset &&
+      ["USD", "USDT", "USDC"].includes(candidate.quoteAsset.toUpperCase()) &&
+      candidate.price !== null,
+  )
+  return {
+    ...balance,
+    estimatedUsd: market?.price === null || !market ? null : amount * market.price,
+  }
+}
+
+function isBalanceRow(row: ApiBalance | ApiMarket): row is ApiBalance {
+  return "asset" in row
+}
+
+function isMarketRow(row: ApiBalance | ApiMarket): row is ApiMarket {
+  return "symbol" in row
+}
+
+function aggregateAssets(rows: readonly Balance[]): readonly Balance[] {
+  const byAsset = new Map<string, Balance>()
+  for (const row of rows) {
+    const current = byAsset.get(row.asset) ?? {
+      asset: row.asset,
+      available: 0,
+      locked: 0,
+      estimatedUsd: 0,
+    }
+    byAsset.set(row.asset, {
+      ...current,
+      available: current.available + row.available,
+      locked: current.locked + row.locked,
+      estimatedUsd:
+        current.estimatedUsd === null || row.estimatedUsd === null
+          ? null
+          : current.estimatedUsd + row.estimatedUsd,
+    })
+  }
+  return [...byAsset.values()].sort(
+    (left, right) => (right.estimatedUsd ?? 0) - (left.estimatedUsd ?? 0),
+  )
+}
+
+function accountLabel(accountType: string | undefined): string {
+  if (!accountType) return "Account balance"
+  return accountType.replaceAll("_", " ")
 }

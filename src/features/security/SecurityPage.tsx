@@ -16,11 +16,16 @@ import {
   disableMfa,
   enrollMfa,
   loadApiKeys,
+  loadLoginHistory,
   loadMfaStatus,
   loadSecurityScenes,
+  loadUserSessions,
+  revokeAllUserSessions,
   revokeApiKey,
+  revokeUserSession,
   updateSecurityScene,
 } from "../../api/endpoints"
+import type { ApiLoginHistoryEntry, ApiUserSession } from "../../api/types"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { loadSession } from "../../state/session"
 
@@ -31,6 +36,8 @@ export function SecurityPage() {
   const [mfa, setMfa] = useState<RecordRow | null>(null)
   const [scenes, setScenes] = useState<readonly RecordRow[]>([])
   const [keys, setKeys] = useState<readonly RecordRow[]>([])
+  const [sessions, setSessions] = useState<readonly ApiUserSession[]>([])
+  const [loginHistory, setLoginHistory] = useState<readonly ApiLoginHistoryEntry[]>([])
   const [message, setMessage] = useState("")
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -40,11 +47,19 @@ export function SecurityPage() {
   const refresh = () => {
     if (!session) return
     setBusy(true)
-    void Promise.all([loadMfaStatus(), loadSecurityScenes(), loadApiKeys()])
-      .then(([mfaResult, sceneResult, keyResult]) => {
+    void Promise.all([
+      loadMfaStatus(),
+      loadSecurityScenes(),
+      loadApiKeys(),
+      loadUserSessions(),
+      loadLoginHistory(),
+    ])
+      .then(([mfaResult, sceneResult, keyResult, sessionResult, loginResult]) => {
         setMfa(mfaResult)
         setScenes(sceneResult)
         setKeys(keyResult)
+        setSessions(sessionResult.sessions)
+        setLoginHistory(loginResult.logs)
         setMessage("")
       })
       .catch((reason: unknown) => setMessage(readError(reason)))
@@ -240,13 +255,164 @@ export function SecurityPage() {
           <SecurityCard
             icon={<MonitorSmartphone />}
             title="Device management"
-            text="The current backend has admin-only session routes; no user device mutation contract is exposed."
-            action="Backend pending"
+            text="Review active sessions, sign out other devices and inspect recent login attempts."
+            action="View sessions"
+            onClick={() =>
+              document.getElementById("security-sessions")?.scrollIntoView({ behavior: "smooth" })
+            }
           />
         </div>
       </section>
+      <section className="section-block" id="security-sessions">
+        <div className="panel-heading">
+          <h2>Device & session management</h2>
+          <Button
+            tone="outline"
+            disabled={sessions.length === 0}
+            onClick={() => {
+              if (!window.confirm("Sign out all active sessions except this device?")) return
+              setBusy(true)
+              void revokeAllUserSessions()
+                .then(() => {
+                  setMessage("All other sessions have been revoked.")
+                  refresh()
+                })
+                .catch((reason: unknown) => setMessage(readError(reason)))
+                .finally(() => setBusy(false))
+            }}
+          >
+            Revoke all other sessions
+          </Button>
+        </div>
+        {sessions.length > 0 ? (
+          <SessionTable
+            sessions={sessions}
+            busy={busy}
+            onRevoke={(sessionId) => {
+              setBusy(true)
+              void revokeUserSession(sessionId)
+                .then(() => {
+                  setMessage("Session revoked.")
+                  refresh()
+                })
+                .catch((reason: unknown) => setMessage(readError(reason)))
+                .finally(() => setBusy(false))
+            }}
+          />
+        ) : (
+          <Panel>
+            <StateView
+              kind={busy ? "loading" : "empty"}
+              message="No active sessions returned."
+              retry={refresh}
+            />
+          </Panel>
+        )}
+      </section>
+      <section className="section-block">
+        <div className="panel-heading">
+          <h2>Login history</h2>
+          <span className="muted">Recent successful and rejected sign-in attempts.</span>
+        </div>
+        {loginHistory.length > 0 ? (
+          <LoginHistoryTable entries={loginHistory} />
+        ) : (
+          <Panel>
+            <StateView
+              kind={busy ? "loading" : "empty"}
+              message="No login history returned."
+              retry={refresh}
+            />
+          </Panel>
+        )}
+      </section>
     </div>
   )
+}
+
+function SessionTable({
+  sessions,
+  busy,
+  onRevoke,
+}: {
+  readonly sessions: readonly ApiUserSession[]
+  readonly busy: boolean
+  readonly onRevoke: (sessionId: string | number) => void
+}) {
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>IP address</th>
+            <th>Created</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.map((session) => (
+            <tr key={String(session.sessionId)}>
+              <td>{session.userAgent || "Unknown device"}</td>
+              <td className="mono">{session.ipAddress || "—"}</td>
+              <td>{formatDate(session.createdAt)}</td>
+              <td>{formatDate(session.expiresAt)}</td>
+              <td>{session.active ? "Active" : "Revoked"}</td>
+              <td>
+                {session.active ? (
+                  <Button
+                    tone="negative"
+                    loading={busy}
+                    onClick={() => {
+                      if (window.confirm("Revoke this active session?")) onRevoke(session.sessionId)
+                    }}
+                  >
+                    Revoke
+                  </Button>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function LoginHistoryTable({ entries }: { readonly entries: readonly ApiLoginHistoryEntry[] }) {
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Result</th>
+            <th>Reason</th>
+            <th>IP address</th>
+            <th>Device</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <tr key={String(entry.loginId)}>
+              <td>{formatDate(entry.createdAt)}</td>
+              <td>{entry.result}</td>
+              <td>{entry.reason || "—"}</td>
+              <td className="mono">{entry.ipAddress || "—"}</td>
+              <td>{entry.userAgent || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
 function SecurityCard({

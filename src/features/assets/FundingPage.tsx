@@ -6,13 +6,16 @@ import {
   createDepositAddress,
   createTransfer,
   createWithdrawal,
+  loadAssetScales,
   loadBalances,
   loadDepositHistory,
+  loadTransferHistory,
   loadWalletChains,
   loadWithdrawalHistory,
 } from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { loadSession } from "../../state/session"
+import { PRODUCT_LINES } from "../../types/domain"
 
 type RecordRow = Readonly<Record<string, unknown>>
 type RequestState = "idle" | "loading" | "success" | "error"
@@ -30,6 +33,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   const [chains, setChains] = useState<readonly RecordRow[]>([])
   const [balances, setBalances] = useState<readonly RecordRow[]>([])
   const [records, setRecords] = useState<readonly RecordRow[]>([])
+  const [transferRecords, setTransferRecords] = useState<readonly RecordRow[]>([])
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, number>>>({})
   const [depositAddress, setDepositAddress] = useState<RecordRow | null>(null)
   const [depositQr, setDepositQr] = useState("")
   const [state, setState] = useState<RequestState>("idle")
@@ -39,13 +44,21 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     if (!session) return
     void Promise.all([
       loadWalletChains(),
-      loadBalances(),
-      mode === "deposit" ? loadDepositHistory(asset) : loadWithdrawalHistory(asset),
+      loadFundingBalances(),
+      mode === "deposit"
+        ? loadDepositHistory(asset)
+        : mode === "withdraw"
+          ? loadWithdrawalHistory(asset)
+          : Promise.resolve([] as readonly RecordRow[]),
+      mode === "transfer" ? loadTransferHistory() : Promise.resolve([] as readonly RecordRow[]),
+      loadAssetScales(),
     ])
-      .then(([chainRows, balanceRows, recordRows]) => {
+      .then(([chainRows, balanceRows, recordRows, transferRows, scales]) => {
         setChains(chainRows)
         setBalances(balanceRows)
         setRecords(recordRows)
+        setTransferRecords(transferRows)
+        setAssetScales(scales)
         setNetwork((current) => current || chainName(chainRows[0]) || "")
       })
       .catch((reason: unknown) => setMessage(readError(reason)))
@@ -78,8 +91,12 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
 
   const available = useMemo(() => {
     const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
-    return text(balance, "available") || text(balance, "availableUnits") || text(balance, "free")
-  }, [asset, balances])
+    const free = text(balance, "free")
+    if (free) return free
+    const availableUnits = numberValue(balance, "availableUnits")
+    const scale = assetScales[asset]
+    return availableUnits !== null && scale ? String(availableUnits / scale) : ""
+  }, [asset, assetScales, balances])
 
   const submit = async () => {
     if (!session) {
@@ -152,7 +169,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         source,
         target,
         asset,
-        Math.round(Number(amount) * 100_000_000),
+        amountToUnits(amount, assetScales[asset]),
         key,
       )
       setState("success")
@@ -413,6 +430,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         onSubmit={submit}
         action="Confirm transfer"
       />
+      <RecordPanel title="Transfer history" records={transferRecords} />
     </FundingLayout>
   )
 }
@@ -546,9 +564,37 @@ function text(record: RecordRow | null | undefined, key: string): string {
   const value = record?.[key]
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
+function numberValue(record: RecordRow | null | undefined, key: string): number | null {
+  const value = record?.[key]
+  if (typeof value === "number") return Number.isFinite(value) ? value : null
+  if (typeof value !== "string" || value.trim() === "") return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "资金服务暂不可用，请稍后重试。"
 }
+
+function amountToUnits(value: string, scale: number | undefined): number {
+  if (scale === undefined || !Number.isFinite(scale) || scale <= 0) {
+    throw new Error("该资产的精度规格尚未加载，未提交划转。")
+  }
+  const units = Number(value) * scale
+  if (!Number.isSafeInteger(units) || units <= 0) {
+    throw new Error("划转数量超出资产精度或整数范围，未提交。")
+  }
+  return units
+}
 async function copyText(value: string) {
   if (value && navigator.clipboard) await navigator.clipboard.writeText(value)
+}
+
+async function loadFundingBalances(): Promise<readonly RecordRow[]> {
+  const results = await Promise.allSettled(
+    Object.values(PRODUCT_LINES).map((productLine) => loadBalances(productLine)),
+  )
+  const rows = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+  if (rows.length > 0 || results.some((result) => result.status === "fulfilled")) return rows
+  const rejected = results.find((result) => result.status === "rejected")
+  throw rejected?.status === "rejected" ? rejected.reason : new Error("账户服务暂不可用")
 }
