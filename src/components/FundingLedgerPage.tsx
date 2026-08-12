@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, FileText, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadAccountLedger, loadProductLedger } from "../api/surprising";
 import { displayUnits } from "../config";
 import { localized } from "../localized";
@@ -19,8 +19,10 @@ export function FundingLedgerPage({ session, language, productMeta, onBack }: { 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const requestRevision = useRef(0);
 
   useEffect(() => {
+    const revision = ++requestRevision.current;
     if (!session) {
       setPage(null);
       return;
@@ -32,22 +34,31 @@ export function FundingLedgerPage({ session, language, productMeta, onBack }: { 
       ? loadAccountLedger(session, 50)
       : loadProductLedger(session, productMeta[filter].accountType, productMeta[filter].productLine, 50);
     void load.then((nextPage) => {
-      if (!cancelled) setPage(nextPage);
+      if (!cancelled && requestRevision.current === revision) setPage(nextPage);
     }).catch((reason: unknown) => {
-      if (!cancelled) setError(reason instanceof Error ? reason.message : text("资金流水暂不可用", "Funding ledger is unavailable"));
+      if (!cancelled && requestRevision.current === revision) setError(reason instanceof Error ? reason.message : text("资金流水暂不可用", "Funding ledger is unavailable"));
     }).finally(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled && requestRevision.current === revision) setLoading(false);
     });
     return () => { cancelled = true; };
   }, [filter, productMeta, reloadKey, session?.accessToken]);
 
   function loadMore() {
     if (!session || !page?.nextCursor || loading) return;
+    const revision = ++requestRevision.current;
     setLoading(true);
     const load = filter === "all"
       ? loadAccountLedger(session, 50, page.nextCursor)
       : loadProductLedger(session, productMeta[filter].accountType, productMeta[filter].productLine, 50, page.nextCursor);
-    void load.then((nextPage) => setPage((current) => current ? { ...nextPage, entries: [...current.entries, ...nextPage.entries] } : nextPage)).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : text("加载更多流水失败", "Failed to load more ledger entries"))).finally(() => setLoading(false));
+    void load.then((nextPage) => {
+      if (requestRevision.current === revision) {
+        setPage((current) => current ? { ...nextPage, entries: [...current.entries, ...nextPage.entries] } : nextPage);
+      }
+    }).catch((reason: unknown) => {
+      if (requestRevision.current === revision) setError(reason instanceof Error ? reason.message : text("加载更多流水失败", "Failed to load more ledger entries"));
+    }).finally(() => {
+      if (requestRevision.current === revision) setLoading(false);
+    });
   }
 
   const entries = useMemo(() => page?.entries ?? [], [page?.entries]);
