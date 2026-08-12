@@ -1,4 +1,4 @@
-import { RefreshCw, Search, Star, TrendingUp, Volume2, WifiOff } from "lucide-react";
+import { RefreshCw, Search, Star, TrendingUp, Volume2, X } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { compact, displayPpm, displayPrice } from "../config";
@@ -28,11 +28,13 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
   const [filter, setFilter] = useState<MarketFilter>("all");
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
-  const visibleMarkets = markets.filter((market) => {
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const filteredMarkets = markets.filter((market) => {
     const matchesProduct = filter === "all" || marketProductForPresentation(market) === filter;
     const normalizedQuery = query.trim().toUpperCase();
     return matchesProduct && (!normalizedQuery || `${market.symbol} ${market.displayName}`.toUpperCase().includes(normalizedQuery));
   });
+  const visibleMarkets = filteredMarkets.filter((market) => !favoritesOnly || favorites.includes(marketFavoriteKey(market)));
   const tradableMarkets = filterTradableMarkets(visibleMarkets);
   const tickerMarkets = tradableMarkets.filter(marketTickerIsReady);
   const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
@@ -61,14 +63,15 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
           <h1>{text("行情中心", "Market center")}</h1>
           <p>{text("用真实 instrument 与行情数据比较市场，选择交易对后进入对应产品线工作台。", "Compare live instrument and market data, then open a pair in its isolated product workspace.")}</p>
         </div>
-        <UiButton variant="secondary" type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新行情", "Refresh markets")}</UiButton>
+        <UiButton variant="secondary" busy={marketState === "loading"} type="button" onClick={onRefresh}><RefreshCw size={15} />{text("刷新行情", "Refresh markets")}</UiButton>
       </header>
 
       <div className="markets-toolbar">
-        <label className="markets-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text("搜索币对或产品", "Search pairs or products")} aria-label={text("搜索币对或产品", "Search pairs or products")} /></label>
+        <div className="markets-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text("搜索币对或产品", "Search pairs or products")} aria-label={text("搜索币对或产品", "Search pairs or products")} />{query && <button className="markets-search-clear" type="button" aria-label={text("清除搜索", "Clear search")} onClick={() => setQuery("")}><X size={14} /></button>}</div>
         <div className="markets-filters" role="group" aria-label={text("产品线筛选", "Product filters")}>
           <button type="button" aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>{text("全部", "All")}</button>
           {(Object.keys(productMeta) as ProductMode[]).map((product) => <button type="button" aria-pressed={filter === product} className={filter === product ? "active" : ""} key={product} onClick={() => setFilter(product)}>{language === "en-US" ? productMeta[product].shortLabelEn : productMeta[product].shortLabel}</button>)}
+          <button className={`markets-favorite-filter${favoritesOnly ? " active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((current) => !current)}><Star size={14} fill={favoritesOnly ? "currentColor" : "none"} />{text("自选", "Favorites")}</button>
         </div>
       </div>
 
@@ -82,7 +85,7 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
             <UiCard><span>{text("24H成交额", "24H volume")}</span><strong>{tickerMarkets.length ? compact(totalVolume) : "—"}</strong><small>{text("按后端返回计价", "As returned by gateway")}</small></UiCard>
           </div>
 
-          {visibleMarkets.length === 0 ? <UiEmptyState icon={<Search size={20} />} title={text("没有匹配的市场", "No matching markets")} description={text("尝试清除搜索词或切换产品线。", "Clear the search or choose another product line.")} /> : (
+          {tradableMarkets.length === 0 ? <UiEmptyState icon={favoritesOnly ? <Star size={20} /> : <Search size={20} />} title={favoritesOnly ? text("暂无自选市场", "No favorite markets") : text("没有匹配的市场", "No matching markets")} description={favoritesOnly ? text("点击行情列表中的星标，把常用交易对加入自选。", "Use the star in a market row to build your watchlist.") : text("尝试清除搜索词或切换产品线。", "Clear the search or choose another product line.")} action={(query || favoritesOnly || filter !== "all") ? <UiButton variant="secondary" type="button" onClick={() => { setQuery(""); setFilter("all"); setFavoritesOnly(false); }}>{text("清除筛选", "Clear filters")}</UiButton> : undefined} /> : (
             <>
               <div className="markets-leaderboards">
                 <Leaderboard title={text("涨跌榜", "Change leaders")} icon={<TrendingUp size={16} />} markets={gainers} language={language} productMeta={productMeta} favorites={favorites} onFavorite={toggleFavorite} onOpen={onOpenMarket} value="change" />
@@ -92,7 +95,7 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
                 <div className="markets-table-heading"><div><span className="asset-eyebrow">MARKET SNAPSHOT</span><h2>{text("全部市场", "All markets")}</h2></div><UiStatusBadge tone={marketState === "degraded" || tickerMarkets.length === 0 ? "warning" : "positive"}>{marketState === "degraded" ? text("数据降级", "Degraded") : tickerMarkets.length === 0 ? text("等待行情", "Waiting for ticker") : text("实时数据", "Live data")}</UiStatusBadge></div>
                 <div className="markets-table" role="table" aria-label={text("市场列表", "Market list")}>
                   <div className="markets-table-row markets-table-head" role="row"><span role="columnheader">{text("市场", "Market")}</span><span role="columnheader">{text("最新价", "Last")}</span><span role="columnheader">{text("24H变化", "24H change")}</span><span role="columnheader">{text("24H成交额", "24H volume")}</span><span role="columnheader">{text("状态", "Status")}</span><span role="columnheader" aria-hidden="true" /></div>
-                  {visibleMarkets.map((market) => <MarketRow key={marketFavoriteKey(market)} market={market} language={language} productMeta={productMeta} favorite={favorites.includes(marketFavoriteKey(market))} onFavorite={toggleFavorite} onOpen={onOpenMarket} />)}
+                  {tradableMarkets.map((market) => <MarketRow key={marketFavoriteKey(market)} market={market} language={language} productMeta={productMeta} favorite={favorites.includes(marketFavoriteKey(market))} onFavorite={toggleFavorite} onOpen={onOpenMarket} />)}
                 </div>
               </UiCard>
             </>
