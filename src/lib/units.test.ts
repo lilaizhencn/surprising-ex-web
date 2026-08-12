@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   decimalProductExceedsUnits,
+  decimalToStepUnits,
   decimalToUnits,
   isPositiveDecimal,
   unitsToDecimal,
@@ -15,6 +16,12 @@ describe("asset unit conversion", () => {
 
   it("rejects values beyond an asset precision", () => {
     expect(() => decimalToUnits("0.000000001", "100000000")).toThrow()
+  })
+
+  it("converts display values into backend tick and step counts", () => {
+    expect(decimalToStepUnits("0.001", "100000", "100000000")).toBe("1")
+    expect(decimalToStepUnits("64230.50", "1000000", "100000000")).toBe("6423050")
+    expect(() => decimalToStepUnits("0.0005", "100000", "100000000")).toThrow()
   })
 
   it("rejects unsafe numeric unit values instead of rounding them", () => {

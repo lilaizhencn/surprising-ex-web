@@ -17,9 +17,8 @@ export function mapMarket(raw: ApiMarket): Market {
     low24h: numeric(raw.low24h),
     pricePrecision: raw.pricePrecision ?? 2,
     quantityPrecision: raw.quantityPrecision ?? 6,
-    priceTickUnits: integerScale(raw.priceTickUnits) ?? powerOfTen(raw.pricePrecision ?? 2),
-    quantityStepUnits:
-      integerScale(raw.quantityStepUnits) ?? powerOfTen(raw.quantityPrecision ?? 6),
+    priceTickUnits: integerScale(raw.priceTickUnits),
+    quantityStepUnits: integerScale(raw.quantityStepUnits),
     maxLeverage: raw.maxLeverage ?? null,
     instrumentType: raw.instrumentType,
     contractValueAsset: raw.contractValueAsset,
@@ -85,10 +84,6 @@ function integerScale(value: string | number | undefined): string | undefined {
   if (value === undefined) return undefined
   const normalized = String(value)
   return /^\d+$/.test(normalized) && normalized !== "0" ? normalized : undefined
-}
-
-function powerOfTen(exponent: number): string {
-  return `1${"0".repeat(Math.max(0, exponent))}`
 }
 
 function splitSymbol(symbol: string, base?: string, quote?: string): [string, string] {

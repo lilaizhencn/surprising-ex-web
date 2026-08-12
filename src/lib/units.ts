@@ -29,6 +29,26 @@ export function decimalToUnits(value: string, scale: UnitScale): string {
   return units.toString()
 }
 
+export function decimalToStepUnits(
+  value: string,
+  unitSize: UnitScale,
+  assetScale: UnitScale,
+): string {
+  const decimal = parseDecimal(value)
+  const unit = scaleToBigInt(unitSize)
+  const asset = scaleToBigInt(assetScale)
+  const numerator = decimal.coefficient * asset
+  const divisor = ten(decimal.fractionDigits) * unit
+  if (numerator % divisor !== 0n) {
+    throw new Error("数量不符合交易对的最小步长，未提交。")
+  }
+  const steps = numerator / divisor
+  if (steps <= 0n || steps > 9223372036854775807n) {
+    throw new Error("数量超出可提交的整数范围，未提交。")
+  }
+  return steps.toString()
+}
+
 export function decimalProductExceedsUnits(
   left: string,
   right: string,

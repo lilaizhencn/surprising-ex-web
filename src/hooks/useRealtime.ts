@@ -88,7 +88,7 @@ export function useRealtime(
       socket.onmessage = (message) => {
         const event = parseEvent(message.data)
         if (!event) return
-        if (Reflect.get(event, "type") === "authenticated") {
+        if (isAuthenticatedMessage(event)) {
           subscribe(socket, privateSubscriptions(symbol, productLine))
         }
         setLastEventAt(new Date().toISOString())
@@ -110,6 +110,12 @@ export function useRealtime(
   }, [accessToken, productLine, sessionUserId, symbol])
 
   return { state, lastEventAt, events }
+}
+
+export function isAuthenticatedMessage(event: RealtimeEvent): boolean {
+  return (
+    Reflect.get(event, "op") === "authenticated" || Reflect.get(event, "type") === "authenticated"
+  )
 }
 
 type Subscription = Readonly<{

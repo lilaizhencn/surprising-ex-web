@@ -32,6 +32,7 @@ import {
   MarketListSchema,
   OrderBookSchema,
   OrderListSchema,
+  OrderSubmissionSchema,
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
@@ -407,7 +408,7 @@ export async function loadTransferHistory(
 }
 
 export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
-  return request("/api/v1/gateway/trading/orders", GenericObjectSchema, {
+  return request("/api/v1/gateway/trading/orders", OrderSubmissionSchema, {
     method: "POST",
     productLine,
     idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),

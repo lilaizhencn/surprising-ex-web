@@ -42,6 +42,7 @@ import { demoMarkets } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
 import {
   decimalProductExceedsUnits,
+  decimalToStepUnits,
   decimalToUnits,
   isPositiveDecimal,
   unitsToDecimal,
@@ -298,14 +299,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     let quantitySteps: string
     let priceTicks: string | 0
     try {
-      quantitySteps = decimalToUnits(
-        quantity,
-        current.quantityStepUnits ?? powerOfTen(current.quantityPrecision),
-      )
+      const baseScale = assetScales[current.baseAsset]
+      const quoteScale = assetScales[current.quoteAsset]
+      if (!baseScale || ((orderType !== "MARKET" || side === "BUY") && !quoteScale)) {
+        throw new Error("交易对资产精度尚未加载，订单未提交。")
+      }
+      if (!current.quantityStepUnits) {
+        throw new Error("交易对数量步长尚未加载，订单未提交。")
+      }
+      if (orderType !== "MARKET" && !current.priceTickUnits) {
+        throw new Error("交易对价格跳动规格尚未加载，订单未提交。")
+      }
+      quantitySteps = decimalToStepUnits(quantity, current.quantityStepUnits, baseScale)
       priceTicks =
         orderType === "MARKET"
           ? 0
-          : decimalToUnits(price, current.priceTickUnits ?? powerOfTen(current.pricePrecision))
+          : decimalToStepUnits(price, current.priceTickUnits ?? "", quoteScale ?? "")
 
       const balanceScale = balance ? assetScales[balance.asset] : undefined
       if (!balance || !balanceScale) {
@@ -343,7 +352,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setSubmitState("loading")
     try {
       const clientOrderId = `web-${crypto.randomUUID()}`
-      await placeOrder(
+      const response = await placeOrder(
         {
           userId: session.user.userId,
           clientOrderId,
@@ -360,8 +369,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         },
         view.line,
       )
+      if (response.status === "REJECTED") {
+        setSubmitState("error")
+        setSubmitMessage(response.rejectReason ?? "订单被后端拒绝。")
+        return
+      }
+      if (response.status !== "PENDING_RESERVE" && response.status !== "ACCEPTED") {
+        setSubmitState("error")
+        setSubmitMessage(`订单未被接受，当前状态：${response.status}`)
+        return
+      }
       setSubmitState("success")
-      setSubmitMessage("订单已提交，最终状态以订单查询和私有状态为准。")
+      setSubmitMessage(`订单已接受（${response.status}），最终状态以订单查询和私有状态为准。`)
       setQuantity("")
       refresh()
     } catch (reason: unknown) {
@@ -879,13 +898,6 @@ function balanceAmount(
   const scale = assetScales[balance.asset]
   if (balance.availableUnits === undefined || scale === undefined) return null
   return unitsToDecimal(balance.availableUnits, scale)
-}
-
-function powerOfTen(exponent: number): string {
-  if (!Number.isInteger(exponent) || exponent < 0 || exponent > 18) {
-    throw new Error("资产精度规格无效，未提交。")
-  }
-  return `1${"0".repeat(exponent)}`
 }
 
 function estimatedFee(market: Market | null, price: string, quantity: string): string {

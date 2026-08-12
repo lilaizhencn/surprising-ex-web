@@ -2,6 +2,12 @@ import { z } from "zod"
 
 const NumericSchema = z.union([z.string(), z.number()])
 const NullableNumericSchema = NumericSchema.nullable().optional()
+const SafeIntegerWireSchema = z
+  .union([
+    z.string().regex(/^\d+$/),
+    z.number().int().nonnegative().refine(Number.isSafeInteger, "整数必须以字符串传输。"),
+  ])
+  .transform(String)
 
 export const GenericObjectSchema = z.record(z.string(), z.unknown())
 
@@ -60,8 +66,8 @@ export const MarketSchema = z
     volume24hUnits: z.number().optional(),
     high24h: NumericSchema.optional(),
     low24h: NumericSchema.optional(),
-    priceTickUnits: NumericSchema.optional(),
-    quantityStepUnits: NumericSchema.optional(),
+    priceTickUnits: SafeIntegerWireSchema.optional(),
+    quantityStepUnits: SafeIntegerWireSchema.optional(),
     pricePrecision: z.number().optional(),
     quantityPrecision: z.number().optional(),
     maxLeverage: z.number().optional(),
@@ -146,6 +152,26 @@ export const OrderSchema = z
     executedQty: NullableNumericSchema,
     time: z.union([z.string(), z.number()]).optional(),
     updateTime: z.union([z.string(), z.number()]).optional(),
+  })
+  .passthrough()
+
+const OrderStatusSchema = z.enum([
+  "PENDING_RESERVE",
+  "ACCEPTED",
+  "REJECTED",
+  "CANCEL_REQUESTED",
+  "CANCELED",
+  "PARTIALLY_FILLED",
+  "FILLED",
+])
+
+export const OrderSubmissionSchema = z
+  .object({
+    orderId: z.union([z.string(), z.number()]),
+    status: OrderStatusSchema,
+    clientOrderId: z.string().optional(),
+    symbol: z.string().optional(),
+    rejectReason: z.string().nullable().optional(),
   })
   .passthrough()
 

@@ -6,6 +6,7 @@ import {
   FundingPaymentPageSchema,
   FundingPaymentSchema,
   FundingRatePageSchema,
+  OrderSubmissionSchema,
   ProductTransferRecordPageSchema,
   ProductTransferRecordSchema,
 } from "./types"
@@ -66,5 +67,15 @@ describe("gateway financial response schemas", () => {
 
   it("rejects a custody address response without an address", () => {
     expect(DepositAddressSchema.safeParse({ status: "PENDING" }).success).toBe(false)
+  })
+
+  it("requires an order id and known status before showing submission success", () => {
+    expect(OrderSubmissionSchema.safeParse({}).success).toBe(false)
+    expect(OrderSubmissionSchema.safeParse({ orderId: "1001", status: "ACCEPTED" }).success).toBe(
+      true,
+    )
+    expect(OrderSubmissionSchema.safeParse({ orderId: "1001", status: "REJECTED" }).success).toBe(
+      true,
+    )
   })
 })
