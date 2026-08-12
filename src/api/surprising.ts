@@ -342,7 +342,7 @@ export async function loadMarkets(allowFallback = true): Promise<Market[]> {
       if (!allowFallback || !config.enableMockFallback) throw new Error("行情标的为空");
       return fallbackMarketSnapshot();
     }
-    return instruments.map(toMarket);
+    return instruments.map((instrument) => toMarket(instrument));
   } catch (error) {
     if (!allowFallback || !config.enableMockFallback) {
       throw error instanceof Error ? error : new Error("行情服务不可用");
@@ -412,7 +412,10 @@ export async function loadInstrumentConfig(symbol: string, productLine?: Product
     if (!config.enableMockFallback) {
       throw error instanceof Error ? error : new Error("交易对配置不可用");
     }
-    return fallbackMarketSnapshot().find((market) => market.symbol === symbol) ?? fallbackMarketSnapshot()[0];
+    const fallbackSnapshot = fallbackMarketSnapshot();
+    const fallback = fallbackSnapshot.find((market) => market.symbol === symbol && fallbackMatchesProductLine(market, productLine));
+    if (!fallback) throw new Error("交易对不属于当前产品线");
+    return fallback;
   }
 }
 
@@ -1183,15 +1186,12 @@ function withTotals(levels: BackendOrderBookLevel[]): OrderBookLevel[] {
 }
 
 function toMarket(item: BackendInstrument): Market {
-  const fallback = config.enableMockFallback
-    ? fallbackMarkets.find((market) => market.symbol === item.symbol)
-    : undefined;
   const quoteAsset = item.quoteAsset ?? item.symbol.split("-")[1] ?? "USDT";
-  const instrumentType = item.instrumentType ?? fallback?.instrumentType;
-  const contractType = item.contractType ?? fallback?.contractType;
-  const priceTickUnits = item.priceTickUnits ?? fallback?.priceTickUnits;
-  const fallbackPriceToTicks = (price: number | undefined, backendPrice: number | undefined, defaultPrice: number) => {
-    const value = price ?? backendPrice ?? (config.enableMockFallback ? defaultPrice : 0);
+  const instrumentType = item.instrumentType;
+  const contractType = item.contractType;
+  const priceTickUnits = item.priceTickUnits;
+  const fallbackPriceToTicks = (backendPrice: number | undefined) => {
+    const value = backendPrice ?? 0;
     if (!priceTickUnits || priceTickUnits === 1) return value;
     return Math.round(value * 100_000_000 / priceTickUnits);
   };
@@ -1234,42 +1234,53 @@ function toMarket(item: BackendInstrument): Market {
     fundingIntervalHours: item.fundingIntervalHours,
     fundingRateCapPpm: item.fundingRateCapPpm,
     fundingRateFloorPpm: item.fundingRateFloorPpm,
-    nextFundingTime: item.nextFundingTime ?? fallback?.nextFundingTime,
-    timeUntilFundingSeconds: item.timeUntilFundingSeconds ?? fallback?.timeUntilFundingSeconds,
-    expiryTime: item.expiryTime ?? fallback?.expiryTime,
-    deliveryTime: item.deliveryTime ?? fallback?.deliveryTime,
-    underlyingSymbol: item.underlyingSymbol ?? fallback?.underlyingSymbol,
-    strikePriceUnits: item.strikePriceUnits ?? fallback?.strikePriceUnits,
-    optionType: item.optionType ?? fallback?.optionType,
-    optionExerciseStyle: item.optionExerciseStyle ?? fallback?.optionExerciseStyle,
-    settlementMethod: item.settlementMethod ?? fallback?.settlementMethod,
-    impliedVolatilityPpm: item.impliedVolatilityPpm ?? fallback?.impliedVolatilityPpm,
-    deltaPpm: item.deltaPpm ?? fallback?.deltaPpm,
-    gammaPpm: item.gammaPpm ?? fallback?.gammaPpm,
-    thetaPpm: item.thetaPpm ?? fallback?.thetaPpm,
-    vegaPpm: item.vegaPpm ?? fallback?.vegaPpm,
+    nextFundingTime: item.nextFundingTime,
+    timeUntilFundingSeconds: item.timeUntilFundingSeconds,
+    expiryTime: item.expiryTime,
+    deliveryTime: item.deliveryTime,
+    underlyingSymbol: item.underlyingSymbol,
+    strikePriceUnits: item.strikePriceUnits,
+    optionType: item.optionType,
+    optionExerciseStyle: item.optionExerciseStyle,
+    settlementMethod: item.settlementMethod,
+    impliedVolatilityPpm: item.impliedVolatilityPpm,
+    deltaPpm: item.deltaPpm,
+    gammaPpm: item.gammaPpm,
+    thetaPpm: item.thetaPpm,
+    vegaPpm: item.vegaPpm,
     impactNotionalUnits: item.impactNotionalUnits,
     minValidIndexSources: item.minValidIndexSources,
     status: item.status,
     riskLimitBrackets: item.riskLimitBrackets,
     indexSources: item.indexSources,
     displayName: displayMarketName(item.symbol, instrumentType, contractType),
-    lastPriceTicks: fallbackPriceToTicks(fallback?.lastPriceTicks, backendLastPrice, 1000),
-    markPriceTicks: fallbackPriceToTicks(fallback?.markPriceTicks, undefined, 1000),
-    indexPriceTicks: fallbackPriceToTicks(fallback?.indexPriceTicks, undefined, 1000),
-    change24hPpm: fallback?.change24hPpm ?? backendChange ?? 0,
-    fundingRatePpm: fallback?.fundingRatePpm ?? 0,
-    volume24hUnits: fallback?.volume24hUnits ?? backendVolume ?? 0,
+    lastPriceTicks: fallbackPriceToTicks(backendLastPrice),
+    markPriceTicks: 0,
+    indexPriceTicks: 0,
+    change24hPpm: backendChange ?? 0,
+    fundingRatePpm: 0,
+    volume24hUnits: backendVolume ?? 0,
     maxLeverage: item.maxLeverage
       ?? (item.maxLeveragePpm !== undefined
         ? Math.max(1, Math.floor(item.maxLeveragePpm / 1_000_000))
-      : (config.enableMockFallback ? 50 : 0)),
-    tickerReady: config.enableMockFallback || tickerReady
+      : 0),
+    tickerReady,
+    dataSource: "live"
   };
 }
 
 function fallbackMarketSnapshot(): Market[] {
-  return fallbackMarkets.map((market) => ({ ...market, tickerReady: true }));
+  return fallbackMarkets.map((market) => ({ ...market, tickerReady: true, dataSource: "fallback" }));
+}
+
+function fallbackMatchesProductLine(market: Market, productLine?: ProductLine): boolean {
+  if (!productLine) return true;
+  if (productLine === "SPOT") return market.instrumentType === "SPOT" || market.contractType === "SPOT";
+  if (productLine === "OPTION") return market.instrumentType === "OPTION" || market.contractType === "VANILLA_OPTION";
+  if (productLine === "LINEAR_DELIVERY") return market.contractType === "LINEAR_DELIVERY";
+  if (productLine === "INVERSE_DELIVERY") return market.contractType === "INVERSE_DELIVERY";
+  if (productLine === "INVERSE_PERPETUAL") return market.contractType === "INVERSE_PERPETUAL" || market.contractType === "INVERSE";
+  return market.contractType === "LINEAR" || market.contractType === "LINEAR_PERPETUAL";
 }
 
 function asOptionalNumber(value: unknown): number | undefined {

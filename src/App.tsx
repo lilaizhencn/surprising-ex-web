@@ -64,6 +64,7 @@ import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
 import { MarketsPage, type MarketCenterState } from "./components/MarketsPage";
+import { mergeMarketSnapshots } from "./marketPresentation";
 import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
@@ -215,6 +216,7 @@ export default function App() {
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
   const marketsRequestRef = useRef(0);
+  const marketMutationRevisionRef = useRef(0);
   const openOrdersRequestRef = useRef(0);
   const valuationRequestGuardRef = useRef(new ValuationRequestGuard());
   const marketsRef = useRef<Market[]>([]);
@@ -226,12 +228,15 @@ export default function App() {
   async function refreshMarketsFromGateway(): Promise<void> {
     const requestId = marketsRequestRef.current + 1;
     marketsRequestRef.current = requestId;
+    const mutationRevisionAtRequestStart = marketMutationRevisionRef.current;
     setMarketState("loading");
     setValuationMarketState("loading");
     try {
       const items = await loadMarkets(false);
       if (requestId !== marketsRequestRef.current) return;
-      setMarkets(items);
+      const preserveCurrentSnapshot = marketMutationRevisionRef.current !== mutationRevisionAtRequestStart;
+      setMarkets((current) => mergeMarketSnapshots(current, items, preserveCurrentSnapshot));
+      marketMutationRevisionRef.current += 1;
       setMarketState("ready");
       setValuationPrices({});
       setValuationMarketState("ready");
@@ -241,13 +246,17 @@ export default function App() {
       try {
         const items = await loadMarkets();
         if (requestId !== marketsRequestRef.current) return;
-        setMarkets(items);
-        setMarketState(config.enableMockFallback ? "degraded" : "ready");
+        const source = config.enableMockFallback ? "fallback" : "real";
+        const preserveCurrentSnapshot = marketMutationRevisionRef.current !== mutationRevisionAtRequestStart;
+        setMarkets((current) => mergeMarketSnapshots(current, items, preserveCurrentSnapshot));
+        marketMutationRevisionRef.current += 1;
+        setMarketState(source === "fallback" ? "degraded" : "ready");
         setValuationPrices({});
         setValuationMarketState("ready");
         if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
         return;
       } catch {
+        if (requestId !== marketsRequestRef.current) return;
         setMarketState("error");
         setValuationMarketState("error");
         setValuationPrices({});
@@ -395,6 +404,7 @@ export default function App() {
         });
         if (cancelled || !valuationRequestGuardRef.current.isCurrent(requestGeneration)) return;
         setValuationPrices(Object.fromEntries(prices));
+        marketMutationRevisionRef.current += 1;
         setMarkets((current) => applyMarketPriceTicks(current, priceTicksBySymbol));
       } catch {
         if (!cancelled && valuationRequestGuardRef.current.isCurrent(requestGeneration)) {
@@ -506,13 +516,11 @@ export default function App() {
           market.symbol === instrument.symbol && marketProduct(market) === instrumentProductMode
         );
         if (!exists) return [instrument, ...current];
-        return current.map((market) => market.symbol === instrument.symbol && marketProduct(market) === instrumentProductMode ? {
-          ...market,
-          ...instrument,
-          nextFundingTime: instrument.nextFundingTime ?? market.nextFundingTime,
-          timeUntilFundingSeconds: instrument.timeUntilFundingSeconds ?? market.timeUntilFundingSeconds
-        } : market);
+        return current.map((market) => market.symbol === instrument.symbol && marketProduct(market) === instrumentProductMode
+          ? mergeMarketSnapshots([market], [instrument], true)[0]
+          : market);
       });
+      marketMutationRevisionRef.current += 1;
     }).catch(() => {
       if (alive) setNotice("交易对配置暂不可用，请稍后重试");
     });
@@ -646,6 +654,7 @@ export default function App() {
 
   function patchMarket(targetSymbol: string, patch: Partial<Market>, targetProductMode?: ProductMode) {
     if (!targetSymbol) return;
+    marketMutationRevisionRef.current += 1;
     setMarkets((current) => current.map((market) =>
       market.symbol === targetSymbol && (!targetProductMode || marketProduct(market) === targetProductMode)
         ? { ...market, ...patch }
@@ -1822,6 +1831,9 @@ function Topbar({
       </div>
       {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">
         <button onClick={() => { onPageChange("markets"); setMobileProductsOpen(false); }}>{localized(language, "行情中心", "Markets")}</button>
+        <button onClick={() => { onPageChange("recharge"); setMobileProductsOpen(false); }}>{localized(language, "充值", "Deposit")}</button>
+        <button onClick={() => { onPageChange("assets"); setMobileProductsOpen(false); }}>{localized(language, "资产管理", "Assets")}</button>
+        <button onClick={() => { onPageChange("security"); setMobileProductsOpen(false); }}>{localized(language, "安全中心", "Security")}</button>
         {(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{language === "en-US" ? meta.labelEn : meta.label}</button>)}
         <button onClick={() => { onPageChange("rules"); setMobileProductsOpen(false); }}>{localized(language, "交易规则", "Rules")}</button>
       </div>}

@@ -152,6 +152,7 @@ export interface Market {
   volume24hUnits: number;
   maxLeverage: number;
   tickerReady?: boolean;
+  dataSource?: "live" | "fallback";
 }
 
 export interface RiskLimitBracket {

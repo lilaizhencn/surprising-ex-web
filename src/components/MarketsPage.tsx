@@ -14,6 +14,7 @@ type MarketFilter = "all" | ProductMode;
 export type MarketCenterState = "loading" | "ready" | "degraded" | "error";
 
 const FAVORITES_KEY = "surprising-ex.market-favorites";
+const LEGACY_FAVORITES_KEY = "surprising-ex.favorites";
 
 export function MarketsPage({ markets, marketState, language, productMeta, onRefresh, onOpenMarket }: {
   markets: Market[];
@@ -131,9 +132,22 @@ function displayMarketPrice(market: Market): string {
 
 function readFavorites(): string[] {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    const current: unknown = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]");
+    const currentKeys = Array.isArray(current)
+      ? current.filter((item): item is string => typeof item === "string").map(normalizeFavoriteKey)
+      : [];
+    if (currentKeys.length > 0) {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(currentKeys));
+      return currentKeys;
+    }
+    const legacy: unknown = JSON.parse(localStorage.getItem(LEGACY_FAVORITES_KEY) ?? "[]");
+    const legacySymbols = Array.isArray(legacy) ? legacy.filter((item): item is string => typeof item === "string") : [];
+    return legacySymbols.map((symbol) => `linear:${symbol}`);
   } catch {
     return [];
   }
+}
+
+function normalizeFavoriteKey(value: string): string {
+  return value.includes(":") ? value : `linear:${value}`;
 }
