@@ -64,7 +64,7 @@ import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
 import { MarketsPage, type MarketCenterState } from "./components/MarketsPage";
-import { filterTradableMarkets, mergeMarketSnapshots, selectFeaturedTradableMarkets, selectReadyTradableMarkets } from "./marketPresentation";
+import { mergeMarketSnapshots, selectLatestPriceMarkets } from "./marketPresentation";
 import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
@@ -1023,12 +1023,8 @@ export default function App() {
           positions={positions}
           orders={orders}
           language={language}
-          onLogin={() => openAuth("login")}
-          onRegister={() => openAuth("register")}
           onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
-          onOpenProduct={openProductPage}
           onOpenMarket={(market) => { setSymbol(market.symbol); openProductPage(marketProduct(market)); }}
-          onAssets={() => navigateToPage("assets")}
           onDeposit={() => navigateToPage("recharge")}
         />
       ) : page === "markets" ? (
@@ -1149,12 +1145,8 @@ function HomePage({
   positions,
   orders,
   language,
-  onLogin,
-  onRegister,
   onRefresh,
-  onOpenProduct,
   onOpenMarket,
-  onAssets,
   onDeposit
 }: {
   session: AuthSession | null;
@@ -1163,18 +1155,12 @@ function HomePage({
   positions: Position[];
   orders: OpenOrder[];
   language: LanguageMode;
-  onLogin: () => void;
-  onRegister: () => void;
   onRefresh: () => void;
-  onOpenProduct: (mode: ProductMode) => void;
   onOpenMarket: (market: Market) => void;
-  onAssets: () => void;
   onDeposit: () => void;
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const featuredMarkets = selectFeaturedTradableMarkets(markets);
-  const tradableMarkets = filterTradableMarkets(markets);
-  const productModes = Object.keys(PRODUCT_META) as ProductMode[];
+  const latestPriceMarkets = selectLatestPriceMarkets(markets);
   const greeting = session ? text("欢迎回来", "Welcome back") : text("为每一次决策保留清晰上下文", "A clearer context for every decision");
 
   return (
@@ -1186,13 +1172,10 @@ function HomePage({
         <button onClick={onDeposit}><Plus size={15} />{text("充值资金", "Fund account")}</button>
       </section>}
 
-      <section className="home-section-heading"><div><span className="eyebrow">MARKET UNIVERSE</span><h2>{text("市场概览", "Market overview")}</h2><p>{text("按产品线浏览真实可交易的市场，进入后会重新加载对应 instrument 与实时订阅。", "Browse live markets by product line. Entering a market reloads its instrument and realtime subscription.")}</p></div><button className="home-inline-action" onClick={onRefresh}><RefreshCw size={14} />{text("刷新行情", "Refresh")}</button></section>
-      <div className="home-product-tabs">
-        {productModes.map((mode) => <button key={mode} onClick={() => onOpenProduct(mode)}><span>{PRODUCT_META[mode].label}</span><small>{tradableMarkets.filter((market) => marketProduct(market) === mode).length} {text("个市场", "markets")}</small><ArrowUpRight size={14} /></button>)}
-      </div>
-      <section className="home-market-card">
+      <section className="home-section-heading"><div><span className="eyebrow">LATEST PRICES</span><h2>{text("最新价格", "Latest prices")}</h2></div><button className="home-inline-action" onClick={onRefresh}><RefreshCw size={14} />{text("刷新行情", "Refresh")}</button></section>
+      <section className="home-market-card" aria-label={text("最新价格", "Latest prices")}>
         <div className="home-market-head"><span>{text("交易对", "Market")}</span><span>{text("最新价", "Last")}</span><span>{text("24h 变化", "24h")}</span><span>{text("24h 成交量", "Volume")}</span><span /></div>
-        {featuredMarkets.length === 0 ? <div className="home-empty"><WifiOff size={18} /><span>{text("等待后端返回可交易市场", "Waiting for tradable markets from the gateway")}</span><button onClick={onRefresh}>{text("重试", "Retry")}</button></div> : featuredMarkets.map((market) => {
+        {latestPriceMarkets.length === 0 ? <div className="home-empty"><WifiOff size={18} /><span>{text("等待后端返回可交易市场", "Waiting for tradable markets from the gateway")}</span><button onClick={onRefresh}>{text("重试", "Retry")}</button></div> : latestPriceMarkets.map((market) => {
           const change = market.change24hPpm >= 0;
           return <button className="home-market-row" key={`${marketProduct(market)}:${market.symbol}`} onClick={() => onOpenMarket(market)}>
             <span className="home-market-symbol"><strong>{market.symbol}</strong><small>{displayMarketName(language, market)} · {PRODUCT_META[marketProduct(market)].shortLabel}</small></span>
@@ -1203,28 +1186,8 @@ function HomePage({
           </button>;
         })}
       </section>
-      <HomeMarketInsights markets={markets} language={language} onOpenMarket={onOpenMarket} />
     </div>
   );
-}
-
-function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
-  const text = (zh: string, en: string) => localized(language, zh, en);
-  const tickerMarkets = selectReadyTradableMarkets(markets);
-  const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
-  const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
-  return <section className="home-insights" aria-label={text("市场排行", "Market rankings")}>
-    <div className="home-insights-heading"><div><span className="eyebrow">MARKET SIGNALS</span><h2>{text("市场信号", "Market signals")}</h2></div><span>{text("基于当前后端市场快照", "Based on the current gateway snapshot")}</span></div>
-    <div className="home-insight-grid">
-      <HomeRankingCard title={text("涨跌榜", "Change leaders")} markets={gainers} language={language} onOpenMarket={onOpenMarket} value="change" />
-      <HomeRankingCard title={text("成交额榜", "Volume leaders")} markets={volumeLeaders} language={language} onOpenMarket={onOpenMarket} value="volume" />
-    </div>
-  </section>;
-}
-
-function HomeRankingCard({ title, markets, language, onOpenMarket, value }: { title: string; markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void; value: "change" | "volume" }) {
-  const text = (zh: string, en: string) => localized(language, zh, en);
-  return <article className="home-ranking-card"><h3><TrendingUp size={16} />{title}</h3>{markets.length === 0 ? <div className="home-ranking-empty"><WifiOff size={15} />{text("等待真实市场数据", "Waiting for live market data")}</div> : markets.map((market) => <button className="home-ranking-row" type="button" key={`${marketProduct(market)}:${market.symbol}`} onClick={() => onOpenMarket(market)}><span><strong>{market.symbol}</strong><small>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel}</small></span>{value === "change" ? <b className={market.change24hPpm >= 0 ? "home-market-up" : "home-market-down"}>{market.change24hPpm >= 0 ? "+" : ""}{displayPpm(market.change24hPpm)}</b> : <b>{compact(market.volume24hUnits)}</b>}</button>)}</article>;
 }
 
 function LiveStatus({ state, lastEventAt, onRefresh }: { state: ConnectionState; lastEventAt?: Date; onRefresh: () => void }) {

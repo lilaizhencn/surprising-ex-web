@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterTradableMarkets, marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady, mergeMarketSnapshots, selectFeaturedTradableMarkets, selectReadyTradableMarkets } from "../src/marketPresentation.ts";
+import { filterTradableMarkets, marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady, mergeMarketSnapshots, selectFeaturedTradableMarkets, selectLatestPriceMarkets, selectReadyTradableMarkets } from "../src/marketPresentation.ts";
 import type { Market } from "../src/types.ts";
 
 test("favorite keys preserve product-line isolation for identical symbols", () => {
@@ -30,6 +30,17 @@ test("only TRADING markets are included in tradable market metrics", () => {
   ];
   assert.deepEqual(selectFeaturedTradableMarkets(markets).map((market) => market.symbol), ["TRADING"]);
   assert.deepEqual(selectReadyTradableMarkets(markets).map((market) => market.symbol), ["TRADING"]);
+});
+
+test("latest price markets prioritize contract instruments over spot", () => {
+  const markets = [
+    { symbol: "BTC-USDT", status: "TRADING", instrumentType: "SPOT", contractType: "SPOT" },
+    { symbol: "ETH-USDT", status: "TRADING", instrumentType: "LINEAR", contractType: "LINEAR_PERPETUAL" },
+    { symbol: "SOL-USDT", status: "TRADING", instrumentType: "SPOT", contractType: "SPOT" },
+    { symbol: "BTC-USD", status: "HALTED", instrumentType: "INVERSE", contractType: "INVERSE_PERPETUAL" }
+  ];
+
+  assert.deepEqual(selectLatestPriceMarkets(markets).map((market) => market.symbol), ["ETH-USDT", "BTC-USDT", "SOL-USDT"]);
 });
 
 test("fallback market keys stay scoped to the instrument product", () => {
