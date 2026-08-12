@@ -2238,6 +2238,8 @@ button.rules-row:hover {
   --sx-size-market-heading-fluid: 4vw;
   --sx-size-market-heading-max: 44px;
   --sx-size-market-focus-ring: 3px;
+  --sx-size-trade-rail: clamp(168px, 13vw, 208px);
+  --sx-size-trigger-field: 72px;
   --sx-alpha-market-focus: 14%;
   --sx-letter-market-head: .04em;
   --sx-font-market-section: 15px;
@@ -4477,4 +4479,28 @@ button.rules-row:hover {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+@media (min-width: 701px) {
+  .terminal-grid {
+    grid-template-columns: var(--sx-size-trade-rail) minmax(0, 1fr) minmax(280px, 29vw);
+  }
+}
+
+.trigger-panel,
+.algo-panel,
+.trigger-head,
+.trigger-level-row {
+  min-width: 0;
+}
+
+.trigger-head > div {
+  flex-wrap: wrap;
+}
+
+.trigger-level-row {
+  width: 100%;
+  grid-template-columns: minmax(72px, .72fr) minmax(64px, .62fr) repeat(4, minmax(var(--sx-size-trigger-field), 1fr)) 30px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }

@@ -2393,11 +2393,11 @@ function OrderTicket({
           ))}
         </div>
       )}
-      <label>{text("价格 ticks", "Price ticks")}<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
-      <label>{text("数量 steps", "Quantity steps")}<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
+      <label>{text("价格", "Price")}<input disabled={orderType === "MARKET"} value={priceTicks} onChange={(event) => setPriceTicks(event.target.value)} /></label>
+      <label>{text("数量", "Quantity")}<input value={quantitySteps} onChange={(event) => setQuantitySteps(event.target.value)} /></label>
       {!isSpot && <label>{text("杠杆", "Leverage")} <span>{leverage}x</span><input type="range" min="1" max={market?.maxLeverage ?? 100} value={leverage} onChange={(event) => setLeverage(Number(event.target.value))} /></label>}
-      {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />Reduce-only</label>}
-      <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />Post-only</label>
+      {!isSpot && <label className="check"><input disabled={market?.reduceOnlyEnabled === false} type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} />{text("只减仓", "Reduce-only")}</label>}
+      <label className="check"><input disabled={market?.postOnlyEnabled === false || orderType === "MARKET"} type="checkbox" checked={postOnly && orderType !== "MARKET"} onChange={(event) => setPostOnly(event.target.checked)} />{text("只做 Maker", "Post-only")}</label>
       {!isSpot && (
         <div className="algo-panel">
           <div className="trigger-head">
@@ -2449,9 +2449,9 @@ function OrderTicket({
           <div className="trigger-head">
             <span>{text("止盈止损", "Take profit / stop loss")}</span>
             <div>
-              <button type="button" title={text("新增止盈", "Add take profit")} onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />TP</button>
-              <button type="button" title={text("新增止损", "Add stop loss")} onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />SL</button>
-              <button type="button" title={text("新增追踪止损", "Add trailing stop")} onClick={() => addTriggerLevel("TRAILING_STOP")}><Plus size={13} />TS</button>
+              <button type="button" title={text("新增止盈", "Add take profit")} onClick={() => addTriggerLevel("TAKE_PROFIT")}><Plus size={13} />{text("止盈", "TP")}</button>
+              <button type="button" title={text("新增止损", "Add stop loss")} onClick={() => addTriggerLevel("STOP_LOSS")}><Plus size={13} />{text("止损", "SL")}</button>
+              <button type="button" title={text("新增追踪止损", "Add trailing stop")} onClick={() => addTriggerLevel("TRAILING_STOP")}><Plus size={13} />{text("追踪", "TS")}</button>
             </div>
           </div>
           {triggerLevels.map((level) => (
@@ -2465,9 +2465,9 @@ function OrderTicket({
                   callbackRatePpm: triggerType === "TRAILING_STOP" ? (level.callbackRatePpm || "1000") : ""
                 });
               }}>
-                <option value="TAKE_PROFIT">TP</option>
-                <option value="STOP_LOSS">SL</option>
-                <option value="TRAILING_STOP">TS</option>
+                <option value="TAKE_PROFIT">{triggerTypeLabel(language, "TAKE_PROFIT")}</option>
+                <option value="STOP_LOSS">{triggerTypeLabel(language, "STOP_LOSS")}</option>
+                <option value="TRAILING_STOP">{triggerTypeLabel(language, "TRAILING_STOP")}</option>
               </select>
               <select value={level.closeTarget} onChange={(event) => patchTriggerLevel(level.id, { closeTarget: event.target.value as TriggerCloseTarget })}>
                 <option value="LONG">{text("平多", "Close long")}</option>
