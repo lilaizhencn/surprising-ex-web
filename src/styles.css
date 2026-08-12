@@ -3684,6 +3684,8 @@ button.rules-row:hover {
 .asset-product-summary h2 span { display: inline-flex; align-items: center; gap: 4px; color: var(--asset-center-subtle); font-size: 13px; letter-spacing: 0; }
 .asset-summary-stat { display: grid; gap: 3px; justify-items: end; color: var(--asset-center-subtle); }
 .asset-summary-stat strong { color: var(--asset-center-text); font-size: 28px; }
+.asset-visibility-toggle { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid var(--asset-center-line); border-radius: 8px; background: var(--asset-center-soft); color: var(--asset-center-subtle); }
+.asset-visibility-toggle:hover, .asset-visibility-toggle[aria-pressed="true"] { color: var(--platform-highlight); border-color: var(--platform-border-strong); }
 .asset-product-summary { margin: 0 auto 18px; max-width: 1320px; }
 .asset-product-summary .asset-actions { align-self: center; flex-wrap: wrap; justify-content: flex-end; }
 .asset-product-summary .asset-actions button { display: inline-flex; align-items: center; gap: 6px; min-width: auto; padding: 0 16px; }

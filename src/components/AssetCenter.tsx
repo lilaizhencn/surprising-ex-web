@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Eye, FileText, RefreshCw, Search, Send, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Eye, EyeOff, FileText, RefreshCw, Search, Send, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
 import { localized } from "../localized";
 import type { LanguageMode } from "../localized";
@@ -17,6 +17,7 @@ export type ProductAssetMeta = Record<ProductMode, {
 }>;
 
 export type ProductBalances = Record<ProductMode, Balance[]>;
+const HIDDEN_BALANCE = "••••••";
 
 export function emptyProductBalances(): ProductBalances {
   return { linear: [], inverse: [], linearDelivery: [], inverseDelivery: [], option: [], spot: [] };
@@ -72,6 +73,7 @@ export function AssetCenter({
   onRefresh: () => void;
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
+  const [balancesVisible, setBalancesVisible] = useState(true);
   const valuationRate = valuationRates[valuationCurrency];
   const allBalances = useMemo(() => Object.values(balancesByProduct).flat(), [balancesByProduct]);
   const totalValue = useMemo(() => {
@@ -95,6 +97,8 @@ export function AssetCenter({
       valuationRateState={valuationRateState}
       valuationMarketState={valuationMarketState}
       valuationPrices={valuationPrices}
+      balancesVisible={balancesVisible}
+      onToggleBalances={() => setBalancesVisible((current) => !current)}
       onValuationCurrencyChange={onValuationCurrencyChange}
       onBack={onOpenOverview}
       onDeposit={onDeposit}
@@ -118,14 +122,14 @@ export function AssetCenter({
       <div className="asset-overview-main">
         <UiCard className="asset-summary-card asset-overview-summary">
           <div>
-            <p className="asset-label"><WalletCards size={15} />{text("全部产品线总权益", "Total equity across products")} <Eye size={15} /></p>
-            <h2>{session && balanceState !== "loading" && totalValue !== null ? formatValuation(totalValue, valuationCurrency) : "—"} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
+            <div className="asset-label"><WalletCards size={15} />{text("全部产品线总权益", "Total equity across products")} <button className="asset-visibility-toggle" type="button" aria-pressed={!balancesVisible} aria-label={balancesVisible ? text("隐藏资产数字", "Hide balances") : text("显示资产数字", "Show balances")} onClick={() => setBalancesVisible((current) => !current)}>{balancesVisible ? <Eye size={15} /> : <EyeOff size={15} />}</button></div>
+            <h2>{balancesVisible ? session && balanceState !== "loading" && totalValue !== null ? formatValuation(totalValue, valuationCurrency) : "—" : HIDDEN_BALANCE} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
             <p className="asset-login-note">{!session ? text("登录后同步真实资产。", "Log in to sync real balances.") : balanceState === "loading" ? text("正在同步六条产品线余额…", "Syncing balances across six products…") : totalValue === null ? text("行情或汇率未同步，暂不显示总估值。", "Valuation is hidden until prices and FX are synchronized.") : text("估值只用于展示，账户余额以后台账本为准。", "Valuation is for display; backend ledger remains authoritative.")}</p>
           </div>
           <div className="asset-summary-stat"><strong>{allBalances.length}</strong><span>{text("资产记录", "Asset records")}</span></div>
         </UiCard>
         <section className="asset-product-grid" aria-label={text("产品线资产", "Product assets")}>
-          {(Object.keys(productMeta) as ProductMode[]).map((product) => <ProductAssetCard key={product} product={product} balances={balancesByProduct[product]} productMeta={productMeta} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationPrices={valuationPrices} onOpen={() => onOpenProduct(product)} />)}
+          {(Object.keys(productMeta) as ProductMode[]).map((product) => <ProductAssetCard key={product} product={product} balances={balancesByProduct[product]} productMeta={productMeta} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationPrices={valuationPrices} balancesVisible={balancesVisible} onOpen={() => onOpenProduct(product)} />)}
         </section>
       </div>
       <aside className="asset-overview-side">
@@ -138,7 +142,7 @@ export function AssetCenter({
   </section>;
 }
 
-function ProductAssetsPage({ product, balances, balanceState, language, productMeta, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices, onValuationCurrencyChange, onBack, onDeposit, onWithdraw, onTransfer, onHelp, onRefresh }: {
+function ProductAssetsPage({ product, balances, balanceState, language, productMeta, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices, balancesVisible, onToggleBalances, onValuationCurrencyChange, onBack, onDeposit, onWithdraw, onTransfer, onHelp, onRefresh }: {
   product: ProductMode;
   balances: Balance[];
   balanceState: "idle" | "loading" | "ready" | "error";
@@ -149,6 +153,8 @@ function ProductAssetsPage({ product, balances, balanceState, language, productM
   valuationRateState: "idle" | "loading" | "ready" | "error";
   valuationMarketState: "idle" | "loading" | "ready" | "error";
   valuationPrices: Record<string, number>;
+  balancesVisible: boolean;
+  onToggleBalances: () => void;
   onValuationCurrencyChange: (currency: ValuationCurrency) => void;
   onBack: () => void;
   onDeposit: () => void;
@@ -172,8 +178,8 @@ function ProductAssetsPage({ product, balances, balanceState, language, productM
     </div>
     <UiCard className="asset-summary-card asset-product-summary">
       <div>
-        <p className="asset-label"><WalletCards size={15} />{text("账户权益", "Account equity")} <Eye size={15} /></p>
-        <h2>{formatBalanceValuation(balances, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices)} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
+        <div className="asset-label"><WalletCards size={15} />{text("账户权益", "Account equity")} <button className="asset-visibility-toggle" type="button" aria-pressed={!balancesVisible} aria-label={balancesVisible ? text("隐藏资产数字", "Hide balances") : text("显示资产数字", "Show balances")} onClick={onToggleBalances}>{balancesVisible ? <Eye size={15} /> : <EyeOff size={15} />}</button></div>
+        <h2>{balancesVisible ? formatBalanceValuation(balances, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices) : HIDDEN_BALANCE} <span><select className="asset-valuation-select" value={valuationCurrency} onChange={(event) => onValuationCurrencyChange(event.target.value as ValuationCurrency)} aria-label={text("估值货币", "Valuation currency")}><option value="USDT">USDT</option><option value="USD">USD</option><option value="CNY">CNY</option></select><ChevronDown size={13} /></span></h2>
         <p className="asset-login-note">{balanceState === "loading" ? text("正在同步该产品线余额…", "Syncing this product balance…") : text(`${balances.length} 个资产记录，余额按 ${meta.accountType} 账户返回。`, `${balances.length} asset records returned from ${meta.accountType}.`)}</p>
       </div>
       <div className="asset-actions">
@@ -183,25 +189,25 @@ function ProductAssetsPage({ product, balances, balanceState, language, productM
     </UiCard>
     <section className="asset-holdings-card">
       <div className="asset-section-heading"><div><span className="asset-eyebrow">HOLDINGS</span><h2>{text("资产明细", "Asset details")}</h2></div><span className="asset-account-chip">{meta.accountType}</span></div>
-      <AssetHoldingsTable balances={balances} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationRateState={valuationRateState} valuationMarketState={valuationMarketState} valuationPrices={valuationPrices} onTransfer={onTransfer} />
+      <AssetHoldingsTable balances={balances} language={language} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationRateState={valuationRateState} valuationMarketState={valuationMarketState} valuationPrices={valuationPrices} balancesVisible={balancesVisible} onTransfer={onTransfer} />
       {balanceState === "error" && <p className="asset-center-alert" role="alert">{text("该产品线余额暂不可用，未显示估算数据。", "This product balance is unavailable; estimated data is hidden.")}</p>}
     </section>
     <SupportBubble language={language} onOpen={onHelp} />
   </section>;
 }
 
-function ProductAssetCard({ product, balances, productMeta, language, valuationCurrency, valuationRates, valuationPrices, onOpen }: { product: ProductMode; balances: Balance[]; productMeta: ProductAssetMeta; language: LanguageMode; valuationCurrency: ValuationCurrency; valuationRates: Partial<Record<ValuationCurrency, number>>; valuationPrices: Record<string, number>; onOpen: () => void }) {
+function ProductAssetCard({ product, balances, productMeta, language, valuationCurrency, valuationRates, valuationPrices, balancesVisible, onOpen }: { product: ProductMode; balances: Balance[]; productMeta: ProductAssetMeta; language: LanguageMode; valuationCurrency: ValuationCurrency; valuationRates: Partial<Record<ValuationCurrency, number>>; valuationPrices: Record<string, number>; balancesVisible: boolean; onOpen: () => void }) {
   const meta = productMeta[product];
   const value = formatBalanceValuation(balances, valuationCurrency, valuationRates, "ready", "ready", valuationPrices);
   const text = (zh: string, en: string) => localized(language, zh, en);
   return <button className="asset-product-card" type="button" onClick={onOpen}>
     <span className="asset-product-card-top"><span className="asset-product-icon"><WalletCards size={17} /></span><ArrowUpRight size={16} /></span>
     <strong>{language === "en-US" ? meta.labelEn : meta.label}</strong><small>{meta.accountType}</small>
-    <span className="asset-product-card-value">{value}</span><span className="asset-product-card-meta">{balances.length} {text("项资产", "asset records")}</span>
+    <span className="asset-product-card-value">{balancesVisible ? value : HIDDEN_BALANCE}</span><span className="asset-product-card-meta">{balances.length} {text("项资产", "asset records")}</span>
   </button>;
 }
 
-function AssetHoldingsTable({ balances, language, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices, onTransfer }: { balances: Balance[]; language: LanguageMode; valuationCurrency: ValuationCurrency; valuationRates: Partial<Record<ValuationCurrency, number>>; valuationRateState: "idle" | "loading" | "ready" | "error"; valuationMarketState: "idle" | "loading" | "ready" | "error"; valuationPrices: Record<string, number>; onTransfer: (asset?: string) => void }) {
+function AssetHoldingsTable({ balances, language, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices, balancesVisible, onTransfer }: { balances: Balance[]; language: LanguageMode; valuationCurrency: ValuationCurrency; valuationRates: Partial<Record<ValuationCurrency, number>>; valuationRateState: "idle" | "loading" | "ready" | "error"; valuationMarketState: "idle" | "loading" | "ready" | "error"; valuationPrices: Record<string, number>; balancesVisible: boolean; onTransfer: (asset?: string) => void }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
   const [query, setQuery] = useState("");
   const rows = balances.filter((balance) => `${balance.asset} ${assetName(balance.asset)}`.toLowerCase().includes(query.trim().toLowerCase()));
@@ -211,8 +217,8 @@ function AssetHoldingsTable({ balances, language, valuationCurrency, valuationRa
       <div className="asset-holdings-row asset-holdings-head"><span>{text("资产", "Asset")}</span><span>{text("可用", "Available")}</span><span>{text("冻结", "Locked")}</span><span>{text("总额", "Total")}</span><span>{text("估值", "Valuation")}</span><span /></div>
       {rows.length === 0 ? <UiEmptyState title={text("暂无资产记录", "No asset records")} /> : rows.map((balance) => <div className="asset-holdings-row" key={`${balance.accountType ?? "account"}-${balance.asset}`}>
         <span className="asset-holding-name"><AssetIcon symbol={balance.asset} /><strong>{balance.asset}</strong><small>{assetName(balance.asset)}</small></span>
-        <span>{displayUnits(balance.availableUnits, 8)}</span><span>{displayUnits(balance.lockedUnits, 8)}</span><strong>{displayUnits(balance.equityUnits, 8)}</strong>
-        <span>{formatSingleBalanceValuation(balance, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices)}</span>
+        <span>{balancesVisible ? displayUnits(balance.availableUnits, 8) : HIDDEN_BALANCE}</span><span>{balancesVisible ? displayUnits(balance.lockedUnits, 8) : HIDDEN_BALANCE}</span><strong>{balancesVisible ? displayUnits(balance.equityUnits, 8) : HIDDEN_BALANCE}</strong>
+        <span>{balancesVisible ? formatSingleBalanceValuation(balance, valuationCurrency, valuationRates, valuationRateState, valuationMarketState, valuationPrices) : HIDDEN_BALANCE}</span>
         <UiButton variant="secondary" className="asset-row-transfer" type="button" onClick={() => onTransfer(balance.asset)}><Send size={13} />{text("划转", "Transfer")}</UiButton>
       </div>)}
     </div>
