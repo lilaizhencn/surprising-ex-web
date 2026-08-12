@@ -1,19 +1,38 @@
 import { z } from "zod"
 import type { ProductLine } from "../types/domain"
 import { request } from "./client"
-import type { ApiBalance, ApiCandle, ApiMarket, ApiOrder, AuthSession } from "./types"
+import type {
+  ApiBalance,
+  ApiCandle,
+  ApiFundingPayment,
+  ApiFundingRate,
+  ApiMarket,
+  ApiOrder,
+  ApiProductTransferRecord,
+  ApiProductTransferResponse,
+  ApiWithdrawalSubmission,
+  AuthSession,
+} from "./types"
 import {
+  AccountLedgerPageSchema,
   AuthSessionSchema,
   BalanceListSchema,
   CandleListSchema,
+  DepositAddressSchema,
+  FundingPaymentPageSchema,
+  FundingRatePageSchema,
+  FundingRateSchema,
   GenericObjectSchema,
   HelpArticleListSchema,
   KycProfileSchema,
   MarketListSchema,
   OrderBookSchema,
   OrderListSchema,
+  ProductTransferRecordPageSchema,
+  ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
   WalletRecordsSchema,
+  WithdrawalSubmissionSchema,
 } from "./types"
 
 const ArraySchema = z.array(GenericObjectSchema)
@@ -28,6 +47,11 @@ export const authApi = {
     request<AuthSession>("/api/v1/auth/login", AuthSessionSchema, {
       method: "POST",
       body: { identifier, password, ...(totpCode ? { totpCode } : {}) },
+    }),
+  logout: (refreshToken: string) =>
+    request("/api/v1/auth/logout", z.unknown(), {
+      method: "POST",
+      body: { refreshToken },
     }),
   register: (email: string, password: string) =>
     request<AuthSession>("/api/v1/auth/register", AuthSessionSchema, {
@@ -53,6 +77,37 @@ export async function loadMarkets(productLine?: ProductLine): Promise<readonly A
     productLine ? { productLine } : {},
   )
   return response.instruments ?? response.items ?? []
+}
+
+export function loadFundingRate(symbol: string, productLine: ProductLine): Promise<ApiFundingRate> {
+  const query = new URLSearchParams({ symbol })
+  return request(`/api/v1/gateway/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
+    productLine,
+  })
+}
+
+export async function loadFundingRateHistory(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol, limit: "100" })
+  const response = await request(
+    `/api/v1/gateway/funding/rates/history?${query.toString()}`,
+    FundingRatePageSchema,
+    { productLine },
+  )
+  return response.rates
+}
+
+export async function loadFundingPayments(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+): Promise<readonly ApiFundingPayment[]> {
+  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const response = await request(
+    `/api/v1/gateway/funding/payments?${query.toString()}`,
+    FundingPaymentPageSchema,
+    { productLine },
+  )
+  return response.payments
 }
 
 export async function loadCandles(
@@ -202,8 +257,8 @@ export function createTransfer(
   asset: string,
   amountUnits: number,
   idempotencyKey: string,
-) {
-  return request("/api/v1/gateway/account/transfers", GenericObjectSchema, {
+): Promise<ApiProductTransferResponse> {
+  return request("/api/v1/gateway/account/transfers", ProductTransferResponseSchema, {
     method: "POST",
     idempotencyKey,
     body: {
@@ -242,6 +297,48 @@ export async function loadPositions(
     { productLine },
   )
   return Array.isArray(response) ? response : (response.items ?? response.orders ?? [])
+}
+
+export async function loadAccountLedger(asset?: string, referenceType?: string) {
+  const query = new URLSearchParams({ limit: "100" })
+  if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
+  if (referenceType?.trim()) query.set("referenceType", referenceType.trim().toUpperCase())
+  const response = await request(
+    `/api/v1/gateway/account/ledger?${query.toString()}`,
+    AccountLedgerPageSchema,
+  )
+  return response.entries
+}
+
+export async function loadProductLedger(accountType: ProductLine, asset?: string) {
+  const query = new URLSearchParams({
+    accountType,
+    limit: "100",
+  })
+  if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
+  const response = await request(
+    `/api/v1/gateway/account/product-ledger?${query.toString()}`,
+    AccountLedgerPageSchema,
+    { productLine: accountType },
+  )
+  return response.entries
+}
+
+export async function loadTransferHistory(
+  accountType: ProductLine,
+  asset?: string,
+): Promise<readonly ApiProductTransferRecord[]> {
+  const query = new URLSearchParams({
+    accountType,
+    limit: "100",
+  })
+  if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
+  const response = await request(
+    `/api/v1/gateway/account/transfers?${query.toString()}`,
+    ProductTransferRecordPageSchema,
+    { productLine: accountType },
+  )
+  return response.transfers
 }
 
 export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
@@ -308,7 +405,7 @@ export function loadWalletChains() {
 }
 
 export function createDepositAddress(chain: string) {
-  return request("/api/v1/wallet/addresses", GenericObjectSchema, {
+  return request("/api/v1/wallet/addresses", DepositAddressSchema, {
     method: "POST",
     body: { chain, addressVersion: 1 },
   })
@@ -364,8 +461,8 @@ export function createWithdrawal(
   externalReference: string,
   emailCode: string,
   totpCode: string,
-) {
-  return request("/api/v1/wallet/withdrawals", GenericObjectSchema, {
+): Promise<ApiWithdrawalSubmission> {
+  return request("/api/v1/wallet/withdrawals", WithdrawalSubmissionSchema, {
     method: "POST",
     idempotencyKey: externalReference,
     headers: {

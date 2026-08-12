@@ -9,11 +9,11 @@
 | POST | `/api/v1/auth/forgot-password` | Confirmed | 否 |
 | POST | `/api/v1/auth/reset-password` | Confirmed | 否 |
 | POST | `/api/v1/auth/refresh` | Partial，字段需后端确认 | 否，使用 refresh token |
-| POST | `/api/v1/auth/logout` | Partial，调用方式需后端确认 | 是 |
+| POST | `/api/v1/auth/logout` | Confirmed，按 refresh token 撤销当前会话 | 否，提交 refresh token |
 
 ## 请求与响应
 
-登录、注册和找回密码的具体字段以认证 DTO 为准。新前端只发送用户输入的 `email`、`password`、`code`、`resetToken` 等已存在字段，不会在未知字段上做猜测；后端若要求 phone、captcha 或 MFA challenge，应在 DTO/OpenAPI 中补齐。
+登录、注册和找回密码的具体字段以认证 DTO 为准。登录可选提交 `totpCode`，用于已启用 MFA 的账户。退出登录提交当前 refresh token；后端按 token 精确撤销会话，重复调用安全地保持幂等。
 
 成功登录必须返回：
 

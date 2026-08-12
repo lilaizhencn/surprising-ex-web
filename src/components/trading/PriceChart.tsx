@@ -3,10 +3,20 @@ import type { Candle } from "../../types/domain"
 export function PriceChart({
   candles,
   demo,
+  unavailable,
 }: {
   readonly candles: readonly Candle[]
   readonly demo: boolean
+  readonly unavailable: boolean
 }) {
+  if (unavailable)
+    return (
+      <div className="price-chart chart-unavailable" role="status" aria-live="polite">
+        <span className="eyebrow">Chart unavailable</span>
+        <strong>Waiting for backend candle data</strong>
+        <span className="subtle">No valid candle response was returned for this market.</span>
+      </div>
+    )
   const values =
     candles.length > 1
       ? candles.map((candle) => candle.close)

@@ -2,7 +2,6 @@ import { ArrowRight, Globe2, Search, ShieldCheck, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
-import { Footer } from "../../components/layout/Footer"
 import {
   AssetIcon,
   Button,
@@ -100,10 +99,11 @@ export function HomePage() {
                   </span>
                 </div>
                 <Price value={market.price} prefix="$" />
-                <Sparkline
-                  values={config.demoDataEnabled ? demoTrend : [0, 1]}
-                  positive={(market.change24h ?? 0) >= 0}
-                />
+                {markets.length === 0 && config.demoDataEnabled ? (
+                  <Sparkline values={demoTrend} positive={(market.change24h ?? 0) >= 0} />
+                ) : (
+                  <span className="subtle trend-unavailable">Trend unavailable</span>
+                )}
               </Panel>
             ))}
           </div>
@@ -140,7 +140,6 @@ export function HomePage() {
           </Panel>
         </div>
       </section>
-      <Footer />
     </div>
   )
 }

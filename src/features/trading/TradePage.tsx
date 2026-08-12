@@ -4,6 +4,8 @@ import { ApiError } from "../../api/client"
 import {
   cancelOrder,
   loadCandles,
+  loadFundingPayments,
+  loadFundingRate,
   loadLatestTrade,
   loadMarkets,
   loadOpenOrders,
@@ -12,7 +14,7 @@ import {
   placeOrder,
 } from "../../api/endpoints"
 import { mapCandle, mapMarket } from "../../api/mappers"
-import type { ApiOrder, ApiOrderBook } from "../../api/types"
+import type { ApiFundingPayment, ApiFundingRate, ApiOrder, ApiOrderBook } from "../../api/types"
 import { PriceChart } from "../../components/trading/PriceChart"
 import {
   Badge,
@@ -60,6 +62,13 @@ const views = [
     dark: false,
   },
   {
+    key: "coin-m-delivery",
+    line: PRODUCT_LINES.coinMDelivery,
+    title: "Coin-M Delivery",
+    symbol: "BTCUSD Coin-M Delivery",
+    dark: false,
+  },
+  {
     key: "options",
     line: PRODUCT_LINES.option,
     title: "Options Trading",
@@ -68,10 +77,16 @@ const views = [
   },
 ] as const
 
+const productKeyAliases: Readonly<Record<string, string>> = {
+  "usd-perpetual": "usd-m-perpetuals",
+  "coin-perpetual": "coin-m-perpetuals",
+}
+
 type Level = readonly [string | number, string | number]
 
 export function TradePage({ productKey }: { readonly productKey: string }) {
-  const view = views.find((candidate) => candidate.key === productKey) ?? views[0]
+  const normalizedProductKey = productKeyAliases[productKey] ?? productKey
+  const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
   const session = loadSession()
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [candles, setCandles] = useState<readonly Candle[]>([])
@@ -81,6 +96,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [latestTrade, setLatestTrade] = useState<Record<string, unknown> | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
+  const [funding, setFunding] = useState<ApiFundingRate | null>(null)
+  const [fundingPayments, setFundingPayments] = useState<readonly ApiFundingPayment[]>([])
+  const [fundingPaymentsError, setFundingPaymentsError] = useState("")
+  const [marketsRequestFinished, setMarketsRequestFinished] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
@@ -89,7 +108,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [quantity, setQuantity] = useState("")
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [submitMessage, setSubmitMessage] = useState("")
-  const demo = config.demoDataEnabled && markets.length === 0
+  const demo = config.demoDataEnabled && !marketsRequestFinished
   const availableMarkets = markets.length > 0 ? markets : demo ? demoMarkets : []
   const filteredMarkets = availableMarkets.filter((market) =>
     market.symbol.toLowerCase().includes(pairSearch.toLowerCase()),
@@ -101,14 +120,24 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   )
 
   useEffect(() => {
+    setMarketsRequestFinished(false)
     setError(null)
     void loadMarkets(view.line)
-      .then((rows) => setMarkets(rows.map(mapMarket)))
-      .catch((reason: unknown) => setError(readError(reason)))
+      .then((rows) => {
+        setMarkets(rows.map(mapMarket))
+        setMarketsRequestFinished(true)
+      })
+      .catch((reason: unknown) => {
+        setMarketsRequestFinished(true)
+        setError(readError(reason))
+      })
   }, [view.line])
   useEffect(() => {
     if (!current) return
     setPrice(current.price === null ? "" : String(current.price))
+    setCandles([])
+    setBook(null)
+    setLatestTrade(null)
     void Promise.all([
       loadCandles(current.symbol, period, view.line),
       loadOrderBook(current.symbol, view.line),
@@ -129,6 +158,30 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       })
       .catch((reason: unknown) => setError(readError(reason)))
   }, [current, period, session, view.line])
+
+  useEffect(() => {
+    if (
+      !current ||
+      !session ||
+      view.line === PRODUCT_LINES.spot ||
+      view.line === PRODUCT_LINES.option
+    ) {
+      setFunding(null)
+      setFundingPayments([])
+      setFundingPaymentsError("")
+      return
+    }
+    void loadFundingRate(current.symbol, view.line)
+      .then((value) => setFunding(value))
+      .catch(() => setFunding(null))
+    setFundingPaymentsError("")
+    void loadFundingPayments(session.user.userId, current.symbol, view.line)
+      .then((rows) => setFundingPayments(rows))
+      .catch((reason: unknown) => {
+        setFundingPayments([])
+        setFundingPaymentsError(readError(reason))
+      })
+  }, [current, session, view.line])
 
   const submit = async () => {
     if (!session) {
@@ -256,7 +309,21 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <Price value={current?.low24h ?? null} />
               </strong>
             </div>
+            {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+              <>
+                <div>
+                  <small>Funding rate</small>
+                  <strong className="mono positive">{fundingRate(funding)}</strong>
+                </div>
+                <div>
+                  <small>Next funding</small>
+                  <strong className="mono">{fundingTime(funding)}</strong>
+                </div>
+              </>
+            ) : null}
           </header>
+          {view.line === PRODUCT_LINES.option ? <OptionDetails market={current} /> : null}
+          {view.key === "delivery-futures" ? <DeliveryDetails market={current} /> : null}
           <div className="trade-chart-toolbar">
             {["15m", "1h", "4h", "1d"].map((value) => (
               <button
@@ -275,7 +342,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <RefreshCw size={16} />
             </Button>
           </div>
-          <PriceChart candles={candles} demo={demo} />
+          <PriceChart candles={candles} demo={demo} unavailable={!demo && candles.length < 2} />
           <div className="trade-bottom">
             <OrderBook book={book} />
             <Panel dense>
@@ -309,7 +376,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     <tr>
                       <th>Symbol</th>
                       <th>Side</th>
-                      <th>Quantity</th>
                       <th>Entry</th>
                       <th>Unrealized PnL</th>
                     </tr>
@@ -350,6 +416,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               />
             ) : null}
           </Panel>
+          {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+            <FundingPayments rows={fundingPayments} error={fundingPaymentsError} />
+          ) : null}
         </main>
         <aside className="trade-ticket">
           <div className="ticket-tabs">
@@ -571,10 +640,138 @@ function OpenOrderRow({
     </tr>
   )
 }
+
+function OptionDetails({ market }: { readonly market: Market | null }) {
+  return (
+    <Panel dense className="contract-details">
+      <div className="panel-heading">
+        <h2>Option contract</h2>
+        <Badge tone="info">Backend fields</Badge>
+      </div>
+      <div className="contract-detail-grid">
+        <Detail label="Underlying" value={market?.underlyingSymbol ?? market?.baseAsset ?? "—"} />
+        <Detail label="Expiry" value={formatDate(market?.expiryTime)} />
+        <Detail label="Strike (units)" value={market?.strikePriceUnits?.toString() ?? "—"} />
+        <Detail label="Call / Put" value={market?.optionType ?? "—"} />
+        <Detail label="Exercise" value={market?.optionExerciseStyle ?? "—"} />
+        <Detail label="Settlement" value={market?.settlementMethod ?? "—"} />
+        <Detail label="Implied volatility" value="Backend pending" />
+        <Detail label="Greeks" value="Backend pending" />
+      </div>
+      <p className="muted contract-help">
+        Greeks and implied volatility are shown only when returned by the option quotation service;
+        no placeholder risk values are generated in the client.
+      </p>
+    </Panel>
+  )
+}
+
+function DeliveryDetails({ market }: { readonly market: Market | null }) {
+  return (
+    <Panel dense className="contract-details">
+      <div className="panel-heading">
+        <h2>Delivery contract</h2>
+        <Badge tone="info">Backend fields</Badge>
+      </div>
+      <div className="contract-detail-grid">
+        <Detail label="Contract value" value={market?.contractValueAsset ?? "—"} />
+        <Detail label="Expiry" value={formatDate(market?.expiryTime)} />
+        <Detail label="Delivery time" value={formatDate(market?.deliveryTime)} />
+        <Detail label="Settlement" value={market?.settlementMethod ?? "—"} />
+        <Detail label="Contract multiplier" value={ppmValue(market?.contractMultiplierPpm)} />
+        <Detail label="Maintenance margin" value={ppmValue(market?.maintenanceMarginRatePpm)} />
+      </div>
+    </Panel>
+  )
+}
+
+function Detail({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="contract-detail">
+      <small>{label}</small>
+      <strong className="mono">{value}</strong>
+    </div>
+  )
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—"
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString()
+}
+
+function ppmValue(value: number | undefined): string {
+  return value === undefined ? "—" : `${(value / 10_000).toFixed(4)}%`
+}
+
 function text(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key]
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "交易服务暂不可用，请稍后重试。"
+}
+
+function fundingRate(
+  value: Pick<ApiFundingRate, "fundingRatePpm"> | Pick<ApiFundingPayment, "fundingRatePpm"> | null,
+): string {
+  const raw = value?.fundingRatePpm
+  const ppm = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN
+  return Number.isFinite(ppm) ? `${ppm >= 0 ? "+" : ""}${(ppm / 10_000).toFixed(4)}%` : "—"
+}
+
+function fundingTime(value: ApiFundingRate | null): string {
+  const raw = value?.fundingTime
+  if (typeof raw !== "string" || !raw) return "—"
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString([], { hour: "2-digit", minute: "2-digit" })
+}
+
+function FundingPayments({
+  rows,
+  error,
+}: {
+  readonly rows: readonly ApiFundingPayment[]
+  readonly error: string
+}) {
+  return (
+    <Panel dense>
+      <div className="panel-heading">
+        <h2>Funding payment history</h2>
+        <Badge tone="info">Backend records</Badge>
+      </div>
+      {error ? (
+        <StateView kind="error" message={error} />
+      ) : rows.length === 0 ? (
+        <StateView kind="empty" message="No funding payments returned for this contract." />
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Asset</th>
+                <th>Rate</th>
+                <th>Amount</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={String(row.paymentId) || String(index)}>
+                  <td>{row.symbol || "—"}</td>
+                  <td>{row.asset || "—"}</td>
+                  <td className="mono">{fundingRate(row)}</td>
+                  <td className="mono">{String(row.amountUnits)}</td>
+                  <td>{row.createdAt || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  )
 }

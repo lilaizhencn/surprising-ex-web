@@ -39,6 +39,7 @@ Accent colors are semantic, never decorative. Financial direction is expressed w
 
 - **Primary:** Hanken Grotesk, `Arial`, sans-serif. Use for headings, navigation, labels, and body copy.
 - **Data:** JetBrains Mono, `ui-monospace`, monospace. Use for prices, quantities, balances, IDs, timestamps, and table values.
+- **CSS tokens:** `--font-family-sans`, `--font-family-mono`, and the `--font-*` scale in `src/styles/tokens.css` are the only runtime font-family and font-size sources; component styles must reference these aliases.
 - **Display:** 48px / 56px, 700, `-0.02em`.
 - **H1:** 32px / 40px, 600.
 - **H2:** 24px / 32px, 600.

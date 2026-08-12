@@ -39,6 +39,21 @@ paths:
                 $ref: '#/components/schemas/AuthSession'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current refresh session
+      x-status: confirmed-by-backend-audit
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Session revoked; repeated calls are idempotent.
   /auth/register:
     post:
       tags: [Auth]
@@ -404,6 +419,16 @@ components:
           type: string
           format: password
         code:
+          type: string
+        totpCode:
+          type: string
+          minLength: 6
+          maxLength: 6
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
           type: string
     PasswordRecoveryRequest:
       type: object

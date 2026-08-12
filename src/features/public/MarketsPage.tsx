@@ -31,6 +31,16 @@ export function MarketsPage() {
       ),
     [query, scope, source],
   )
+  const status =
+    markets.length > 0 && markets.some((market) => market.price !== null)
+      ? { label: "Live data", className: "" }
+      : markets.length > 0
+        ? { label: "Live instruments", className: "status-pending" }
+        : config.demoDataEnabled
+          ? { label: "Demo data", className: "status-demo" }
+          : error
+            ? { label: "Unavailable", className: "status-error" }
+            : { label: "Loading", className: "status-loading" }
   return (
     <div className="container section markets-page">
       <div className="page-heading">
@@ -38,8 +48,8 @@ export function MarketsPage() {
           <h1>Market Center</h1>
           <p>Explore real-time prices, charts, and market data.</p>
         </div>
-        <span className="live-indicator">
-          <span /> Live data
+        <span className={`live-indicator ${status.className}`}>
+          <span /> {status.label}
         </span>
       </div>
       {config.demoDataEnabled && markets.length === 0 ? (

@@ -122,7 +122,7 @@ function routeProduct(productLine: Market["productLine"]): string {
     case "SPOT":
       return "spot"
     case "INVERSE_PERPETUAL":
-      return "coin-m-perpetuals"
+      return "coin-perpetual"
     case "LINEAR_DELIVERY":
       return "delivery-futures"
     case "INVERSE_DELIVERY":
@@ -130,7 +130,7 @@ function routeProduct(productLine: Market["productLine"]): string {
     case "OPTION":
       return "options"
     case "LINEAR_PERPETUAL":
-      return "usd-m-perpetuals"
+      return "usd-perpetual"
     default:
       return "spot"
   }

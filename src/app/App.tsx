@@ -26,7 +26,7 @@ export function App() {
         <MarketsPage />
       </AppShell>
     )
-  if (path.startsWith("/trade/"))
+  if (path.startsWith("/trade/") && isSupportedTradeRoute(path.slice("/trade/".length)))
     return (
       <AppShell>
         <TradePage productKey={path.slice("/trade/".length)} />
@@ -56,25 +56,25 @@ export function App() {
         <FundingPage mode="transfer" />
       </AppShell>
     )
-  if (path === "/security")
+  if (path === "/security" || path === "/account/security")
     return (
       <AppShell accountArea>
         <SecurityPage />
       </AppShell>
     )
-  if (path === "/compliance")
+  if (path === "/compliance" || path === "/account/kyc")
     return (
       <AppShell accountArea>
         <CompliancePage />
       </AppShell>
     )
-  if (path === "/compliance/verify")
+  if (path === "/compliance/verify" || path === "/account/kyc/verify")
     return (
       <AppShell accountArea>
         <CompliancePage flow />
       </AppShell>
     )
-  if (path === "/orders")
+  if (path === "/orders" || path === "/assets/orders")
     return (
       <AppShell accountArea>
         <OrdersPage />
@@ -104,6 +104,19 @@ function authMode(path: string): "login" | "register" | "forgot" | "reset" {
   if (path === "/auth/reset-password") return "reset"
   if (path === "/auth/forgot-password") return "forgot"
   return "login"
+}
+
+function isSupportedTradeRoute(productKey: string): boolean {
+  return new Set([
+    "spot",
+    "usd-perpetual",
+    "usd-m-perpetuals",
+    "coin-perpetual",
+    "coin-m-perpetuals",
+    "delivery-futures",
+    "coin-m-delivery",
+    "options",
+  ]).has(productKey)
 }
 
 function NotFoundPage() {

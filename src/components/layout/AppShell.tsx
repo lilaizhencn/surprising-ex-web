@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react"
+import { authApi } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
 import { loadSession, saveSession } from "../../state/session"
 import { AccountSidebar } from "./AccountSidebar"
@@ -20,10 +21,16 @@ export function AppShell({
     window.addEventListener("storage", onStorage)
     return () => window.removeEventListener("storage", onStorage)
   }, [])
-  const logout = () => {
-    saveSession(null)
-    setSession(null)
-    window.location.href = "/"
+  const logout = async () => {
+    const refreshToken = session?.refreshToken
+    try {
+      if (refreshToken) await authApi.logout(refreshToken)
+    } catch {
+    } finally {
+      saveSession(null)
+      setSession(null)
+      window.location.href = "/"
+    }
   }
   return (
     <div className="app-shell">

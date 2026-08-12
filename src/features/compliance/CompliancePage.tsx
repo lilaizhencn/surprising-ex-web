@@ -20,7 +20,13 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
   }, [session])
   if (!session)
     return (
-      <div className="container section">
+      <div className="account-content">
+        <div className="page-heading">
+          <div>
+            <h1>Identity Verification</h1>
+            <p>Review KYC status and submit documents through the backend workflow.</p>
+          </div>
+        </div>
         <Panel>
           <StateView kind="error" message="Sign in to begin identity verification." />
           <a className="route-link" href="/auth/login">
@@ -96,7 +102,7 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
               </div>
               <Button
                 onClick={() => {
-                  window.location.href = "/compliance/verify"
+                  window.location.href = "/account/kyc/verify"
                 }}
               >
                 Start verification

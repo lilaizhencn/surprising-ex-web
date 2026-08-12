@@ -1,12 +1,19 @@
 import { Download, Filter, RefreshCw, XCircle } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { cancelOrder, loadOpenOrders, loadOrderHistory } from "../../api/endpoints"
+import {
+  cancelOrder,
+  loadAccountLedger,
+  loadOpenOrders,
+  loadOrderHistory,
+  loadTransferHistory,
+} from "../../api/endpoints"
+import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { loadSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
-type RecordRow = Readonly<Record<string, unknown>>
-type Tab = "open" | "history"
+type RecordRow = ApiOrder | ApiAccountLedgerEntry | ApiProductTransferRecord
+type Tab = "open" | "history" | "ledger" | "transfers"
 
 export function OrdersPage() {
   const session = loadSession()
@@ -23,7 +30,13 @@ export function OrdersPage() {
     setLoading(true)
     setError("")
     const task =
-      tab === "open" ? loadOpenOrders(symbol, productLine) : loadOrderHistory(symbol, productLine)
+      tab === "open"
+        ? loadOpenOrders(symbol, productLine)
+        : tab === "history"
+          ? loadOrderHistory(symbol, productLine)
+          : tab === "ledger"
+            ? loadAccountLedger(symbol)
+            : loadTransferHistory(productLine, symbol)
     void task
       .then(
         (result) => setRows(result),
@@ -39,6 +52,12 @@ export function OrdersPage() {
   if (!session)
     return (
       <div className="account-content">
+        <div className="page-heading">
+          <div>
+            <h1>Transaction History</h1>
+            <p>Review orders, fills, ledger entries and internal transfers.</p>
+          </div>
+        </div>
         <Panel>
           <StateView kind="error" message="Sign in to view orders and fills." />
           <a className="route-link" href="/auth/login">
@@ -56,9 +75,8 @@ export function OrdersPage() {
         </div>
         <Button
           tone="outline"
-          onClick={() =>
-            window.alert("Export is available after selecting and validating a backend result set.")
-          }
+          disabled={filtered.length === 0}
+          onClick={() => downloadCsv(filtered, tab)}
         >
           <Download size={16} /> Export
         </Button>
@@ -79,8 +97,10 @@ export function OrdersPage() {
         <input
           value={symbol}
           onChange={(event) => setSymbol(event.target.value)}
-          placeholder="Symbol (optional)"
-          aria-label="Symbol filter"
+          placeholder={
+            tab === "ledger" || tab === "transfers" ? "Asset (optional)" : "Symbol (optional)"
+          }
+          aria-label={tab === "ledger" || tab === "transfers" ? "Asset filter" : "Symbol filter"}
         />
         <Button tone="outline" onClick={load}>
           <RefreshCw size={16} /> Refresh
@@ -89,7 +109,7 @@ export function OrdersPage() {
           <Filter size={16} /> Filters
         </Button>
       </div>
-      <div className="segment-control">
+      <div className="segment-control history-tabs">
         <button
           type="button"
           className={tab === "open" ? "active" : ""}
@@ -104,6 +124,20 @@ export function OrdersPage() {
         >
           Order history
         </button>
+        <button
+          type="button"
+          className={tab === "ledger" ? "active" : ""}
+          onClick={() => setTab("ledger")}
+        >
+          Account ledger
+        </button>
+        <button
+          type="button"
+          className={tab === "transfers" ? "active" : ""}
+          onClick={() => setTab("transfers")}
+        >
+          Transfers
+        </button>
       </div>
       <Panel>
         {error ? (
@@ -116,9 +150,15 @@ export function OrdersPage() {
             message={
               tab === "open"
                 ? "No open orders returned by the trading service."
-                : "No historical orders returned by the trading service."
+                : tab === "history"
+                  ? "No historical orders returned by the trading service."
+                  : tab === "ledger"
+                    ? "No account ledger entries returned by the account service."
+                    : "No transfer records returned by the account service."
             }
           />
+        ) : tab === "ledger" || tab === "transfers" ? (
+          <RecordTable rows={filtered} mode={tab} />
         ) : (
           <OrderTable
             rows={filtered}
@@ -133,6 +173,47 @@ export function OrdersPage() {
       </Panel>
     </div>
   )
+}
+
+function RecordTable({
+  rows,
+  mode,
+}: {
+  readonly rows: readonly RecordRow[]
+  readonly mode: "ledger" | "transfers"
+}) {
+  const columns =
+    mode === "ledger"
+      ? ["asset", "referenceType", "amountUnits", "balanceAfterUnits", "createdAt"]
+      : ["asset", "sourceAccountType", "targetAccountType", "amountUnits", "status", "createdAt"]
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{labelFor(column)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={text(row, "id") || text(row, "transferId") || String(index)}>
+              {columns.map((column) => (
+                <td className={column.toLowerCase().includes("units") ? "mono" : ""} key={column}>
+                  {text(row, column) || "—"}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function labelFor(value: string): string {
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase())
 }
 
 function OrderTable({
@@ -230,4 +311,23 @@ function text(row: RecordRow | null | undefined, key: string): string {
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "订单服务暂不可用，请稍后重试。"
+}
+
+function downloadCsv(rows: readonly RecordRow[], tab: Tab): void {
+  if (rows.length === 0) return
+  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row))))
+  const lines = [columns, ...rows.map((row) => columns.map((column) => text(row, column)))]
+    .map((values) => values.map(csvValue).join(","))
+    .join("\n")
+  const blob = new Blob([`\uFEFF${lines}`], { type: "text/csv;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `surprising-ex-${tab}-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function csvValue(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
 }

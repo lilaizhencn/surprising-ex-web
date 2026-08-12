@@ -5,10 +5,10 @@ export const publicNavigation = [
   { label: "Spot", href: "/trade/spot" },
   {
     label: "Perpetuals",
-    href: "/trade/usd-m-perpetuals",
+    href: "/trade/usd-perpetual",
     menu: [
-      { label: "USD-M", href: "/trade/usd-m-perpetuals" },
-      { label: "Coin-M", href: "/trade/coin-m-perpetuals" },
+      { label: "USD-M", href: "/trade/usd-perpetual" },
+      { label: "Coin-M", href: "/trade/coin-perpetual" },
     ],
   },
   {
@@ -25,7 +25,7 @@ export const accountNavigation = [
   { label: "Spot", href: "/assets?account=spot" },
   { label: "Futures", href: "/assets?account=futures" },
   { label: "Options", href: "/assets?account=options" },
-  { label: "History", href: "/orders" },
+  { label: "History", href: "/assets/orders" },
 ] as const
 
 export const productLineLabels: Readonly<Record<ProductLine, string>> = {

@@ -17,6 +17,21 @@ export function mapMarket(raw: ApiMarket): Market {
     pricePrecision: raw.pricePrecision ?? 2,
     quantityPrecision: raw.quantityPrecision ?? 6,
     maxLeverage: raw.maxLeverage ?? null,
+    instrumentType: raw.instrumentType,
+    contractValueAsset: raw.contractValueAsset,
+    contractMultiplierPpm: raw.contractMultiplierPpm,
+    initialMarginRatePpm: raw.initialMarginRatePpm,
+    maintenanceMarginRatePpm: raw.maintenanceMarginRatePpm,
+    makerFeeRatePpm: raw.makerFeeRatePpm,
+    takerFeeRatePpm: raw.takerFeeRatePpm,
+    fundingIntervalHours: raw.fundingIntervalHours,
+    expiryTime: raw.expiryTime,
+    deliveryTime: raw.deliveryTime,
+    underlyingSymbol: raw.underlyingSymbol,
+    strikePriceUnits: raw.strikePriceUnits,
+    optionType: raw.optionType,
+    optionExerciseStyle: raw.optionExerciseStyle,
+    settlementMethod: raw.settlementMethod,
   }
 }
 

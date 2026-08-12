@@ -54,7 +54,13 @@ export function SecurityPage() {
 
   if (!session)
     return (
-      <div className="container section">
+      <div className="account-content">
+        <div className="page-heading">
+          <div>
+            <h1>Security Center</h1>
+            <p>Manage authentication, high-risk verification and API access.</p>
+          </div>
+        </div>
         <Panel>
           <StateView kind="error" message="Sign in to manage account security." />
           <a className="route-link" href="/auth/login">

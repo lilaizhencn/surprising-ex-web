@@ -1,6 +1,6 @@
 # 订单与历史 API / Orders and History
 
-当前委托、历史委托、成交历史、持仓历史、资金费、交割、充值、提现和划转记录需要统一分页、状态和时间范围查询。后端审计确认交易与触发单相关 controller/service，但未确认全部公开 URL 和统一响应 DTO。
+当前委托、历史委托、账本和划转记录已接入真实 Gateway 查询；成交历史、持仓历史、资金费、交割、充值和提现记录仍需统一分页、状态和时间范围查询。后端审计确认交易与触发单相关 controller/service，但未确认全部公开 URL 和统一响应 DTO。
 
 统一待补字段：`id`、`clientOrderId`、`symbol`、`productLine`、`side`、`type`、`status`、`price`、`quantity`、`filledQuantity`、`averagePrice`、`fee`、`feeAsset`、`createdAt`、`updatedAt`。
 

@@ -10,6 +10,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
+  const [totpCode, setTotpCode] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
@@ -26,7 +27,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     setLoading(true)
     try {
       if (mode === "login") {
-        const session = await authApi.login(identifier, password)
+        const session = await authApi.login(identifier, password, totpCode.trim() || undefined)
         saveSession(session)
         window.location.href = "/assets"
       } else if (mode === "register") {
@@ -95,6 +96,18 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 inputMode="numeric"
                 placeholder="Enter code"
                 aria-label="Verification code"
+              />
+            </Field>
+          ) : null}
+          {mode === "login" ? (
+            <Field label="Authenticator code (if enabled)">
+              <input
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="6-digit code"
+                aria-label="Authenticator code"
               />
             </Field>
           ) : null}

@@ -12,9 +12,9 @@
 | 资产总览 | product-balances、估值/明细 | 已接余额 | 可选私有余额推送 | 明细 DTO | 仅本地无会话演示 |
 | 充值 | wallet address、network、records | 已接真实地址、网络和记录 | 否 | 托管服务运行配置 | 否 |
 | 提现 | wallet withdraw、limits、security | 已接真实提交、历史、KYC/风控/邮箱+TOTP校验 | 否 | 限额字段需 DTO 标准化 | 不伪造成功 |
-| 划转 | account/transfers、records | 已接 POST | 可选私有状态 | records 路径待补 | 不伪造到账 |
-| 登录/注册 | auth login/register/refresh | 已接 | 否 | 字段与 MFA challenge 需确认 | 否 |
+| 划转 | account/transfers、records | 已接 POST、真实记录查询 | 可选私有状态 | 未知结果查询 | 不伪造到账 |
+| 登录/注册 | auth login/register/refresh/logout | 登录 TOTP、刷新、退出会话已接 | 否 | 设备信任与账户锁定 DTO | 否 |
 | KYC | compliance/kyc、kyc/documents | 状态、文件上传、提交已接 | 否 | 审核异步状态由后端返回 | 否 |
 | 安全中心 | security scenes/mfa/password/api-keys | 状态和高风险写操作已接 | 否 | 设备/Passkey暂无用户接口 | 否 |
-| 订单中心 | openOrders、allOrders、cancel | 已接真实查询和撤单 | 可选私有事件 | 成交/资金流水统一 DTO | 否 |
+| 订单中心 | openOrders、allOrders、cancel、ledger、transfers | 已接真实查询、撤单、账本和划转记录 | 可选私有事件 | 成交/资金流水统一 DTO | 否 |
 | 通知/帮助 | notifications、help/articles | 通知读/已读与帮助搜索已接 | 否 | 通知生产事件需业务模块接入 | 否 |

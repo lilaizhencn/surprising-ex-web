@@ -43,6 +43,21 @@ export const MarketSchema = z
     maxLeverage: z.number().optional(),
     fundingRate: NumericSchema.optional(),
     nextFundingTime: z.string().optional(),
+    instrumentType: z.string().optional(),
+    contractValueAsset: z.string().optional(),
+    contractMultiplierPpm: z.number().optional(),
+    initialMarginRatePpm: z.number().optional(),
+    maintenanceMarginRatePpm: z.number().optional(),
+    makerFeeRatePpm: z.number().optional(),
+    takerFeeRatePpm: z.number().optional(),
+    fundingIntervalHours: z.number().optional(),
+    expiryTime: z.string().nullable().optional(),
+    deliveryTime: z.string().nullable().optional(),
+    underlyingSymbol: z.string().nullable().optional(),
+    strikePriceUnits: z.number().nullable().optional(),
+    optionType: z.string().nullable().optional(),
+    optionExerciseStyle: z.string().nullable().optional(),
+    settlementMethod: z.string().nullable().optional(),
   })
   .passthrough()
 
@@ -120,6 +135,166 @@ export const OrderBookSchema = z
   })
   .passthrough()
 
+const IdentifierSchema = z.union([z.string(), z.number()])
+
+export const FundingRateSchema = z
+  .object({
+    symbol: z.string(),
+    sequence: IdentifierSchema,
+    fundingRatePpm: IdentifierSchema,
+    premiumRatePpm: IdentifierSchema,
+    interestRatePpm: IdentifierSchema,
+    fundingTime: z.string(),
+    fundingIntervalHours: z.number(),
+    status: z.string(),
+    eventTime: z.string(),
+  })
+  .passthrough()
+
+export const FundingRatePageSchema = z
+  .object({
+    count: z.number(),
+    rates: z.array(FundingRateSchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
+
+export const FundingPaymentSchema = z
+  .object({
+    paymentId: IdentifierSchema,
+    settlementId: IdentifierSchema,
+    userId: IdentifierSchema,
+    symbol: z.string(),
+    asset: z.string(),
+    marginMode: z.string(),
+    positionSide: z.string(),
+    signedQuantitySteps: IdentifierSchema,
+    notionalUnits: IdentifierSchema,
+    fundingRatePpm: IdentifierSchema,
+    amountUnits: IdentifierSchema,
+    createdAt: z.string(),
+  })
+  .passthrough()
+
+export const FundingPaymentPageSchema = z
+  .object({
+    count: z.number(),
+    payments: z.array(FundingPaymentSchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
+
+export const AccountLedgerEntrySchema = z
+  .object({
+    entryId: IdentifierSchema,
+    userId: IdentifierSchema,
+    asset: z.string(),
+    amountUnits: IdentifierSchema,
+    balanceAfterUnits: IdentifierSchema,
+    referenceType: z.string(),
+    referenceId: z.string().nullable().optional(),
+    reason: z.string().nullable().optional(),
+    tradeId: IdentifierSchema.nullable().optional(),
+    orderId: IdentifierSchema.nullable().optional(),
+    symbol: z.string().nullable().optional(),
+    feeRatePpm: IdentifierSchema.nullable().optional(),
+    createdAt: z.string(),
+  })
+  .passthrough()
+
+export const AccountLedgerPageSchema = z
+  .object({
+    count: z.number(),
+    entries: z.array(AccountLedgerEntrySchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
+
+export const ProductTransferRecordSchema = z
+  .object({
+    transferId: IdentifierSchema,
+    userId: IdentifierSchema,
+    sourceAccountType: z.string(),
+    targetAccountType: z.string(),
+    asset: z.string(),
+    amountUnits: IdentifierSchema,
+    referenceId: z.string().nullable().optional(),
+    status: z.string(),
+    reason: z.string().nullable().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+export const ProductTransferRecordPageSchema = z
+  .object({
+    count: z.number(),
+    transfers: z.array(ProductTransferRecordSchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    sort: z.string(),
+    limit: z.number(),
+  })
+  .passthrough()
+
+export const DepositAddressSchema = z
+  .object({
+    address: z.string().optional(),
+    depositAddress: z.string().optional(),
+    memo: z.string().optional(),
+    tag: z.string().optional(),
+  })
+  .passthrough()
+  .refine((value) => Boolean(value.address || value.depositAddress), {
+    message: "custody response must include a deposit address",
+  })
+
+const ProductBalanceSchema = z
+  .object({
+    userId: IdentifierSchema,
+    accountType: z.string(),
+    asset: z.string(),
+    availableUnits: IdentifierSchema,
+    lockedUnits: IdentifierSchema,
+    equityUnits: IdentifierSchema,
+    updatedAt: z.string(),
+  })
+  .passthrough()
+
+export const ProductTransferResponseSchema = z
+  .object({
+    transferId: IdentifierSchema,
+    userId: IdentifierSchema,
+    sourceAccountType: z.string(),
+    targetAccountType: z.string(),
+    asset: z.string(),
+    amountUnits: IdentifierSchema,
+    referenceId: z.string(),
+    status: z.string(),
+    sourceBalance: ProductBalanceSchema,
+    targetBalance: ProductBalanceSchema,
+    createdAt: z.string(),
+  })
+  .passthrough()
+
+export const WithdrawalSubmissionSchema = z
+  .object({
+    id: z.string(),
+    withdrawalId: z.string(),
+    status: z.string(),
+    success: z.literal(true),
+  })
+  .passthrough()
+
 export const WalletRecordSchema = GenericObjectSchema
 export const WalletRecordsSchema = z.array(WalletRecordSchema)
 
@@ -145,3 +320,9 @@ export type ApiOrderBook = z.infer<typeof OrderBookSchema>
 export type ApiOrderBookLevel = z.infer<typeof OrderBookLevelSchema>
 export type ApiWalletRecord = z.infer<typeof WalletRecordSchema>
 export type ApiHelpArticle = z.infer<typeof HelpArticleSchema>
+export type ApiFundingRate = z.infer<typeof FundingRateSchema>
+export type ApiFundingPayment = z.infer<typeof FundingPaymentSchema>
+export type ApiAccountLedgerEntry = z.infer<typeof AccountLedgerEntrySchema>
+export type ApiProductTransferRecord = z.infer<typeof ProductTransferRecordSchema>
+export type ApiProductTransferResponse = z.infer<typeof ProductTransferResponseSchema>
+export type ApiWithdrawalSubmission = z.infer<typeof WithdrawalSubmissionSchema>

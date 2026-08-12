@@ -5,9 +5,12 @@
 | 方法 | URL | 状态 |
 | --- | --- | --- |
 | POST | `/api/v1/gateway/account/transfers` | Confirmed |
-| GET | 划转记录 | Pending，后端待补 |
+| GET | `/api/v1/gateway/account/transfers?accountType=SPOT` | Confirmed |
 
-划转 body 至少包含来源产品线、目标产品线、资产和最小单位数量。请求必须携带 `Idempotency-Key`；超时后使用 request id 或后端查询接口确认，不重复扣款。当前前端会把失败转换为可读错误，并显示受理状态，不声称资金已到账。
+划转 body 至少包含来源产品线、目标产品线、资产和最小单位数量。请求必须携带 `Idempotency-Key`；超时后使用 request id 或后端查询接口确认，不重复扣款。划转记录按目标产品账户查询，支持 `asset`、`limit`、`cursor` 和 `sort`。当前前端会把失败转换为可读错误，并显示受理状态，不声称资金已到账。
+
+| GET | `/api/v1/gateway/account/ledger` | Confirmed |
+| GET | `/api/v1/gateway/account/product-ledger?accountType=SPOT` | Confirmed |
 
 ## 充值与提现
 

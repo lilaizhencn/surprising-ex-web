@@ -60,11 +60,14 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       return
     }
     let active = true
+    const rootStyles = getComputedStyle(document.documentElement)
+    const darkColor = rootStyles.getPropertyValue("--color-ink").trim()
+    const lightColor = rootStyles.getPropertyValue("--color-surface").trim()
     void QRCode.toDataURL(value, {
       width: 180,
       margin: 1,
       errorCorrectionLevel: "M",
-      color: { dark: "#111827", light: "#ffffff" },
+      color: { dark: darkColor, light: lightColor },
     }).then((dataUrl) => {
       if (active) setDepositQr(dataUrl)
     })
@@ -126,7 +129,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           totpCode.trim(),
         )
         setState("success")
-        setMessage(`提现请求已受理，状态：${text(response, "status") || "PENDING"}。`)
+        setMessage(`提现请求已受理，状态：${response.status}。`)
         setAddress("")
         setAmount("")
         setEmailCode("")
@@ -153,7 +156,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         key,
       )
       setState("success")
-      setMessage(`划转请求已受理，状态：${text(response, "status") || "PENDING"}。`)
+      setMessage(`划转请求已受理，状态：${response.status}。`)
       setAmount("")
     } catch (reason: unknown) {
       setState("error")

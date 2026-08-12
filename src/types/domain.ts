@@ -22,6 +22,21 @@ export type Market = {
   readonly pricePrecision: number
   readonly quantityPrecision: number
   readonly maxLeverage: number | null
+  readonly instrumentType?: string | undefined
+  readonly contractValueAsset?: string | undefined
+  readonly contractMultiplierPpm?: number | undefined
+  readonly initialMarginRatePpm?: number | undefined
+  readonly maintenanceMarginRatePpm?: number | undefined
+  readonly makerFeeRatePpm?: number | undefined
+  readonly takerFeeRatePpm?: number | undefined
+  readonly fundingIntervalHours?: number | undefined
+  readonly expiryTime?: string | null | undefined
+  readonly deliveryTime?: string | null | undefined
+  readonly underlyingSymbol?: string | null | undefined
+  readonly strikePriceUnits?: number | null | undefined
+  readonly optionType?: string | null | undefined
+  readonly optionExerciseStyle?: string | null | undefined
+  readonly settlementMethod?: string | null | undefined
 }
 
 export type Candle = {
