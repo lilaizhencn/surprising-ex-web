@@ -23,6 +23,10 @@ export function marketIsTradable(market: Pick<Market, "status">): boolean {
   return market.status === "TRADING";
 }
 
+export function filterTradableMarkets<T extends Pick<Market, "status">>(markets: T[]): T[] {
+  return markets.filter(marketIsTradable);
+}
+
 export function mergeMarketSnapshots(current: Market[], incoming: Market[], preserveCurrentSnapshot: boolean): Market[] {
   const currentByKey = new Map(current.map((market) => [`${marketProductForPresentation(market)}:${market.symbol}`, market]));
   return incoming.map((market) => {

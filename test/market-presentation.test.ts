@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady, mergeMarketSnapshots } from "../src/marketPresentation.ts";
+import { filterTradableMarkets, marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady, mergeMarketSnapshots } from "../src/marketPresentation.ts";
 import type { Market } from "../src/types.ts";
 
 test("favorite keys preserve product-line isolation for identical symbols", () => {
@@ -22,6 +22,7 @@ test("only TRADING markets are included in tradable market metrics", () => {
   assert.equal(marketIsTradable({ status: "TRADING" }), true);
   assert.equal(marketIsTradable({ status: "HALTED" }), false);
   assert.equal(marketIsTradable({ status: "SUSPENDED" }), false);
+  assert.deepEqual(filterTradableMarkets([{ status: "TRADING" }, { status: "HALTED" }, { status: "SUSPENDED" }]).map((market) => market.status), ["TRADING"]);
 });
 
 test("fallback market keys stay scoped to the instrument product", () => {

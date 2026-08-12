@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { compact, displayPpm, displayPrice } from "../config";
 import { localized } from "../localized";
 import type { LanguageMode } from "../localized";
-import { marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady } from "../marketPresentation";
+import { filterTradableMarkets, marketFavoriteKey, marketProductForPresentation, marketTickerIsReady } from "../marketPresentation";
 import { priceFromTicks } from "../valuation";
 import type { Market, ProductMode } from "../types";
 import type { ProductAssetMeta } from "./AssetCenter";
@@ -33,7 +33,7 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
     const normalizedQuery = query.trim().toUpperCase();
     return matchesProduct && (!normalizedQuery || `${market.symbol} ${market.displayName}`.toUpperCase().includes(normalizedQuery));
   });
-  const tradableMarkets = visibleMarkets.filter(marketIsTradable);
+  const tradableMarkets = filterTradableMarkets(visibleMarkets);
   const tickerMarkets = tradableMarkets.filter(marketTickerIsReady);
   const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
   const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
