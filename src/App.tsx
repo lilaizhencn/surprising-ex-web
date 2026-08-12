@@ -64,7 +64,7 @@ import { ProductTransferDialog } from "./components/ProductTransferDialog";
 import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
 import { FundingLedgerPage } from "./components/FundingLedgerPage";
 import { MarketsPage, type MarketCenterState } from "./components/MarketsPage";
-import { mergeMarketSnapshots } from "./marketPresentation";
+import { marketIsTradable, mergeMarketSnapshots } from "./marketPresentation";
 import { UiAlert, UiButton, UiCard, UiField, UiStatusBadge } from "./components/UiPrimitives";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
 import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
@@ -1172,7 +1172,7 @@ function HomePage({
   onDeposit: () => void;
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const featuredMarkets = markets.filter((market) => market.status !== "HALTED").slice(0, 8);
+  const featuredMarkets = markets.filter(marketIsTradable).slice(0, 8);
   const productModes = Object.keys(PRODUCT_META) as ProductMode[];
   const greeting = session ? text("欢迎回来", "Welcome back") : text("为每一次决策保留清晰上下文", "A clearer context for every decision");
 
@@ -1209,7 +1209,7 @@ function HomePage({
 
 function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const tickerMarkets = markets.filter((market) => market.status !== "HALTED" && market.tickerReady);
+  const tickerMarkets = markets.filter((market) => marketIsTradable(market) && market.tickerReady);
   const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
   const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
   return <section className="home-insights" aria-label={text("市场排行", "Market rankings")}>
