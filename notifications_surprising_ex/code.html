@@ -1,0 +1,309 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Surprising EX - Notification Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#c02c37",
+                        "on-tertiary-container": "#ffdddb",
+                        "secondary-fixed": "#75fcad",
+                        "outline": "#737688",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#003ec7",
+                        "on-surface-variant": "#434656",
+                        "surface-container-high": "#e9e7ea",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "surface-dim": "#dbd9dc",
+                        "on-tertiary-fixed": "#410007",
+                        "on-secondary-fixed": "#00210f",
+                        "on-background": "#1b1c1e",
+                        "error-container": "#ffdad6",
+                        "inverse-on-surface": "#f2f0f3",
+                        "secondary-container": "#75fcad",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#c3c5d9",
+                        "on-secondary-container": "#007443",
+                        "surface-bright": "#fbf9fb",
+                        "primary-container": "#0052ff",
+                        "primary-fixed": "#dde1ff",
+                        "surface-container-low": "#f5f3f6",
+                        "on-surface": "#1b1c1e",
+                        "surface-tint": "#004ced",
+                        "on-primary-container": "#dfe3ff",
+                        "on-secondary-fixed-variant": "#00522e",
+                        "on-primary-fixed": "#001452",
+                        "inverse-surface": "#303033",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#b7c4ff",
+                        "surface": "#fbf9fb",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#ffdad8",
+                        "surface-container-highest": "#e3e2e5",
+                        "tertiary": "#9e0d22",
+                        "secondary-fixed-dim": "#56df93",
+                        "secondary": "#006d3f",
+                        "surface-variant": "#e3e2e5",
+                        "background": "#fbf9fb",
+                        "on-tertiary-fixed-variant": "#92001b",
+                        "surface-container": "#efedf0",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#ffb3b0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "margin-desktop": "32px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "data-mono": ["JetBrains Mono"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen flex flex-col overflow-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface dark:bg-background border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-lg h-full">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">Surprising EX</span>
+<div class="hidden md:flex h-full gap-md items-center h-full"><a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Markets</a>
+<a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Spot</a>
+<div class="group relative h-full flex items-center">
+    <button class="h-full flex items-center gap-xs text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md">
+        Perpetuals
+        <span class="material-symbols-outlined text-[16px]">expand_more</span>
+    </button>
+    <div class="absolute top-full left-0 hidden group-hover:flex flex-col bg-surface dark:bg-background border border-outline-variant dark:border-outline rounded shadow-lg min-w-[120px] z-50">
+        <a href="#" class="px-md py-sm hover:bg-surface-container-low dark:hover:bg-surface-container text-body-sm">USD-M</a>
+        <a href="#" class="px-md py-sm hover:bg-surface-container-low dark:hover:bg-surface-container text-body-sm">Coin-M</a>
+    </div>
+</div>
+<div class="group relative h-full flex items-center">
+    <button class="h-full flex items-center gap-xs text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md">
+        Futures
+        <span class="material-symbols-outlined text-[16px]">expand_more</span>
+    </button>
+    <div class="absolute top-full left-0 hidden group-hover:flex flex-col bg-surface dark:bg-background border border-outline-variant dark:border-outline rounded shadow-lg min-w-[120px] z-50">
+        <a href="#" class="px-md py-sm hover:bg-surface-container-low dark:hover:bg-surface-container text-body-sm">USD-M</a>
+        <a href="#" class="px-md py-sm hover:bg-surface-container-low dark:hover:bg-surface-container text-body-sm">Coin-M</a>
+    </div>
+</div>
+<a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Options</a>
+<a class="h-full flex items-center text-primary dark:text-primary-fixed-dim border-b-2 border-primary pb-1 cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Assets</a></div>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<button class="text-primary border-b-2 border-primary pb-1 transition-colors cursor-pointer active:opacity-80 relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border border-surface"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="dark_mode">dark_mode</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</nav>
+<div class="flex flex-1 pt-12 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-12 bottom-0 w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container border-r border-outline-variant dark:border-outline">
+<div class="p-lg border-b border-outline-variant/50">
+<div class="flex items-center gap-md mb-xs">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Assets</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Manage your holdings</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 py-md overflow-y-auto hide-scrollbar">
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-sm text-body-sm">Overview</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-body-sm text-body-sm">Spot</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="font-body-sm text-body-sm">Futures</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+<span class="font-body-sm text-body-sm">Options</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-primary dark:text-primary-fixed-dim font-bold border-l-2 border-primary bg-primary-container/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="history" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-body-sm text-body-sm">History</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 overflow-y-auto bg-surface-container-lowest hide-scrollbar p-margin-mobile md:p-margin-desktop">
+<div class="max-w-[1000px] mx-auto">
+<!-- Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-xl gap-md">
+<div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background mb-xs">Notification Center</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Stay updated with security alerts, market movements, and system announcements.</p>
+</div>
+<button class="font-label-caps text-label-caps uppercase text-primary border border-primary px-md py-sm rounded hover:bg-primary-container hover:text-on-primary-container transition-colors self-start md:self-auto flex items-center gap-sm">
+<span class="material-symbols-outlined text-[16px]">done_all</span>
+                        Mark all as read
+                    </button>
+</div>
+<!-- Bento Grid Layout for Filters & Stats -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-md mb-xl">
+<div class="col-span-1 md:col-span-4 flex gap-sm border-b border-outline-variant pb-xs">
+<button class="font-body-md text-body-md px-md py-sm text-primary border-b-2 border-primary -mb-[1px]">All</button>
+<button class="font-body-md text-body-md px-md py-sm text-on-surface-variant hover:text-primary transition-colors">Security <span class="bg-error text-on-error rounded-full px-2 py-[2px] text-[10px] ml-xs">2</span></button>
+<button class="font-body-md text-body-md px-md py-sm text-on-surface-variant hover:text-primary transition-colors">Trading</button>
+<button class="font-body-md text-body-md px-md py-sm text-on-surface-variant hover:text-primary transition-colors">System</button>
+</div>
+</div>
+<!-- Notifications List -->
+<div class="flex flex-col gap-[1px] bg-outline-variant/30 rounded border border-outline-variant overflow-hidden">
+<!-- Unread Security Alert -->
+<div class="bg-surface flex items-start p-md gap-md hover:bg-surface-container-low transition-colors group cursor-pointer relative">
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error"></div>
+<div class="mt-xs">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md font-semibold text-on-background flex items-center gap-sm">
+                                    New Login Detected
+                                    <span class="w-2 h-2 rounded-full bg-error"></span>
+</h3>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">10:42 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-sm">We detected a new login to your Surprising EX account from a new device (Mac OS, Chrome, IP: 192.168.1.1) in London, UK.</p>
+<div class="flex gap-md">
+<button class="font-label-caps text-label-caps text-primary hover:underline uppercase">Review Activity</button>
+<button class="font-label-caps text-label-caps text-error hover:underline uppercase">Freeze Account</button>
+</div>
+</div>
+</div>
+<!-- Unread Trading Update -->
+<div class="bg-surface flex items-start p-md gap-md hover:bg-surface-container-low transition-colors group cursor-pointer relative">
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary"></div>
+<div class="mt-xs">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">currency_bitcoin</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md font-semibold text-on-background flex items-center gap-sm">
+                                    Limit Order Executed
+                                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+</h3>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">08:15 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Your limit order to BUY <span class="font-data-mono text-data-mono">0.5 BTC</span> at <span class="font-data-mono text-data-mono">$64,200.00</span> was successfully executed.</p>
+</div>
+</div>
+<!-- Read System Announcement -->
+<div class="bg-surface flex items-start p-md gap-md hover:bg-surface-container-low transition-colors group cursor-pointer opacity-70">
+<div class="mt-xs">
+<span class="material-symbols-outlined text-outline">campaign</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-background">Scheduled Maintenance</h3>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">Yesterday</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Surprising EX will undergo scheduled system maintenance on Sunday, Oct 15th from 02:00 to 04:00 UTC. Trading will be temporarily suspended.</p>
+</div>
+</div>
+<!-- Read Trading Update -->
+<div class="bg-surface flex items-start p-md gap-md hover:bg-surface-container-low transition-colors group cursor-pointer opacity-70">
+<div class="mt-xs">
+<span class="material-symbols-outlined text-outline">trending_down</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-background">Price Alert: ETH</h3>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">Oct 12</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Ethereum (ETH) has dropped below your target price of <span class="font-data-mono text-data-mono">$2,500.00</span>. Current price is <span class="font-data-mono text-data-mono">$2,485.50</span>.</p>
+</div>
+</div>
+<!-- Read System Announcement -->
+<div class="bg-surface flex items-start p-md gap-md hover:bg-surface-container-low transition-colors group cursor-pointer opacity-70">
+<div class="mt-xs">
+<span class="material-symbols-outlined text-outline">rocket_launch</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-background">New Token Listing: ARB</h3>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">Oct 10</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Arbitrum (ARB) is now available for spot trading. Deposit ARB now to get ready for trading.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+
+</body></html>

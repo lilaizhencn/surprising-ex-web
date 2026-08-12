@@ -1,167 +1,137 @@
-# Surprising Exchange Web Design System
+# Surprising EX Design System
 
 ## 0. Research Log
 
-- Embedded references: selected a high-craft soft-surface direction and an institutional crypto-finance reference from the local frontend corpus; retained its trust-first hierarchy without copying any brand assets or copy.
-- Existing-surface audit: the current app already uses dark/light CSS variables, compact trading density, and `lucide-react`; those patterns remain the compatibility baseline while the auth and account surfaces migrate to shared primitives.
-- Product direction: orbital control room. Ink-black and mineral-white foundations carry a restrained electric-cyan action ramp, while amber is reserved for risk and attention. The memorable moment is a focused “flight deck” transition from identity into the live market shell.
+- Stitch reference set: 19 exported screens and 19 screenshots inspected; the export is the visual contract.
+- Reference pick: Stitch's own `surprising_ex/DESIGN.md`, carried forward as the source of the blue-led institutional exchange language.
+- Existing-surface audit: the deprecated `surprising-ex-web` was read only for protocol and deployment behavior; its dark orbital surface is not copied into this rebuild.
+- Skipped lanes: live-site and image-generation research — a concrete Stitch reference already exists and must remain authoritative.
 
-## 1. Personas and product principles
+## 1. Atmosphere & Identity
 
-- Active trader: needs low-latency information hierarchy, stable keyboard focus, and explicit account/product-line context.
-- New user: needs a calm, linear auth flow with plain-language validation and no hidden username concept.
-- Safety-conscious user: needs visible verification state, session controls, and confirmation before money movement.
+Surprising EX is a precise, credible exchange interface: cold mineral surfaces, deep blue action states, narrow borders, tabular numbers, and restrained green/red semantics. Its signature is the blue exchange mark and the contrast between an airy public market surface and a dense, almost instrument-panel trading workspace. The UI should feel engineered and calm under pressure.
 
-Principles: identity before access, state before decoration, one primary action per surface, readable numbers, and no motion that hides financial state.
+## 2. Color
 
-## 2. Tokens
+### Palette
 
-```css
---sx-ink-950: #080b10;
---sx-ink-900: #0d121a;
---sx-ink-800: #151c27;
---sx-mineral-050: #f7f9fb;
---sx-mineral-100: #edf1f5;
---sx-cyan-500: #49d7e8;
---sx-cyan-700: #1599ad;
---sx-amber-500: #f0b95a;
---sx-positive-500: #43d39e;
---sx-negative-500: #f06e78;
---sx-text-primary: #eff5fb;
---sx-text-secondary: #9eabbc;
---sx-border-subtle: rgba(170, 194, 214, 0.16);
---sx-radius-control: 12px;
---sx-radius-panel: 20px;
---sx-radius-pill: 999px;
---sx-space-1: 4px;
---sx-space-2: 8px;
---sx-space-3: 12px;
---sx-space-4: 16px;
---sx-space-5: 20px;
---sx-space-6: 24px;
---sx-space-7: 28px;
---sx-space-8: 32px;
---sx-space-9: 40px;
---sx-space-10: 40px;
---sx-space-11: 44px;
---sx-radius-control-sm: 8px;
---sx-radius-card: 16px;
---sx-shadow-panel: 0 18px 50px rgba(0, 0, 0, .08);
---sx-motion-fast: 140ms;
---sx-motion-standard: 180ms;
---sx-surface-canvas: var(--sx-ink-950);
---sx-surface-panel: var(--sx-ink-900);
---sx-surface-raised: var(--sx-ink-800);
---sx-surface-soft: rgba(255, 255, 255, .04);
---sx-info-500: #71a7ff;
---sx-border-width: 1px;
---sx-radius-circle: 50%;
---sx-size-ui-touch: 44px;
---sx-size-ui-spinner: 12px;
---sx-size-ui-spinner-border: 2px;
---sx-size-ui-status: 26px;
---sx-size-ui-dot: 6px;
---sx-size-ui-icon: 36px;
---sx-size-ui-state: 150px;
---sx-size-ui-loading: 76px;
---sx-space-ui-badge-inline: 9px;
---sx-size-ui-copy: 44ch;
---sx-font-ui-label: 12px;
---sx-font-ui-message: 11px;
---sx-font-ui-state: 13px;
---sx-font-ui-alert: 13px;
---sx-font-weight-label: 700;
---sx-font-weight-action: 800;
---sx-line-ui: 1.45;
---sx-line-ui-relaxed: 1.5;
---sx-motion-spin: 700ms;
---sx-alpha-ui-danger: 15%;
---sx-alpha-ui-alert-border: 40%;
---sx-alpha-ui-alert-fill: 8%;
---sx-size-asset-transfer-dialog: 520px;
---sx-size-asset-transfer-touch: 44px;
---sx-size-asset-support: 42px;
---sx-space-asset-support-right: 24px;
---sx-space-asset-support-bottom: 22px;
---sx-asset-disabled: #d9d9d9;
---sx-asset-disabled-text: #8a8a8a;
---sx-asset-disabled-border: #c5c5c5;
---sx-shadow-asset-dialog: 0 24px 60px rgba(17, 17, 17, .18);
---sx-focus-outline-asset: 2px solid var(--sx-asset-positive);
---sx-focus-outline-offset: 2px;
---sx-focus-outline: 2px solid var(--sx-cyan-500);
---sx-size-asset-tab-indicator: 3px;
---sx-size-market-stat: 26px;
---sx-size-market-row: 62px;
---sx-size-market-row-compact: 52px;
---sx-size-market-column-main: 180px;
---sx-size-market-column-price: 120px;
---sx-size-market-column-change: 100px;
---sx-size-market-column-volume: 100px;
---sx-size-market-column-compact-main: 140px;
---sx-size-market-column-compact-metric: 90px;
---sx-font-market-section: 15px;
---sx-font-market-heading: 24px;
---sx-size-market-table-min-width: 700px;
---sx-size-market-favorite: 28px;
---sx-size-market-favorite-touch: 32px;
---sx-size-market-head: 42px;
---sx-size-markets-page-max: 1280px;
---sx-space-markets-page-gutter: 24px;
---sx-size-market-search: 320px;
---sx-size-market-heading-min: 30px;
---sx-size-market-heading-fluid: 4vw;
---sx-size-market-heading-max: 44px;
---sx-size-market-focus-ring: 3px;
---sx-alpha-market-focus: 14%;
---sx-letter-market-head: .04em;
-```
+| Role | Token | Light | Dark | Usage |
+|---|---|---:|---:|---|
+| Canvas | `--color-canvas` | `#fbf9fb` | `#111318` | Page background |
+| Surface | `--color-surface` | `#ffffff` | `#191c23` | Cards and panels |
+| Surface muted | `--color-surface-muted` | `#f5f3f6` | `#222630` | Inputs, table headers |
+| Surface active | `--color-surface-active` | `#e3e8fb` | `#24345d` | Selected navigation |
+| Ink | `--color-ink` | `#1b1c1e` | `#f2f0f3` | Primary text |
+| Ink muted | `--color-ink-muted` | `#434656` | `#aeb4c2` | Secondary text |
+| Ink subtle | `--color-ink-subtle` | `#737688` | `#7f8798` | Metadata and disabled text |
+| Border | `--color-border` | `#c3c5d9` | `#343a49` | Structural dividers |
+| Border soft | `--color-border-soft` | `#e9e7ea` | `#292e39` | Low-contrast panel edges |
+| Primary | `--color-primary` | `#003ec7` | `#5d82ff` | Links, CTA, focus |
+| Primary strong | `--color-primary-strong` | `#0052ff` | `#75a0ff` | Primary button fill |
+| Positive | `--color-positive` | `#006d3f` | `#55df9a` | Buy/long/positive, always paired with `+`/up |
+| Negative | `--color-negative` | `#9e0d22` | `#ff7d86` | Sell/short/negative, always paired with `-`/down |
+| Warning | `--color-warning` | `#9a5b00` | `#f6bd63` | Risk and attention |
+| Login blue | `--color-login-blue` | `#0052ff` | `#0052ff` | Auth artwork and CTA |
 
-Typography uses the system UI sans stack for dense trading surfaces, a slightly expanded display weight for auth headings, and tabular numerals for prices, quantities, balances, and risk values.
+Accent colors are semantic, never decorative. Financial direction is expressed with sign, text, and color together. Pure black is reserved for the Stitch auth artwork only.
 
-## 3. Materials and elevation
+## 3. Typography
 
-- App canvas: layered ink gradient with a fixed, pointer-transparent radial cyan glow; no scrolling blur.
-- Panel: `--sx-ink-900` plus a 1px `--sx-border-subtle` rim and a restrained inset highlight.
-- Elevated panel: nested outer shell (`--sx-ink-800`) and inner core (`--sx-ink-900`) with the `--sx-shadow-panel` elevation token.
-- Light mode: mineral canvas, white core, ink text, and the same semantic action ramp; do not invert risk colors.
+- **Primary:** Hanken Grotesk, `Arial`, sans-serif. Use for headings, navigation, labels, and body copy.
+- **Data:** JetBrains Mono, `ui-monospace`, monospace. Use for prices, quantities, balances, IDs, timestamps, and table values.
+- **Display:** 48px / 56px, 700, `-0.02em`.
+- **H1:** 32px / 40px, 600.
+- **H2:** 24px / 32px, 600.
+- **H3:** 20px / 28px, 600.
+- **Body:** 16px / 24px, 400.
+- **Body small:** 14px / 20px, 400.
+- **Label:** 12px / 16px, 700, `0.05em`.
+- Body copy never falls below 14px. Financial values use `font-variant-numeric: tabular-nums`.
 
-## 4. Layout and responsive behavior
+## 4. Spacing & Layout
 
-- Trading shell owns vertical scrolling; nested panes use `min-height: 0` and never trap the page scroll.
-- Desktop: fixed navigation rail, market header, split chart/order-book/order-entry workspace.
-- Tablet: collapsible rail and stacked account panels.
-- Mobile: single-column flow, sticky primary action, minimum 44px touch targets, `100dvh` instead of `100vh`.
-- Auth: centered panel on desktop, full-width content with 16px gutters below 768px.
+- Base unit: 4px. Shared spacing is 4, 8, 12, 16, 24, 32, 48, 64px.
+- Public max width: 1400px with 32px desktop / 16px mobile gutters.
+- App shell: 72px top navigation, optional 260px account rail, content min width 0.
+- Trading shell: fixed top navigation plus a 3-column workspace on desktop; `min-width: 0` on every pane and horizontal scrolling only for dense data tables.
+- Breakpoints: 640px, 768px, 1024px, 1280px, 1440px.
+- Mobile: single-column content, 44px minimum touch targets, no primary-content horizontal overflow.
 
-## 5. Reusable primitives and states
+## 5. Components
 
-- `Surface`: `base`, `raised`, `focus`, `disabled` variants on shared cards.
-- `Field`: `idle`, `focused`, `invalid`, `verified`, `disabled` with label and message slots.
-- `ActionButton`: `primary`, `secondary`, `quiet`, `danger`; every state includes keyboard focus and pending state.
-- `StatusBadge`: `positive`, `warning`, `negative`, `neutral`.
-- `State`: `Alert`, `EmptyState`, and `LoadingState` for explicit async and data states.
-- `AsyncState`: `Skeleton` and `ErrorState` for layout-preserving loads and recoverable failures.
-- `ProductContext`: always displays the active product line and account context.
-- `VerificationStep`: destination masking, code input, resend cooldown, expired, invalid, success.
+### App shell
 
-Primitive showcase coverage is required at 375, 768, and 1280 CSS pixels before auth screens are considered visually complete.
+- **Structure:** top navigation, optional account sidebar, main content, footer where the Stitch screen includes one.
+- **Variants:** public, authenticated, trading, auth.
+- **States:** navigation active, disconnected, reconnecting, stale, loading.
+- **Accessibility:** semantic landmarks, keyboard-reachable navigation, visible focus ring.
 
-## 6. Motion and interaction
+### Button / Icon Button
 
-- Use only `transform`, `opacity`, and `filter` for transitions.
-- Auth panel enters with a 420ms opacity/translate transition; verification success uses a short check-state morph.
-- Pending actions show an inline progress state and keep the button width stable.
-- Respect `prefers-reduced-motion`; replace transitions with instant state changes.
+- **Variants:** primary, outline, ghost, positive, negative, compact icon-only.
+- **States:** default, hover, active, focus, disabled, loading, success, error.
+- **Motion:** 140ms color/opacity transition; active state translates `transform` by 1px.
+- **Accessibility:** icon-only controls have an accessible label; 44px mobile target.
 
-## 7. Accessibility and content
+### Data Table
 
-- Every field has a persistent visible label; errors are associated with `aria-describedby` and announced through a live region.
-- Never use color alone for balance or risk. Use sign, label, and icon.
-- Keyboard order matches visual order; focus rings remain visible on dark and light themes.
-- Auth copy states the required identity explicitly: “邮箱地址” or “手机号（暂未开放）”, never “用户名”.
+- **Structure:** caption/toolbar, table header, rows, empty/error/loading state.
+- **Variants:** markets, balances, orders, history.
+- **States:** loading skeleton, empty, error, stale data, hover, selected.
+- **Layout:** 40–48px rows, JetBrains Mono values, no zebra striping.
 
-## 8. Accepted debt and handoff
+### Panel / Card
 
-- Existing trading screens contain local legacy styles and mock fallback paths; they are compatibility debt until real backend adapters cover each product line. New auth/account surfaces must use these tokens and primitives.
-- Visual QA must capture auth, verification, password reset, and trading shell at 375/768/1280, including invalid and pending states.
+- **Variants:** surface, outlined, elevated, dense trading pane.
+- **States:** default, hover only when actionable, focus-within, loading, empty, error, success.
+- **Depth:** tonal layering plus low-contrast 1px borders; modal/popover may use one soft shadow.
+
+### Form Field
+
+- **Variants:** text, password, number, select, search, verification code.
+- **States:** default, hover, focus, disabled, loading, error, success.
+- **Accessibility:** label above control, error below, `aria-describedby` for help/error text.
+
+### Price / Status Display
+
+- **Variants:** price, percent, balance, order status, risk indicator.
+- **States:** positive, negative, neutral, stale, unavailable, hidden.
+- **Accessibility:** include visible sign or status word; never color-only.
+
+### Modal / Drawer / Toast
+
+- **States:** closed, opening, open, closing, error, success.
+- **Motion:** opacity and transform only; reduced-motion users get an opacity-only transition.
+- **Accessibility:** focus return, Escape close, labelled dialog, body scroll lock for drawers.
+
+## 6. Motion & Interaction
+
+- Micro: 140ms ease-out. Standard: 200ms ease-in-out. Emphasis: 400ms cubic-bezier(0.16, 1, 0.3, 1).
+- Animate only `transform`, `opacity`, and `filter`.
+- Theme toggle is an immediate token swap with a short opacity transition; no decorative animation.
+- Loading uses shape-matched skeletons. Errors remain visible until dismissed or retried.
+- `prefers-reduced-motion: reduce` removes non-essential transforms and continuous chart motion.
+
+## 7. Depth & Surface
+
+The default strategy is **mixed but restrained**: structural 1px borders and tonal surface shifts, with `0 8px 24px rgba(27, 28, 30, 0.08)` only for popovers and dialogs. Trading panes do not float above one another; they read as a connected instrument workspace.
+
+## 8. Accessibility Constraints & Accepted Debt
+
+- WCAG 2.2 AA target; body contrast at least 4.5:1, large text 3:1.
+- Full keyboard navigation and visible focus for every interactive control.
+- Screen-reader status text for loading, stale, error, and success states.
+- Reduced motion respected.
+
+| Item | Location | Why accepted | Exit |
+|---|---|---|---|
+| Real chart library integration | trading panes | Stitch chart shape is implemented first with a typed SVG adapter; real candle adapter remains API-dependent | Add Lightweight Charts after candle contract is verified |
+| Live notification content | notification center | backend user notification endpoint was not found | Enable after Gateway endpoint exists |
+
+## 9. Never Ship
+
+- No copied exchange brand names, logos, or claims.
+- No fake order/withdrawal success, fake balances, fake volume, or fake compliance claims.
+- No raw color values outside this document and the token stylesheet.
+- No `any`, silent mock fallback, color-only trading state, or unlabelled icon control.
+- No giant rounded dashboard cards, neon glows, decorative particles, or unbounded horizontal overflow.

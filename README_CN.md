@@ -2,60 +2,59 @@
 
 [English](README.md) | [简体中文](README_CN.md)
 
-用户交易 Web 终端，独立于后端 `surprising-ex` 仓库。
+Stitch 驱动的用户交易 Web 终端，独立于后端 `surprising-ex` 仓库；`surprising-ex-web` 仅作为旧项目参考。
 
 ## 功能
 
 - 邮箱 + 密码注册和登录，支持邮箱验证与密码找回。
 - JWT access token + refresh token，本地持久化 session。
 - 交易工作台：U本位合约、币本位合约、现货市场列表、K线、盘口、成交、下单、资产、当前委托、合约持仓和风险快照。
-- REST 接入 `surprising-gateway-provider`。
-- WebSocket 接入 `surprising-websocket-provider`，订阅行情和私有推送。止盈止损下单固定使用标记价格触发；状态快照会立即更新开放条件单列表，私有 WebSocket 重连后主动执行一次 REST 全量刷新补偿漏消息。
+- 统一 API Client 接入 REST，使用 Zod 校验外部 DTO，并通过 mapper 转为页面模型。
+- 预留 WebSocket 行情和私有推送边界，协议未确认的能力不会在页面伪造成功。
 - 后端不可用时，行情和账户模块进入降级展示；下单不会伪造成交。
 
 ## 本地开发
 
 ```bash
-pnpm install
-pnpm dev
+bun install
+bun run dev
 ```
 
-Vite 默认把 `/api` 代理到 `http://localhost:9094`，所以本地不需要配置 `VITE_API_BASE_URL`。
+Vite 默认把 `/api` 代理到 `http://localhost:9094`。需要覆盖时复制 `.env.example` 为 `.env.local`。
 
 ```bash
 VITE_WS_BASE_URL=ws://localhost:9093/ws/v1
+VITE_ENABLE_DEMO_DATA=false
 ```
 
-## 后端依赖
+## 检查命令
 
-需要启动：
+```bash
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+```
 
-- `surprising-gateway-provider`：认证和 REST gateway
-- `surprising-websocket-provider`：实时推送
-- 行情、交易、账户、风控相关 provider
+## API 文档
 
-核心路径：
+完整审计、接口契约、OpenAPI 草案和后端待补清单位于 [`docs/api/README.md`](docs/api/README.md)。已确认的核心路径包括：
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `/api/v1/gateway/instrument`
 - `/api/v1/gateway/candlestick`
-- `/api/v1/gateway/trading-market`
-- `/api/v1/gateway/trading`
-- `/api/v1/gateway/account`
-  - `/product-balances?accountType=SPOT|USDT_PERPETUAL|COIN_PERPETUAL`
-- `/api/v1/gateway/risk`
+- `/api/v1/gateway/instrument`
+- `/api/v1/gateway/candlestick`
+- `/api/v1/gateway/account/product-balances`
+- `/api/v1/gateway/account/transfers`
+- `/api/v1/gateway/trading/orders`
 - `ws://localhost:9093/ws/v1`
 
 ## 部署配置
 
-```bash
-VITE_API_BASE_URL=https://ex-api.tokdou.com
-VITE_WS_BASE_URL=wss://ex-api.tokdou.com/ws/v1
-```
-
-生产环境应只暴露 gateway 和 websocket，不直接暴露内部 provider。
+Cloudflare Workers 配置位于 [`wrangler.jsonc`](wrangler.jsonc)，构建输出为 `dist`，深层路由使用 SPA fallback。不要提交 `.env`、Token 或其他敏感信息。
 
 ## 许可证
 

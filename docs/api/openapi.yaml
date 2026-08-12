@@ -1,0 +1,345 @@
+openapi: 3.1.0
+info:
+  title: Surprising EX API
+  version: 0.1.0-audited
+  description: Frontend integration contract assembled from the surprising-ex backend source audit.
+servers:
+  - url: https://api.example.invalid/api/v1
+    description: Placeholder only; replace with the deployed API base URL.
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Market
+  - name: Account
+  - name: Trading
+  - name: Security
+  - name: Compliance
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in
+      x-status: confirmed-by-legacy-client
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Authenticated session; exact response DTO requires backend confirmation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register
+      x-status: confirmed-by-legacy-client
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Registered session or verification challenge.
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password recovery
+      x-status: confirmed-by-legacy-client
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordRecoveryRequest'
+      responses:
+        '200':
+          description: Recovery request accepted.
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      x-status: confirmed-by-legacy-client
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '200':
+          description: Password reset result.
+  /gateway/instrument:
+    get:
+      tags: [Market]
+      summary: List instruments
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - $ref: '#/components/parameters/ProductLine'
+        - name: symbol
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Instrument list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /gateway/candlestick:
+    get:
+      tags: [Market]
+      summary: Get candlesticks
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - $ref: '#/components/parameters/ProductLine'
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Candle list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /gateway/account/product-balances:
+    get:
+      tags: [Account]
+      summary: Get product balances
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - $ref: '#/components/parameters/ProductLine'
+      responses:
+        '200':
+          description: Balance list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /gateway/account/transfers:
+    post:
+      tags: [Account]
+      summary: Create an internal transfer
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - $ref: '#/components/parameters/ProductLine'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: Accepted transfer; final state requires query or private event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /gateway/trading/orders:
+    post:
+      tags: [Trading]
+      summary: Submit an order
+      x-status: confirmed-by-backend-audit
+      parameters:
+        - $ref: '#/components/parameters/ProductLine'
+        - $ref: '#/components/parameters/ClientOrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '200':
+          description: Accepted order; not necessarily filled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '400':
+          $ref: '#/components/responses/BusinessError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /security/scenes:
+    get:
+      tags: [Security]
+      summary: List security scenes
+      x-status: partial
+      responses:
+        '200':
+          description: Security scene list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /security/mfa/status:
+    get:
+      tags: [Security]
+      summary: Get MFA status
+      x-status: partial
+      responses:
+        '200':
+          description: MFA status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /compliance/kyc:
+    get:
+      tags: [Compliance]
+      summary: Get KYC status
+      x-status: partial
+      responses:
+        '200':
+          description: KYC status; enum and DTO require backend confirmation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProductLine:
+      name: X-Product-Line
+      in: header
+      schema:
+        type: string
+      description: Product line header used by gateway controllers.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+    ClientOrderId:
+      name: clientOrderId
+      in: header
+      schema:
+        type: string
+  schemas:
+    AuthRequest:
+      type: object
+      additionalProperties: true
+      required: [password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          format: password
+        code:
+          type: string
+    PasswordRecoveryRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        email:
+          type: string
+        phone:
+          type: string
+    PasswordResetRequest:
+      type: object
+      additionalProperties: true
+      required: [password]
+      properties:
+        resetToken:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthSession:
+      type: object
+      additionalProperties: true
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        userId:
+          type: string
+    TransferRequest:
+      type: object
+      additionalProperties: true
+      required: [fromProductLine, toProductLine, asset, amount]
+      properties:
+        fromProductLine:
+          type: string
+        toProductLine:
+          type: string
+        asset:
+          type: string
+        amount:
+          type: integer
+          description: Minimum-unit integer; exact scale is asset-specific.
+    OrderRequest:
+      type: object
+      additionalProperties: true
+      required: [symbol, side, type, quantity]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+        type:
+          type: string
+        quantity:
+          type: number
+        price:
+          type: number
+        clientOrderId:
+          type: string
+    Envelope:
+      type: object
+      additionalProperties: true
+      description: Response envelope remains open until backend publishes a stable DTO.
+    Error:
+      type: object
+      additionalProperties: true
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+  responses:
+    Unauthorized:
+      description: Access token invalid or expired.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BusinessError:
+      description: Business validation or risk rejection.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Surprising EX - Register</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#c02c37",
+                      "on-tertiary-container": "#ffdddb",
+                      "secondary-fixed": "#75fcad",
+                      "outline": "#737688",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary": "#003ec7",
+                      "on-surface-variant": "#434656",
+                      "surface-container-high": "#e9e7ea",
+                      "on-error-container": "#93000a",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "surface-dim": "#dbd9dc",
+                      "on-tertiary-fixed": "#410007",
+                      "on-secondary-fixed": "#00210f",
+                      "on-background": "#1b1c1e",
+                      "error-container": "#ffdad6",
+                      "inverse-on-surface": "#f2f0f3",
+                      "secondary-container": "#75fcad",
+                      "on-error": "#ffffff",
+                      "outline-variant": "#c3c5d9",
+                      "on-secondary-container": "#007443",
+                      "surface-bright": "#fbf9fb",
+                      "primary-container": "#0052ff",
+                      "primary-fixed": "#dde1ff",
+                      "surface-container-low": "#f5f3f6",
+                      "on-surface": "#1b1c1e",
+                      "surface-tint": "#004ced",
+                      "on-primary-container": "#dfe3ff",
+                      "on-secondary-fixed-variant": "#00522e",
+                      "on-primary-fixed": "#001452",
+                      "inverse-surface": "#303033",
+                      "on-primary-fixed-variant": "#0038b6",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-primary": "#b7c4ff",
+                      "surface": "#fbf9fb",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#ffdad8",
+                      "surface-container-highest": "#e3e2e5",
+                      "tertiary": "#9e0d22",
+                      "secondary-fixed-dim": "#56df93",
+                      "secondary": "#006d3f",
+                      "surface-variant": "#e3e2e5",
+                      "background": "#fbf9fb",
+                      "on-tertiary-fixed-variant": "#92001b",
+                      "surface-container": "#efedf0",
+                      "error": "#ba1a1a",
+                      "tertiary-fixed-dim": "#ffb3b0"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "md": "16px",
+                      "xl": "32px",
+                      "2xl": "48px",
+                      "sm": "8px",
+                      "gutter": "16px",
+                      "xs": "4px",
+                      "base": "4px",
+                      "lg": "24px",
+                      "margin-desktop": "32px",
+                      "3xl": "64px"
+              },
+              "fontFamily": {
+                      "body-sm": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "data-mono": ["JetBrains Mono"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-caps": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+          font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md text-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- Navbar Suppressed for Transactional Linear Flow (Registration) -->
+<main class="flex-grow flex items-center justify-center p-margin-mobile md:p-margin-desktop relative overflow-hidden">
+<!-- Decorative Background Element -->
+<div class="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-primary-container/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-secondary-container/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="w-full max-w-[480px] bg-surface border border-outline-variant rounded-xl p-lg md:p-xl shadow-[0_8px_24px_rgba(0,0,0,0.08)] relative z-10">
+<!-- Header -->
+<div class="text-center mb-xl">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface mb-sm">Create Account</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Step 1 of 3: Account Information</p>
+</div>
+<!-- Progress Indicator -->
+<div class="flex gap-xs mb-lg">
+<div class="h-1 flex-1 bg-primary rounded-full"></div>
+<div class="h-1 flex-1 bg-surface-variant rounded-full"></div>
+<div class="h-1 flex-1 bg-surface-variant rounded-full"></div>
+</div>
+<form class="space-y-md">
+<!-- Email Input -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-sm text-body-sm text-on-surface font-semibold" for="email">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">mail</span>
+<input class="w-full pl-xl pr-sm py-sm bg-surface text-on-surface border border-outline-variant rounded focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors font-body-md text-body-md" id="email" placeholder="name@example.com" required="" type="email"/>
+</div>
+</div>
+<!-- Password Input -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-sm text-body-sm text-on-surface font-semibold" for="password">Password</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">lock</span>
+<input class="w-full pl-xl pr-xl py-sm bg-surface text-on-surface border border-outline-variant rounded focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors font-body-md text-body-md" id="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-sm top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors focus:outline-none" type="button">
+<span class="material-symbols-outlined">visibility_off</span>
+</button>
+</div>
+<!-- Password Strength Meter -->
+<div class="mt-2">
+<div class="flex gap-1 mb-1">
+<div class="h-1 flex-1 bg-tertiary rounded-full opacity-30"></div>
+<div class="h-1 flex-1 bg-outline-variant rounded-full"></div>
+<div class="h-1 flex-1 bg-outline-variant rounded-full"></div>
+<div class="h-1 flex-1 bg-outline-variant rounded-full"></div>
+</div>
+<p class="font-body-sm text-body-sm text-outline text-xs">Password must be at least 8 characters</p>
+</div>
+</div>
+<!-- Referral Code (Optional) -->
+<div class="flex flex-col gap-xs">
+<label class="font-body-sm text-body-sm text-on-surface font-semibold" for="referral">Referral Code <span class="text-outline font-normal">(Optional)</span></label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">tag</span>
+<input class="w-full pl-xl pr-sm py-sm bg-surface text-on-surface border border-outline-variant rounded focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors font-data-mono text-data-mono uppercase placeholder:normal-case placeholder:font-body-md" id="referral" placeholder="Enter code" type="text"/>
+</div>
+</div>
+<!-- Terms Checkbox -->
+<div class="flex items-start gap-sm pt-sm">
+<div class="flex items-center h-5">
+<input class="w-4 h-4 border-outline-variant rounded text-primary focus:ring-primary bg-surface" id="terms" required="" type="checkbox"/>
+</div>
+<label class="font-body-sm text-body-sm text-on-surface-variant leading-tight" for="terms">
+                        I agree to the <a class="text-primary hover:underline font-semibold" href="#">Terms of Service</a> and <a class="text-primary hover:underline font-semibold" href="#">Privacy Policy</a>.
+                    </label>
+</div>
+<!-- Submit Button -->
+<div class="pt-sm">
+<button class="w-full py-sm px-md bg-primary text-on-primary font-body-md text-body-md font-semibold rounded hover:bg-primary-fixed-variant transition-colors flex justify-center items-center gap-sm shadow-[0_2px_4px_rgba(0,0,0,0.1)] active:scale-[0.98]" type="submit">
+                        Continue
+                        <span class="material-symbols-outlined" style="font-size: 18px;">arrow_forward</span>
+</button>
+</div>
+</form>
+<!-- Login Link -->
+<div class="mt-lg text-center border-t border-outline-variant pt-lg">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Already have an account?
+                    <a class="text-primary font-semibold hover:underline" href="#">Log in here</a>
+</p>
+</div>
+</div>
+</main>
+<!-- Footer Suppressed for Transactional Flow -->
+<script>
+        // Simple password strength visualization (demo purposes)
+        const pwdInput = document.getElementById('password');
+        const meterBars = document.querySelectorAll('.mt-2 .flex.gap-1 > div');
+
+        pwdInput.addEventListener('input', function(e) {
+            const val = e.target.value;
+            let strength = 0;
+
+            if (val.length > 0) strength = 1; // Weak
+            if (val.length >= 8) strength = 2; // Fair
+            if (val.length >= 8 && /[A-Z]/.test(val) && /[0-9]/.test(val)) strength = 3; // Good
+            if (val.length >= 10 && /[A-Z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)) strength = 4; // Strong
+
+            meterBars.forEach((bar, index) => {
+                bar.className = 'h-1 flex-1 rounded-full transition-all duration-300 ';
+                if (index < strength) {
+                    if (strength === 1) bar.classList.add('bg-tertiary');
+                    else if (strength === 2) bar.classList.add('bg-outline');
+                    else if (strength === 3) bar.classList.add('bg-primary');
+                    else if (strength === 4) bar.classList.add('bg-secondary');
+                } else {
+                    bar.classList.add('bg-outline-variant');
+                }
+            });
+        });
+    </script>
+</body></html>

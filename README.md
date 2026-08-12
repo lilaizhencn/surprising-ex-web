@@ -1,62 +1,24 @@
 # Surprising EX Web
 
-[English](README.md) | [简体中文](README_CN.md)
+Stitch 驱动的 Surprising EX 前端工程。`surprising-ex` 是后端，`surprising-ex-web` 是已废弃旧前端；本项目不从旧前端复制页面代码。
 
-User-facing trading web terminal for Surprising EX, maintained separately from the backend `surprising-ex` repository.
-
-## Features
-
-- Email and password registration/login with email verification and password recovery.
-- JWT access token and refresh token session persistence.
-- Trading workspace for USDT-margined perpetuals, coin-margined perpetuals, and spot markets: market list, candlesticks, order book, trades, order entry, assets, open orders, contract positions, and risk snapshots.
-- REST integration through `surprising-gateway-provider`.
-- WebSocket integration through `surprising-websocket-provider` for public market data and private account updates. TP/SL placement is fixed to mark-price triggering; status snapshots update the open-trigger list immediately, and private WebSocket reconnects trigger a full REST refresh to recover missed events.
-- Production builds never substitute market, account, order, or position data when the backend is unavailable. The UI shows loading, stale, disconnected, or empty states and keeps order submission disabled until a real authenticated response is available. Demo fallback is only enabled explicitly for isolated tests or local design work.
-
-## Local Development
+## 本地运行
 
 ```bash
-pnpm install
-pnpm dev
+bun install
+cp .env.example .env.local
+bun run dev
 ```
 
-Vite proxies `/api` to `http://localhost:9094` by default, so `VITE_API_BASE_URL` is not required for local development.
+可选的本地演示数据必须显式设置 `VITE_ENABLE_DEMO_DATA=true`，并只用于后端不可用时的视觉开发。默认值为关闭。
+
+## 检查命令
 
 ```bash
-VITE_WS_BASE_URL=ws://localhost:9093/ws/v1
+bun run typecheck
+bun run lint
+bun run test
+bun run build
 ```
 
-## Backend Dependencies
-
-Required services:
-
-- `surprising-gateway-provider`: authentication and REST gateway
-- `surprising-websocket-provider`: realtime fanout
-- Market data, trading, account, and risk providers
-
-Core paths:
-
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `/api/v1/gateway/instrument`
-- `/api/v1/gateway/candlestick`
-- `/api/v1/gateway/trading-market`
-- `/api/v1/gateway/trading`
-- `/api/v1/gateway/account`
-  - `/product-balances?accountType=SPOT|USDT_PERPETUAL|COIN_PERPETUAL`
-- `/api/v1/gateway/risk`
-- `ws://localhost:9093/ws/v1` (local development; production derives the current origin when the variable is omitted)
-
-## Deployment
-
-```bash
-VITE_API_BASE_URL=https://ex-api.tokdou.com
-VITE_WS_BASE_URL=wss://ex-api.tokdou.com/ws/v1
-```
-
-Production deployments should expose only the gateway and websocket services, not internal providers.
-
-## License
-
-MIT
+部署配置位于 [`wrangler.jsonc`](./wrangler.jsonc)，输出目录为 `dist`，深层路由使用 SPA fallback。API 接口文档位于 [`docs/api/README.md`](./docs/api/README.md)。

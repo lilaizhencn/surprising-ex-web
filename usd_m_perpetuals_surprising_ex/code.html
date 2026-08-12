@@ -1,0 +1,384 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Surprising EX - USD-M Perpetual</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f2f0f3",
+                        "surface-container-high": "#e9e7ea",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#007443",
+                        "secondary": "#006d3f",
+                        "on-background": "#1b1c1e",
+                        "primary": "#003ec7",
+                        "secondary-container": "#75fcad",
+                        "on-tertiary-fixed": "#410007",
+                        "surface-dim": "#dbd9dc",
+                        "surface-container": "#efedf0",
+                        "primary-fixed": "#dde1ff",
+                        "secondary-fixed-dim": "#56df93",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "surface-tint": "#004ced",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f5f3f6",
+                        "on-surface-variant": "#434656",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#ffdddb",
+                        "tertiary-container": "#c02c37",
+                        "tertiary-fixed": "#ffdad8",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#00210f",
+                        "inverse-primary": "#b7c4ff",
+                        "on-secondary-fixed-variant": "#00522e",
+                        "on-tertiary-fixed-variant": "#92001b",
+                        "surface-bright": "#fbf9fb",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e3e2e5",
+                        "outline-variant": "#c3c5d9",
+                        "secondary-fixed": "#75fcad",
+                        "background": "#fbf9fb",
+                        "outline": "#737688",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#303033",
+                        "primary-container": "#0052ff",
+                        "on-primary-fixed": "#001452",
+                        "surface": "#fbf9fb",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-surface": "#1b1c1e",
+                        "on-primary-container": "#dfe3ff",
+                        "tertiary": "#9e0d22",
+                        "surface-variant": "#e3e2e5",
+                        "tertiary-fixed-dim": "#ffb3b0",
+                        "dark-bg": "#0B0E11",
+                        "dark-surface": "#1E2329",
+                        "dark-border": "#2B3139",
+                        "buy-green": "#0ECB81",
+                        "sell-red": "#F6465D"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "margin-mobile": "16px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "2xl": "48px",
+                        "md": "16px",
+                        "margin-desktop": "32px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Hanken Grotesk"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #0B0E11; color: #EAECEF; }
+        .trading-panel { background-color: #1E2329; border: 1px solid #2B3139; }
+        .buy-text { color: #0ECB81; }
+        .sell-text { color: #F6465D; }
+        .buy-bg { background-color: #0ECB81; color: white; }
+        .sell-bg { background-color: #F6465D; color: white; }
+        .input-dark { background-color: #2B3139; border: 1px solid transparent; color: #EAECEF; }
+        .input-dark:focus { border-color: #0052ff; outline: none; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #474D57; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5E6673; }
+    </style>
+</head>
+<body class="font-body-md min-h-screen flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface dark:bg-[#181A20] border-b border-outline-variant dark:border-[#2B3139]">
+<div class="flex items-center space-x-xl">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-[#FCD535] flex items-center gap-2">
+<span class="material-symbols-outlined text-[#FCD535]">hexagon</span>
+                Surprising EX
+            </div>
+<nav class="hidden md:flex space-x-lg h-12"><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-[#FCD535] transition-colors flex items-center font-body-sm text-body-sm h-full" href="#">Markets</a><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-[#FCD535] transition-colors flex items-center font-body-sm text-body-sm h-full" href="#">Spot</a><div class="relative group flex items-center h-full cursor-pointer"><div class="text-primary dark:text-[#FCD535] border-b-2 border-[#FCD535] pb-1 flex items-center font-body-sm text-body-sm h-full font-bold gap-1">Perpetuals <span class="material-symbols-outlined text-sm">expand_more</span></div></div><div class="relative group flex items-center h-full cursor-pointer"><div class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-[#FCD535] transition-colors flex items-center font-body-sm text-body-sm h-full gap-1">Futures <span class="material-symbols-outlined text-sm">expand_more</span></div></div><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-[#FCD535] transition-colors flex items-center font-body-sm text-body-sm h-full" href="#">Options</a><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-[#FCD535] transition-colors flex items-center font-body-sm text-body-sm h-full" href="#">Assets</a></nav>
+</div>
+<div class="flex items-center space-x-md">
+<span class="material-symbols-outlined cursor-pointer hover:text-[#FCD535] text-outline-variant transition-colors">search</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#FCD535] text-outline-variant transition-colors">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#FCD535] text-outline-variant transition-colors">dark_mode</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#FCD535] text-outline-variant transition-colors">account_circle</span>
+</div>
+</header>
+<!-- Main Trading Workspace -->
+<main class="flex-1 mt-12 flex flex-col h-[calc(100vh-48px)] p-1 gap-1">
+<!-- Ticker Header -->
+<div class="trading-panel h-[60px] flex items-center px-4 shrink-0 rounded flex-wrap gap-4 overflow-x-auto hide-scrollbar">
+<div class="flex items-center gap-3 pr-6 border-r border-dark-border">
+<span class="font-headline-md text-headline-md font-bold">BTCUSDT</span>
+<span class="text-[#FCD535] bg-[#FCD535]/10 px-2 py-0.5 rounded text-xs font-bold border border-[#FCD535]/20">Perp</span>
+<a class="text-xs text-outline underline" href="#">BTCUSDT</a>
+</div>
+<div class="flex flex-col justify-center px-4">
+<span class="font-data-mono text-buy-green text-lg font-bold">64,230.50</span>
+<span class="font-data-mono text-xs text-outline">$64,230.50</span>
+</div>
+<div class="flex flex-col justify-center px-4">
+<span class="text-xs text-outline">24h Change</span>
+<span class="font-data-mono text-buy-green text-sm">+2.45%</span>
+</div>
+<div class="flex flex-col justify-center px-4">
+<span class="text-xs text-outline">24h High</span>
+<span class="font-data-mono text-sm">65,100.00</span>
+</div>
+<div class="flex flex-col justify-center px-4">
+<span class="text-xs text-outline">24h Low</span>
+<span class="font-data-mono text-sm">62,800.00</span>
+</div>
+<div class="flex flex-col justify-center px-4">
+<span class="text-xs text-outline">24h Vol(BTC)</span>
+<span class="font-data-mono text-sm">45,123.45</span>
+</div>
+<div class="flex flex-col justify-center px-4 border-l border-dark-border pl-6 ml-auto">
+<span class="text-xs text-outline underline cursor-pointer">Funding / Countdown</span>
+<span class="font-data-mono text-[#FCD535] text-sm">0.0100% / 03:45:12</span>
+</div>
+</div>
+<!-- Middle Row: Chart, Orderbook, Order Entry -->
+<div class="flex-1 flex gap-1 min-h-0">
+<!-- Chart Area -->
+<div class="flex-1 trading-panel rounded flex flex-col">
+<div class="h-10 border-b border-dark-border flex items-center px-4 gap-4">
+<span class="text-sm font-bold text-[#FCD535] border-b-2 border-[#FCD535] h-full flex items-center">Price</span>
+<span class="text-sm text-outline hover:text-white cursor-pointer">Funding</span>
+<div class="ml-auto flex gap-2">
+<span class="text-xs text-outline px-2 py-1 bg-dark-bg rounded cursor-pointer hover:text-white">15m</span>
+<span class="text-xs text-outline px-2 py-1 bg-dark-bg rounded cursor-pointer hover:text-white">1H</span>
+<span class="text-xs text-outline px-2 py-1 bg-dark-bg rounded cursor-pointer hover:text-white">4H</span>
+</div>
+</div>
+<div class="flex-1 bg-dark-bg relative overflow-hidden flex items-center justify-center"><!-- TradingView Toolbar -->
+<div class="absolute top-0 left-0 right-0 h-8 bg-[#1E2329] border-b border-dark-border flex items-center px-2 gap-3 z-20">
+    <div class="flex items-center gap-1 border-r border-dark-border pr-2">
+        <span class="text-xs font-bold text-white">BTCUSDT</span>
+        <span class="text-[10px] text-outline">1H</span>
+        <span class="material-symbols-outlined text-xs text-outline">expand_more</span>
+    </div>
+    <div class="flex items-center gap-2 border-r border-dark-border pr-2">
+        <span class="material-symbols-outlined text-sm text-outline cursor-pointer hover:text-white">show_chart</span>
+        <span class="material-symbols-outlined text-sm text-outline cursor-pointer hover:text-white">candlestick_chart</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="text-[10px] text-outline cursor-pointer hover:text-white">Indicators</span>
+        <span class="material-symbols-outlined text-sm text-outline cursor-pointer hover:text-white">settings</span>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm text-outline cursor-pointer hover:text-white">photo_camera</span>
+        <span class="material-symbols-outlined text-sm text-outline cursor-pointer hover:text-white">fullscreen</span>
+    </div>
+</div>
+<!-- Chart Background -->
+<div class="absolute inset-0 bg-[url('placeholder')] bg-cover bg-center opacity-40" data-alt="A professional TradingView chart interface for BTCUSDT. The chart shows a series of green and red candlesticks with technical indicators like Bollinger Bands and RSI at the bottom. The background is a dark charcoal grid with price levels on the right Y-axis and time on the bottom X-axis."></div>
+<!-- Price Axis Overlay -->
+<div class="absolute right-0 top-8 bottom-0 w-12 bg-[#1E2329]/80 border-l border-dark-border flex flex-col justify-between py-4 text-[10px] text-outline font-data-mono z-10">
+    <span class="">66,000</span>
+    <span class="">65,000</span>
+    <span class="bg-buy-green text-white px-1">64,230</span>
+    <span class="">63,000</span>
+    <span class="">62,000</span>
+</div>
+<!-- Time Axis Overlay -->
+<div class="absolute bottom-0 left-0 right-12 h-6 bg-[#1E2329]/80 border-t border-dark-border flex justify-between px-8 items-center text-[10px] text-outline font-data-mono z-10">
+    <span class="">12:00</span>
+    <span class="">13:00</span>
+    <span class="">14:00</span>
+    <span class="">15:00</span>
+    <span class="">16:00</span>
+</div></div>
+</div>
+<!-- Order Book & Trades -->
+<div class="w-[300px] trading-panel rounded flex flex-col shrink-0">
+<div class="h-10 border-b border-dark-border flex">
+<button class="flex-1 text-sm font-bold text-white border-b-2 border-[#FCD535]">Order Book</button>
+<button class="flex-1 text-sm text-outline hover:text-white">Trades</button>
+</div>
+<div class="flex text-xs text-outline px-2 py-2">
+<span class="flex-1">Price(USDT)</span>
+<span class="flex-1 text-right">Size(BTC)</span>
+<span class="flex-1 text-right">Total</span>
+</div>
+<!-- Asks -->
+<div class="flex-1 overflow-y-auto px-2 font-data-mono text-sm flex flex-col justify-end pb-1">
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-sell-red/10 w-[80%] z-0"></div><span class="flex-1 text-sell-red z-10">64,235.50</span><span class="flex-1 text-right z-10 text-gray-300">0.543</span><span class="flex-1 text-right z-10 text-gray-400">12.5</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-sell-red/10 w-[60%] z-0"></div><span class="flex-1 text-sell-red z-10">64,234.00</span><span class="flex-1 text-right z-10 text-gray-300">1.200</span><span class="flex-1 text-right z-10 text-gray-400">11.9</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-sell-red/10 w-[40%] z-0"></div><span class="flex-1 text-sell-red z-10">64,232.50</span><span class="flex-1 text-right z-10 text-gray-300">0.125</span><span class="flex-1 text-right z-10 text-gray-400">10.7</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-sell-red/10 w-[70%] z-0"></div><span class="flex-1 text-sell-red z-10">64,231.00</span><span class="flex-1 text-right z-10 text-gray-300">3.500</span><span class="flex-1 text-right z-10 text-gray-400">10.5</span></div>
+</div>
+<!-- Spread -->
+<div class="py-2 px-2 border-y border-dark-border flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="font-data-mono text-buy-green text-lg font-bold">64,230.50</span>
+<span class="material-symbols-outlined text-buy-green text-sm">arrow_upward</span>
+</div>
+<span class="text-xs text-outline underline cursor-pointer">Index: 64,230.12</span>
+</div>
+<!-- Bids -->
+<div class="flex-1 overflow-y-auto px-2 font-data-mono text-sm pt-1">
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-buy-green/10 w-[30%] z-0"></div><span class="flex-1 text-buy-green z-10">64,230.00</span><span class="flex-1 text-right z-10 text-gray-300">2.100</span><span class="flex-1 text-right z-10 text-gray-400">2.1</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-buy-green/10 w-[50%] z-0"></div><span class="flex-1 text-buy-green z-10">64,229.50</span><span class="flex-1 text-right z-10 text-gray-300">1.050</span><span class="flex-1 text-right z-10 text-gray-400">3.1</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-buy-green/10 w-[90%] z-0"></div><span class="flex-1 text-buy-green z-10">64,228.00</span><span class="flex-1 text-right z-10 text-gray-300">5.000</span><span class="flex-1 text-right z-10 text-gray-400">8.1</span></div>
+<div class="flex hover:bg-white/5 cursor-pointer relative"><div class="absolute right-0 top-0 bottom-0 bg-buy-green/10 w-[20%] z-0"></div><span class="flex-1 text-buy-green z-10">64,225.00</span><span class="flex-1 text-right z-10 text-gray-300">0.500</span><span class="flex-1 text-right z-10 text-gray-400">8.6</span></div>
+</div>
+</div>
+<!-- Order Entry Panel -->
+<div class="w-[320px] trading-panel rounded flex flex-col shrink-0 p-4">
+<!-- Margin Mode & Leverage -->
+<div class="flex justify-between items-center mb-4">
+<button class="bg-dark-bg text-sm px-3 py-1 rounded border border-dark-border hover:border-outline transition-colors flex items-center gap-1">
+                        Cross <span class="material-symbols-outlined text-sm">edit</span>
+</button>
+<button class="bg-dark-bg text-sm px-3 py-1 rounded border border-dark-border hover:border-outline transition-colors flex items-center gap-1 font-bold text-[#FCD535]">
+                        20x <span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<!-- Order Types -->
+<div class="flex gap-4 border-b border-dark-border pb-2 mb-4">
+<span class="text-sm font-bold text-[#FCD535] cursor-pointer">Limit</span>
+<span class="text-sm text-outline hover:text-white cursor-pointer">Market</span>
+<span class="text-sm text-outline hover:text-white cursor-pointer">Stop Limit</span>
+</div>
+<div class="flex justify-between text-xs text-outline mb-2">
+<span class="">Avail</span>
+<span class="font-data-mono text-white">12,450.00 USDT</span>
+</div>
+<!-- Inputs -->
+<div class="space-y-3">
+<div class="flex items-center bg-dark-bg border border-dark-border rounded px-3 py-2">
+<span class="text-xs text-outline w-12">Price</span>
+<input class="flex-1 bg-transparent border-none text-right font-data-mono text-sm text-white focus:ring-0" type="text" value="64230.50">
+<span class="text-xs text-outline ml-2">USDT</span>
+</div>
+<div class="flex items-center bg-dark-bg border border-dark-border rounded px-3 py-2">
+<span class="text-xs text-outline w-12">Size</span>
+<input class="flex-1 bg-transparent border-none text-right font-data-mono text-sm text-white focus:ring-0" placeholder="0.00" type="text">
+<span class="text-xs text-outline ml-2">BTC</span>
+</div>
+<!-- Slider placeholder -->
+<div class="pt-2 pb-4">
+<div class="h-1 bg-dark-border rounded relative">
+<div class="absolute left-0 top-0 h-full bg-[#FCD535] w-0 rounded"></div>
+<div class="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-[#FCD535] rounded-full cursor-pointer"></div>
+</div>
+<div class="flex justify-between text-[10px] text-outline mt-1">
+<span class="">0%</span>
+<span class="">25%</span>
+<span class="">50%</span>
+<span class="">75%</span>
+<span class="">100%</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-xs mb-4">
+<label class="flex items-center gap-1 cursor-pointer">
+<input class="rounded bg-dark-bg border-dark-border text-[#FCD535] focus:ring-0 focus:ring-offset-0" type="checkbox">
+<span class="text-outline">TP/SL</span>
+</label>
+<label class="flex items-center gap-1 cursor-pointer">
+<input class="rounded bg-dark-bg border-dark-border text-[#FCD535] focus:ring-0 focus:ring-offset-0" type="checkbox">
+<span class="text-outline">Reduce Only</span>
+</label>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 buy-bg py-2 rounded font-bold text-sm hover:opacity-90 transition-opacity">Buy / Long</button>
+<button class="flex-1 sell-bg py-2 rounded font-bold text-sm hover:opacity-90 transition-opacity">Sell / Short</button>
+</div>
+<div class="flex justify-between text-xs text-outline mt-4">
+<span class="">Cost</span>
+<span class="font-data-mono">0.00 USDT</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Panel: Positions & Orders -->
+<div class="trading-panel h-[250px] shrink-0 rounded flex flex-col">
+<div class="h-10 border-b border-dark-border flex px-4 gap-6">
+<button class="text-sm font-bold text-[#FCD535] border-b-2 border-[#FCD535] h-full flex items-center gap-1">Positions <span class="bg-dark-border px-1.5 py-0.5 rounded text-xs text-white">1</span></button>
+<button class="text-sm text-outline hover:text-white h-full flex items-center gap-1">Open Orders <span class="bg-dark-border px-1.5 py-0.5 rounded text-xs text-outline">0</span></button>
+<button class="text-sm text-outline hover:text-white h-full flex items-center">Order History</button>
+<button class="text-sm text-outline hover:text-white h-full flex items-center">Transaction Log</button>
+</div>
+<div class="flex-1 overflow-auto p-4">
+<table class="w-full text-sm text-left">
+<thead class="text-xs text-outline">
+<tr>
+<th class="pb-2 font-normal">Symbol</th>
+<th class="pb-2 font-normal text-right">Size</th>
+<th class="pb-2 font-normal text-right">Entry Price</th>
+<th class="pb-2 font-normal text-right">Mark Price</th>
+<th class="pb-2 font-normal text-right">Liq. Price</th>
+<th class="pb-2 font-normal text-right">Margin Ratio</th>
+<th class="pb-2 font-normal text-right">Margin</th>
+<th class="pb-2 font-normal text-right">PNL (ROE%)</th>
+<th class="pb-2 font-normal text-right">Action</th>
+</tr>
+</thead>
+<tbody class="font-data-mono">
+<tr class="border-t border-dark-border hover:bg-white/5">
+<td class="py-3">
+<div class="flex items-center gap-2">
+<div class="w-1 h-4 bg-buy-green rounded-sm"></div>
+<span class="font-bold">BTCUSDT</span>
+<span class="text-xs text-[#FCD535] border border-[#FCD535]/30 rounded px-1">20x</span>
+</div>
+</td>
+<td class="py-3 text-right text-buy-green">0.500</td>
+<td class="py-3 text-right">62,100.00</td>
+<td class="py-3 text-right">64,230.50</td>
+<td class="py-3 text-right text-[#FCD535]">59,500.00</td>
+<td class="py-3 text-right">8.5%</td>
+<td class="py-3 text-right">1,552.50</td>
+<td class="py-3 text-right text-buy-green">+1,065.25 (68.61%)</td>
+<td class="py-3 text-right">
+<button class="text-xs bg-dark-border hover:bg-outline text-white px-2 py-1 rounded transition-colors">Close</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+
+
+</body></html>

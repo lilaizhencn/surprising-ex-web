@@ -2,33 +2,34 @@
   "name": "surprising-ex-web",
   "private": true,
   "version": "0.1.0",
-  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "lint": "tsc -b --pretty false",
-    "test": "node --experimental-strip-types --test test/*.test.ts",
-    "test:valuation": "node --experimental-strip-types --test test/valuation.test.ts",
-    "doctor": "npx react-doctor@latest"
+    "typecheck": "tsc -b --pretty false",
+    "lint": "biome check src --error-on-warnings",
+    "test": "vitest run",
+    "doctor": "react-doctor"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "6.0.3",
-    "lightweight-charts": "5.2.0",
-    "lucide-react": "1.22.0",
-    "qrcode.react": "^4.2.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "@vitejs/plugin-react": "latest",
+    "ky": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
   },
   "devDependencies": {
+    "@biomejs/biome": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "react-doctor": "^0.9.4",
-    "react-grab": "^0.1.50",
-    "react-scan": "^0.5.7",
-    "typescript": "6.0.3",
-    "vite": "8.1.2"
+    "react-doctor": "latest",
+    "react-grab": "latest",
+    "react-scan": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
   },
   "engines": {
     "node": ">=22.16.0"

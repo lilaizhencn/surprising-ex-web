@@ -1,0 +1,457 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Withdraw - Surprising EX</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e3e2e5",
+                        "outline-variant": "#c3c5d9",
+                        "inverse-on-surface": "#f2f0f3",
+                        "surface-container-high": "#e9e7ea",
+                        "surface-container": "#efedf0",
+                        "secondary-fixed-dim": "#56df93",
+                        "inverse-surface": "#303033",
+                        "tertiary-container": "#c02c37",
+                        "surface-bright": "#fbf9fb",
+                        "secondary": "#006d3f",
+                        "secondary-container": "#75fcad",
+                        "secondary-fixed": "#75fcad",
+                        "surface": "#fbf9fb",
+                        "on-error-container": "#93000a",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#ffdddb",
+                        "on-primary-fixed": "#001452",
+                        "tertiary-fixed": "#ffdad8",
+                        "primary-container": "#0052ff",
+                        "on-surface-variant": "#434656",
+                        "surface-tint": "#004ced",
+                        "on-tertiary-fixed": "#410007",
+                        "on-tertiary-fixed-variant": "#92001b",
+                        "primary": "#003ec7",
+                        "primary-fixed": "#dde1ff",
+                        "surface-container-highest": "#e3e2e5",
+                        "on-secondary": "#ffffff",
+                        "outline": "#737688",
+                        "on-secondary-fixed-variant": "#00522e",
+                        "inverse-primary": "#b7c4ff",
+                        "tertiary-fixed-dim": "#ffb3b0",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#dfe3ff",
+                        "background": "#fbf9fb",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#1b1c1e",
+                        "error-container": "#ffdad6",
+                        "on-background": "#1b1c1e",
+                        "surface-container-low": "#f5f3f6",
+                        "on-secondary-fixed": "#00210f",
+                        "on-secondary-container": "#007443",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#dbd9dc",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "tertiary": "#9e0d22"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "margin-desktop": "32px",
+                        "2xl": "48px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "gutter": "16px",
+                        "3xl": "64px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .data-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Tonal layering utilities */
+        .layer-1 { border: 1px solid #ECEFF3; }
+        .focus-ring:focus-within { border-color: #003ec7; border-width: 2px; margin: -1px; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface dark:bg-background border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-xl h-full">
+<a class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim flex items-center" href="#">
+                Surprising EX
+            </a>
+<div class="hidden md:flex h-full items-center gap-lg">
+<a class="h-full flex items-center font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80" href="#">Buy Crypto</a>
+<a class="h-full flex items-center font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80" href="#">Markets</a>
+<a class="h-full flex items-center font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80" href="#">Trade</a>
+<a class="h-full flex items-center font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80" href="#">Derivatives</a>
+<a class="h-full flex items-center font-body-md text-body-md text-primary dark:text-primary-fixed-dim border-b-2 border-primary pb-1 cursor-pointer active:opacity-80" href="#">Assets</a>
+</div>
+</div>
+<div class="flex items-center gap-md text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined cursor-pointer hover:opacity-80 transition-opacity">search</span>
+<span class="material-symbols-outlined cursor-pointer hover:opacity-80 transition-opacity">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:opacity-80 transition-opacity">dark_mode</span>
+<span class="material-symbols-outlined cursor-pointer hover:opacity-80 transition-opacity">account_circle</span>
+</div>
+</nav>
+<div class="flex flex-1 pt-12 overflow-hidden h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-12 bottom-0 w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container border-r border-outline-variant dark:border-outline py-lg">
+<div class="px-md mb-lg flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-headline-md text-headline-md font-bold">
+                    P
+                </div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Assets</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Manage your holdings</p>
+</div>
+</div>
+<nav class="flex flex-col gap-sm px-sm"><a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                    Overview
+                </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+                    Spot
+                </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+                    Perpetuals (永续)
+                </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">contract</span>
+                    Futures (交割)
+                </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">layers</span>
+                    Options (期权)
+                </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">history</span>
+                    History
+                </a></nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 bg-surface overflow-y-auto p-margin-mobile md:p-margin-desktop pb-3xl">
+<div class="max-w-6xl mx-auto">
+<header class="mb-lg flex justify-between items-end">
+<div>
+<h1 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Withdraw Crypto</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Send digital assets to an external wallet or internal account.</p>
+</div>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
+<!-- Left Column: Form -->
+<div class="lg:col-span-8 flex flex-col gap-lg">
+<!-- 1. Select Asset -->
+<section class="bg-surface-container-lowest layer-1 rounded-xl p-lg">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">1. Select Asset</h3>
+<div class="relative focus-ring rounded-lg border border-outline-variant bg-surface-container-low transition-colors duration-200 cursor-pointer group hover:bg-surface-container-high" onclick="toggleDropdown('assetDropdown')">
+<div class="flex items-center justify-between p-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-[#F7931A] flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm">currency_bitcoin</span>
+</div>
+<div>
+<div class="font-body-md text-body-md font-semibold text-on-surface">BTC</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">Bitcoin</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">expand_more</span>
+</div>
+</div>
+<!-- Dropdown (Hidden by default, mocked for design) -->
+<div class="hidden mt-xs border border-outline-variant rounded-lg bg-surface-container-lowest shadow-[0_8px_24px_rgba(0,0,0,0.08)] max-h-60 overflow-y-auto absolute z-10 w-full md:w-[60%]" id="assetDropdown">
+<!-- Search inside dropdown -->
+<div class="p-sm border-b border-outline-variant sticky top-0 bg-surface-container-lowest">
+<div class="flex items-center bg-surface-container-low rounded px-sm py-xs">
+<span class="material-symbols-outlined text-outline text-sm mr-xs">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm w-full outline-none" placeholder="Search coin" type="text">
+</div>
+</div>
+<div class="p-md hover:bg-surface-container-low cursor-pointer flex items-center gap-sm transition-colors border-b border-outline-variant">
+<div class="w-6 h-6 rounded-full bg-[#627EEA] flex items-center justify-center text-white text-xs">ETH</div>
+<div>
+<div class="font-body-sm text-body-sm font-semibold">ETH</div>
+<div class="font-label-caps text-label-caps text-outline">Ethereum</div>
+</div>
+</div>
+<div class="p-md hover:bg-surface-container-low cursor-pointer flex items-center gap-sm transition-colors">
+<div class="w-6 h-6 rounded-full bg-[#26A17B] flex items-center justify-center text-white text-xs">USDT</div>
+<div>
+<div class="font-body-sm text-body-sm font-semibold">USDT</div>
+<div class="font-label-caps text-label-caps text-outline">Tether</div>
+</div>
+</div>
+</div>
+<div class="mt-md flex items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+<p class="font-body-sm text-body-sm">Available networks will be filtered based on your selected asset.</p>
+</div></section>
+<!-- 2. Transfer Type & Address Details -->
+<section class="bg-surface-container-lowest layer-1 rounded-xl p-lg">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-headline-md text-headline-md text-on-surface">2. Transfer Details</h3>
+</div>
+<!-- Transfer Method Tabs -->
+<div class="flex p-xs bg-surface-container-low rounded-lg mb-lg">
+<button class="flex-1 py-sm font-body-sm text-body-sm font-semibold bg-surface-container-lowest rounded-md shadow-sm border border-outline-variant text-primary transition-all">
+                                    On-Chain
+                                </button>
+<button class="flex-1 py-sm font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-all">
+                                    Internal Transfer
+                                </button>
+</div>
+<!-- Network Selection -->
+<div class="mb-lg">
+<label class="block font-body-sm text-body-sm text-on-surface-variant mb-xs">Select Network</label>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-sm">
+<div class="border border-primary rounded-lg p-sm cursor-pointer bg-primary-container/5 hover:bg-primary-container/10 transition-colors relative">
+<div class="font-body-sm text-body-sm font-semibold text-primary">Bitcoin</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-xs">Fee: 0.0002 BTC</div>
+<div class="font-label-caps text-label-caps text-outline mt-base">~10 mins</div>
+<div class="absolute top-sm right-sm text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div class="border border-outline-variant rounded-lg p-sm cursor-pointer hover:border-primary/50 transition-colors opacity-50">
+<div class="font-body-sm text-body-sm font-semibold text-on-surface">BSC (BEP20)</div>
+<div class="font-label-caps text-label-caps text-error mt-xs">Suspended</div>
+<div class="font-label-caps text-label-caps text-outline mt-base">--</div>
+</div>
+<div class="border border-outline-variant rounded-lg p-sm cursor-pointer hover:border-primary/50 transition-colors">
+<div class="font-body-sm text-body-sm font-semibold text-on-surface">Lightning</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant mt-xs">Fee: 0.00001 BTC</div>
+<div class="font-label-caps text-label-caps text-outline mt-base">~1 min</div>
+</div>
+</div>
+<div class="mt-sm flex items-start gap-xs text-secondary bg-secondary-container/10 p-sm rounded-lg border border-secondary/20">
+<span class="material-symbols-outlined text-sm mt-[2px]">info</span>
+<p class="font-body-sm text-body-sm">Ensure the recipient's network matches the network selected here to avoid permanent loss of funds.</p>
+</div>
+</div>
+<!-- Address Input -->
+<div>
+<label class="block font-body-sm text-body-sm text-on-surface-variant mb-xs">Recipient Address</label>
+<div class="relative focus-ring rounded-lg border border-outline-variant bg-surface-container-low flex items-center">
+<input class="w-full bg-transparent border-none focus:ring-0 font-data-mono text-data-mono text-on-surface px-md py-sm placeholder:text-outline-variant placeholder:font-body-sm outline-none" placeholder="Enter or paste BTC address" type="text">
+<div class="flex items-center pr-sm gap-xs border-l border-outline-variant pl-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center rounded" title="Address Book">
+<span class="material-symbols-outlined text-[20px]">contacts</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center rounded" title="Scan QR">
+<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Amount -->
+<section class="bg-surface-container-lowest layer-1 rounded-xl p-lg">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-headline-md text-headline-md text-on-surface">3. Withdrawal Amount</h3>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+                                    Available: <span class="font-data-mono text-data-mono text-on-surface">1.24500000 BTC</span>
+</div>
+</div>
+<div class="relative focus-ring rounded-lg border border-outline-variant bg-surface-container-low flex items-center mb-sm">
+<input class="w-full bg-transparent border-none focus:ring-0 font-data-mono text-data-mono text-on-surface px-md py-sm outline-none placeholder:text-outline-variant" placeholder="0.00" type="number">
+<div class="flex items-center pr-md gap-sm">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">BTC</span>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<button class="font-label-caps text-label-caps font-bold text-primary hover:text-primary-container transition-colors uppercase tracking-wider">Max</button>
+</div>
+</div>
+<div class="flex justify-between items-center font-body-sm text-body-sm text-outline">
+<span class="">Min. Withdrawal: 0.001 BTC</span>
+<span class="">24h Limit: 100 BTC</span>
+</div>
+</section>
+</div>
+<!-- Right Column: Summary & Security -->
+<div class="lg:col-span-4 flex flex-col gap-lg">
+<!-- Summary Card -->
+<div class="bg-surface-container-lowest layer-1 rounded-xl p-lg sticky top-20">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-lg">Summary</h3>
+<div class="space-y-sm mb-lg border-b border-outline-variant pb-md">
+<div class="flex justify-between items-center font-body-sm text-body-sm">
+<span class="text-on-surface-variant">Amount</span>
+<span class="font-data-mono text-data-mono text-on-surface">-- BTC</span>
+</div>
+<div class="flex justify-between items-center font-body-sm text-body-sm">
+<span class="text-on-surface-variant">Network Fee</span>
+<span class="font-data-mono text-data-mono text-on-surface">0.0002 BTC</span>
+</div>
+</div>
+<div class="flex justify-between items-end mb-xl">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Receive Amount</span>
+<div class="text-right">
+<div class="font-headline-md text-headline-md font-bold text-on-surface font-data-mono data-mono">0.00000000 BTC</div>
+<div class="font-body-sm text-body-sm text-outline mt-xs">≈ $0.00 USD</div>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-primary-container text-on-primary font-body-md text-body-md font-semibold py-md rounded-lg transition-colors flex justify-center items-center gap-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                Withdraw
+                            </button>
+</div>
+<!-- Security Notice -->
+<div class="bg-surface-container-lowest layer-1 rounded-xl p-lg">
+<div class="flex items-center gap-sm mb-md text-on-surface">
+<span class="material-symbols-outlined text-primary">security</span>
+<h4 class="font-body-md text-body-md font-semibold">Security Tips</h4>
+</div>
+<ul class="space-y-sm font-body-sm text-body-sm text-on-surface-variant list-disc pl-md">
+<li class="">Always double-check the recipient address before confirming.</li>
+<li class="">Ensure the selected network matches the receiving platform.</li>
+<li class="">Surprising EX will never ask for your password or 2FA codes.</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Recent Withdrawals -->
+<section class="mt-2xl">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">Recent Withdrawals</h3>
+<div class="bg-surface-container-lowest layer-1 rounded-xl overflow-hidden overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps text-on-surface-variant">
+<th class="p-md font-semibold uppercase tracking-wider">Asset</th>
+<th class="p-md font-semibold uppercase tracking-wider">Date &amp; Time</th>
+<th class="p-md font-semibold uppercase tracking-wider">Address / TxID</th>
+<th class="p-md font-semibold uppercase tracking-wider text-right">Amount</th>
+<th class="p-md font-semibold uppercase tracking-wider text-right">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm text-on-surface">
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors">
+<td class="p-md font-semibold">ETH</td>
+<td class="p-md text-on-surface-variant">2024-05-12 14:32:01</td>
+<td class="p-md">
+<div class="font-data-mono text-data-mono truncate max-w-[200px]">0x71C...976F</div>
+<a class="font-label-caps text-label-caps text-primary hover:underline flex items-center gap-[2px] mt-xs" href="#">
+                                            TxID <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</a>
+</td>
+<td class="p-md text-right font-data-mono text-data-mono">2.500000</td>
+<td class="p-md text-right">
+<span class="inline-flex items-center gap-xs px-sm py-[2px] rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 font-label-caps text-label-caps">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                                            Completed
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-md font-semibold">USDT</td>
+<td class="p-md text-on-surface-variant">2024-05-10 09:15:44</td>
+<td class="p-md">
+<div class="font-data-mono text-data-mono truncate max-w-[200px]">TJv...8kM</div>
+<a class="font-label-caps text-label-caps text-primary hover:underline flex items-center gap-[2px] mt-xs" href="#">
+                                            TxID <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</a>
+</td>
+<td class="p-md text-right font-data-mono text-data-mono">500.00</td>
+<td class="p-md text-right">
+<span class="inline-flex items-center gap-xs px-sm py-[2px] rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 font-label-caps text-label-caps">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                                            Completed
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Footer -->
+<footer class="mt-3xl w-full py-xl px-lg grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-lg bg-surface-container-lowest dark:bg-surface-container-low border-t border-outline-variant dark:border-outline font-body-sm text-body-sm">
+<div class="col-span-2 lg:col-span-1 flex flex-col gap-sm">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">Surprising EX</span>
+<span class="text-on-surface-variant dark:text-outline-variant mt-sm">© 2024 Surprising EX. All rights reserved.</span>
+</div>
+<div class="flex flex-col gap-md">
+<span class="font-bold text-on-surface">Products</span>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Buy Crypto</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Trade</a>
+</div>
+<div class="flex flex-col gap-md">
+<span class="font-bold text-on-surface">Support</span>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Help Center</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Fees</a>
+</div>
+<div class="flex flex-col gap-md">
+<span class="font-bold text-on-surface">Company</span>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">About Us</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Careers</a>
+</div>
+<div class="flex flex-col gap-md">
+<span class="font-bold text-on-surface">Legal</span>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Terms of Service</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Privacy Policy</a>
+</div>
+</footer>
+</main>
+</div>
+<script>
+        function toggleDropdown(id) {
+            const dropdown = document.getElementById(id);
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('assetDropdown');
+            if (!event.target.closest('.group') && !event.target.closest('#assetDropdown')) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    </script>
+
+
+</body></html>

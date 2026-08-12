@@ -1,108 +1,119 @@
-import { config, storageKeys } from "../config";
-import type { AuthSession } from "../types";
+import ky, { type Options } from "ky"
+import type { z } from "zod"
+import { config } from "../lib/config"
+import { loadSession, saveSession } from "../state/session"
+import type { ProductLine } from "../types/domain"
+import type { AuthSession } from "./types"
+import { AuthSessionSchema } from "./types"
 
 export class ApiError extends Error {
+  readonly name = "ApiError"
+
   constructor(
     message: string,
-    public readonly status: number,
-    public readonly payload?: unknown
+    readonly status: number,
+    readonly payload: unknown = null,
   ) {
-    super(message);
+    super(message)
   }
 }
 
-export function loadSession(): AuthSession | null {
-  const raw = localStorage.getItem(storageKeys.auth);
-  if (!raw) return null;
+export type RequestOptions = {
+  readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+  readonly body?: unknown
+  readonly headers?: Readonly<Record<string, string>>
+  readonly productLine?: ProductLine
+  readonly idempotencyKey?: string
+  readonly signal?: AbortSignal
+}
+
+export async function request<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  options: RequestOptions = {},
+  allowRefresh = true,
+): Promise<T> {
+  const method = options.method ?? "GET"
+  const session = loadSession()
+  const headers = new Headers(options.headers)
+  if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
+  if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
+  if (options.productLine) headers.set("X-Product-Line", options.productLine)
+  if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
+  if (options.body !== undefined) headers.set("Content-Type", "application/json")
+
+  const requestOptions: Options = {
+    method,
+    headers,
+    timeout: 10_000,
+    retry: method === "GET" ? { limit: 1, methods: ["get"] } : { limit: 0 },
+    throwHttpErrors: false,
+  }
+  if (options.body !== undefined) requestOptions.body = JSON.stringify(options.body)
+  if (options.signal !== undefined) requestOptions.signal = options.signal
+  const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
+  const raw = await response.text()
+  const payload = parseResponse(raw)
+
+  if (
+    response.status === 401 &&
+    allowRefresh &&
+    session?.refreshToken &&
+    !path.includes("/auth/refresh")
+  ) {
+    try {
+      const refreshed = await request<AuthSession>(
+        "/api/v1/auth/refresh",
+        AuthSessionSchema,
+        { method: "POST", body: { refreshToken: session.refreshToken } },
+        false,
+      )
+      saveSession(refreshed)
+      return request(path, schema, options, false)
+    } catch (error) {
+      if (error instanceof ApiError) saveSession(null)
+      throw error
+    }
+  }
+
+  if (!response.ok)
+    throw new ApiError(readableMessage(payload, response.status), response.status, payload)
+  if (response.status === 204) return schema.parse(null)
+
+  const result = schema.safeParse(payload)
+  if (!result.success) {
+    throw new ApiError(
+      "接口响应格式与当前前端契约不一致。",
+      response.status,
+      result.error.flatten(),
+    )
+  }
+  return result.data
+}
+
+function parseResponse(raw: string): unknown {
+  if (!raw.trim()) return null
   try {
-    return JSON.parse(raw) as AuthSession;
-  } catch {
-    localStorage.removeItem(storageKeys.auth);
-    return null;
+    return JSON.parse(raw)
+  } catch (error) {
+    if (error instanceof SyntaxError) return raw
+    throw error
   }
 }
 
-export function saveSession(session: AuthSession | null): void {
-  if (!session) {
-    localStorage.removeItem(storageKeys.auth);
-    return;
+function readableMessage(payload: unknown, status: number): string {
+  if (typeof payload === "string" && payload.trimStart().startsWith("<")) {
+    return "接口返回了 HTML，请检查 API 地址、SPA 代理或 Gateway 路由。"
   }
-  localStorage.setItem(storageKeys.auth, JSON.stringify(session));
+  if (isRecord(payload)) {
+    for (const key of ["detail", "message", "error", "errorMessage"]) {
+      const value = payload[key]
+      if (typeof value === "string" && value.trim()) return value
+    }
+  }
+  return `请求失败（HTTP ${status}）。`
 }
 
-export interface ApiRequestInit extends RequestInit {
-  productLine?: string;
-}
-
-export async function request<T>(path: string, options: ApiRequestInit = {}, session?: AuthSession | null): Promise<T> {
-  const { productLine, ...requestOptions } = options;
-  const headers = new Headers(requestOptions.headers);
-  if (!headers.has("Content-Type") && requestOptions.body && !(requestOptions.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (session?.accessToken) {
-    headers.set("Authorization", `Bearer ${session.accessToken}`);
-  }
-  if (session?.user.userId) {
-    headers.set("X-User-Id", String(session.user.userId));
-  }
-  if (productLine) {
-    headers.set("X-Product-Line", productLine);
-  }
-  const response = await fetch(`${config.apiBaseUrl}${path}`, { ...requestOptions, headers });
-  const raw = await response.text();
-  if (!response.ok) {
-    const payload = parseJsonPayload(raw) ?? raw;
-    const message = responseErrorMessage(payload, raw, response.status);
-    throw new ApiError(message, response.status, payload);
-  }
-  if (response.status === 204 || !raw.trim()) {
-    return undefined as T;
-  }
-  const payload = parseJsonPayload(raw);
-  if (payload === undefined) {
-    throw new ApiError(nonJsonResponseMessage(raw), response.status, raw);
-  }
-  return payload as T;
-}
-
-export function gatewayPath(service: string, path = ""): string {
-  return `${config.gatewayPrefix}/${service}${path}`;
-}
-
-function parseJsonPayload(raw: string): unknown | undefined {
-  if (!raw.trim()) return undefined;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-}
-
-function responseErrorMessage(payload: unknown, raw: string, status: number): string {
-  if (isHtmlResponse(raw)) {
-    return "接口返回了 HTML 页面，请检查 API 地址或 Vite 网关代理配置。";
-  }
-  if (typeof payload === "object" && payload && "detail" in payload) {
-    return String((payload as { detail?: string }).detail);
-  }
-  if (typeof payload === "object" && payload && "message" in payload) {
-    return String((payload as { message?: string }).message);
-  }
-  if (typeof payload === "string" && payload.trim()) {
-    return payload;
-  }
-  return `HTTP ${status}`;
-}
-
-function nonJsonResponseMessage(raw: string): string {
-  if (isHtmlResponse(raw)) {
-    return "接口返回了 HTML 页面，请检查 API 地址或 Vite 网关代理配置。";
-  }
-  return "接口返回了非 JSON 响应，请检查 API 地址或 Vite 网关代理配置。";
-}
-
-function isHtmlResponse(raw: string): boolean {
-  const value = raw.trimStart().toLowerCase();
-  return value.startsWith("<!doctype") || value.startsWith("<html");
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

@@ -1,0 +1,352 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Security Center - Surprising EX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f2f0f3",
+                        "surface-container-high": "#e9e7ea",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#007443",
+                        "secondary": "#006d3f",
+                        "on-background": "#1b1c1e",
+                        "primary": "#003ec7",
+                        "secondary-container": "#75fcad",
+                        "on-tertiary-fixed": "#410007",
+                        "surface-dim": "#dbd9dc",
+                        "surface-container": "#efedf0",
+                        "primary-fixed": "#dde1ff",
+                        "secondary-fixed-dim": "#56df93",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "surface-tint": "#004ced",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f5f3f6",
+                        "on-surface-variant": "#434656",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#ffdddb",
+                        "tertiary-container": "#c02c37",
+                        "tertiary-fixed": "#ffdad8",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#00210f",
+                        "inverse-primary": "#b7c4ff",
+                        "on-secondary-fixed-variant": "#00522e",
+                        "on-tertiary-fixed-variant": "#92001b",
+                        "surface-bright": "#fbf9fb",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e3e2e5",
+                        "outline-variant": "#c3c5d9",
+                        "secondary-fixed": "#75fcad",
+                        "background": "#fbf9fb",
+                        "outline": "#737688",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#303033",
+                        "primary-container": "#0052ff",
+                        "on-primary-fixed": "#001452",
+                        "surface": "#fbf9fb",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-surface": "#1b1c1e",
+                        "on-primary-container": "#dfe3ff",
+                        "tertiary": "#9e0d22",
+                        "surface-variant": "#e3e2e5",
+                        "tertiary-fixed-dim": "#ffb3b0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "margin-mobile": "16px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "2xl": "48px",
+                        "md": "16px",
+                        "margin-desktop": "32px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Hanken Grotesk"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col pt-12 pl-0 md:pl-64">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface dark:bg-background border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">Surprising EX</span>
+<div class="hidden md:flex gap-md ml-lg"><a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Markets</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Spot</a>
+<div class="relative group">
+    <button class="flex items-center gap-xs text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md">
+        Perpetuals
+        <span class="material-symbols-outlined text-[18px]">expand_more</span>
+    </button>
+    <div class="absolute top-full left-0 hidden group-hover:flex flex-col bg-surface border border-outline-variant rounded-lg shadow-sm py-xs min-w-[120px] z-50">
+        <a href="#" class="px-md py-sm hover:bg-surface-container-high text-body-sm">USD-M</a>
+        <a href="#" class="px-md py-sm hover:bg-surface-container-high text-body-sm">Coin-M</a>
+    </div>
+</div>
+<div class="relative group">
+    <button class="flex items-center gap-xs text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md">
+        Futures
+        <span class="material-symbols-outlined text-[18px]">expand_more</span>
+    </button>
+    <div class="absolute top-full left-0 hidden group-hover:flex flex-col bg-surface border border-outline-variant rounded-lg shadow-sm py-xs min-w-[120px] z-50">
+        <a href="#" class="px-md py-sm hover:bg-surface-container-high text-body-sm">USD-M</a>
+        <a href="#" class="px-md py-sm hover:bg-surface-container-high text-body-sm">Coin-M</a>
+    </div>
+</div>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Options</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 font-body-md text-body-md" href="#">Assets</a></div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined" data-icon="search">search</span></button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined" data-icon="notifications">notifications</span></button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined" data-icon="dark_mode">dark_mode</span></button>
+<button class="p-xs text-primary dark:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined" data-icon="account_circle">account_circle</span></button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-12 bottom-0 w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container border-r border-outline-variant dark:border-outline">
+<div class="p-lg border-b border-outline-variant dark:border-outline">
+<h2 class="font-headline-md text-headline-md text-on-surface">Assets</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Manage your holdings</p>
+</div>
+<nav class="flex-1 py-sm flex flex-col gap-xs">
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200 font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="">Overview</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200 font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="">Spot</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200 font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="">Futures</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200 font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+<span class="">Options</span>
+</a>
+<a class="flex items-center gap-md px-lg py-sm text-primary dark:text-primary-fixed-dim font-bold border-l-2 border-primary bg-primary-container/10 transition-all duration-200 font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="">History</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop bg-surface-bright flex flex-col gap-lg">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-md">
+<div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Security Center</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Manage your account security settings and devices.</p>
+</div>
+<div class="bg-surface border border-outline-variant rounded-lg p-md flex items-center gap-md shadow-sm">
+<div class="relative w-12 h-12 flex items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined" data-icon="shield" data-weight="fill">shield</span>
+</div>
+<div>
+<div class="font-label-caps text-label-caps uppercase text-on-surface-variant">Security Level</div>
+<div class="font-headline-md text-headline-md text-secondary mt-base">High</div>
+</div>
+</div>
+</header>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-lg">
+<!-- Security Checkups / Verification Column -->
+<div class="xl:col-span-2 flex flex-col gap-lg">
+<section class="bg-surface border border-outline-variant rounded-xl overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-low">
+<h2 class="font-headline-md text-headline-md text-on-surface">Verification &amp; Authentication</h2>
+</div>
+<!-- Checklist Item 1 -->
+<div class="p-md flex items-center justify-between border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary mt-xs" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Login Password</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Used to log in to your account.</p>
+</div>
+</div>
+<button class="px-md py-sm border border-outline text-on-surface font-body-sm rounded-DEFAULT hover:border-primary hover:text-primary transition-colors">Change</button>
+</div>
+<!-- Checklist Item 2 -->
+<div class="p-md flex items-center justify-between border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary mt-xs" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Authenticator App (2FA)</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Protect your account and transactions.</p>
+</div>
+</div>
+<button class="px-md py-sm border border-outline text-on-surface font-body-sm rounded-DEFAULT hover:border-primary hover:text-primary transition-colors">Manage</button>
+</div>
+<!-- Checklist Item 3 -->
+<div class="p-md flex items-center justify-between border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-error mt-xs" data-icon="error" data-weight="fill">error</span>
+<div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Email Verification</h3>
+<p class="font-body-sm text-body-sm text-error">Action Required: Verify your email address.</p>
+</div>
+</div>
+<button class="px-md py-sm bg-primary text-on-primary font-body-sm rounded-DEFAULT hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm">Verify</button>
+</div>
+<!-- Checklist Item 4 -->
+<div class="p-md flex items-center justify-between hover:bg-surface-container-lowest transition-colors">
+<div class="flex items-start gap-md">
+<span class="material-symbols-outlined text-secondary mt-xs" data-icon="check_circle" data-weight="fill">check_circle</span>
+<div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">SMS Verification</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Used for withdrawals and security modifications.</p>
+</div>
+</div>
+<button class="px-md py-sm border border-outline text-on-surface font-body-sm rounded-DEFAULT hover:border-primary hover:text-primary transition-colors">Manage</button>
+</div>
+</section>
+<section class="bg-surface border border-outline-variant rounded-xl overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md text-on-surface">Recent Activity</h2>
+<button class="text-primary font-body-sm text-body-sm hover:underline">View All</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-lowest">
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant uppercase pl-md">Action</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant uppercase">Device / IP</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant uppercase text-right pr-md">Date &amp; Time</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono text-on-surface">
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors h-[48px]">
+<td class="p-sm pl-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary" data-icon="login">login</span>
+                                        Successful Login
+                                    </td>
+<td class="p-sm text-on-surface-variant">Mac OS • 192.168.1.1</td>
+<td class="p-sm text-right pr-md">Oct 24, 14:30 UTC</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors h-[48px]">
+<td class="p-sm pl-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline" data-icon="vpn_key">vpn_key</span>
+                                        Password Changed
+                                    </td>
+<td class="p-sm text-on-surface-variant">Windows 11 • 10.0.0.5</td>
+<td class="p-sm text-right pr-md">Oct 15, 09:15 UTC</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Device Management Column -->
+<div class="flex flex-col gap-lg">
+<section class="bg-surface border border-outline-variant rounded-xl overflow-hidden h-full">
+<div class="p-md border-b border-outline-variant bg-surface-container-low">
+<h2 class="font-headline-md text-headline-md text-on-surface">Device Management</h2>
+</div>
+<div class="p-md">
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">Manage devices that are currently logged in to your account.</p>
+<div class="flex flex-col gap-md">
+<!-- Current Device -->
+<div class="border border-primary rounded-lg p-md relative overflow-hidden bg-primary-fixed/20">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="laptop_mac">laptop_mac</span>
+<div>
+<div class="font-body-md text-body-md font-semibold text-on-surface flex items-center gap-sm">
+                                                MacBook Pro
+                                                <span class="bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Current</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">San Francisco, USA • Chrome</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Other Device -->
+<div class="border border-outline-variant rounded-lg p-md hover:bg-surface-container-lowest transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="smartphone">smartphone</span>
+<div>
+<div class="font-body-md text-body-md font-semibold text-on-surface">iPhone 14 Pro</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">New York, USA • Safari</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Active 2 days ago</div>
+</div>
+</div>
+<button class="p-xs text-error hover:bg-error-container rounded-full transition-colors" title="Revoke Access">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-xl px-lg grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-lg bg-surface-container-lowest dark:bg-surface-container-low border-t border-outline-variant dark:border-outline mt-auto md:ml-64">
+<div class="col-span-2 md:col-span-4 lg:col-span-1 flex flex-col gap-sm">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">Surprising EX</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">© 2024 Surprising EX. All rights reserved.</span>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-body-sm text-body-sm font-bold text-on-surface mb-xs">Links</h4>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Products</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Support</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Company</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Legal</a>
+</div>
+</footer>
+
+
+</body></html>

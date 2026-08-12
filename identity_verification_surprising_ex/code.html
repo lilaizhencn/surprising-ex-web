@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KYC Verification - Surprising EX</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Hanken Grotesk and JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#ffffff",
+                    "primary-container": "#0052ff",
+                    "surface-dim": "#dbd9dc",
+                    "on-tertiary-container": "#ffdddb",
+                    "on-tertiary": "#ffffff",
+                    "primary-fixed": "#dde1ff",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#b7c4ff",
+                    "on-primary": "#ffffff",
+                    "inverse-surface": "#303033",
+                    "error": "#ba1a1a",
+                    "on-primary-fixed": "#001452",
+                    "secondary": "#006d3f",
+                    "surface-container": "#efedf0",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#56df93",
+                    "on-secondary-fixed-variant": "#00522e",
+                    "secondary-fixed": "#75fcad",
+                    "inverse-on-surface": "#f2f0f3",
+                    "on-tertiary-fixed-variant": "#92001b",
+                    "on-secondary-fixed": "#00210f",
+                    "on-primary-fixed-variant": "#0038b6",
+                    "on-secondary-container": "#007443",
+                    "surface": "#fbf9fb",
+                    "on-background": "#1b1c1e",
+                    "secondary-container": "#75fcad",
+                    "inverse-primary": "#b7c4ff",
+                    "on-surface": "#1b1c1e",
+                    "surface-container-low": "#f5f3f6",
+                    "surface-container-highest": "#e3e2e5",
+                    "on-surface-variant": "#434656",
+                    "surface-tint": "#004ced",
+                    "on-primary-container": "#dfe3ff",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#9e0d22",
+                    "outline": "#737688",
+                    "on-tertiary-fixed": "#410007",
+                    "outline-variant": "#c3c5d9",
+                    "surface-bright": "#fbf9fb",
+                    "tertiary-fixed": "#ffdad8",
+                    "surface-variant": "#e3e2e5",
+                    "tertiary-container": "#c02c37",
+                    "surface-container-lowest": "#ffffff",
+                    "background": "#fbf9fb",
+                    "primary": "#003ec7",
+                    "surface-container-high": "#e9e7ea",
+                    "tertiary-fixed-dim": "#ffb3b0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "md": "16px",
+                    "base": "4px",
+                    "3xl": "64px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "margin-desktop": "32px",
+                    "gutter": "16px",
+                    "margin-mobile": "16px",
+                    "2xl": "48px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "body-lg": [
+                            "Hanken Grotesk"
+                    ],
+                    "data-mono": [
+                            "JetBrains Mono"
+                    ],
+                    "label-caps": [
+                            "Hanken Grotesk"
+                    ],
+                    "headline-lg": [
+                            "Hanken Grotesk"
+                    ],
+                    "headline-lg-mobile": [
+                            "Hanken Grotesk"
+                    ],
+                    "display-lg": [
+                            "Hanken Grotesk"
+                    ],
+                    "body-md": [
+                            "Hanken Grotesk"
+                    ],
+                    "headline-md": [
+                            "Hanken Grotesk"
+                    ],
+                    "body-sm": [
+                            "Hanken Grotesk"
+                    ]
+            },
+            "fontSize": {
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "data-mono": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "56px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "20px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-sm": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+          font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+<!-- Top Navigation Area - Simplified for settings context -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface border-b border-outline-variant">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-primary">Surprising EX</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</header>
+<!-- Main Layout -->
+<div class="pt-12 min-h-screen flex flex-col md:flex-row">
+<!-- Main Content Area -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop lg:p-3xl overflow-y-auto">
+<div class="max-w-4xl mx-auto w-full">
+<!-- Page Header -->
+<div class="mb-xl text-center md:text-left">
+<h1 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Identity Verification</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Complete verification to increase your withdrawal limits and unlock advanced features.</p>
+</div>
+<!-- Security Trust Banner -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-md mb-xl flex items-start sm:items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined fill text-on-secondary-container">shield</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Bank-Grade Security</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Your personal data is encrypted and securely stored. We comply with international data protection regulations.</p>
+</div>
+</div>
+<!-- KYC Levels Container (Bento/Card Layout) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-md">
+<!-- Level 1: Basic (Verified) -->
+<div class="bg-surface border border-outline-variant rounded-lg p-lg relative flex flex-col h-full">
+<div class="absolute top-md right-md bg-secondary-container text-on-secondary-container px-sm py-base rounded-DEFAULT font-label-caps text-label-caps flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] fill">check_circle</span> Verified
+                        </div>
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-xs">Basic</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Starter limits for new accounts.</p>
+</div>
+<div class="space-y-sm mb-xl flex-1">
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-outline text-[20px]">person</span> Name provided
+                            </div>
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-outline text-[20px]">mail</span> Email verified
+                            </div>
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-outline text-[20px]">public</span> Country selected
+                            </div>
+</div>
+<div class="border-t border-outline-variant pt-md mt-auto">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Daily Fiat Withdrawal</span>
+<span class="font-data-mono text-data-mono text-on-surface">$2,000</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Crypto Deposit</span>
+<span class="font-data-mono text-data-mono text-on-surface">Unlimited</span>
+</div>
+</div>
+</div>
+<!-- Level 2: Intermediate (Current/Actionable) -->
+<div class="bg-surface border-2 border-primary rounded-lg p-lg relative shadow-[0_8px_24px_rgba(0,0,0,0.08)] flex flex-col h-full z-10 transform lg:scale-105">
+<div class="absolute top-md right-md bg-surface-variant text-on-surface-variant px-sm py-base rounded-DEFAULT font-label-caps text-label-caps flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">pending</span> Action Required
+                        </div>
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-primary mb-xs">Intermediate</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Recommended for regular traders.</p>
+</div>
+<div class="space-y-sm mb-xl flex-1">
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface font-semibold">
+<span class="material-symbols-outlined text-primary text-[20px]">badge</span> ID Document
+                            </div>
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface font-semibold">
+<span class="material-symbols-outlined text-primary text-[20px]">face</span> Facial Recognition
+                            </div>
+</div>
+<div class="border-t border-outline-variant pt-md mt-auto mb-md">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Daily Fiat Withdrawal</span>
+<span class="font-data-mono text-data-mono text-primary font-bold">$50,000</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">P2P Trading</span>
+<span class="font-body-sm text-body-sm text-primary font-bold">Enabled</span>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary font-body-md text-body-md font-semibold py-sm px-md rounded-DEFAULT hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-center gap-sm">
+                            Verify Now <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+<!-- Level 3: Advanced (Locked) -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-lg relative flex flex-col h-full opacity-70">
+<div class="absolute top-md right-md bg-surface-variant text-on-surface-variant px-sm py-base rounded-DEFAULT font-label-caps text-label-caps flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">lock</span> Locked
+                        </div>
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-on-surface-variant mb-xs">Advanced</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">For high-volume institutions.</p>
+</div>
+<div class="space-y-sm mb-xl flex-1">
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-outline-variant text-[20px]">home_pin</span> Proof of Address
+                            </div>
+<div class="flex items-center gap-sm font-body-sm text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-outline-variant text-[20px]">account_balance</span> Source of Funds
+                            </div>
+</div>
+<div class="border-t border-outline-variant pt-md mt-auto">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Daily Fiat Withdrawal</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant">$2,000,000</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">OTC Desk</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Full Access</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

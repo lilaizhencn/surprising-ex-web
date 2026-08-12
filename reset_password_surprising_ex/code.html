@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Forgot Password - Surprising EX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#c02c37",
+                      "on-tertiary-container": "#ffdddb",
+                      "secondary-fixed": "#75fcad",
+                      "outline": "#737688",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary": "#003ec7",
+                      "on-surface-variant": "#434656",
+                      "surface-container-high": "#e9e7ea",
+                      "on-error-container": "#93000a",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "surface-dim": "#dbd9dc",
+                      "on-tertiary-fixed": "#410007",
+                      "on-secondary-fixed": "#00210f",
+                      "on-background": "#1b1c1e",
+                      "error-container": "#ffdad6",
+                      "inverse-on-surface": "#f2f0f3",
+                      "secondary-container": "#75fcad",
+                      "on-error": "#ffffff",
+                      "outline-variant": "#c3c5d9",
+                      "on-secondary-container": "#007443",
+                      "surface-bright": "#fbf9fb",
+                      "primary-container": "#0052ff",
+                      "primary-fixed": "#dde1ff",
+                      "surface-container-low": "#f5f3f6",
+                      "on-surface": "#1b1c1e",
+                      "surface-tint": "#004ced",
+                      "on-primary-container": "#dfe3ff",
+                      "on-secondary-fixed-variant": "#00522e",
+                      "on-primary-fixed": "#001452",
+                      "inverse-surface": "#303033",
+                      "on-primary-fixed-variant": "#0038b6",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-primary": "#b7c4ff",
+                      "surface": "#fbf9fb",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#ffdad8",
+                      "surface-container-highest": "#e3e2e5",
+                      "tertiary": "#9e0d22",
+                      "secondary-fixed-dim": "#56df93",
+                      "secondary": "#006d3f",
+                      "surface-variant": "#e3e2e5",
+                      "background": "#fbf9fb",
+                      "on-tertiary-fixed-variant": "#92001b",
+                      "surface-container": "#efedf0",
+                      "error": "#ba1a1a",
+                      "tertiary-fixed-dim": "#ffb3b0"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "md": "16px",
+                      "xl": "32px",
+                      "2xl": "48px",
+                      "sm": "8px",
+                      "gutter": "16px",
+                      "xs": "4px",
+                      "base": "4px",
+                      "lg": "24px",
+                      "margin-desktop": "32px",
+                      "3xl": "64px"
+              },
+              "fontFamily": {
+                      "body-sm": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "data-mono": ["JetBrains Mono"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-caps": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col antialiased">
+<!-- TopNavBar Suppressed for Transactional Intent -->
+<main class="flex-grow flex items-center justify-center p-margin-mobile md:p-margin-desktop relative overflow-hidden">
+<!-- Ambient Background Pattern -->
+<div class="absolute inset-0 z-0 pointer-events-none opacity-5">
+<svg class="w-full h-full" height="100%" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="grid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="1"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid)" height="100%" width="100%"></rect>
+</svg>
+</div>
+<div class="relative z-10 w-full max-w-[480px]">
+<!-- Brand Mark -->
+<div class="text-center mb-xl">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Surprising EX</h1>
+</div>
+<!-- Card Container -->
+<div class="bg-surface border border-outline-variant rounded-xl p-lg md:p-xl shadow-sm">
+<div class="mb-lg">
+<button class="inline-flex items-center text-on-surface-variant hover:text-primary transition-colors mb-md group" onclick="window.history.back()">
+<span class="material-symbols-outlined text-lg mr-sm group-hover:-translate-x-1 transition-transform">arrow_back</span>
+<span class="font-body-sm text-body-sm">Back to login</span>
+</button>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-xs">Reset your password</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Enter your email or phone number to receive a verification code.</p>
+</div>
+<!-- Tabs -->
+<div class="flex border-b border-outline-variant mb-lg">
+<button class="flex-1 pb-sm border-b-2 border-primary text-primary font-body-sm text-body-sm font-medium transition-colors" id="tab-email">Email</button>
+<button class="flex-1 pb-sm border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm transition-colors" id="tab-phone">Phone Number</button>
+</div>
+<!-- Form -->
+<form action="#" class="space-y-md" method="POST">
+<div class="block" id="email-field">
+<label class="block font-body-sm text-body-sm text-on-surface mb-xs" for="email">Email Address</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-sm flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">mail</span>
+</div>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded focus:border-primary focus:ring-1 focus:ring-primary py-sm pl-xl pr-sm font-body-sm text-body-sm text-on-surface transition-all placeholder:text-outline" id="email" name="email" placeholder="Enter your registered email" type="email"/>
+</div>
+</div>
+<div class="hidden" id="phone-field">
+<label class="block font-body-sm text-body-sm text-on-surface mb-xs" for="phone">Phone Number</label>
+<div class="flex rounded-DEFAULT shadow-sm">
+<span class="inline-flex items-center px-sm rounded-l-DEFAULT border border-r-0 border-outline-variant bg-surface-container-low text-on-surface-variant font-body-sm text-body-sm">
+                                +1
+                            </span>
+<input class="flex-1 block w-full rounded-none rounded-r-DEFAULT bg-surface-container-low border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary py-sm px-sm font-body-sm text-body-sm text-on-surface transition-all placeholder:text-outline" id="phone" name="phone" placeholder="Enter your phone number" type="tel"/>
+</div>
+</div>
+<div class="pt-sm">
+<button class="w-full bg-primary text-on-primary font-body-md text-body-md font-medium rounded py-sm px-md hover:bg-primary-container transition-colors active:opacity-80 flex justify-center items-center" type="submit">
+<span>Send Verification Code</span>
+<span class="material-symbols-outlined ml-xs text-sm">arrow_forward</span>
+</button>
+</div>
+</form>
+<div class="mt-lg pt-lg border-t border-outline-variant text-center">
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-sm">lock</span>
+                        Secured by Surprising EX Identity
+                    </p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Suppressed for Transactional Intent -->
+<script>
+        // Simple tab switching logic
+        const tabEmail = document.getElementById('tab-email');
+        const tabPhone = document.getElementById('tab-phone');
+        const fieldEmail = document.getElementById('email-field');
+        const fieldPhone = document.getElementById('phone-field');
+
+        tabEmail.addEventListener('click', () => {
+            tabEmail.classList.add('border-primary', 'text-primary', 'font-medium');
+            tabEmail.classList.remove('border-transparent', 'text-on-surface-variant');
+
+            tabPhone.classList.remove('border-primary', 'text-primary', 'font-medium');
+            tabPhone.classList.add('border-transparent', 'text-on-surface-variant');
+
+            fieldEmail.classList.remove('hidden');
+            fieldPhone.classList.add('hidden');
+        });
+
+        tabPhone.addEventListener('click', () => {
+            tabPhone.classList.add('border-primary', 'text-primary', 'font-medium');
+            tabPhone.classList.remove('border-transparent', 'text-on-surface-variant');
+
+            tabEmail.classList.remove('border-primary', 'text-primary', 'font-medium');
+            tabEmail.classList.add('border-transparent', 'text-on-surface-variant');
+
+            fieldPhone.classList.remove('hidden');
+            fieldEmail.classList.add('hidden');
+        });
+    </script>
+</body></html>

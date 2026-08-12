@@ -1,0 +1,521 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Deposit - Surprising EX</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#93000a",
+                      "inverse-on-surface": "#f2f0f3",
+                      "surface-container-high": "#e9e7ea",
+                      "error": "#ba1a1a",
+                      "on-secondary-container": "#007443",
+                      "secondary": "#006d3f",
+                      "on-background": "#1b1c1e",
+                      "primary": "#003ec7",
+                      "secondary-container": "#75fcad",
+                      "on-tertiary-fixed": "#410007",
+                      "surface-dim": "#dbd9dc",
+                      "surface-container": "#efedf0",
+                      "primary-fixed": "#dde1ff",
+                      "secondary-fixed-dim": "#56df93",
+                      "on-primary-fixed-variant": "#0038b6",
+                      "surface-tint": "#004ced",
+                      "error-container": "#ffdad6",
+                      "surface-container-low": "#f5f3f6",
+                      "on-surface-variant": "#434656",
+                      "on-error": "#ffffff",
+                      "on-tertiary-container": "#ffdddb",
+                      "tertiary-container": "#c02c37",
+                      "tertiary-fixed": "#ffdad8",
+                      "on-secondary": "#ffffff",
+                      "on-secondary-fixed": "#00210f",
+                      "inverse-primary": "#b7c4ff",
+                      "on-secondary-fixed-variant": "#00522e",
+                      "on-tertiary-fixed-variant": "#92001b",
+                      "surface-bright": "#fbf9fb",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-highest": "#e3e2e5",
+                      "outline-variant": "#c3c5d9",
+                      "secondary-fixed": "#75fcad",
+                      "background": "#fbf9fb",
+                      "outline": "#737688",
+                      "on-primary": "#ffffff",
+                      "inverse-surface": "#303033",
+                      "primary-container": "#0052ff",
+                      "on-primary-fixed": "#001452",
+                      "surface": "#fbf9fb",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "on-surface": "#1b1c1e",
+                      "on-primary-container": "#dfe3ff",
+                      "tertiary": "#9e0d22",
+                      "surface-variant": "#e3e2e5",
+                      "tertiary-fixed-dim": "#ffb3b0"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "margin-mobile": "16px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "base": "4px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "2xl": "48px",
+                      "md": "16px",
+                      "margin-desktop": "32px",
+                      "3xl": "64px"
+              },
+              "fontFamily": {
+                      "display-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "data-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "label-caps": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-sm": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-lg-mobile": [
+                              "Hanken Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "data-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+      </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased h-screen overflow-hidden flex flex-col">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-12 bg-surface dark:bg-background border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-xl h-full">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim flex items-center gap-sm">
+<svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M12 22V12M12 12L22 7M12 12L2 7" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+                Surprising EX
+            </div>
+<div class="hidden md:flex h-full items-end"><a class="font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center" href="#">Markets</a>
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center" href="#">Spot</a>
+<div class="group relative h-full">
+    <button class="font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center gap-xs">
+        Perpetuals <span class="material-symbols-outlined text-sm">expand_more</span>
+    </button>
+    <div class="hidden group-hover:block absolute top-full left-0 w-48 bg-surface dark:bg-surface-container border border-outline-variant dark:border-outline shadow-lg z-50">
+        <a href="#" class="block px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors">USD-M</a>
+        <a href="#" class="block px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors">Coin-M</a>
+    </div>
+</div>
+<div class="group relative h-full">
+    <button class="font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center gap-xs">
+        Futures <span class="material-symbols-outlined text-sm">expand_more</span>
+    </button>
+    <div class="hidden group-hover:block absolute top-full left-0 w-48 bg-surface dark:bg-surface-container border border-outline-variant dark:border-outline shadow-lg z-50">
+        <a href="#" class="block px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors">USD-M</a>
+        <a href="#" class="block px-md py-sm hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors">Coin-M</a>
+    </div>
+</div>
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center" href="#">Options</a>
+<a class="font-body-md text-body-md text-primary dark:text-primary-fixed-dim border-b-2 border-primary pb-1 hover:text-primary dark:hover:text-primary-fixed-dim transition-colors cursor-pointer active:opacity-80 px-md py-sm h-full flex items-center" href="#">Assets</a></div>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="dark_mode">dark_mode</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</nav>
+<div class="flex flex-1 pt-12 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-12 bottom-0 w-64 z-40 hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container border-r border-outline-variant dark:border-outline">
+<div class="p-lg border-b border-outline-variant">
+<h2 class="font-headline-md text-headline-md text-on-surface">Assets</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Manage your holdings</p>
+</div>
+<nav class="flex-1 py-md overflow-y-auto"><a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                    Overview
+                </a>
+<a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+                    Spot
+                </a>
+<a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+                    Perpetuals (永续)
+                </a>
+<a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+                    Futures (交割)
+                </a>
+<a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-all duration-200" href="#">
+<span class="material-symbols-outlined">layers</span>
+                    Options (期权)
+                </a>
+<a class="flex items-center gap-md px-lg py-md font-body-sm text-body-sm text-primary dark:text-primary-fixed-dim font-bold border-l-2 border-primary bg-primary-container/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">history</span>
+                    History
+                </a></nav>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 ml-0 md:ml-64 overflow-y-auto bg-surface-bright">
+<div class="max-w-7xl mx-auto p-margin-mobile md:p-margin-desktop">
+<header class="mb-lg">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Deposit Crypto</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Deposit crypto assets to your Surprising EX account.</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Main Form Area (Bento Left) -->
+<div class="lg:col-span-2 flex flex-col gap-lg">
+<!-- Step 1 & 2 Card -->
+<div class="bg-surface rounded-xl border border-outline-variant p-lg shadow-sm">
+<h2 class="font-headline-md text-headline-md mb-md">Select Asset &amp; Network</h2>
+<div class="space-y-lg">
+<!-- Select Coin -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-sm uppercase">1. Select Asset</label>
+<div class="relative">
+<button class="w-full flex items-center justify-between border border-outline hover:border-primary focus:border-primary transition-colors rounded bg-surface p-sm group">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface">
+<span class="font-bold text-sm">USDT</span>
+</div>
+<div class="text-left">
+<div class="font-body-md text-body-md text-on-surface font-semibold">USDT</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">Tether US</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors" data-icon="expand_more">expand_more</span>
+</button>
+<!-- Fake Dropdown for visual -->
+<div class="hidden absolute top-full left-0 w-full mt-xs bg-surface border border-outline-variant rounded shadow-lg z-10">
+<div class="p-sm border-b border-outline-variant">
+<div class="flex items-center border border-outline rounded px-sm py-xs">
+<span class="material-symbols-outlined text-outline text-sm mr-xs" data-icon="search">search</span>
+<input class="w-full bg-transparent border-none p-0 focus:ring-0 text-sm font-body-sm text-body-sm" placeholder="Search coin..." type="text">
+</div>
+</div>
+<div class="max-h-48 overflow-y-auto">
+<!-- items -->
+</div>
+</div>
+</div>
+</div>
+<!-- Select Network -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-sm uppercase">2. Select Network (Linked to Asset)</label>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-sm">
+<button class="border-2 border-primary bg-primary-container/5 rounded p-sm flex flex-col items-start transition-colors">
+<span class="font-body-md text-body-md text-on-surface font-semibold">TRC20</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-left mt-xs">~1 min</span>
+</button>
+<button class="border border-outline hover:border-primary rounded p-sm flex flex-col items-start transition-colors">
+<span class="font-body-md text-body-md text-on-surface font-semibold">ERC20</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-left mt-xs">~5 mins</span>
+</button>
+<button class="border border-outline hover:border-primary rounded p-sm flex flex-col items-start transition-colors">
+<span class="font-body-md text-body-md text-on-surface font-semibold">BEP20</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-left mt-xs">~3 mins</span>
+</button>
+</div>
+<div class="mt-md bg-error-container/20 border border-error-container rounded p-sm flex gap-sm items-start">
+<span class="material-symbols-outlined text-error text-sm mt-xs" data-icon="warning">warning</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                                            Ensure the network you choose to deposit matches the withdrawal network, or assets may be lost.
+                                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3 Card (Address Details) -->
+<div class="bg-surface rounded-xl border border-outline-variant p-lg shadow-sm">
+<h2 class="font-headline-md text-headline-md mb-md">Deposit Details</h2>
+<div class="flex flex-col md:flex-row gap-lg items-start">
+<!-- QR Code Area -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md flex flex-col items-center justify-center min-w-[200px]">
+<img class="w-32 h-32 object-contain mb-sm" data-alt="A clean, high-contrast, black and white QR code centered on a stark white background. The image should be sharp, digital, and professional, suitable for a financial interface, avoiding any colorful or messy elements." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAF5Gt_zpWDPJpvpmajlzFWb71p_g2IW1KutKHeM0Ty-fNoM141Mucjjz_G3E2rDD9EBox5z7fsTNM94KpJbUcw5XmeuuEyD4jVzaQQB4AZTbE11irujaS9cj1eeM3BoDHsL6LC5AdG7t-tVlb3cqYXmSVVxYYha48rl2JfNK-C0IY8K59_xh5KqtKmWCGyV5uTyfirv1dg878Vgw0s59BE9_2j0fzBe6IQhsgaVGfF4GYSdiyNcISR">
+<button class="text-primary hover:text-primary-fixed-dim font-body-sm text-body-sm font-semibold flex items-center gap-xs transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span> Save Image
+                                     </button>
+</div>
+<!-- Address Info -->
+<div class="flex-1 space-y-md w-full">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs uppercase">Deposit Address</label>
+<div class="flex items-center gap-sm">
+<div class="bg-surface-container p-sm rounded font-data-mono text-data-mono text-on-surface flex-1 break-all border border-transparent hover:border-outline-variant transition-colors cursor-text">
+                                                 TQxj4wL8aX4j4wL8aX4j4wL8aX4j4wL8aX
+                                             </div>
+<button class="p-sm bg-surface-container hover:bg-surface-container-high rounded transition-colors text-on-surface border border-outline-variant" title="Copy Address">
+<span class="material-symbols-outlined text-sm" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 bg-primary hover:bg-primary/90 text-on-primary font-body-md text-body-md py-sm px-md rounded transition-colors flex justify-center items-center gap-sm">
+<span class="material-symbols-outlined text-sm" data-icon="share">share</span> Share Address
+                                         </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Info Area (Bento Right) -->
+<div class="space-y-lg">
+<!-- Deposit Info Widget -->
+<div class="bg-surface rounded-xl border border-outline-variant p-lg shadow-sm">
+<h3 class="font-headline-md text-headline-md mb-md">Important Info</h3>
+<ul class="space-y-sm font-body-sm text-body-sm text-on-surface-variant">
+<li class="flex justify-between py-xs border-b border-outline-variant/50">
+<span class="">Minimum Deposit</span>
+<span class="font-data-mono text-on-surface font-semibold">1.00 USDT</span>
+</li>
+<li class="flex justify-between py-xs border-b border-outline-variant/50">
+<span class="">Expected Arrival</span>
+<span class="font-data-mono text-on-surface font-semibold">1 Network Confirmations</span>
+</li>
+<li class="flex justify-between py-xs">
+<span class="">Expected Unlock</span>
+<span class="font-data-mono text-on-surface font-semibold">1 Network Confirmations</span>
+</li>
+</ul>
+<div class="mt-md bg-surface-container p-sm rounded border border-outline-variant/50">
+<h4 class="font-label-caps text-label-caps text-on-surface font-bold mb-xs uppercase">Security Tip</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant text-xs">
+                                    Send only USDT to this deposit address. Sending any other coin or token to this address may result in the loss of your deposit.
+                                </p>
+</div>
+</div>
+<!-- Mini FAQ/Help Widget -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm relative overflow-hidden group hover:border-primary/50 transition-colors cursor-pointer">
+<div class="flex items-start gap-sm relative z-10">
+<div class="bg-primary-container text-on-primary-container p-xs rounded-full">
+<span class="material-symbols-outlined text-sm" data-icon="help">help</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md font-semibold text-on-surface">Deposit hasn't arrived?</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Check our troubleshooting guide or contact support if your transaction is delayed.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Deposits Table -->
+<div class="mt-xl bg-surface rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
+<h2 class="font-headline-md text-headline-md text-on-surface">Recent Deposits</h2>
+<a class="font-body-sm text-body-sm text-primary hover:underline flex items-center gap-xs" href="#">
+                            View All <span class="material-symbols-outlined text-xs" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps text-on-surface-variant uppercase">
+<th class="p-sm font-semibold whitespace-nowrap">Time</th>
+<th class="p-sm font-semibold whitespace-nowrap">Asset</th>
+<th class="p-sm font-semibold whitespace-nowrap">Amount</th>
+<th class="p-sm font-semibold whitespace-nowrap">Network</th>
+<th class="p-sm font-semibold whitespace-nowrap">Status</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono text-on-surface">
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-lowest transition-colors">
+<td class="p-sm text-on-surface-variant text-xs">2024-05-20 14:32:01</td>
+<td class="p-sm font-body-sm text-body-sm font-semibold">USDT</td>
+<td class="p-sm text-secondary">+$500.00</td>
+<td class="p-sm text-on-surface-variant text-xs">TRC20</td>
+<td class="p-sm">
+<span class="inline-flex items-center gap-xs text-xs font-body-sm px-xs py-1 rounded bg-secondary-container/20 text-secondary border border-secondary/20">
+<span class="material-symbols-outlined text-[10px]" data-icon="check_circle">check_circle</span> Completed
+                                        </span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-lowest transition-colors">
+<td class="p-sm text-on-surface-variant text-xs">2024-05-18 09:15:22</td>
+<td class="p-sm font-body-sm text-body-sm font-semibold">BTC</td>
+<td class="p-sm text-secondary">+0.0150</td>
+<td class="p-sm text-on-surface-variant text-xs">Bitcoin</td>
+<td class="p-sm">
+<span class="inline-flex items-center gap-xs text-xs font-body-sm px-xs py-1 rounded bg-secondary-container/20 text-secondary border border-secondary/20">
+<span class="material-symbols-outlined text-[10px]" data-icon="check_circle">check_circle</span> Completed
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="p-sm text-on-surface-variant text-xs">2024-05-15 18:45:10</td>
+<td class="p-sm font-body-sm text-body-sm font-semibold">ETH</td>
+<td class="p-sm text-secondary">+2.5000</td>
+<td class="p-sm text-on-surface-variant text-xs">ERC20</td>
+<td class="p-sm">
+<span class="inline-flex items-center gap-xs text-xs font-body-sm px-xs py-1 rounded bg-secondary-container/20 text-secondary border border-secondary/20">
+<span class="material-symbols-outlined text-[10px]" data-icon="check_circle">check_circle</span> Completed
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Empty State Example (Hidden) -->
+<div class="hidden p-xl flex flex-col items-center justify-center text-center text-on-surface-variant">
+<span class="material-symbols-outlined text-4xl mb-sm opacity-50" data-icon="history_toggle_off">history_toggle_off</span>
+<p class="font-body-md text-body-md">No recent deposits found.</p>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-xl px-lg grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-lg bg-surface-container-lowest dark:bg-surface-container-low border-t border-outline-variant dark:border-outline mt-3xl">
+<div class="col-span-2 lg:col-span-1 flex flex-col gap-sm">
+<div class="font-headline-md text-headline-md text-on-surface font-bold flex items-center gap-sm mb-sm">
+<svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+                        Surprising EX
+                    </div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">© 2024 Surprising EX. All rights reserved.</p>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-body-md text-body-md font-bold text-on-surface">Products</h4>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Buy Crypto</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Trade</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Derivatives</a>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-body-md text-body-md font-bold text-on-surface">Support</h4>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Help Center</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Fees</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Security</a>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-body-md text-body-md font-bold text-on-surface">Company</h4>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">About</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Careers</a>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="font-body-md text-body-md font-bold text-on-surface">Legal</h4>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Terms</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed-dim underline cursor-pointer" href="#">Privacy</a>
+</div>
+</footer>
+</main>
+</div>
+
+
+
+
+</body></html>
