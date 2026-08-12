@@ -1769,7 +1769,7 @@ function Topbar({
 
   return (
     <header className={mobileProductsOpen ? "topbar product-menu-open" : "topbar"}>
-      <button className="brand platform-brand" onClick={() => onPageChange("home")}>
+      <button className="brand platform-brand" aria-label={localized(language, "返回首页", "Go to home")} onClick={() => onPageChange("home")}>
         <span className="platform-mark"><Sparkles size={16} /></span>
         <strong>Surprising EX</strong>
       </button>
@@ -1830,6 +1830,7 @@ function Topbar({
         )}
       </div>
       {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">
+        <button onClick={() => { onPageChange("home"); setMobileProductsOpen(false); }}>{localized(language, "首页", "Home")}</button>
         <button onClick={() => { onPageChange("markets"); setMobileProductsOpen(false); }}>{localized(language, "行情中心", "Markets")}</button>
         <button onClick={() => { onPageChange("recharge"); setMobileProductsOpen(false); }}>{localized(language, "充值", "Deposit")}</button>
         <button onClick={() => { onPageChange("assets"); setMobileProductsOpen(false); }}>{localized(language, "资产管理", "Assets")}</button>

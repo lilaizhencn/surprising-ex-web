@@ -19,6 +19,10 @@ export function marketTickerIsReady(market: Pick<Market, "tickerReady">): boolea
   return market.tickerReady === true;
 }
 
+export function marketIsTradable(market: Pick<Market, "status">): boolean {
+  return market.status === "TRADING";
+}
+
 export function mergeMarketSnapshots(current: Market[], incoming: Market[], preserveCurrentSnapshot: boolean): Market[] {
   const currentByKey = new Map(current.map((market) => [`${marketProductForPresentation(market)}:${market.symbol}`, market]));
   return incoming.map((market) => {

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { compact, displayPpm, displayPrice } from "../config";
 import { localized } from "../localized";
 import type { LanguageMode } from "../localized";
-import { marketFavoriteKey, marketProductForPresentation, marketTickerIsReady } from "../marketPresentation";
+import { marketFavoriteKey, marketIsTradable, marketProductForPresentation, marketTickerIsReady } from "../marketPresentation";
 import { priceFromTicks } from "../valuation";
 import type { Market, ProductMode } from "../types";
 import type { ProductAssetMeta } from "./AssetCenter";
@@ -33,7 +33,8 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
     const normalizedQuery = query.trim().toUpperCase();
     return matchesProduct && (!normalizedQuery || `${market.symbol} ${market.displayName}`.toUpperCase().includes(normalizedQuery));
   });
-  const tickerMarkets = visibleMarkets.filter(marketTickerIsReady);
+  const tradableMarkets = visibleMarkets.filter(marketIsTradable);
+  const tickerMarkets = tradableMarkets.filter(marketTickerIsReady);
   const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
   const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
   const risingCount = tickerMarkets.filter((market) => market.change24hPpm >= 0).length;
@@ -76,7 +77,7 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
           {marketState === "loading" && <div className="markets-sync-note" role="status">{text("正在同步最新行情，当前列表保持可用。", "Syncing the latest ticker; the current list remains available.")}</div>}
           {marketState === "error" && markets.length > 0 && <div className="markets-sync-note error" role="alert">{text("行情同步失败，以下为最近一次可用列表。", "Ticker sync failed; showing the last available market list.")}</div>}
           <div className="markets-stats">
-            <UiCard><span>{text("可交易市场", "Tradable markets")}</span><strong>{visibleMarkets.length}</strong><small>{filter === "all" ? text("全部产品线", "All products") : productMeta[filter].shortLabel}</small></UiCard>
+            <UiCard><span>{text("可交易市场", "Tradable markets")}</span><strong>{tradableMarkets.length}</strong><small>{filter === "all" ? text("全部产品线", "All products") : productMeta[filter].shortLabel}</small></UiCard>
             <UiCard><span>{text("上涨市场", "Rising markets")}</span><strong className="market-stat-positive">{risingCount}</strong><small>{tickerMarkets.length ? `${Math.round((risingCount / tickerMarkets.length) * 100)}% ${text("占已同步行情", "of synced tickers")}` : text("等待行情快照", "Waiting for ticker snapshot")}</small></UiCard>
             <UiCard><span>{text("24H成交额", "24H volume")}</span><strong>{tickerMarkets.length ? compact(totalVolume) : "—"}</strong><small>{text("按后端返回计价", "As returned by gateway")}</small></UiCard>
           </div>
@@ -90,7 +91,7 @@ export function MarketsPage({ markets, marketState, language, productMeta, onRef
               <UiCard className="markets-table-card">
                 <div className="markets-table-heading"><div><span className="asset-eyebrow">MARKET SNAPSHOT</span><h2>{text("全部市场", "All markets")}</h2></div><UiStatusBadge tone={marketState === "degraded" || tickerMarkets.length === 0 ? "warning" : "positive"}>{marketState === "degraded" ? text("数据降级", "Degraded") : tickerMarkets.length === 0 ? text("等待行情", "Waiting for ticker") : text("实时数据", "Live data")}</UiStatusBadge></div>
                 <div className="markets-table" role="table" aria-label={text("市场列表", "Market list")}>
-                  <div className="markets-table-row markets-table-head" role="row"><span>{text("市场", "Market")}</span><span>{text("最新价", "Last")}</span><span>{text("24H变化", "24H change")}</span><span>{text("24H成交额", "24H volume")}</span><span>{text("状态", "Status")}</span><span /></div>
+                  <div className="markets-table-row markets-table-head" role="row"><span role="columnheader">{text("市场", "Market")}</span><span role="columnheader">{text("最新价", "Last")}</span><span role="columnheader">{text("24H变化", "24H change")}</span><span role="columnheader">{text("24H成交额", "24H volume")}</span><span role="columnheader">{text("状态", "Status")}</span><span role="columnheader" aria-hidden="true" /></div>
                   {visibleMarkets.map((market) => <MarketRow key={marketFavoriteKey(market)} market={market} language={language} productMeta={productMeta} favorite={favorites.includes(marketFavoriteKey(market))} onFavorite={toggleFavorite} onOpen={onOpenMarket} />)}
                 </div>
               </UiCard>
@@ -114,15 +115,18 @@ function MarketRow({ market, language, productMeta, favorite, compact: compactRo
   const tickerReady = marketTickerIsReady(market);
   const tickerLabel = tickerReady ? (language === "en-US" ? "Trading" : "交易中") : (language === "en-US" ? "Waiting for ticker" : "等待行情");
   const compactMetric = metric === "volume" ? (tickerReady ? compact(market.volume24hUnits) : "—") : (tickerReady ? `${changeIsPositive ? "+" : ""}${displayPpm(market.change24hPpm)}` : "—");
-  return <article className={`market-data-row${compactRow ? " compact" : ""}`}>
-    <button className="market-data-main" type="button" onClick={() => onOpen(market)}>
-      <strong>{market.symbol}</strong><small>{productName} · {market.quoteAsset}</small>
-    </button>
-    <strong className="market-data-price">{displayMarketPrice(market)}</strong>
-    <strong className={metric === "volume" ? "market-data-volume-compact" : tickerReady ? (changeIsPositive ? "market-positive" : "market-negative") : "market-data-muted"}>{compactRow ? compactMetric : tickerReady ? `${changeIsPositive ? "+" : ""}${displayPpm(market.change24hPpm)}` : "—"}</strong>
-    <span className="market-data-volume">{tickerReady ? compact(market.volume24hUnits) : "—"}</span>
-    {!compactRow && <UiStatusBadge tone={tickerReady && market.status === "TRADING" ? "positive" : "warning"}>{market.status === "TRADING" ? tickerLabel : market.status ?? "—"}</UiStatusBadge>}
-    <button className="market-favorite" type="button" aria-label={favorite ? `${market.symbol} ${language === "en-US" ? "remove favorite" : "取消收藏"}` : `${market.symbol} ${language === "en-US" ? "add favorite" : "加入自选"}`} aria-pressed={favorite} onClick={() => onFavorite(market)}><Star size={15} fill={favorite ? "currentColor" : "none"} /></button>
+  const cellRole = compactRow ? undefined : "cell";
+  return <article className={`market-data-row${compactRow ? " compact" : ""}`} role={compactRow ? undefined : "row"}>
+    <div className="market-data-main-cell" role={cellRole}>
+      <button className="market-data-main" type="button" onClick={() => onOpen(market)}>
+        <strong>{market.symbol}</strong><small>{productName} · {market.quoteAsset}</small>
+      </button>
+    </div>
+    <div className="market-data-price-cell" role={cellRole}><strong className="market-data-price">{displayMarketPrice(market)}</strong></div>
+    <div className="market-data-change-cell" role={cellRole}><strong className={metric === "volume" ? "market-data-volume-compact" : tickerReady ? (changeIsPositive ? "market-positive" : "market-negative") : "market-data-muted"}>{compactRow ? compactMetric : tickerReady ? `${changeIsPositive ? "+" : ""}${displayPpm(market.change24hPpm)}` : "—"}</strong></div>
+    <div className="market-data-volume-cell" role={cellRole}><span className="market-data-volume">{tickerReady ? compact(market.volume24hUnits) : "—"}</span></div>
+    {!compactRow && <div className="market-data-status-cell" role="cell"><UiStatusBadge tone={tickerReady && market.status === "TRADING" ? "positive" : "warning"}>{market.status === "TRADING" ? tickerLabel : market.status ?? "—"}</UiStatusBadge></div>}
+    <div className="market-favorite-cell" role={cellRole}><button className="market-favorite" type="button" aria-label={favorite ? `${market.symbol} ${language === "en-US" ? "remove favorite" : "取消收藏"}` : `${market.symbol} ${language === "en-US" ? "add favorite" : "加入自选"}`} aria-pressed={favorite} onClick={() => onFavorite(market)}><Star size={15} fill={favorite ? "currentColor" : "none"} /></button></div>
   </article>;
 }
 
