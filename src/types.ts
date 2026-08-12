@@ -151,6 +151,7 @@ export interface Market {
   fundingRatePpm: number;
   volume24hUnits: number;
   maxLeverage: number;
+  tickerReady?: boolean;
 }
 
 export interface RiskLimitBracket {

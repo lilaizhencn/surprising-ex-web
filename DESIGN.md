@@ -91,6 +91,17 @@ Principles: identity before access, state before decoration, one primary action 
 --sx-focus-outline-offset: 2px;
 --sx-focus-outline: 2px solid var(--sx-cyan-500);
 --sx-size-asset-tab-indicator: 3px;
+--sx-size-market-stat: 26px;
+--sx-size-market-row: 62px;
+--sx-size-market-row-compact: 52px;
+--sx-size-market-column-main: 180px;
+--sx-size-market-column-price: 120px;
+--sx-size-market-column-change: 100px;
+--sx-size-market-column-volume: 100px;
+--sx-size-market-column-compact-main: 140px;
+--sx-size-market-column-compact-metric: 90px;
+--sx-font-market-section: 15px;
+--sx-font-market-heading: 24px;
 ```
 
 Typography uses the system UI sans stack for dense trading surfaces, a slightly expanded display weight for auth headings, and tabular numerals for prices, quantities, balances, and risk values.

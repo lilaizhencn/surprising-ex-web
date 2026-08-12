@@ -91,6 +91,12 @@ interface BackendInstrument {
   status?: string;
   riskLimitBrackets?: Market["riskLimitBrackets"];
   indexSources?: Market["indexSources"];
+  lastPrice?: string | number;
+  lastPriceTicks?: number;
+  change24hPpm?: number;
+  change24h?: string | number;
+  volume24hUnits?: number;
+  volume24h?: string | number;
 }
 
 interface BackendMarkPrice {
@@ -334,14 +340,14 @@ export async function loadMarkets(allowFallback = true): Promise<Market[]> {
     const instruments = response.instruments ?? response.items ?? [];
     if (!instruments.length) {
       if (!allowFallback || !config.enableMockFallback) throw new Error("行情标的为空");
-      return fallbackMarkets;
+      return fallbackMarketSnapshot();
     }
     return instruments.map(toMarket);
   } catch (error) {
     if (!allowFallback || !config.enableMockFallback) {
       throw error instanceof Error ? error : new Error("行情服务不可用");
     }
-    return fallbackMarkets;
+    return fallbackMarketSnapshot();
   }
 }
 
@@ -406,7 +412,7 @@ export async function loadInstrumentConfig(symbol: string, productLine?: Product
     if (!config.enableMockFallback) {
       throw error instanceof Error ? error : new Error("交易对配置不可用");
     }
-    return fallbackMarkets.find((market) => market.symbol === symbol) ?? fallbackMarkets[0];
+    return fallbackMarketSnapshot().find((market) => market.symbol === symbol) ?? fallbackMarketSnapshot()[0];
   }
 }
 
@@ -1184,11 +1190,15 @@ function toMarket(item: BackendInstrument): Market {
   const instrumentType = item.instrumentType ?? fallback?.instrumentType;
   const contractType = item.contractType ?? fallback?.contractType;
   const priceTickUnits = item.priceTickUnits ?? fallback?.priceTickUnits;
-  const fallbackPriceToTicks = (price: number | undefined, defaultPrice: number) => {
-    const value = price ?? (config.enableMockFallback ? defaultPrice : 0);
+  const fallbackPriceToTicks = (price: number | undefined, backendPrice: number | undefined, defaultPrice: number) => {
+    const value = price ?? backendPrice ?? (config.enableMockFallback ? defaultPrice : 0);
     if (!priceTickUnits || priceTickUnits === 1) return value;
     return Math.round(value * 100_000_000 / priceTickUnits);
   };
+  const backendChange = item.change24hPpm ?? (item.change24h === undefined ? undefined : asRatePpm(item.change24h));
+  const backendVolume = item.volume24hUnits ?? asOptionalNumber(item.volume24h);
+  const backendLastPrice = item.lastPriceTicks ?? priceToTicks(item.lastPrice, { priceTickUnits });
+  const tickerReady = backendLastPrice !== undefined && backendChange !== undefined && backendVolume !== undefined;
   return {
     symbol: item.symbol,
     version: item.version,
@@ -1244,17 +1254,22 @@ function toMarket(item: BackendInstrument): Market {
     riskLimitBrackets: item.riskLimitBrackets,
     indexSources: item.indexSources,
     displayName: displayMarketName(item.symbol, instrumentType, contractType),
-    lastPriceTicks: fallbackPriceToTicks(fallback?.lastPriceTicks, 1000),
-    markPriceTicks: fallbackPriceToTicks(fallback?.markPriceTicks, 1000),
-    indexPriceTicks: fallbackPriceToTicks(fallback?.indexPriceTicks, 1000),
-    change24hPpm: fallback?.change24hPpm ?? 0,
+    lastPriceTicks: fallbackPriceToTicks(fallback?.lastPriceTicks, backendLastPrice, 1000),
+    markPriceTicks: fallbackPriceToTicks(fallback?.markPriceTicks, undefined, 1000),
+    indexPriceTicks: fallbackPriceToTicks(fallback?.indexPriceTicks, undefined, 1000),
+    change24hPpm: fallback?.change24hPpm ?? backendChange ?? 0,
     fundingRatePpm: fallback?.fundingRatePpm ?? 0,
-    volume24hUnits: fallback?.volume24hUnits ?? 0,
+    volume24hUnits: fallback?.volume24hUnits ?? backendVolume ?? 0,
     maxLeverage: item.maxLeverage
       ?? (item.maxLeveragePpm !== undefined
         ? Math.max(1, Math.floor(item.maxLeveragePpm / 1_000_000))
-        : (config.enableMockFallback ? 50 : 0))
+      : (config.enableMockFallback ? 50 : 0)),
+    tickerReady: config.enableMockFallback || tickerReady
   };
+}
+
+function fallbackMarketSnapshot(): Market[] {
+  return fallbackMarkets.map((market) => ({ ...market, tickerReady: true }));
 }
 
 function asOptionalNumber(value: unknown): number | undefined {

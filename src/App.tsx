@@ -214,6 +214,7 @@ export default function App() {
   const triggerOrderEventVersionsRef = useRef<Map<number, number>>(new Map());
   const processedPublicEventKeysRef = useRef<Set<string>>(new Set());
   const marketDataRequestRef = useRef(0);
+  const marketsRequestRef = useRef(0);
   const openOrdersRequestRef = useRef(0);
   const valuationRequestGuardRef = useRef(new ValuationRequestGuard());
   const marketsRef = useRef<Market[]>([]);
@@ -223,10 +224,13 @@ export default function App() {
   }, [markets]);
 
   async function refreshMarketsFromGateway(): Promise<void> {
+    const requestId = marketsRequestRef.current + 1;
+    marketsRequestRef.current = requestId;
     setMarketState("loading");
     setValuationMarketState("loading");
     try {
       const items = await loadMarkets(false);
+      if (requestId !== marketsRequestRef.current) return;
       setMarkets(items);
       setMarketState("ready");
       setValuationPrices({});
@@ -236,8 +240,9 @@ export default function App() {
     } catch {
       try {
         const items = await loadMarkets();
+        if (requestId !== marketsRequestRef.current) return;
         setMarkets(items);
-        setMarketState("degraded");
+        setMarketState(config.enableMockFallback ? "degraded" : "ready");
         setValuationPrices({});
         setValuationMarketState("ready");
         if (items[0]) setSymbol((current) => items.some((item) => item.symbol === current) ? current : items[0].symbol);
@@ -263,12 +268,10 @@ export default function App() {
 
   const selectedMarket = useMemo(
     () => visibleMarkets.find((market) => market.symbol === symbol)
-      ?? visibleMarkets[0]
-      ?? markets.find((market) => market.symbol === symbol)
-      ?? markets[0],
-    [markets, symbol, visibleMarkets]
+      ?? visibleMarkets[0],
+    [symbol, visibleMarkets]
   );
-  const activeProductMode = selectedMarket ? marketProduct(selectedMarket) : productMode;
+  const activeProductMode = productMode;
   const activeProductLine = PRODUCT_META[activeProductMode].productLine;
   const realtime = useRealtime(session, symbol, activeProductMode, klinePeriod);
 
@@ -1184,8 +1187,8 @@ function HomePage({
           return <button className="home-market-row" key={`${marketProduct(market)}:${market.symbol}`} onClick={() => onOpenMarket(market)}>
             <span className="home-market-symbol"><strong>{market.symbol}</strong><small>{displayMarketName(language, market)} · {PRODUCT_META[marketProduct(market)].shortLabel}</small></span>
             <strong className="home-market-price">{displayMarketPrice(market, market.lastPriceTicks)}</strong>
-            <span className={change ? "home-market-up" : "home-market-down"}>{change ? "+" : ""}{displayPpm(market.change24hPpm)}</span>
-            <span className="home-market-volume">{compact(unitsToNumber(market.volume24hUnits))}</span>
+            <span className={market.tickerReady ? (change ? "home-market-up" : "home-market-down") : "market-data-muted"}>{market.tickerReady ? `${change ? "+" : ""}${displayPpm(market.change24hPpm)}` : "—"}</span>
+            <span className="home-market-volume">{market.tickerReady ? compact(unitsToNumber(market.volume24hUnits)) : "—"}</span>
             <ArrowUpRight size={16} />
           </button>;
         })}
@@ -1197,8 +1200,9 @@ function HomePage({
 
 function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  const gainers = [...markets].filter((market) => market.status !== "HALTED").sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
-  const volumeLeaders = [...markets].filter((market) => market.status !== "HALTED").sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
+  const tickerMarkets = markets.filter((market) => market.status !== "HALTED" && market.tickerReady);
+  const gainers = [...tickerMarkets].sort((left, right) => right.change24hPpm - left.change24hPpm).slice(0, 3);
+  const volumeLeaders = [...tickerMarkets].sort((left, right) => right.volume24hUnits - left.volume24hUnits).slice(0, 3);
   return <section className="home-insights" aria-label={text("市场排行", "Market rankings")}>
     <div className="home-insights-heading"><div><span className="eyebrow">MARKET SIGNALS</span><h2>{text("市场信号", "Market signals")}</h2></div><span>{text("基于当前后端市场快照", "Based on the current gateway snapshot")}</span></div>
     <div className="home-insight-grid">
@@ -1210,7 +1214,7 @@ function HomeMarketInsights({ markets, language, onOpenMarket }: { markets: Mark
 
 function HomeRankingCard({ title, markets, language, onOpenMarket, value }: { title: string; markets: Market[]; language: LanguageMode; onOpenMarket: (market: Market) => void; value: "change" | "volume" }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
-  return <article className="home-ranking-card"><h3><TrendingUp size={16} />{title}</h3>{markets.length === 0 ? <div className="home-ranking-empty"><WifiOff size={15} />{text("等待真实市场数据", "Waiting for live market data")}</div> : markets.map((market) => <button className="home-ranking-row" type="button" key={market.symbol} onClick={() => onOpenMarket(market)}><span><strong>{market.symbol}</strong><small>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel}</small></span>{value === "change" ? <b className={market.change24hPpm >= 0 ? "home-market-up" : "home-market-down"}>{market.change24hPpm >= 0 ? "+" : ""}{displayPpm(market.change24hPpm)}</b> : <b>{compact(market.volume24hUnits)}</b>}</button>)}</article>;
+  return <article className="home-ranking-card"><h3><TrendingUp size={16} />{title}</h3>{markets.length === 0 ? <div className="home-ranking-empty"><WifiOff size={15} />{text("等待真实市场数据", "Waiting for live market data")}</div> : markets.map((market) => <button className="home-ranking-row" type="button" key={`${marketProduct(market)}:${market.symbol}`} onClick={() => onOpenMarket(market)}><span><strong>{market.symbol}</strong><small>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel}</small></span>{value === "change" ? <b className={market.change24hPpm >= 0 ? "home-market-up" : "home-market-down"}>{market.change24hPpm >= 0 ? "+" : ""}{displayPpm(market.change24hPpm)}</b> : <b>{compact(market.volume24hUnits)}</b>}</button>)}</article>;
 }
 
 function LiveStatus({ state, lastEventAt, onRefresh }: { state: ConnectionState; lastEventAt?: Date; onRefresh: () => void }) {
@@ -1816,7 +1820,11 @@ function Topbar({
           </>
         )}
       </div>
-      {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">{(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{language === "en-US" ? meta.labelEn : meta.label}</button>)}</div>}
+      {mobileProductsOpen && <div className="mobile-products-menu" id="mobile-product-menu">
+        <button onClick={() => { onPageChange("markets"); setMobileProductsOpen(false); }}>{localized(language, "行情中心", "Markets")}</button>
+        {(Object.entries(PRODUCT_META) as Array<[ProductMode, typeof PRODUCT_META[ProductMode]]>).map(([mode, meta]) => <button key={mode} onClick={() => { onProductModeChange(mode); setMobileProductsOpen(false); }}>{language === "en-US" ? meta.labelEn : meta.label}</button>)}
+        <button onClick={() => { onPageChange("rules"); setMobileProductsOpen(false); }}>{localized(language, "交易规则", "Rules")}</button>
+      </div>}
     </header>
   );
 }
@@ -1865,7 +1873,7 @@ function MarketRail({
         <button className={market.symbol === symbol ? "active" : ""} key={market.symbol} title={`${market.symbol} ${displayMarketName(language, market)}`} onClick={() => onSelect(market.symbol)}>
           <span><Star size={13} />{market.symbol}</span>
           <strong>{displayMarketPrice(market, market.lastPriceTicks)}</strong>
-          <small className={market.change24hPpm >= 0 ? "up" : "down"}>{displayPpm(market.change24hPpm)}</small>
+          <small className={market.tickerReady ? (market.change24hPpm >= 0 ? "up" : "down") : "market-data-muted"}>{market.tickerReady ? displayPpm(market.change24hPpm) : "—"}</small>
           <em>{language === "en-US" ? PRODUCT_META[marketProduct(market)].shortLabelEn : PRODUCT_META[marketProduct(market)].shortLabel} · {marketProduct(market) === "spot" ? market.quoteAsset : `${market.settleAsset ?? market.quoteAsset} · ${market.maxLeverage}x`}</em>
         </button>
       ))}
@@ -1889,7 +1897,7 @@ function MarketHeader({ language, market, loading, nowMs, onInfo }: { language: 
         <button className="mini-icon-button" onClick={onInfo} aria-label={text("产品配置", "Product configuration")}><Info size={14} /></button>
       </div>
       <Metric label={text("最新", "Last")} value={priceWithQuote(market, market.lastPriceTicks, market.quoteAsset)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
-      <Metric label="24H" value={displayPpm(market.change24hPpm)} tone={market.change24hPpm >= 0 ? "up" : "down"} />
+      <Metric label="24H" value={market.tickerReady ? displayPpm(market.change24hPpm) : "—"} tone={market.tickerReady ? (market.change24hPpm >= 0 ? "up" : "down") : undefined} />
       {isSpot ? (
         <>
           <Metric label={text("基础资产", "Base asset")} value={market.baseAsset} tone="gold" />
@@ -1913,7 +1921,7 @@ function MarketHeader({ language, market, loading, nowMs, onInfo }: { language: 
           )}
         </>
       )}
-      <Metric label={text("24H量", "24H volume")} value={compact(market.volume24hUnits)} />
+      <Metric label={text("24H量", "24H volume")} value={market.tickerReady ? compact(market.volume24hUnits) : "—"} />
     </section>
   );
 }
@@ -1987,7 +1995,7 @@ function priceWithQuote(market: Market | undefined, priceTicks: number, quoteAss
 }
 
 function displayMarketPrice(market: Market | undefined, priceTicks: number): string {
-  if (!market || !Number.isFinite(priceTicks) || priceTicks <= 0) return "—";
+  if (!market?.tickerReady || !Number.isFinite(priceTicks) || priceTicks <= 0) return "—";
   return displayPrice(priceFromTicks(market, priceTicks));
 }
 
