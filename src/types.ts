@@ -236,6 +236,35 @@ export interface Balance {
   equityUnits: number;
 }
 
+export interface AccountLedgerEntry {
+  entryId: number;
+  userId: number;
+  asset: string;
+  amountUnits: number;
+  balanceAfterUnits: number;
+  referenceType: string;
+  referenceId: string;
+  reason: string;
+  tradeId?: number | null;
+  orderId?: number | null;
+  symbol?: string | null;
+  feeRatePpm?: number | null;
+  createdAt: string;
+}
+
+export interface ProductLedgerEntry extends AccountLedgerEntry {
+  accountType: ProductAccountType | string;
+}
+
+export interface LedgerPage<T> {
+  count: number;
+  entries: T[];
+  nextCursor?: string | null;
+  hasMore: boolean;
+  sort: string;
+  limit: number;
+}
+
 export interface Position {
   symbol: string;
   marginMode: MarginMode;

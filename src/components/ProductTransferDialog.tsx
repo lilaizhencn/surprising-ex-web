@@ -15,15 +15,18 @@ const ACCOUNT_OPTIONS: Array<{ value: ProductAccountType; label: string }> = [
   { value: "OPTION", label: "期权账户" }
 ];
 
-export function ProductTransferDialog({ session, balances, onClose, onCompleted }: {
+export function ProductTransferDialog({ session, balances, initialAsset, initialSourceAccountType = "SPOT", initialTargetAccountType = "USDT_PERPETUAL", onClose, onCompleted }: {
   session: AuthSession;
   balances: Balance[];
+  initialAsset?: string;
+  initialSourceAccountType?: ProductAccountType;
+  initialTargetAccountType?: ProductAccountType;
   onClose: () => void;
   onCompleted: () => void;
 }) {
-  const [sourceAccountType, setSourceAccountType] = useState<ProductAccountType>("SPOT");
-  const [targetAccountType, setTargetAccountType] = useState<ProductAccountType>("USDT_PERPETUAL");
-  const [asset, setAsset] = useState(() => balances.find((item) => item.availableUnits > 0)?.asset ?? "USDT");
+  const [sourceAccountType, setSourceAccountType] = useState<ProductAccountType>(initialSourceAccountType);
+  const [targetAccountType, setTargetAccountType] = useState<ProductAccountType>(initialTargetAccountType);
+  const [asset, setAsset] = useState(() => initialAsset ?? balances.find((item) => item.availableUnits > 0)?.asset ?? balances[0]?.asset ?? "USDT");
   const [amount, setAmount] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [submitting, setSubmitting] = useState(false);

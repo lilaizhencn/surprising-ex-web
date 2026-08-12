@@ -51,7 +51,7 @@ import {
   type IChartApi,
   type UTCTimestamp
 } from "lightweight-charts";
-import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updateApiKeyIpAllowlist, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
+import { cancelAlgoOrder, cancelOrder, cancelTriggerOrder, changePassword, confirmMfa, createApiKey, disableMfa, enrollMfa, forgotPassword, issueSecurityChallenge, loadAccountLedger, loadApiKeys, loadBalances, loadCandles, loadExchangeRateConversion, loadInstrumentConfig, loadKyc, loadKycDocuments, loadMarkets, loadMarkPrice, loadMfaStatus, loadOpenAlgoOrders, loadOpenOrders, loadOpenTriggerOrders, loadOrderBook, loadPositionMode, loadPositions, loadSecurityScenes, login, placeAlgoOrder, placeOrder, placeTriggerOrder, register, resendEmailVerification, resetPassword, revokeApiKey, submitKyc, updateApiKeyIpAllowlist, updatePositionMode, updateSecurityScene, uploadKycDocument, verifyEmail } from "./api/surprising";
 import { compact, config, displayPpm, displayPrice, displayUnits } from "./config";
 import { fallbackTrades } from "./mockData";
 import { ApiError, loadSession, saveSession } from "./api/client";
@@ -61,13 +61,15 @@ import type { LanguageMode } from "./localized";
 import { AssetIcon, AssetTabs, SupportBubble, assetName, fundingAssets } from "./components/AssetPrimitives";
 import { FundingFlowPage } from "./components/FundingFlowPage";
 import { ProductTransferDialog } from "./components/ProductTransferDialog";
+import { AssetCenter, emptyProductBalances, type ProductBalances } from "./components/AssetCenter";
+import { FundingLedgerPage } from "./components/FundingLedgerPage";
 import { applyMarketPriceTicks, priceFromTicks, ValuationRequestGuard } from "./valuation";
-import type { AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
+import type { AccountLedgerEntry, AlgoOrder, AlgoOrderType, ApiKeyView, AuthSession, Balance, CandlePoint, ConnectionState, KycDocument, KycProfile, MarginMode, Market, MfaEnrollment, MfaStatus, OpenOrder, OpenTriggerOrder, OrderBookLevel, OrderSide, OrderType, PlaceAlgoOrderDraft, PlaceOrderDraft, PlaceTriggerOrderDraft, Position, PositionMode, PositionSide, ProductAccountType, ProductLine, ProductMode, SecurityScene, TimeInForce, TradePrint, TradeRecord, TriggerOrderType, ValuationCurrency, WsEnvelope } from "./types";
 import "./styles.css";
 
 type AuthMode = "login" | "register";
 type AuthStep = AuthMode | "forgot" | "verify" | "reset";
-type Page = "home" | "trade" | "rules" | "assets" | "recharge" | "withdraw" | "security";
+type Page = "home" | "trade" | "rules" | "assets" | "ledger" | "recharge" | "withdraw" | "security";
 type ThemeMode = "dark" | "light";
 type FundingBalanceState = "idle" | "loading" | "ready" | "error";
 type PickedPrice = { value: number; nonce: number };
@@ -109,16 +111,27 @@ const PRODUCT_META: Record<ProductMode, { label: string; labelEn: string; shortL
   spot: { label: "现货", labelEn: "Spot", shortLabel: "现货", shortLabelEn: "Spot", accountType: "SPOT", productLine: "SPOT" }
 };
 
-function routeStateFromLocation(): { page: Page; productMode: ProductMode } {
+const PRODUCT_MODES = Object.keys(PRODUCT_META) as ProductMode[];
+
+function routeStateFromLocation(): { page: Page; productMode: ProductMode; assetProductMode: ProductMode | null } {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  const productMode = productModeFromPath(path) ?? "linear";
-  if (path === "/" || path === "/home") return { page: "home", productMode };
-  if (path === "/rules") return { page: "rules", productMode };
-  if (path === "/assets") return { page: "assets", productMode };
-  if (path === "/recharge") return { page: "recharge", productMode };
-  if (path === "/withdraw") return { page: "withdraw", productMode };
-  if (path === "/security") return { page: "security", productMode };
-  return { page: "trade", productMode };
+  const assetProductMode = assetProductModeFromPath(path);
+  const productMode = productModeFromPath(path) ?? assetProductMode ?? "linear";
+  if (path === "/" || path === "/home") return { page: "home", productMode, assetProductMode: null };
+  if (path === "/rules") return { page: "rules", productMode, assetProductMode: null };
+  if (path === "/assets" || assetProductMode) return { page: "assets", productMode, assetProductMode };
+  if (path === "/ledger") return { page: "ledger", productMode, assetProductMode: null };
+  if (path === "/recharge") return { page: "recharge", productMode, assetProductMode: null };
+  if (path === "/withdraw") return { page: "withdraw", productMode, assetProductMode: null };
+  if (path === "/security") return { page: "security", productMode, assetProductMode: null };
+  return { page: "trade", productMode, assetProductMode: null };
+}
+
+function assetProductModeFromPath(path: string): ProductMode | null {
+  const prefix = "/assets/";
+  if (!path.startsWith(prefix)) return null;
+  const value = path.slice(prefix.length);
+  return PRODUCT_MODES.includes(value as ProductMode) ? value as ProductMode : null;
 }
 
 function productModeFromPath(path: string): ProductMode | null {
@@ -131,6 +144,10 @@ function routeForPage(page: Page, productMode: ProductMode): string {
   if (page === "home") return "/";
   if (page === "trade") return PRODUCT_ROUTES[productMode];
   return `/${page}`;
+}
+
+function routeForAssetProduct(productMode: ProductMode): string {
+  return `/assets/${productMode}`;
 }
 
 function pushRoute(path: string): void {
@@ -150,6 +167,11 @@ export default function App() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [fundingBalances, setFundingBalances] = useState<Balance[]>([]);
   const [fundingBalanceState, setFundingBalanceState] = useState<FundingBalanceState>("idle");
+  const [productBalances, setProductBalances] = useState<ProductBalances>(() => emptyProductBalances());
+  const [productBalanceState, setProductBalanceState] = useState<FundingBalanceState>("idle");
+  const [recentLedger, setRecentLedger] = useState<AccountLedgerEntry[]>([]);
+  const [recentLedgerState, setRecentLedgerState] = useState<FundingBalanceState>("idle");
+  const [recentLedgerHasMore, setRecentLedgerHasMore] = useState(false);
   const [valuationCurrency, setValuationCurrency] = useState<ValuationCurrency>(() => {
     const stored = localStorage.getItem("surprising.valuationCurrency");
     return stored === "USD" || stored === "CNY" ? stored : "USDT";
@@ -171,6 +193,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(initialAuthMode);
   const [page, setPage] = useState<Page>(initialRoute.page);
   const [productMode, setProductMode] = useState<ProductMode>(initialRoute.productMode);
+  const [assetProductMode, setAssetProductMode] = useState<ProductMode | null>(initialRoute.assetProductMode);
   const [marketSearch, setMarketSearch] = useState("");
   const [klinePeriod, setKlinePeriod] = useState<string>("1m");
   const [theme, setTheme] = useState<ThemeMode>(() => localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
@@ -178,6 +201,7 @@ export default function App() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [instrumentInfoOpen, setInstrumentInfoOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [transferContext, setTransferContext] = useState<{ product: ProductMode; asset?: string } | null>(null);
   const [pickedPrice, setPickedPrice] = useState<PickedPrice | null>(null);
   const processedPrivateEventKeysRef = useRef<Set<string>>(new Set());
   const processedTriggerEventKeysRef = useRef<Set<string>>(new Set());
@@ -246,19 +270,41 @@ export default function App() {
     if (!session) {
       setFundingBalances([]);
       setFundingBalanceState("idle");
+      setProductBalances(emptyProductBalances());
+      setProductBalanceState("idle");
+      setRecentLedger([]);
+      setRecentLedgerState("idle");
+      setRecentLedgerHasMore(false);
       return;
     }
     let cancelled = false;
     setFundingBalanceState("loading");
-    void loadBalances(session, "SPOT", "SPOT", false).then((nextBalances) => {
-      if (!cancelled) {
-        setFundingBalances(nextBalances);
-        setFundingBalanceState("ready");
-      }
+    setProductBalanceState("loading");
+    void Promise.allSettled(PRODUCT_MODES.map((mode) => loadBalances(session, PRODUCT_META[mode].accountType, PRODUCT_META[mode].productLine, false))).then((results) => {
+      if (cancelled) return;
+      const nextBalances = emptyProductBalances();
+      let hasError = false;
+      results.forEach((result, index) => {
+        const mode = PRODUCT_MODES[index];
+        if (result.status === "fulfilled") nextBalances[mode] = result.value;
+        else hasError = true;
+      });
+      setProductBalances(nextBalances);
+      setFundingBalances(nextBalances.spot);
+      setFundingBalanceState(results[PRODUCT_MODES.indexOf("spot")]?.status === "fulfilled" ? "ready" : "error");
+      setProductBalanceState(hasError ? "error" : "ready");
+    });
+    setRecentLedgerState("loading");
+    void loadAccountLedger(session, 10).then((nextPage) => {
+      if (cancelled) return;
+      setRecentLedger(nextPage.entries.slice(0, 10));
+      setRecentLedgerHasMore(nextPage.hasMore);
+      setRecentLedgerState("ready");
     }).catch(() => {
       if (!cancelled) {
-        setFundingBalances([]);
-        setFundingBalanceState("error");
+        setRecentLedger([]);
+        setRecentLedgerHasMore(false);
+        setRecentLedgerState("error");
       }
     });
     return () => { cancelled = true; };
@@ -350,16 +396,38 @@ export default function App() {
   async function refreshFundingBalances(active = session): Promise<void> {
     if (!active) return;
     setFundingBalanceState("loading");
+    setProductBalanceState("loading");
     try {
-      const nextBalances = await loadBalances(active, "SPOT", "SPOT", false);
+      const results = await Promise.allSettled(PRODUCT_MODES.map((mode) => loadBalances(active, PRODUCT_META[mode].accountType, PRODUCT_META[mode].productLine, false)));
+      const nextProductBalances = emptyProductBalances();
+      let hasError = false;
+      results.forEach((result, index) => {
+        const mode = PRODUCT_MODES[index];
+        if (result.status === "fulfilled") nextProductBalances[mode] = result.value;
+        else hasError = true;
+      });
       if (active.accessToken === session?.accessToken) {
-        setFundingBalances(nextBalances);
-        setFundingBalanceState("ready");
+        setProductBalances(nextProductBalances);
+        setFundingBalances(nextProductBalances.spot);
+        setFundingBalanceState(results[PRODUCT_MODES.indexOf("spot")]?.status === "fulfilled" ? "ready" : "error");
+        setProductBalanceState(hasError ? "error" : "ready");
       }
     } catch {
       if (active.accessToken === session?.accessToken) {
         setFundingBalances([]);
         setFundingBalanceState("error");
+        setProductBalances(emptyProductBalances());
+        setProductBalanceState("error");
+      }
+    }
+    if (active.accessToken === session?.accessToken) {
+      try {
+        const nextPage = await loadAccountLedger(active, 10);
+        setRecentLedger(nextPage.entries.slice(0, 10));
+        setRecentLedgerHasMore(nextPage.hasMore);
+        setRecentLedgerState("ready");
+      } catch {
+        setRecentLedgerState("error");
       }
     }
   }
@@ -383,6 +451,7 @@ export default function App() {
       const nextRoute = routeStateFromLocation();
       setPage(nextRoute.page);
       setProductMode(nextRoute.productMode);
+      setAssetProductMode(nextRoute.assetProductMode);
       const nextAuthMode = window.location.pathname === "/register" ? "register" : window.location.pathname === "/login" ? "login" : null;
       setAuthMode(nextAuthMode);
     };
@@ -567,6 +636,11 @@ export default function App() {
     setBalances([]);
     setFundingBalances([]);
     setFundingBalanceState("idle");
+    setProductBalances(emptyProductBalances());
+    setProductBalanceState("idle");
+    setRecentLedger([]);
+    setRecentLedgerState("idle");
+    setRecentLedgerHasMore(false);
     setPositions([]);
     setOrders([]);
     setOpenOrdersNextCursor(null);
@@ -590,15 +664,31 @@ export default function App() {
   }
 
   function navigateToPage(nextPage: Page) {
+    setAuthMode(null);
+    setAssetProductMode(null);
     setPage(nextPage);
     pushRoute(routeForPage(nextPage, productMode));
   }
 
+  function openAssetProductPage(nextMode: ProductMode) {
+    setAuthMode(null);
+    setAssetProductMode(nextMode);
+    setPage("assets");
+    pushRoute(routeForAssetProduct(nextMode));
+  }
+
   function openProductPage(nextMode: ProductMode) {
+    setAuthMode(null);
+    setAssetProductMode(null);
     setProductMode(nextMode);
     setPage("trade");
     setMarketSearch("");
     pushRoute(routeForPage("trade", nextMode));
+  }
+
+  function openTransfer(product: ProductMode, asset?: string) {
+    setTransferContext({ product, asset });
+    setTransferOpen(true);
   }
 
   function selectMarket(nextSymbol: string) {
@@ -843,32 +933,23 @@ export default function App() {
     }
   }
 
-  if (authMode) {
-    return (
-      <AuthScreen
-        key={authMode}
-        initialMode={authMode}
-        language={language}
-        onAuthenticated={persistSession}
-        onBack={closeAuth}
-      />
-    );
-  }
-
-  return (
-    <main className="app-shell">
-      <Topbar
+  const topbar = <Topbar
         session={session}
         page={page}
         productMode={productMode}
-        markets={visibleMarkets}
+        markets={markets}
         marketSearch={marketSearch}
         theme={theme}
         language={language}
         onPageChange={navigateToPage}
         onProductModeChange={openProductPage}
         onMarketSearchChange={setMarketSearch}
-        onMarketSelect={selectMarket}
+        onMarketSelect={(nextSymbol) => {
+          const market = markets.find((item) => item.symbol === nextSymbol);
+          if (!market) return;
+          setSymbol(nextSymbol);
+          openProductPage(marketProduct(market));
+        }}
         onThemeToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")}
         onLanguageToggle={() => setLanguage((current) => current === "zh-CN" ? "en-US" : "zh-CN")}
         onLogin={() => openAuth("login")}
@@ -877,7 +958,15 @@ export default function App() {
         connectionState={realtime.state}
         lastEventAt={realtime.lastEventAt}
         onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
-      />
+      />;
+
+  if (authMode) {
+    return <main className="app-shell">{topbar}<AuthScreen key={authMode} initialMode={authMode} language={language} onAuthenticated={persistSession} onBack={closeAuth} /></main>;
+  }
+
+  return (
+    <main className="app-shell">
+      {topbar}
       {page === "trade" && notice && <div className="toast"><Radio size={15} />{localizedNotice(language, notice)}</div>}
 
       {page === "home" ? (
@@ -888,8 +977,6 @@ export default function App() {
           positions={positions}
           orders={orders}
           language={language}
-          connectionState={realtime.state}
-          lastEventAt={realtime.lastEventAt}
           onLogin={() => openAuth("login")}
           onRegister={() => openAuth("register")}
           onRefresh={() => { void refreshMarketData(); if (session) void refreshPrivateData(session); }}
@@ -909,23 +996,9 @@ export default function App() {
           }}
         />
       ) : page === "assets" ? (
-        <AssetsPage
-          balances={fundingBalances}
-          markets={markets}
-          fundingBalanceState={fundingBalanceState}
-          session={session}
-          valuationCurrency={valuationCurrency}
-          valuationRates={valuationRates}
-          valuationRateState={valuationRateState}
-          valuationMarketState={valuationMarketState}
-          valuationPrices={valuationPrices}
-          language={language}
-          onValuationCurrencyChange={changeValuationCurrency}
-          onDeposit={() => navigateToPage("recharge")}
-          onWithdraw={() => navigateToPage("withdraw")}
-          onTransfer={() => setTransferOpen(true)}
-          onHelp={() => navigateToPage("rules")}
-        />
+        <AssetCenter activeProduct={assetProductMode} balancesByProduct={productBalances} balanceState={productBalanceState} session={session} language={language} productMeta={PRODUCT_META} valuationCurrency={valuationCurrency} valuationRates={valuationRates} valuationRateState={valuationRateState} valuationMarketState={valuationMarketState} valuationPrices={valuationPrices} recentLedger={recentLedger} recentLedgerState={recentLedgerState} recentLedgerHasMore={recentLedgerHasMore} onValuationCurrencyChange={changeValuationCurrency} onOpenProduct={openAssetProductPage} onOpenOverview={() => navigateToPage("assets")} onOpenLedger={() => navigateToPage("ledger")} onDeposit={() => navigateToPage("recharge")} onWithdraw={() => navigateToPage("withdraw")} onTransfer={openTransfer} onHelp={() => navigateToPage("rules")} onRefresh={() => { void refreshFundingBalances(); }} />
+      ) : page === "ledger" ? (
+        <FundingLedgerPage session={session} language={language} productMeta={PRODUCT_META} onBack={() => navigateToPage("assets")} />
       ) : page === "recharge" ? (
         <FundingFlowPage
           mode="deposit"
@@ -1009,7 +1082,7 @@ export default function App() {
       {instrumentInfoOpen && selectedMarket && (
         <ContractInfoDialog language={language} market={selectedMarket} onClose={() => setInstrumentInfoOpen(false)} />
       )}
-      {transferOpen && session && <ProductTransferDialog session={session} balances={fundingBalances} onClose={() => setTransferOpen(false)} onCompleted={() => { void refreshFundingBalances(); }} />}
+      {transferOpen && session && transferContext && <ProductTransferDialog session={session} balances={productBalances[transferContext.product]} initialAsset={transferContext.asset} initialSourceAccountType={PRODUCT_META[transferContext.product].accountType === "SPOT" ? "SPOT" : PRODUCT_META[transferContext.product].accountType} initialTargetAccountType={PRODUCT_META[transferContext.product].accountType === "SPOT" ? "USDT_PERPETUAL" : "SPOT"} onClose={() => { setTransferOpen(false); setTransferContext(null); }} onCompleted={() => { void refreshFundingBalances(); }} />}
     </main>
   );
 }
@@ -1021,8 +1094,6 @@ function HomePage({
   positions,
   orders,
   language,
-  connectionState,
-  lastEventAt,
   onLogin,
   onRegister,
   onRefresh,
@@ -1037,8 +1108,6 @@ function HomePage({
   positions: Position[];
   orders: OpenOrder[];
   language: LanguageMode;
-  connectionState: ConnectionState;
-  lastEventAt?: Date;
   onLogin: () => void;
   onRegister: () => void;
   onRefresh: () => void;
@@ -1054,33 +1123,6 @@ function HomePage({
 
   return (
     <div className="home-page">
-      <section className="home-hero">
-        <div className="home-hero-copy">
-          <span className="eyebrow">SURPRISING EX · EXECUTION DESK</span>
-          <h1>{greeting}</h1>
-          <p>{session
-            ? text("从账户状态、实时行情到订单风险，继续你的交易计划。", "Continue your trading plan with live markets, account state, and order risk in one place.")
-            : text("一个有自己节奏的交易终端。先看市场，再决定是否进入交易。", "A trading terminal with its own rhythm. Read the market first, then decide when to execute.")}</p>
-          <div className="home-hero-actions">
-            {session ? (
-              <>
-                <button className="home-button home-button-primary" onClick={() => onOpenProduct("linear")}><CandlestickChart size={16} />{text("进入交易工作台", "Open trading desk")}<ArrowUpRight size={15} /></button>
-                <button className="home-button home-button-quiet" onClick={onAssets}><WalletMinimal size={16} />{text("查看资产", "View assets")}</button>
-              </>
-            ) : (
-              <>
-                <button className="home-button home-button-primary" onClick={onRegister}><UserRound size={16} />{text("创建账户", "Create account")}<ArrowUpRight size={15} /></button>
-                <button className="home-button home-button-quiet" onClick={onLogin}>{text("登录交易", "Sign in to trade")}</button>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="home-hero-state">
-          <LiveStatus state={connectionState} lastEventAt={lastEventAt} onRefresh={onRefresh} />
-          <div className="hero-signal"><span className="hero-signal-dot" /><strong>{text("实时市场数据", "Live market data")}</strong><small>{text("行情、盘口和成交统一来自 gateway / WebSocket", "Market, depth, and trades are sourced from gateway / WebSocket")}</small></div>
-        </div>
-      </section>
-
       {session && <section className="home-account-strip" aria-label={text("账户概览", "Account overview")}>
         <div><span>{text("资金账户资产种类", "Funding assets")}</span><strong>{balances.length}</strong></div>
         <div><span>{text("当前持仓", "Open positions")}</span><strong>{positions.length}</strong></div>
@@ -1104,11 +1146,6 @@ function HomePage({
             <ArrowUpRight size={16} />
           </button>;
         })}
-      </section>
-      <section className="home-trust-grid">
-        <article><ShieldCheck size={18} /><div><strong>{text("资金动作可追踪", "Traceable money movement")}</strong><p>{text("充值、提现和划转都进入独立流程，并保留状态反馈。", "Deposits, withdrawals, and transfers use dedicated flows with explicit status feedback.")}</p></div></article>
-        <article><Activity size={18} /><div><strong>{text("产品线严格隔离", "Product-line isolation")}</strong><p>{text("现货、永续、交割、期权使用各自的账户与 instrument 上下文。", "Spot, perpetual, delivery, and options keep their own account and instrument context.")}</p></div></article>
-        <article><LockKeyhole size={18} /><div><strong>{text("安全从登录开始", "Security starts at access")}</strong><p>{text("邮箱验证、2FA、API Key 和安全场景统一在安全中心管理。", "Email verification, 2FA, API keys, and security scenes are managed in one center.")}</p></div></article>
       </section>
     </div>
   );
@@ -1506,8 +1543,8 @@ function AuthScreen({
 }) {
   const text = (zh: string, en: string) => localized(language, zh, en);
   const [step, setStep] = useState<AuthStep>(initialMode);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(config.testAccount?.email ?? "");
+  const [password, setPassword] = useState(config.testAccount?.password ?? "");
   const [code, setCode] = useState("");
   const [pendingSession, setPendingSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState("");
@@ -1552,12 +1589,12 @@ function AuthScreen({
   }
 
   return (
-    <main className="auth-shell">
+    <section className="auth-shell">
       <section className="auth-panel">
-        <button disabled={busy} className="auth-logo" onClick={onBack}>
+        <div className="auth-logo">
           <span><Sparkles size={25} /></span>
           <strong>Surprising EX</strong>
-        </button>
+        </div>
         {step === "login" || step === "register" ? (
           <div className="auth-tabs">
             <button disabled={busy} className={step === "login" ? "active" : ""} onClick={() => { setStep("login"); setError(""); setNotice(""); }}>{text("登录", "Log in")}</button>
@@ -1598,13 +1635,12 @@ function AuthScreen({
         {notice && <p id="auth-status" className="success" role="status" aria-live="polite">{notice}</p>}
         {error && <p id="auth-status" className="error" role="alert" aria-live="assertive">{error}</p>}
         <button className="primary-button" disabled={busy} onClick={submit}>
-          {busy ? text("处理中...", "Processing...") : step === "login" ? text("进入交易舱", "Enter trading") : step === "register" ? text("创建账户", "Create account") : step === "verify" ? text("完成邮箱验证", "Verify email") : step === "reset" ? text("更新密码", "Update password") : text("发送验证码", "Send code")}
+          {busy ? text("处理中...", "Processing...") : step === "login" ? text("登录", "Log in") : step === "register" ? text("注册", "Sign up") : step === "verify" ? text("完成邮箱验证", "Verify email") : step === "reset" ? text("更新密码", "Update password") : text("发送验证码", "Send code")}
         </button>
         {step === "verify" && pendingSession && <button className="ghost-button" disabled={busy} onClick={async () => { setBusy(true); setError(""); setNotice(""); try { await resendEmailVerification(pendingSession); setNotice(text("新的验证码已发送。", "A new code was sent.")); } catch (err) { setError(err instanceof Error ? err.message : text("验证码发送失败", "Failed to send code")); } finally { setBusy(false); } }}>{text("重新发送验证码", "Resend code")}</button>}
         {(step === "forgot" || step === "reset") && <button disabled={busy} className="ghost-button" onClick={() => { setStep("login"); setError(""); setNotice(""); }}>{text("返回登录", "Back to log in")}</button>}
-        <button disabled={busy} className="ghost-button" onClick={onBack}>{text("返回行情", "Back to markets")}</button>
       </section>
-    </main>
+    </section>
   );
 }
 
@@ -1656,9 +1692,8 @@ function Topbar({
     : [];
 
   function openMarket(symbol: string) {
-    onMarketSelect(symbol);
     onMarketSearchChange("");
-    onPageChange("trade");
+    onMarketSelect(symbol);
   }
 
   return (
@@ -1916,6 +1951,30 @@ function triggerTypeLabel(language: LanguageMode, type: TriggerOrderType): strin
   if (type === "TAKE_PROFIT") return localized(language, "止盈", "Take profit");
   if (type === "TRAILING_STOP") return localized(language, "追踪止损", "Trailing stop");
   return localized(language, "止损", "Stop loss");
+}
+
+function orderTypeLabel(language: LanguageMode, type: OrderType): string {
+  return language === "en-US" ? type === "LIMIT" ? "Limit order" : "Market order" : type === "LIMIT" ? "限价单" : "市价单";
+}
+
+function marginModeLabel(language: LanguageMode, mode: MarginMode): string {
+  return language === "en-US" ? mode === "CROSS" ? "Cross" : "Isolated" : mode === "CROSS" ? "全仓" : "逐仓";
+}
+
+function timeInForceLabel(language: LanguageMode, value: TimeInForce): string {
+  const labels: Record<TimeInForce, [string, string]> = {
+    GTC: ["一直有效", "Good till canceled"],
+    IOC: ["立即成交或取消", "Immediate or cancel"],
+    FOK: ["全部成交或取消", "Fill or kill"],
+    GTX: ["只做 Maker", "Post only"]
+  };
+  return labels[value][language === "en-US" ? 1 : 0];
+}
+
+function algoTypeLabel(language: LanguageMode, type: AlgoOrderType): string {
+  return type === "TWAP"
+    ? language === "en-US" ? "TWAP · Time sliced" : "时间加权分批"
+    : language === "en-US" ? "Iceberg · Hidden size" : "冰山单 · 隐藏数量";
 }
 
 function triggerCloseLabel(language: LanguageMode, side: OrderSide, positionSide: PositionSide | "NET" | undefined): string {
@@ -2252,7 +2311,7 @@ function OrderTicket({
 
   return (
     <section className="panel ticket">
-      <div className="panel-title"><span><CircleDollarSign size={16} />{language === "en-US" ? PRODUCT_META[productMode].shortLabelEn : PRODUCT_META[productMode].shortLabel}{text("下单", " order")}</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${positionModeLabel(language, positionMode)} · ${leverage}x`}</button></div>
+      <div className="panel-title"><span><CircleDollarSign size={16} />{text("下单", "Place order")}</span><button>{isSpot ? market?.quoteAsset ?? "SPOT" : `${positionModeLabel(language, positionMode)} · ${leverage}x`}</button></div>
       <div className="side-switch">
         <button className={side === "BUY" ? "buy active" : "buy"} onClick={() => setSide("BUY")}>{isHedgeMode || isSpot ? text("买入", "Buy") : text("开多 / 买入", "Open long / Buy")}</button>
         <button className={side === "SELL" ? "sell active" : "sell"} onClick={() => setSide("SELL")}>{isHedgeMode || isSpot ? text("卖出", "Sell") : text("开空 / 卖出", "Open short / Sell")}</button>
@@ -2260,19 +2319,19 @@ function OrderTicket({
       <div className={isSpot ? "order-select-row two" : "order-select-row"}>
         <label className="compact-select">{text("类型", "Type")}
           <select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}>
-            {orderTypes.map((item) => <option key={item} value={item}>{item}</option>)}
+            {orderTypes.map((item) => <option key={item} value={item}>{orderTypeLabel(language, item)}</option>)}
           </select>
         </label>
         {!isSpot && (
           <label className="compact-select">{text("模式", "Mode")}
             <select value={marginMode} onChange={(event) => setMarginMode(event.target.value as MarginMode)}>
-              {(["CROSS", "ISOLATED"] as MarginMode[]).map((item) => <option key={item} value={item}>{item}</option>)}
+              {(["CROSS", "ISOLATED"] as MarginMode[]).map((item) => <option key={item} value={item}>{marginModeLabel(language, item)}</option>)}
             </select>
           </label>
         )}
         <label className="compact-select">{text("时效", "Time in force")}
           <select value={timeInForce} onChange={(event) => setTimeInForce(event.target.value as TimeInForce)}>
-            {tifOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+            {tifOptions.map((item) => <option key={item} value={item}>{timeInForceLabel(language, item)}</option>)}
           </select>
         </label>
       </div>
@@ -2298,7 +2357,7 @@ function OrderTicket({
       {!isSpot && (
         <div className="algo-panel">
           <div className="trigger-head">
-            <span>Algo</span>
+            <span>{text("策略单", "Algo orders")}</span>
             <div className="segmented tiny">
               {(["TWAP", "ICEBERG"] as AlgoOrderType[]).map((item) => (
                 <button
@@ -2307,7 +2366,7 @@ function OrderTicket({
                   type="button"
                   onClick={() => setAlgoType(item)}
                 >
-                  {item === "TWAP" ? "TWAP" : "Iceberg"}
+                  {algoTypeLabel(language, item)}
                 </button>
               ))}
             </div>
@@ -2337,7 +2396,7 @@ function OrderTicket({
               timeInForce: algoType === "TWAP" ? "IOC" : postOnly ? "GTX" : "GTC"
             })}
           >
-            <Clock3 size={14} />{text("提交 ", "Submit ")}{algoType}
+            <Clock3 size={14} />{text("提交 ", "Submit ")}{algoTypeLabel(language, algoType)}
           </button>
         </div>
       )}
@@ -2454,6 +2513,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
   const hasBalanceData = balances.length > 0;
   const hasPositionData = positions.length > 0;
   const isSpot = productMode === "spot";
+  const [activeTab, setActiveTab] = useState<"assets" | "positions" | "orders" | "algo" | "triggers" | "trades">("assets");
 
   return (
     <section className="bottom-deck panel">
@@ -2490,8 +2550,16 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
           </>
         )}
       </div>
+      <div className="account-tabs" role="tablist" aria-label={text("账户信息", "Account information")}>
+        <AccountTab active={activeTab === "assets"} id="account-tab-assets" panelId="account-panel-assets" onClick={() => setActiveTab("assets")}>{text("资产", "Assets")}</AccountTab>
+        {!isSpot && <AccountTab active={activeTab === "positions"} id="account-tab-positions" panelId="account-panel-positions" onClick={() => setActiveTab("positions")}>{text("持仓", "Positions")}</AccountTab>}
+        <AccountTab active={activeTab === "orders"} id="account-tab-orders" panelId="account-panel-orders" onClick={() => setActiveTab("orders")}>{text("当前委托", "Open orders")}</AccountTab>
+        {!isSpot && <AccountTab active={activeTab === "algo"} id="account-tab-algo" panelId="account-panel-algo" onClick={() => setActiveTab("algo")}>{text("策略单", "Algo")}</AccountTab>}
+        {!isSpot && <AccountTab active={activeTab === "triggers"} id="account-tab-triggers" panelId="account-panel-triggers" onClick={() => setActiveTab("triggers")}>{text("止盈止损", "TP / SL")}</AccountTab>}
+        <AccountTab active={activeTab === "trades"} id="account-tab-trades" panelId="account-panel-trades" onClick={() => setActiveTab("trades")}>{text("成交", "Trades")}</AccountTab>
+      </div>
       <div className="deck-grid">
-        <AccountTable title={text("产品资产", "Product assets")} icon={<WalletCards size={15} />}>
+        <AccountTable id="account-panel-assets" visible={activeTab === "assets"} title={text("产品资产", "Product assets")} icon={<WalletCards size={15} />}>
           <div className="asset-row table-head">
             <span>{text("资产", "Asset")}</span><span>{text("可用", "Available")}</span><span>{text("冻结", "Locked")}</span><span>{text("权益", "Equity")}</span>
           </div>
@@ -2505,7 +2573,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
           ))}
         </AccountTable>
         {!isSpot && (
-          <AccountTable title={text("持仓 / 风险", "Positions / risk")} icon={<TrendingUp size={15} />}>
+          <AccountTable id="account-panel-positions" visible={activeTab === "positions"} title={text("持仓 / 风险", "Positions / risk")} icon={<TrendingUp size={15} />}>
             <div className="position-row table-head">
               <span>{text("市场", "Market")}</span><span>{text("仓位", "Position")}</span><span>{text("方向数量", "Side / size")}</span><span>{text("入场/标记", "Entry / mark")}</span><span>{text("浮盈亏", "Unrealized PnL")}</span><span>{text("维持保证金", "Maintenance margin")}</span><span>{text("保证金率", "Margin ratio")}</span><span>{text("状态", "Status")}</span>
             </div>
@@ -2523,7 +2591,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
             ))}
           </AccountTable>
         )}
-        <AccountTable title={text("当前委托", "Open orders")} icon={<TableProperties size={15} />}>
+        <AccountTable id="account-panel-orders" visible={activeTab === "orders"} title={text("当前委托", "Open orders")} icon={<TableProperties size={15} />}>
           <div className="order-row table-head">
             <span>{text("市场", "Market")}</span><span>{text("方向", "Side")}</span><span>{text("仓位", "Position")}</span><span>{text("类型", "Type")}</span><span>{text("价格", "Price")}</span><span>{text("成交/剩余", "Filled / remaining")}</span><span>{text("模式", "Mode")}</span><span>{text("状态", "Status")}</span><span></span>
           </div>
@@ -2549,7 +2617,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
           )}
         </AccountTable>
         {!isSpot && (
-          <AccountTable title={text("算法单", "Algo orders")} icon={<Clock3 size={15} />}>
+          <AccountTable id="account-panel-algo" visible={activeTab === "algo"} title={text("算法单", "Algo orders")} icon={<Clock3 size={15} />}>
             <div className="algo-order-row table-head">
               <span>{text("市场", "Market")}</span><span>{text("类型", "Type")}</span><span>{text("方向", "Side")}</span><span>{text("价格", "Price")}</span><span>{text("进度", "Progress")}</span><span>{text("切片", "Slice")}</span><span>{text("状态", "Status")}</span><span></span>
             </div>
@@ -2568,7 +2636,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
           </AccountTable>
         )}
         {!isSpot && (
-          <AccountTable title={text("止盈止损", "Take profit / stop loss")} icon={<Bell size={15} />}>
+          <AccountTable id="account-panel-triggers" visible={activeTab === "triggers"} title={text("止盈止损", "Take profit / stop loss")} icon={<Bell size={15} />}>
             <div className="trigger-order-row table-head">
               <span>{text("市场", "Market")}</span><span>{text("类型", "Type")}</span><span>{text("目标", "Target")}</span><span>{text("触发价", "Trigger price")}</span><span>{text("数量", "Size")}</span><span>{text("委托", "Order")}</span><span>{text("状态", "Status")}</span><span></span>
             </div>
@@ -2590,7 +2658,7 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
             ))}
           </AccountTable>
         )}
-        <AccountTable title={text("成交记录", "Trade history")} icon={<Activity size={15} />}>
+        <AccountTable id="account-panel-trades" visible={activeTab === "trades"} title={text("成交记录", "Trade history")} icon={<Activity size={15} />}>
           <div className="trade-history-row table-head">
             <span>{text("市场", "Market")}</span><span>{text("角色", "Role")}</span><span>{text("方向", "Side")}</span><span>{text("价格", "Price")}</span><span>{text("数量", "Size")}</span><span>{text("时间", "Time")}</span><span>Trace</span>
           </div>
@@ -2611,9 +2679,13 @@ function BottomDeck({ language, productMode, positionMode, balances, positions, 
   );
 }
 
-function AccountTable({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function AccountTab({ active, id, panelId, onClick, children }: { active: boolean; id: string; panelId: string; onClick: () => void; children: ReactNode }) {
+  return <button id={id} type="button" role="tab" aria-selected={active} aria-controls={panelId} tabIndex={active ? 0 : -1} className={active ? "active" : ""} onClick={onClick}>{children}</button>;
+}
+
+function AccountTable({ id, title, icon, children, visible = true }: { id: string; title: string; icon: ReactNode; children: ReactNode; visible?: boolean }) {
   return (
-    <div className="account-table">
+    <div id={id} role="tabpanel" aria-labelledby={id.replace("account-panel", "account-tab")} hidden={!visible} className={visible ? "account-table" : "account-table account-table-hidden"}>
       <h3>{icon}{title}</h3>
       {children}
     </div>
@@ -2636,7 +2708,7 @@ function TradesTape({ language, events, symbol, productLine, market, mid, onPick
 
   return (
     <section className="panel trades">
-      <div className="panel-title"><span><Activity size={16} />{text("最新成交", "Recent trades")}</span><button>WS</button></div>
+      <div className="panel-title"><span><Activity size={16} />{text("最新成交", "Recent trades")}</span></div>
       <div className="trades-list">
         {trades.map((item) => (
           <button className={`trade-row ${item.side === "BUY" ? "bid" : "ask"}`} key={item.id} onClick={() => onPickPrice(item.priceTicks)}>

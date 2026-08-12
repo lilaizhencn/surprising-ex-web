@@ -3,6 +3,7 @@ import { fallbackBalancesForAccount, fallbackBook, fallbackCandles, fallbackMark
 import type {
   AlgoOrder,
   AlgoOrderBatchResponse,
+  AccountLedgerEntry,
   AmendOrderBatchResponse,
   AmendOrderDraft,
   AmendOrderResponse,
@@ -25,8 +26,10 @@ import type {
   PlaceTriggerOrderDraft,
   Position,
   PositionMode,
+  LedgerPage,
   ProductAccountType,
   ProductLine,
+  ProductLedgerEntry,
   SecurityScene,
   TestOrderResult,
   TriggerOrderBatchResponse
@@ -536,6 +539,41 @@ export async function loadBalances(
     if (!allowFallback || !config.enableMockFallback) throw error;
     return fallbackBalancesForAccount(accountType);
   }
+}
+
+export function loadAccountLedger(
+  session: AuthSession,
+  limit = 10,
+  cursor?: string
+): Promise<LedgerPage<AccountLedgerEntry>> {
+  const params = new URLSearchParams({ userId: String(session.user.userId), limit: String(limit), sort: "createdAt.desc" });
+  if (cursor) params.set("cursor", cursor);
+  return request<LedgerPage<AccountLedgerEntry>>(
+    gatewayPath("account", `/ledger?${params}`),
+    {},
+    session
+  );
+}
+
+export function loadProductLedger(
+  session: AuthSession,
+  accountType: ProductAccountType,
+  productLine: ProductLine,
+  limit = 50,
+  cursor?: string
+): Promise<LedgerPage<ProductLedgerEntry>> {
+  const params = new URLSearchParams({
+    userId: String(session.user.userId),
+    accountType,
+    limit: String(limit),
+    sort: "createdAt.desc"
+  });
+  if (cursor) params.set("cursor", cursor);
+  return request<LedgerPage<ProductLedgerEntry>>(
+    gatewayPath("account", `/product-ledger?${params}`),
+    { productLine },
+    session
+  );
 }
 
 export async function loadExchangeRateConversion(

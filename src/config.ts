@@ -9,7 +9,11 @@ export const config = {
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl(),
   gatewayPrefix: "/api/v1/gateway",
   authPrefix: "/api/v1/auth",
-  enableMockFallback: import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true"
+  enableMockFallback: import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_FALLBACK === "true",
+  testAccount: import.meta.env.DEV && import.meta.env.VITE_ENABLE_TEST_ACCOUNT_PREFILL === "true"
+    && import.meta.env.VITE_TEST_ACCOUNT_EMAIL && import.meta.env.VITE_TEST_ACCOUNT_PASSWORD
+    ? { email: import.meta.env.VITE_TEST_ACCOUNT_EMAIL, password: import.meta.env.VITE_TEST_ACCOUNT_PASSWORD }
+    : null
 };
 
 export const storageKeys = {
