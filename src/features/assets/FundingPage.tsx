@@ -14,6 +14,7 @@ import {
   loadWithdrawalHistory,
 } from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/units"
 import { loadSession } from "../../state/session"
 import { PRODUCT_LINES } from "../../types/domain"
 
@@ -34,7 +35,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   const [balances, setBalances] = useState<readonly RecordRow[]>([])
   const [records, setRecords] = useState<readonly RecordRow[]>([])
   const [transferRecords, setTransferRecords] = useState<readonly RecordRow[]>([])
-  const [assetScales, setAssetScales] = useState<Readonly<Record<string, number>>>({})
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [depositAddress, setDepositAddress] = useState<RecordRow | null>(null)
   const [depositQr, setDepositQr] = useState("")
   const [state, setState] = useState<RequestState>("idle")
@@ -93,9 +94,11 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
     const free = text(balance, "free")
     if (free) return free
-    const availableUnits = numberValue(balance, "availableUnits")
+    const availableUnits = valueAt(balance, "availableUnits")
     const scale = assetScales[asset]
-    return availableUnits !== null && scale ? String(availableUnits / scale) : ""
+    return (typeof availableUnits === "string" || typeof availableUnits === "number") && scale
+      ? unitsToDecimal(availableUnits, scale)
+      : ""
   }, [asset, assetScales, balances])
 
   const submit = async () => {
@@ -123,7 +126,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       return
     }
     if (mode === "withdraw") {
-      if (!network || !address.trim() || !amount || Number(amount) <= 0) {
+      if (!network || !address.trim() || !isPositiveDecimal(amount)) {
         setState("error")
         setMessage("请完整填写网络、地址和有效数量。")
         return
@@ -145,8 +148,13 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           emailCode.trim(),
           totpCode.trim(),
         )
-        setState("success")
-        setMessage(`提现请求已受理，状态：${response.status}。`)
+        const accepted = requestStatusAccepted(response.status)
+        setState(accepted ? "success" : "error")
+        setMessage(
+          accepted
+            ? `提现请求已受理，状态：${response.status}。最终到账以资金服务状态为准。`
+            : `资金服务返回非成功状态：${response.status}，未确认到账。`,
+        )
         setAddress("")
         setAmount("")
         setEmailCode("")
@@ -157,7 +165,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       }
       return
     }
-    if (!amount || Number(amount) <= 0 || source === target) {
+    if (!isPositiveDecimal(amount) || source === target) {
       setState("error")
       setMessage(source === target ? "来源和目标账户不能相同。" : "请输入有效划转数量。")
       return
@@ -165,15 +173,22 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     setState("loading")
     try {
       const key = `transfer-${crypto.randomUUID()}`
+      const scale = assetScales[asset]
+      if (!scale) throw new Error("该资产的精度规格尚未加载，未提交划转。")
       const response = await createTransfer(
         source,
         target,
         asset,
-        amountToUnits(amount, assetScales[asset]),
+        decimalToUnits(amount, scale),
         key,
       )
-      setState("success")
-      setMessage(`划转请求已受理，状态：${response.status}。`)
+      const accepted = requestStatusAccepted(response.status)
+      setState(accepted ? "success" : "error")
+      setMessage(
+        accepted
+          ? `划转请求已受理，状态：${response.status}。最终余额以账户服务为准。`
+          : `账户服务返回非成功状态：${response.status}，未确认余额已变更。`,
+      )
       setAmount("")
     } catch (reason: unknown) {
       setState("error")
@@ -564,27 +579,20 @@ function text(record: RecordRow | null | undefined, key: string): string {
   const value = record?.[key]
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
-function numberValue(record: RecordRow | null | undefined, key: string): number | null {
-  const value = record?.[key]
-  if (typeof value === "number") return Number.isFinite(value) ? value : null
-  if (typeof value !== "string" || value.trim() === "") return null
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "资金服务暂不可用，请稍后重试。"
 }
 
-function amountToUnits(value: string, scale: number | undefined): number {
-  if (scale === undefined || !Number.isFinite(scale) || scale <= 0) {
-    throw new Error("该资产的精度规格尚未加载，未提交划转。")
-  }
-  const units = Number(value) * scale
-  if (!Number.isSafeInteger(units) || units <= 0) {
-    throw new Error("划转数量超出资产精度或整数范围，未提交。")
-  }
-  return units
+function valueAt(record: RecordRow | null | undefined, key: string): unknown {
+  return record === null || record === undefined ? undefined : Reflect.get(record, key)
 }
+
+function requestStatusAccepted(status: string): boolean {
+  return !["FAILED", "REJECTED", "CANCELLED", "COMPENSATION_REQUIRED"].includes(
+    status.trim().toUpperCase(),
+  )
+}
+
 async function copyText(value: string) {
   if (value && navigator.clipboard) await navigator.clipboard.writeText(value)
 }

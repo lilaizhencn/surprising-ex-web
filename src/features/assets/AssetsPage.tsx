@@ -1,6 +1,6 @@
 import { Eye, EyeOff, PieChart, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadBalances, loadMarkets } from "../../api/endpoints"
+import { loadAssetScales, loadBalances, loadMarkets } from "../../api/endpoints"
 import { mapBalance, mapMarket } from "../../api/mappers"
 import type { ApiBalance, ApiMarket } from "../../api/types"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
@@ -27,12 +27,18 @@ export function AssetsPage() {
       loadBalances("INVERSE_DELIVERY"),
       loadBalances("OPTION"),
       loadMarkets(),
+      loadAssetScales(),
     ])
       .then((results) => {
         const balanceResults = results.slice(0, 6)
-        const rows = balanceResults.flatMap((result) =>
-          result.status === "fulfilled" ? result.value.filter(isBalanceRow).map(mapBalance) : [],
-        )
+        const scaleResult = results[7]
+        const assetScales = scaleResult?.status === "fulfilled" ? scaleResult.value : {}
+        const rows = balanceResults.flatMap((result) => {
+          if (result.status !== "fulfilled") return []
+          if (!Array.isArray(result.value)) return []
+          const value = result.value as readonly (ApiBalance | ApiMarket)[]
+          return value.filter(isBalanceRow).map((row) => mapBalance(row, assetScales))
+        })
         const marketResult = results[6]
         const marketRows =
           marketResult?.status === "fulfilled"
@@ -193,6 +199,9 @@ export function AssetsPage() {
 }
 
 function withUsdEstimate(balance: Balance, markets: readonly Market[]): Balance {
+  if (balance.available === null || balance.locked === null) {
+    return { ...balance, estimatedUsd: null }
+  }
   const amount = balance.available + balance.locked
   const asset = balance.asset.toUpperCase()
   if (["USD", "USDT", "USDC"].includes(asset)) {
@@ -229,8 +238,8 @@ function aggregateAssets(rows: readonly Balance[]): readonly Balance[] {
     }
     byAsset.set(row.asset, {
       ...current,
-      available: current.available + row.available,
-      locked: current.locked + row.locked,
+      available: (current.available ?? 0) + (row.available ?? 0),
+      locked: (current.locked ?? 0) + (row.locked ?? 0),
       estimatedUsd:
         current.estimatedUsd === null || row.estimatedUsd === null
           ? null

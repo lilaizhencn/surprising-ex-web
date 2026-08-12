@@ -114,8 +114,8 @@ export const BalanceSchema = z
   .object({
     asset: z.string(),
     accountType: z.string().optional(),
-    availableUnits: z.number().optional(),
-    lockedUnits: z.number().optional(),
+    availableUnits: NumericSchema.optional(),
+    lockedUnits: NumericSchema.optional(),
     free: NumericSchema.optional(),
     locked: NumericSchema.optional(),
   })
@@ -128,7 +128,10 @@ export const BalanceListSchema = z
   })
   .passthrough()
 
-export const AssetScalesSchema = z.record(z.string(), z.number().int().positive())
+export const AssetScalesSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number()]).transform((value) => String(value)),
+)
 
 export const OrderSchema = z
   .object({

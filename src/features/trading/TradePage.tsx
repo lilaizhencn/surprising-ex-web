@@ -25,6 +25,7 @@ import type {
   ApiOrder,
   ApiOrderBook,
 } from "../../api/types"
+import { CandleSchema, OrderBookSchema } from "../../api/types"
 import { PriceChart } from "../../components/trading/PriceChart"
 import {
   Badge,
@@ -39,6 +40,12 @@ import { useRealtime } from "../../hooks/useRealtime"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
+import {
+  decimalProductExceedsUnits,
+  decimalToUnits,
+  isPositiveDecimal,
+  unitsToDecimal,
+} from "../../lib/units"
 import { loadSession } from "../../state/session"
 import {
   type Candle,
@@ -106,8 +113,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [book, setBook] = useState<ApiOrderBook | null>(null)
   const [latestTrade, setLatestTrade] = useState<Record<string, unknown> | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
-  const [balance, setBalance] = useState<ApiBalance | null>(null)
-  const [assetScales, setAssetScales] = useState<Readonly<Record<string, number>>>({})
+  const [balances, setBalances] = useState<readonly ApiBalance[]>([])
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
   const [funding, setFunding] = useState<ApiFundingRate | null>(null)
   const [markPrice, setMarkPrice] = useState<Record<string, unknown> | null>(null)
@@ -133,6 +140,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null,
     [availableMarkets, selected],
   )
+  const balance = useMemo(() => {
+    const asset = side === "SELL" ? current?.baseAsset : current?.quoteAsset
+    return asset
+      ? (balances.find((row) => row.asset.toUpperCase() === asset.toUpperCase()) ?? null)
+      : null
+  }, [balances, current, side])
   const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period)
 
   useEffect(() => {
@@ -174,7 +187,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           setLatestTrade(tradeResult)
           setOpenOrders(orderRows)
           setPositions(positionRows)
-          setBalance(balanceRows[0] ?? null)
+          setBalances(balanceRows)
           setAssetScales(scales)
         },
       )
@@ -220,20 +233,59 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     })
   }, [current, view.line])
 
+  useEffect(() => {
+    const event = realtime.events[0]
+    if (!event || !current) return
+    const eventSymbol = text(event, "symbol")
+    if (eventSymbol && eventSymbol !== current.symbol) return
+    const channel = text(event, "channel")
+    const data = record(valueAt(event, "data"))
+    if (!data) return
+    if (channel === "candles") {
+      const candle = CandleSchema.safeParse(data)
+      if (!candle.success) return
+      const next = mapCandle(candle.data)
+      setCandles((rows) =>
+        [...rows.filter((row) => row.time !== next.time), next]
+          .sort((left, right) => left.time.localeCompare(right.time))
+          .slice(-120),
+      )
+      return
+    }
+    if (channel === "depth") {
+      const orderBook = OrderBookSchema.safeParse(data)
+      if (orderBook.success) setBook(orderBook.data)
+      return
+    }
+    if (channel === "trades") {
+      setLatestTrade(data)
+      return
+    }
+    if (channel === "mark") {
+      setMarkPrice(data)
+      return
+    }
+    if (channel === "index") {
+      setIndexPrice(data)
+      return
+    }
+    if (["orders", "executionReports", "positions", "positionRisk"].includes(channel)) {
+      refresh()
+    }
+  }, [current, realtime.events])
+
   const submit = async () => {
     if (!session) {
       setSubmitState("error")
       setSubmitMessage("请先登录后再提交订单。")
       return
     }
-    const numericQuantity = Number(quantity)
-    const numericPrice = Number(price)
-    if (!current || !Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+    if (!current || !isPositiveDecimal(quantity)) {
       setSubmitState("error")
       setSubmitMessage("请输入有效数量。")
       return
     }
-    if (orderType !== "MARKET" && (!Number.isFinite(numericPrice) || numericPrice <= 0)) {
+    if (orderType !== "MARKET" && !isPositiveDecimal(price)) {
       setSubmitState("error")
       setSubmitMessage("限价单需要有效价格。")
       return
@@ -243,20 +295,24 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setSubmitMessage("条件单需要触发价与专用风控参数，当前入口暂不提交普通订单。")
       return
     }
-    const quantityScale = 10 ** current.quantityPrecision
-    const quantitySteps = Math.round(numericQuantity * quantityScale)
-    if (quantitySteps <= 0 || Math.abs(quantitySteps / quantityScale - numericQuantity) > 1e-9) {
+    let quantitySteps: string
+    try {
+      quantitySteps = decimalToUnits(quantity, powerOfTen(current.quantityPrecision))
+    } catch (reason: unknown) {
       setSubmitState("error")
-      setSubmitMessage(`数量最多支持 ${current.quantityPrecision} 位小数。`)
+      setSubmitMessage(reason instanceof Error ? reason.message : "数量精度无效。")
       return
     }
-    const availableAmount = balanceAmount(balance, assetScales)
-    const requiredAmount = side === "SELL" ? numericQuantity : numericQuantity * numericPrice
-    if (
-      availableAmount !== null &&
-      Number.isFinite(requiredAmount) &&
-      requiredAmount > availableAmount + 1e-12
-    ) {
+    const balanceScale = balance ? assetScales[balance.asset] : undefined
+    const exceedsBalance =
+      balance && balanceScale
+        ? side === "SELL"
+          ? decimalProductExceedsUnits(quantity, "1", balance.availableUnits, balanceScale)
+          : orderType === "MARKET"
+            ? false
+            : decimalProductExceedsUnits(quantity, price, balance.availableUnits, balanceScale)
+        : false
+    if (exceedsBalance) {
       setSubmitState("error")
       setSubmitMessage("可用余额不足，订单未提交。")
       return
@@ -273,7 +329,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           orderType,
           timeInForce: orderType === "MARKET" ? "IOC" : "GTC",
           priceTicks:
-            orderType === "MARKET" ? 0 : Math.round(numericPrice * 10 ** current.pricePrecision),
+            orderType === "MARKET" ? 0 : decimalToUnits(price, powerOfTen(current.pricePrecision)),
           quantitySteps,
           marginMode: "CROSS",
           positionSide: "NET",
@@ -301,7 +357,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .then(([bookResult, orderRows, balanceRows]) => {
         setBook(bookResult)
         setOpenOrders(orderRows)
-        setBalance(balanceRows[0] ?? null)
+        setBalances(balanceRows)
       })
       .catch((reason: unknown) => setError(readError(reason)))
   }
@@ -793,15 +849,21 @@ function ppmValue(value: number | undefined): string {
 
 function balanceAmount(
   balance: ApiBalance | null,
-  assetScales: Readonly<Record<string, number>>,
-): number | null {
+  assetScales: Readonly<Record<string, string>>,
+): string | null {
   if (!balance) return null
   const direct = numericValue(balance.free)
-  if (direct !== null) return direct
+  if (direct !== null) return String(balance.free)
   const scale = assetScales[balance.asset]
-  return balance.availableUnits === undefined || scale === undefined
-    ? null
-    : balance.availableUnits / scale
+  if (balance.availableUnits === undefined || scale === undefined) return null
+  return unitsToDecimal(balance.availableUnits, scale)
+}
+
+function powerOfTen(exponent: number): string {
+  if (!Number.isInteger(exponent) || exponent < 0 || exponent > 18) {
+    throw new Error("资产精度规格无效，未提交。")
+  }
+  return `1${"0".repeat(exponent)}`
 }
 
 function estimatedFee(market: Market | null, price: string, quantity: string): string {
@@ -837,6 +899,14 @@ function numberValue(row: Record<string, unknown> | null, key: string): number |
 function text(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key]
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
+}
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+function valueAt(row: Record<string, unknown> | null | undefined, key: string): unknown {
+  return row === null || row === undefined ? undefined : Reflect.get(row, key)
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "交易服务暂不可用，请稍后重试。"

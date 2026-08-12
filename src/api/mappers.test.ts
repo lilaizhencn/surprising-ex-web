@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { mapMarket } from "./mappers"
+import { mapBalance, mapMarket } from "./mappers"
 
 describe("market mapper", () => {
   it("normalizes integer prices using backend scale metadata", () => {
@@ -16,5 +16,17 @@ describe("market mapper", () => {
     expect(market.price).toBe(64245.5)
     expect(market.change24h).toBe(1.25)
     expect(market.volume24h).toBe(120000)
+  })
+})
+
+describe("balance mapper", () => {
+  it("uses asset scale metadata for long-based balances", () => {
+    const balance = mapBalance(
+      { asset: "ETH", availableUnits: "1000000000000000000", lockedUnits: "500000000000000000" },
+      { ETH: "1000000000000000000" },
+    )
+
+    expect(balance.available).toBe(1)
+    expect(balance.locked).toBe(0.5)
   })
 })

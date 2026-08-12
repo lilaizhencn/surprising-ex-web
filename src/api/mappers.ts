@@ -1,3 +1,4 @@
+import { unitsToDecimal } from "../lib/units"
 import type { Balance, Candle, Market, ProductLine } from "../types/domain"
 import { PRODUCT_LINES } from "../types/domain"
 import type { ApiBalance, ApiCandle, ApiMarket } from "./types"
@@ -45,12 +46,22 @@ export function mapCandle(raw: ApiCandle): Candle {
   }
 }
 
-export function mapBalance(raw: ApiBalance): Balance {
+export function mapBalance(
+  raw: ApiBalance,
+  assetScales: Readonly<Record<string, string>> = {},
+): Balance {
   const accountType = typeof raw.accountType === "string" ? raw.accountType : undefined
+  const scale = assetScales[raw.asset]
+  const availableUnits =
+    raw.availableUnits !== undefined && scale
+      ? numeric(unitsToDecimal(raw.availableUnits, scale))
+      : null
+  const lockedUnits =
+    raw.lockedUnits !== undefined && scale ? numeric(unitsToDecimal(raw.lockedUnits, scale)) : null
   return {
     asset: raw.asset,
-    available: numeric(raw.free) ?? scaled(raw.availableUnits, 100_000_000) ?? 0,
-    locked: numeric(raw.locked) ?? scaled(raw.lockedUnits, 100_000_000) ?? 0,
+    available: numeric(raw.free) ?? availableUnits,
+    locked: numeric(raw.locked) ?? lockedUnits,
     estimatedUsd: null,
     ...(accountType ? { accountType } : {}),
   }
@@ -62,8 +73,9 @@ function numeric(value: string | number | undefined): number | null {
   return Number.isFinite(result) ? result : null
 }
 
-function scaled(value: number | undefined, divisor: number): number | null {
-  return value === undefined ? null : value / divisor
+function scaled(value: string | number | undefined, divisor: number): number | null {
+  const numericValue = numeric(value)
+  return numericValue === null ? null : numericValue / divisor
 }
 
 function splitSymbol(symbol: string, base?: string, quote?: string): [string, string] {

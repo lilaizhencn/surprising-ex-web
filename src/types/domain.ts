@@ -50,8 +50,8 @@ export type Candle = {
 export type Balance = {
   readonly asset: string
   readonly accountType?: string
-  readonly available: number
-  readonly locked: number
+  readonly available: number | null
+  readonly locked: number | null
   readonly estimatedUsd: number | null
 }
 

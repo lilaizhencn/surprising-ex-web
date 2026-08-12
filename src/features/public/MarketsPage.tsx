@@ -12,6 +12,8 @@ export function MarketsPage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
   const [scope, setScope] = useState<"all" | "spot" | "futures" | "favorites">("all")
+  const [showFilters, setShowFilters] = useState(false)
+  const [minimumChange, setMinimumChange] = useState("0")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     void loadMarkets()
@@ -46,11 +48,12 @@ export function MarketsPage() {
       source.filter(
         (market) =>
           market.symbol.toLowerCase().includes(query.toLowerCase()) &&
+          Math.abs(market.change24h ?? 0) >= Number(minimumChange) &&
           (scope === "all" ||
             scope === "favorites" ||
             (scope === "spot" ? market.productLine === "SPOT" : market.productLine !== "SPOT")),
       ),
-    [query, scope, source],
+    [minimumChange, query, scope, source],
   )
   const status =
     markets.length > 0 && markets.some((market) => market.price !== null)
@@ -109,11 +112,27 @@ export function MarketsPage() {
         </div>
         <div className="cluster">
           <SearchField value={query} onChange={setQuery} placeholder="Search coin..." />
-          <Button tone="outline">
+          <Button tone="outline" onClick={() => setShowFilters((value) => !value)}>
             <Filter size={16} /> Filters
           </Button>
         </div>
       </div>
+      {showFilters ? (
+        <div className="market-filter-panel">
+          <label>
+            Minimum absolute 24h change
+            <select
+              value={minimumChange}
+              onChange={(event) => setMinimumChange(event.target.value)}
+            >
+              <option value="0">Any</option>
+              <option value="1">1%</option>
+              <option value="5">5%</option>
+              <option value="10">10%</option>
+            </select>
+          </label>
+        </div>
+      ) : null}
       {error && source.length === 0 ? (
         <Panel>
           <StateView kind="error" message={error} retry={() => window.location.reload()} />

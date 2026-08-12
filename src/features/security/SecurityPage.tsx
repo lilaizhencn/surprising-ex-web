@@ -272,7 +272,13 @@ export function SecurityPage() {
             onClick={() => {
               if (!window.confirm("Sign out all active sessions except this device?")) return
               setBusy(true)
-              void revokeAllUserSessions()
+              const refreshToken = session?.refreshToken
+              if (!refreshToken) {
+                setMessage("当前会话缺少刷新凭证，未撤销其它设备。")
+                setBusy(false)
+                return
+              }
+              void revokeAllUserSessions(refreshToken)
                 .then(() => {
                   setMessage("All other sessions have been revoked.")
                   refresh()

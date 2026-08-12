@@ -16,6 +16,8 @@ export function useRealtime(
   const [state, setState] = useState<RealtimeState>("offline")
   const [lastEventAt, setLastEventAt] = useState<string | null>(null)
   const [events, setEvents] = useState<readonly RealtimeEvent[]>([])
+  const accessToken = session?.accessToken ?? null
+  const sessionUserId = session?.user.userId === undefined ? null : String(session.user.userId)
 
   useEffect(() => {
     const baseUrl = config.wsBaseUrl
@@ -64,18 +66,24 @@ export function useRealtime(
   }, [period, productLine, symbol])
 
   useEffect(() => {
-    if (!session || !config.wsBaseUrl || !symbol) return
+    if (!accessToken || !sessionUserId || !config.wsBaseUrl || !symbol) return
     let closed = false
     let socket: WebSocket | null = null
     let reconnectTimer: number | undefined
     let attempt = 0
-    const privateUrl = withPrivateCredentials(config.wsBaseUrl, session)
-
     const connect = () => {
       if (closed) return
-      socket = new WebSocket(privateUrl)
+      socket = new WebSocket(config.wsBaseUrl)
       socket.onopen = () => {
         attempt = 0
+        if (!socket || socket.readyState !== WebSocket.OPEN) return
+        socket.send(
+          JSON.stringify({
+            op: "authenticate",
+            id: `auth-${sessionUserId}`,
+            token: accessToken,
+          }),
+        )
         subscribe(socket, privateSubscriptions(symbol, productLine))
       }
       socket.onmessage = (message) => {
@@ -97,7 +105,7 @@ export function useRealtime(
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
       socket?.close()
     }
-  }, [productLine, session, symbol])
+  }, [accessToken, productLine, sessionUserId, symbol])
 
   return { state, lastEventAt, events }
 }
@@ -149,13 +157,6 @@ function privateSubscriptions(symbol: string, productLine: ProductLine): readonl
 function subscribe(socket: WebSocket | null, channels: readonly Subscription[]) {
   if (!socket || socket.readyState !== WebSocket.OPEN) return
   for (const channel of channels) socket.send(JSON.stringify({ op: "subscribe", ...channel }))
-}
-
-function withPrivateCredentials(baseUrl: string, session: AuthSession): string {
-  const url = new URL(baseUrl, window.location.href)
-  url.searchParams.set("token", session.accessToken)
-  url.searchParams.set("userId", String(session.user.userId))
-  return url.toString()
 }
 
 function parseEvent(value: unknown): RealtimeEvent | null {

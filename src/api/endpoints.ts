@@ -250,8 +250,11 @@ export function revokeUserSession(sessionId: string | number) {
   )
 }
 
-export function revokeAllUserSessions() {
-  return request("/api/v1/security/sessions/revoke-all", GenericObjectSchema, { method: "POST" })
+export function revokeAllUserSessions(refreshToken: string) {
+  return request("/api/v1/security/sessions/revoke-all", GenericObjectSchema, {
+    method: "POST",
+    body: { refreshToken },
+  })
 }
 
 export function loadLoginHistory(result?: string) {
@@ -313,7 +316,7 @@ export function createTransfer(
   sourceAccountType: string,
   targetAccountType: string,
   asset: string,
-  amountUnits: number,
+  amountUnits: string,
   idempotencyKey: string,
 ): Promise<ApiProductTransferResponse> {
   return request("/api/v1/gateway/account/transfers", ProductTransferResponseSchema, {
