@@ -14,7 +14,10 @@ export const publicNavigation = [
   {
     label: "Futures",
     href: "/trade/delivery-futures",
-    menu: [{ label: "Delivery", href: "/trade/delivery-futures" }],
+    menu: [
+      { label: "USD-M", href: "/trade/delivery-futures" },
+      { label: "Coin-M", href: "/trade/coin-m-delivery" },
+    ],
   },
   { label: "Options", href: "/trade/options" },
   { label: "Assets", href: "/assets" },

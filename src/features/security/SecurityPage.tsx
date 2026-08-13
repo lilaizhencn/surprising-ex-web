@@ -15,6 +15,7 @@ import {
   createApiKey,
   disableMfa,
   enrollMfa,
+  issueSecurityChallenge,
   loadApiKeys,
   loadLoginHistory,
   loadMfaStatus,
@@ -23,16 +24,17 @@ import {
   revokeAllUserSessions,
   revokeApiKey,
   revokeUserSession,
+  updateApiKeyIpAllowlist,
   updateSecurityScene,
 } from "../../api/endpoints"
 import type { ApiLoginHistoryEntry, ApiUserSession } from "../../api/types"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
-import { loadSession } from "../../state/session"
+import { useSession } from "../../state/session"
 
 type RecordRow = Readonly<Record<string, unknown>>
 
 export function SecurityPage() {
-  const session = loadSession()
+  const session = useSession()
   const [mfa, setMfa] = useState<RecordRow | null>(null)
   const [scenes, setScenes] = useState<readonly RecordRow[]>([])
   const [keys, setKeys] = useState<readonly RecordRow[]>([])
@@ -134,12 +136,6 @@ export function SecurityPage() {
             onClick={() =>
               document.getElementById("security-scenes")?.scrollIntoView({ behavior: "smooth" })
             }
-          />
-          <SecurityCard
-            icon={<MonitorSmartphone />}
-            title="Passkey"
-            text="The current backend exposes no passkey registration contract."
-            action="Backend pending"
           />
         </div>
       </section>
@@ -454,6 +450,7 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
   const [email, setEmail] = useState("")
   const [totp, setTotp] = useState("")
   const [loading, setLoading] = useState(false)
+  const [challengeMessage, setChallengeMessage] = useState("")
   return (
     <Panel className="security-action-panel">
       <h2>Change password</h2>
@@ -483,6 +480,26 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
           />
         </Field>
       </div>
+      <Button
+        tone="outline"
+        loading={loading}
+        onClick={() => {
+          setLoading(true)
+          void issueSecurityChallenge("CHANGE_PASSWORD")
+            .then(
+              () => setChallengeMessage("验证码已发送，请查收邮箱。"),
+              (reason: unknown) => setChallengeMessage(readError(reason)),
+            )
+            .finally(() => setLoading(false))
+        }}
+      >
+        Send email code
+      </Button>
+      {challengeMessage ? (
+        <p className="form-message" role="status">
+          {challengeMessage}
+        </p>
+      ) : null}
       <Button
         loading={loading}
         onClick={() => {
@@ -579,6 +596,7 @@ function SceneRow({
   const [email, setEmail] = useState("")
   const [totp, setTotp] = useState("")
   const [loading, setLoading] = useState(false)
+  const [challengeMessage, setChallengeMessage] = useState("")
   const enabled = booleanValue(scene, "enabled")
   return (
     <tr>
@@ -599,6 +617,21 @@ function SceneRow({
             aria-label="Scene TOTP code"
           />
           <Button
+            tone="ghost"
+            loading={loading}
+            onClick={() => {
+              setLoading(true)
+              void issueSecurityChallenge("SECURITY_SETTINGS")
+                .then(
+                  () => setChallengeMessage("验证码已发送。"),
+                  (reason: unknown) => setChallengeMessage(readError(reason)),
+                )
+                .finally(() => setLoading(false))
+            }}
+          >
+            Send code
+          </Button>
+          <Button
             loading={loading}
             tone="outline"
             onClick={() => {
@@ -613,6 +646,7 @@ function SceneRow({
           >
             Toggle
           </Button>
+          {challengeMessage ? <small>{challengeMessage}</small> : null}
         </div>
       </td>
     </tr>
@@ -624,6 +658,7 @@ function ApiKeyForm({ onDone }: { readonly onDone: (message: string) => void }) 
   const [email, setEmail] = useState("")
   const [totp, setTotp] = useState("")
   const [loading, setLoading] = useState(false)
+  const [challengeMessage, setChallengeMessage] = useState("")
   return (
     <Panel className="security-action-panel">
       <div className="grid-2">
@@ -643,6 +678,24 @@ function ApiKeyForm({ onDone }: { readonly onDone: (message: string) => void }) 
         <Field label="Authenticator code">
           <input value={totp} onChange={(event) => setTotp(event.target.value)} />
         </Field>
+      </div>
+      <div className="inline-form">
+        <Button
+          tone="ghost"
+          loading={loading}
+          onClick={() => {
+            setLoading(true)
+            void issueSecurityChallenge("SECURITY_SETTINGS")
+              .then(
+                () => setChallengeMessage("验证码已发送。"),
+                (reason: unknown) => setChallengeMessage(readError(reason)),
+              )
+              .finally(() => setLoading(false))
+          }}
+        >
+          Send email code
+        </Button>
+        {challengeMessage ? <small>{challengeMessage}</small> : null}
       </div>
       <Button
         loading={loading}
@@ -676,7 +729,9 @@ function ApiKeyRow({
 }) {
   const [email, setEmail] = useState("")
   const [totp, setTotp] = useState("")
+  const [allowlist, setAllowlist] = useState(text(value, "ipAllowlist"))
   const [loading, setLoading] = useState(false)
+  const [challengeMessage, setChallengeMessage] = useState("")
   const key = text(value, "apiKey") || text(value, "key")
   return (
     <tr>
@@ -686,6 +741,12 @@ function ApiKeyRow({
       <td>{text(value, "status") || "ACTIVE"}</td>
       <td>
         <div className="inline-form">
+          <input
+            placeholder="IP allowlist (comma separated)"
+            value={allowlist}
+            onChange={(event) => setAllowlist(event.target.value)}
+            aria-label="API key IP allowlist"
+          />
           <input
             placeholder="Email code"
             value={email}
@@ -698,6 +759,45 @@ function ApiKeyRow({
             onChange={(event) => setTotp(event.target.value)}
             aria-label="API key TOTP code"
           />
+          <Button
+            tone="ghost"
+            loading={loading}
+            onClick={() => {
+              setLoading(true)
+              void issueSecurityChallenge("SECURITY_SETTINGS")
+                .then(
+                  () => setChallengeMessage("验证码已发送。"),
+                  (reason: unknown) => setChallengeMessage(readError(reason)),
+                )
+                .finally(() => setLoading(false))
+            }}
+          >
+            Send code
+          </Button>
+          <Button
+            tone="outline"
+            loading={loading}
+            onClick={() => {
+              setLoading(true)
+              void updateApiKeyIpAllowlist(
+                key,
+                allowlist
+                  .split(/[\s,]+/)
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+                email,
+                totp,
+              )
+                .then(
+                  () => onDone("API Key IP 白名单已更新。"),
+                  (reason: unknown) => onDone(readError(reason)),
+                )
+                .finally(() => setLoading(false))
+            }}
+          >
+            Update IPs
+          </Button>
+          {challengeMessage ? <small>{challengeMessage}</small> : null}
           <Button
             tone="negative"
             loading={loading}

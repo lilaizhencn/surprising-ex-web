@@ -13,6 +13,7 @@ export type Market = {
   readonly symbol: string
   readonly baseAsset: string
   readonly quoteAsset: string
+  readonly settleAsset?: string
   readonly productLine: ProductLine | "UNKNOWN"
   readonly price: number | null
   readonly change24h: number | null
@@ -35,7 +36,7 @@ export type Market = {
   readonly expiryTime?: string | null | undefined
   readonly deliveryTime?: string | null | undefined
   readonly underlyingSymbol?: string | null | undefined
-  readonly strikePriceUnits?: number | null | undefined
+  readonly strikePriceUnits?: string | null | undefined
   readonly optionType?: string | null | undefined
   readonly optionExerciseStyle?: string | null | undefined
   readonly settlementMethod?: string | null | undefined

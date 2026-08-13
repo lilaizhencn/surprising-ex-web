@@ -52,11 +52,21 @@ export function TopNav({
           ))}
         </nav>
         <div className="nav-actions">
-          <IconButton label="Search">
+          <IconButton
+            label="Search"
+            onClick={() => {
+              window.location.href = "/markets"
+            }}
+          >
             <Search size={20} />
           </IconButton>
           {session ? (
-            <IconButton label="Notifications">
+            <IconButton
+              label="Notifications"
+              onClick={() => {
+                window.location.href = "/notifications"
+              }}
+            >
               <Bell size={20} />
             </IconButton>
           ) : null}

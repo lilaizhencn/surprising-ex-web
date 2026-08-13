@@ -2,10 +2,17 @@ import { z } from "zod"
 
 const NumericSchema = z.union([z.string(), z.number()])
 const NullableNumericSchema = NumericSchema.nullable().optional()
+const IdentifierSchema = z.union([z.string(), z.number()])
 const SafeIntegerWireSchema = z
   .union([
     z.string().regex(/^\d+$/),
     z.number().int().nonnegative().refine(Number.isSafeInteger, "整数必须以字符串传输。"),
+  ])
+  .transform(String)
+const SignedIntegerWireSchema = z
+  .union([
+    z.string().regex(/^-?\d+$/),
+    z.number().int().refine(Number.isSafeInteger, "整数必须以字符串传输。"),
   ])
   .transform(String)
 
@@ -56,14 +63,15 @@ export const MarketSchema = z
     symbol: z.string(),
     baseAsset: z.string().optional(),
     quoteAsset: z.string().optional(),
+    settleAsset: z.string().optional(),
     contractType: z.string().optional(),
     productLine: z.string().optional(),
     lastPrice: NumericSchema.optional(),
-    lastPriceTicks: z.number().optional(),
+    lastPriceTicks: SafeIntegerWireSchema.optional(),
     change24h: NumericSchema.optional(),
-    change24hPpm: z.number().optional(),
+    change24hPpm: SafeIntegerWireSchema.optional(),
     volume24h: NumericSchema.optional(),
-    volume24hUnits: z.number().optional(),
+    volume24hUnits: SafeIntegerWireSchema.optional(),
     high24h: NumericSchema.optional(),
     low24h: NumericSchema.optional(),
     priceTickUnits: SafeIntegerWireSchema.optional(),
@@ -75,19 +83,39 @@ export const MarketSchema = z
     nextFundingTime: z.string().optional(),
     instrumentType: z.string().optional(),
     contractValueAsset: z.string().optional(),
-    contractMultiplierPpm: z.number().optional(),
-    initialMarginRatePpm: z.number().optional(),
-    maintenanceMarginRatePpm: z.number().optional(),
-    makerFeeRatePpm: z.number().optional(),
-    takerFeeRatePpm: z.number().optional(),
+    contractMultiplierPpm: SafeIntegerWireSchema.optional(),
+    initialMarginRatePpm: SafeIntegerWireSchema.optional(),
+    maintenanceMarginRatePpm: SafeIntegerWireSchema.optional(),
+    makerFeeRatePpm: SafeIntegerWireSchema.optional(),
+    takerFeeRatePpm: SafeIntegerWireSchema.optional(),
     fundingIntervalHours: z.number().optional(),
     expiryTime: z.string().nullable().optional(),
     deliveryTime: z.string().nullable().optional(),
     underlyingSymbol: z.string().nullable().optional(),
-    strikePriceUnits: z.number().nullable().optional(),
+    strikePriceUnits: SafeIntegerWireSchema.nullable().optional(),
     optionType: z.string().nullable().optional(),
     optionExerciseStyle: z.string().nullable().optional(),
     settlementMethod: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+export const OptionQuoteSchema = z
+  .object({
+    symbol: z.string(),
+    underlyingSymbol: z.string(),
+    optionType: z.enum(["CALL", "PUT"]),
+    expiryTime: z.string(),
+    asOf: z.string(),
+    underlyingPrice: NumericSchema,
+    optionPrice: NumericSchema,
+    strikePrice: NumericSchema,
+    timeToExpiryYears: NumericSchema,
+    impliedVolatility: NumericSchema,
+    delta: NumericSchema,
+    gamma: NumericSchema,
+    thetaPerYear: NumericSchema,
+    vega: NumericSchema,
+    rho: NumericSchema,
   })
   .passthrough()
 
@@ -134,6 +162,30 @@ export const BalanceListSchema = z
   })
   .passthrough()
 
+export const PositionSchema = z
+  .object({
+    userId: SafeIntegerWireSchema.optional(),
+    symbol: z.string(),
+    instrumentVersion: SafeIntegerWireSchema.optional(),
+    marginMode: z.string().optional(),
+    positionSide: z.string().optional(),
+    signedQuantitySteps: SignedIntegerWireSchema,
+    entryPriceTicks: SafeIntegerWireSchema,
+    realizedPnlUnits: SignedIntegerWireSchema,
+    updatedAt: z.string().optional(),
+  })
+  .passthrough()
+
+export const PositionListSchema = z.union([
+  z.array(PositionSchema),
+  z
+    .object({
+      positions: z.array(PositionSchema).optional(),
+      items: z.array(PositionSchema).optional(),
+    })
+    .passthrough(),
+])
+
 export const AssetScalesSchema = z.record(
   z.string(),
   z.union([z.string(), z.number()]).transform((value) => String(value)),
@@ -146,6 +198,16 @@ export const OrderSchema = z
     symbol: z.string().optional(),
     side: z.string().optional(),
     type: z.string().optional(),
+    orderType: z.string().optional(),
+    timeInForce: z.string().optional(),
+    priceTicks: SafeIntegerWireSchema.optional(),
+    quantitySteps: SafeIntegerWireSchema.optional(),
+    executedQuantitySteps: SafeIntegerWireSchema.optional(),
+    remainingQuantitySteps: SafeIntegerWireSchema.optional(),
+    marginMode: z.string().optional(),
+    positionSide: z.string().optional(),
+    reduceOnly: z.boolean().optional(),
+    postOnly: z.boolean().optional(),
     status: z.string().optional(),
     price: NullableNumericSchema,
     origQty: NullableNumericSchema,
@@ -178,20 +240,78 @@ export const OrderSubmissionSchema = z
 export const OrderListSchema = z.union([
   z.array(OrderSchema),
   z
-    .object({ orders: z.array(OrderSchema).optional(), items: z.array(OrderSchema).optional() })
+    .object({
+      count: z.number().optional(),
+      orders: z.array(OrderSchema).optional(),
+      items: z.array(OrderSchema).optional(),
+      nextCursor: z.string().nullable().optional(),
+      hasMore: z.boolean().optional(),
+      sort: z.string().optional(),
+      limit: z.number().optional(),
+    })
     .passthrough(),
 ])
 
-export const OrderBookLevelSchema = z.tuple([NumericSchema, NumericSchema])
-export const OrderBookSchema = z
+export const TriggerOrderSchema = z
   .object({
-    lastUpdateId: z.union([z.string(), z.number()]).optional(),
-    bids: z.array(OrderBookLevelSchema).optional(),
-    asks: z.array(OrderBookLevelSchema).optional(),
+    triggerOrderId: SafeIntegerWireSchema,
+    userId: SafeIntegerWireSchema.optional(),
+    clientTriggerOrderId: z.string().optional(),
+    symbol: z.string(),
+    side: z.enum(["BUY", "SELL"]),
+    triggerType: z.enum(["TAKE_PROFIT", "STOP_LOSS", "TRAILING_STOP"]),
+    triggerCondition: z.enum(["GREATER_OR_EQUAL", "LESS_OR_EQUAL"]).optional(),
+    triggerPriceTicks: SafeIntegerWireSchema,
+    activationPriceTicks: SafeIntegerWireSchema.nullable().optional(),
+    callbackRatePpm: SafeIntegerWireSchema.nullable().optional(),
+    orderType: z.enum(["LIMIT", "MARKET"]),
+    timeInForce: z.enum(["GTC", "IOC", "FOK", "GTX"]),
+    priceTicks: SafeIntegerWireSchema,
+    quantitySteps: SafeIntegerWireSchema,
+    marginMode: z.string().optional(),
+    positionSide: z.string().optional(),
+    status: z.enum(["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"]),
+    rejectReason: z.string().nullable().optional(),
+    expiresAt: z.string().nullable().optional(),
+    triggeredAt: z.string().nullable().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
   })
   .passthrough()
 
-const IdentifierSchema = z.union([z.string(), z.number()])
+export const TriggerOrderQuerySchema = z
+  .object({
+    count: z.number(),
+    orders: z.array(TriggerOrderSchema),
+    nextCursor: z.string().nullable().optional(),
+    hasMore: z.boolean().optional(),
+    sort: z.string().optional(),
+    limit: z.number().optional(),
+  })
+  .passthrough()
+
+export const OrderBookLevelSchema = z.union([
+  z.tuple([NumericSchema, NumericSchema]),
+  z
+    .object({
+      priceTicks: IdentifierSchema,
+      quantitySteps: IdentifierSchema,
+      orderCount: IdentifierSchema.optional(),
+    })
+    .passthrough(),
+])
+export const OrderBookSchema = z
+  .object({
+    symbol: z.string().optional(),
+    sequence: IdentifierSchema.optional(),
+    previousSequence: IdentifierSchema.optional(),
+    updateType: z.enum(["SNAPSHOT", "DELTA"]).optional(),
+    depth: z.number().optional(),
+    lastUpdateId: z.union([z.string(), z.number()]).optional(),
+    bids: z.array(OrderBookLevelSchema).readonly().optional(),
+    asks: z.array(OrderBookLevelSchema).readonly().optional(),
+  })
+  .passthrough()
 
 export const FundingRateSchema = z
   .object({
@@ -215,6 +335,18 @@ export const FundingRatePageSchema = z
     hasMore: z.boolean(),
     sort: z.string(),
     limit: z.number(),
+  })
+  .passthrough()
+
+export const ExchangeRateConvertSchema = z
+  .object({
+    fromCurrency: z.string(),
+    toCurrency: z.string(),
+    amount: NumericSchema,
+    convertedAmount: NumericSchema,
+    rate: NumericSchema,
+    route: z.string().optional(),
+    rateTime: z.string(),
   })
   .passthrough()
 
@@ -336,9 +468,12 @@ export const ProductTransferResponseSchema = z
     amountUnits: IdentifierSchema,
     referenceId: z.string(),
     status: z.string(),
-    sourceBalance: ProductBalanceSchema,
-    targetBalance: ProductBalanceSchema,
-    createdAt: z.string(),
+    sourceBalance: ProductBalanceSchema.optional(),
+    targetBalance: ProductBalanceSchema.optional(),
+    errorCode: z.string().nullable().optional(),
+    errorMessage: z.string().nullable().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
   })
   .passthrough()
 
@@ -420,9 +555,11 @@ export type JwtPrincipal = z.infer<typeof JwtPrincipalSchema>
 export type ApiUserSession = z.infer<typeof UserSessionSchema>
 export type ApiLoginHistoryEntry = z.infer<typeof LoginHistoryEntrySchema>
 export type ApiMarket = z.infer<typeof MarketSchema>
+export type ApiOptionQuote = z.infer<typeof OptionQuoteSchema>
 export type ApiCandle = z.infer<typeof CandleSchema>
 export type ApiBalance = z.infer<typeof BalanceSchema>
 export type ApiOrder = z.infer<typeof OrderSchema>
+export type ApiTriggerOrder = z.infer<typeof TriggerOrderSchema>
 export type ApiOrderBook = z.infer<typeof OrderBookSchema>
 export type ApiOrderBookLevel = z.infer<typeof OrderBookLevelSchema>
 export type ApiWalletRecord = z.infer<typeof WalletRecordSchema>

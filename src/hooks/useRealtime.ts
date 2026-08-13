@@ -20,14 +20,16 @@ export function useRealtime(
   const sessionUserId = session?.user.userId === undefined ? null : String(session.user.userId)
 
   useEffect(() => {
-    const baseUrl = config.wsBaseUrl
+    const baseUrl = config.wsBaseUrlForProductLine(productLine)
     if (!baseUrl || !symbol) {
       setState("offline")
       return
     }
     let closed = false
     let socket: WebSocket | null = null
+    let initialConnectTimer: number | undefined
     let reconnectTimer: number | undefined
+    let heartbeatTimer: number | undefined
     let attempt = 0
 
     const connect = () => {
@@ -38,6 +40,11 @@ export function useRealtime(
         attempt = 0
         setState("live")
         subscribe(socket, publicSubscriptions(symbol, productLine, period))
+        heartbeatTimer = window.setInterval(() => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ op: "ping", id: `ping-public-${Date.now()}` }))
+          }
+        }, 20_000)
       }
       socket.onmessage = (message) => {
         const event = parseEvent(message.data)
@@ -50,6 +57,7 @@ export function useRealtime(
       }
       socket.onerror = () => setState("degraded")
       socket.onclose = () => {
+        if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
         if (closed) return
         attempt += 1
         setState("degraded")
@@ -57,23 +65,28 @@ export function useRealtime(
       }
     }
 
-    connect()
+    initialConnectTimer = window.setTimeout(connect, 0)
     return () => {
       closed = true
+      if (initialConnectTimer !== undefined) window.clearTimeout(initialConnectTimer)
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
+      if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
       socket?.close()
     }
   }, [period, productLine, symbol])
 
   useEffect(() => {
-    if (!accessToken || !sessionUserId || !config.wsBaseUrl || !symbol) return
+    const baseUrl = config.wsBaseUrlForProductLine(productLine)
+    if (!accessToken || !sessionUserId || !baseUrl || !symbol) return
     let closed = false
     let socket: WebSocket | null = null
+    let initialConnectTimer: number | undefined
     let reconnectTimer: number | undefined
+    let heartbeatTimer: number | undefined
     let attempt = 0
     const connect = () => {
       if (closed) return
-      socket = new WebSocket(config.wsBaseUrl)
+      socket = new WebSocket(baseUrl)
       socket.onopen = () => {
         attempt = 0
         if (!socket || socket.readyState !== WebSocket.OPEN) return
@@ -84,6 +97,11 @@ export function useRealtime(
             token: accessToken,
           }),
         )
+        heartbeatTimer = window.setInterval(() => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ op: "ping", id: `ping-private-${Date.now()}` }))
+          }
+        }, 20_000)
       }
       socket.onmessage = (message) => {
         const event = parseEvent(message.data)
@@ -95,16 +113,19 @@ export function useRealtime(
         setEvents((current) => [event, ...current].slice(0, 80))
       }
       socket.onclose = () => {
+        if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
         if (closed) return
         attempt += 1
         reconnectTimer = window.setTimeout(connect, Math.min(1000 * 2 ** attempt, 15_000))
       }
     }
 
-    connect()
+    initialConnectTimer = window.setTimeout(connect, 0)
     return () => {
       closed = true
+      if (initialConnectTimer !== undefined) window.clearTimeout(initialConnectTimer)
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
+      if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
       socket?.close()
     }
   }, [accessToken, productLine, sessionUserId, symbol])
@@ -151,6 +172,7 @@ function privateSubscriptions(symbol: string, productLine: ProductLine): readonl
     { id: "orders", channel: "orders", productLine, symbol },
     { id: "matches", channel: "matches", productLine, symbol },
     { id: "executionReports", channel: "executionReports", productLine, symbol },
+    { id: "triggerOrders", channel: "triggerOrders", productLine, symbol },
   ]
   if (productLine !== "SPOT") {
     channels.push(

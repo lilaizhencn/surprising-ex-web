@@ -1,22 +1,53 @@
 import { Download, RefreshCw, XCircle } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import {
+  amendBatchOrders,
+  amendOrder,
+  cancelAlgoOrder,
+  cancelAllAfter,
+  cancelBatchOrders,
+  cancelOpenAlgoOrders,
+  cancelOpenOrders,
+  cancelOpenTriggerOrders,
   cancelOrder,
+  cancelTriggerOrder,
+  closePosition,
   loadAccountLedger,
+  loadMyTrades,
+  loadOpenAlgoOrders,
   loadOpenOrders,
+  loadOpenTriggerOrders,
   loadOrderHistory,
+  loadProductLedger,
   loadTransferHistory,
+  placeAlgoOrder,
+  placeBatchOrders,
+  placeBatchTriggerOrders,
+  testOrder,
 } from "../../api/endpoints"
 import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
-import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
-import { loadSession } from "../../state/session"
+import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
+import { loadSession, useSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
-type RecordRow = ApiOrder | ApiAccountLedgerEntry | ApiProductTransferRecord
-type Tab = "open" | "history" | "fills" | "ledger" | "transfers"
+type RecordRow =
+  | ApiOrder
+  | ApiAccountLedgerEntry
+  | ApiProductTransferRecord
+  | Readonly<Record<string, unknown>>
+type Tab =
+  | "open"
+  | "history"
+  | "fills"
+  | "ledger"
+  | "product-ledger"
+  | "transfers"
+  | "algo"
+  | "triggers"
+  | "advanced"
 
 export function OrdersPage() {
-  const session = loadSession()
+  const session = useSession()
   const [tab, setTab] = useState<Tab>("open")
   const [productLine, setProductLine] = useState<ProductLine>(PRODUCT_LINES.spot)
   const [symbol, setSymbol] = useState("")
@@ -27,6 +58,8 @@ export function OrdersPage() {
   const [rows, setRows] = useState<readonly RecordRow[]>([])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [actionMessage, setActionMessage] = useState("")
+  const [countdown, setCountdown] = useState("0")
 
   const load = () => {
     if (!session) return
@@ -38,10 +71,20 @@ export function OrdersPage() {
         : tab === "history"
           ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
           : tab === "fills"
-            ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
+            ? session
+              ? loadMyTrades(session.user.userId, symbol, productLine)
+              : Promise.resolve([])
             : tab === "ledger"
               ? loadAccountLedger(symbol)
-              : loadTransferHistory(productLine, symbol)
+              : tab === "product-ledger"
+                ? loadProductLedger(productLine, symbol)
+                : tab === "transfers"
+                  ? loadTransferHistory(productLine, symbol)
+                  : tab === "algo"
+                    ? loadOpenAlgoOrders(session.user.userId, symbol, productLine)
+                    : tab === "triggers"
+                      ? loadOpenTriggerOrders(session.user.userId, symbol, productLine)
+                      : Promise.resolve([])
     void task
       .then(
         (result) => setRows(result),
@@ -59,7 +102,20 @@ export function OrdersPage() {
       ),
     [rows, search, status],
   )
-  const displayRows = tab === "fills" ? filtered.filter((row) => isFilled(row)) : filtered
+  const displayRows = filtered
+  const runBulkAction = async (operation: () => Promise<unknown>, success: string) => {
+    setLoading(true)
+    setActionMessage("")
+    try {
+      await operation()
+      setActionMessage(success)
+      load()
+    } catch (reason: unknown) {
+      setActionMessage(readError(reason))
+    } finally {
+      setLoading(false)
+    }
+  }
   if (!session)
     return (
       <div className="account-content">
@@ -92,6 +148,90 @@ export function OrdersPage() {
           <Download size={16} /> Export
         </Button>
       </div>
+      {actionMessage ? (
+        <div className="form-message" role="status">
+          {actionMessage}
+        </div>
+      ) : null}
+      <div className="history-actions">
+        <Button
+          tone="negative"
+          disabled={tab !== "open" || loading || !session}
+          onClick={() => {
+            if (!session || !window.confirm("Cancel all open orders for this product line?")) return
+            void runBulkAction(
+              () =>
+                cancelOpenOrders(
+                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  productLine,
+                ),
+              "批量撤单请求已发送。",
+            )
+          }}
+        >
+          Cancel all open
+        </Button>
+        <div className="inline-form">
+          <input
+            value={countdown}
+            onChange={(event) => setCountdown(event.target.value)}
+            inputMode="numeric"
+            aria-label="Cancel all after milliseconds"
+          />
+          <Button
+            tone="outline"
+            disabled={!session || tab !== "open"}
+            onClick={() => {
+              if (!session) return
+              const countdownMs = Math.max(0, Math.min(120000, Number(countdown) || 0))
+              void runBulkAction(
+                () =>
+                  cancelAllAfter(
+                    { userId: session.user.userId, symbol: symbol || null, countdownMs },
+                    productLine,
+                  ),
+                `自动撤单计时已设置为 ${countdownMs}ms。`,
+              )
+            }}
+          >
+            Set cancel timer
+          </Button>
+        </div>
+        <Button
+          tone="outline"
+          disabled={!session || tab !== "algo"}
+          onClick={() => {
+            if (!session) return
+            void runBulkAction(
+              () =>
+                cancelOpenAlgoOrders(
+                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  productLine,
+                ),
+              "算法单批量撤销请求已发送。",
+            )
+          }}
+        >
+          Cancel open algo
+        </Button>
+        <Button
+          tone="outline"
+          disabled={!session || tab !== "triggers"}
+          onClick={() => {
+            if (!session) return
+            void runBulkAction(
+              () =>
+                cancelOpenTriggerOrders(
+                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  productLine,
+                ),
+              "条件单批量撤销请求已发送。",
+            )
+          }}
+        >
+          Cancel open triggers
+        </Button>
+      </div>
       <div className="history-toolbar">
         <SearchField value={search} onChange={setSearch} placeholder="Search symbol or ID" />
         <select
@@ -102,16 +242,23 @@ export function OrdersPage() {
           <option value={PRODUCT_LINES.spot}>Spot</option>
           <option value={PRODUCT_LINES.usdMPerpetual}>USD-M perpetual</option>
           <option value={PRODUCT_LINES.coinMPerpetual}>Coin-M perpetual</option>
-          <option value={PRODUCT_LINES.usdMDelivery}>Delivery</option>
+          <option value={PRODUCT_LINES.usdMDelivery}>USD-M delivery</option>
+          <option value={PRODUCT_LINES.coinMDelivery}>Coin-M delivery</option>
           <option value={PRODUCT_LINES.option}>Options</option>
         </select>
         <input
           value={symbol}
           onChange={(event) => setSymbol(event.target.value)}
           placeholder={
-            tab === "ledger" || tab === "transfers" ? "Asset (optional)" : "Symbol (optional)"
+            tab === "ledger" || tab === "product-ledger" || tab === "transfers"
+              ? "Asset (optional)"
+              : "Symbol (optional)"
           }
-          aria-label={tab === "ledger" || tab === "transfers" ? "Asset filter" : "Symbol filter"}
+          aria-label={
+            tab === "ledger" || tab === "product-ledger" || tab === "transfers"
+              ? "Asset filter"
+              : "Symbol filter"
+          }
         />
         <Button tone="outline" onClick={load}>
           <RefreshCw size={16} /> Refresh
@@ -171,14 +318,49 @@ export function OrdersPage() {
         </button>
         <button
           type="button"
+          className={tab === "product-ledger" ? "active" : ""}
+          onClick={() => setTab("product-ledger")}
+        >
+          Product ledger
+        </button>
+        <button
+          type="button"
           className={tab === "transfers" ? "active" : ""}
           onClick={() => setTab("transfers")}
         >
           Transfers
         </button>
+        <button
+          type="button"
+          className={tab === "algo" ? "active" : ""}
+          onClick={() => setTab("algo")}
+        >
+          Algo orders
+        </button>
+        <button
+          type="button"
+          className={tab === "triggers" ? "active" : ""}
+          onClick={() => setTab("triggers")}
+        >
+          Conditional orders
+        </button>
+        <button
+          type="button"
+          className={tab === "advanced" ? "active" : ""}
+          onClick={() => setTab("advanced")}
+        >
+          Advanced actions
+        </button>
       </div>
       <Panel>
-        {error ? (
+        {tab === "advanced" ? (
+          <AdvancedTradingActions
+            session={session}
+            productLine={productLine}
+            symbol={symbol}
+            onDone={(value) => setActionMessage(value)}
+          />
+        ) : error ? (
           <StateView kind="error" message={error} retry={load} />
         ) : loading ? (
           <StateView kind="loading" message="Loading order state" />
@@ -191,14 +373,40 @@ export function OrdersPage() {
                 : tab === "history"
                   ? "No historical orders returned by the trading service."
                   : tab === "fills"
-                    ? "No filled orders returned by the trading service."
+                    ? "No private trade fills returned by the trading service."
                     : tab === "ledger"
                       ? "No account ledger entries returned by the account service."
-                      : "No transfer records returned by the account service."
+                      : tab === "product-ledger"
+                        ? "No product ledger entries returned by the account service."
+                        : tab === "transfers"
+                          ? "No transfer records returned by the account service."
+                          : tab === "algo"
+                            ? "No open algorithmic orders returned by the trading service."
+                            : "No open conditional orders returned by the trading service."
             }
           />
-        ) : tab === "ledger" || tab === "transfers" ? (
+        ) : tab === "ledger" || tab === "product-ledger" || tab === "transfers" ? (
           <RecordTable rows={displayRows} mode={tab} />
+        ) : tab === "fills" ? (
+          <RecordTable rows={displayRows} mode="fills" />
+        ) : tab === "algo" ? (
+          <AlgoTable
+            rows={displayRows}
+            productLine={productLine}
+            onDone={(message) => {
+              setActionMessage(message)
+              load()
+            }}
+          />
+        ) : tab === "triggers" ? (
+          <TriggerTable
+            rows={displayRows}
+            productLine={productLine}
+            onDone={(value) => {
+              setActionMessage(value)
+              load()
+            }}
+          />
         ) : (
           <OrderTable
             rows={displayRows}
@@ -215,17 +423,449 @@ export function OrdersPage() {
   )
 }
 
+function TriggerTable({
+  rows,
+  productLine,
+  onDone,
+}: {
+  readonly rows: readonly RecordRow[]
+  readonly productLine: ProductLine
+  readonly onDone: (message: string) => void
+}) {
+  const session = loadSession()
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Symbol</th>
+            <th>Trigger</th>
+            <th>Side</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={text(row, "triggerOrderId") || String(index)}>
+              <td className="mono">{text(row, "triggerOrderId") || "—"}</td>
+              <td>{text(row, "symbol") || "—"}</td>
+              <td className="mono">{text(row, "triggerPriceTicks") || "—"}</td>
+              <td>{text(row, "side") || "—"}</td>
+              <td>{text(row, "status") || "—"}</td>
+              <td>
+                <Button
+                  tone="negative"
+                  disabled={!session || text(row, "status") !== "PENDING"}
+                  onClick={() => {
+                    if (!session || !window.confirm("Cancel this conditional order?")) return
+                    void cancelTriggerOrder(
+                      session.user.userId,
+                      text(row, "triggerOrderId"),
+                      productLine,
+                    ).then(
+                      () => onDone("条件单撤销请求已发送。"),
+                      (reason: unknown) => onDone(readError(reason)),
+                    )
+                  }}
+                >
+                  Cancel
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function AdvancedTradingActions({
+  session,
+  productLine,
+  symbol,
+  onDone,
+}: {
+  readonly session: NonNullable<ReturnType<typeof loadSession>>
+  readonly productLine: ProductLine
+  readonly symbol: string
+  readonly onDone: (message: string) => void
+}) {
+  const [orderId, setOrderId] = useState("")
+  const [batchOrderIds, setBatchOrderIds] = useState("")
+  const [priceTicks, setPriceTicks] = useState("0")
+  const [quantitySteps, setQuantitySteps] = useState("1")
+  const [side, setSide] = useState<"BUY" | "SELL">("BUY")
+  const [algoType, setAlgoType] = useState<"TWAP" | "ICEBERG">("TWAP")
+  const [triggerPriceTicks, setTriggerPriceTicks] = useState("0")
+  const [busy, setBusy] = useState(false)
+
+  const baseOrder = () => ({
+    userId: session.user.userId,
+    clientOrderId: `web-advanced-${crypto.randomUUID()}`,
+    symbol: symbol.trim(),
+    side,
+    orderType: "LIMIT",
+    timeInForce: "GTC",
+    priceTicks: toLong(priceTicks),
+    quantitySteps: toLong(quantitySteps),
+    marginMode: "CROSS",
+    positionSide: "NET",
+    reduceOnly: false,
+    postOnly: false,
+  })
+  const run = async (operation: () => Promise<unknown>, success: string) => {
+    if (!symbol.trim()) {
+      onDone("请输入 symbol 后再执行高级交易操作。")
+      return
+    }
+    setBusy(true)
+    try {
+      await operation()
+      onDone(success)
+    } catch (reason: unknown) {
+      onDone(readError(reason))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="advanced-trading-actions">
+      <p className="muted">这些操作直接调用交易服务，所有数量和价格均使用后端整数单位。</p>
+      <div className="grid-2">
+        <Field label="Symbol">
+          <input value={symbol} readOnly aria-label="Advanced symbol" />
+        </Field>
+        <Field label="Side">
+          <select
+            value={side}
+            onChange={(event) => setSide(event.target.value === "SELL" ? "SELL" : "BUY")}
+          >
+            <option value="BUY">BUY</option>
+            <option value="SELL">SELL</option>
+          </select>
+        </Field>
+        <Field label="Price ticks (integer)">
+          <input
+            value={priceTicks}
+            onChange={(event) => setPriceTicks(event.target.value)}
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label="Quantity steps (integer)">
+          <input
+            value={quantitySteps}
+            onChange={(event) => setQuantitySteps(event.target.value)}
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label="Order ID for amend (integer)">
+          <input
+            value={orderId}
+            onChange={(event) => setOrderId(event.target.value)}
+            inputMode="numeric"
+          />
+        </Field>
+        <Field label="Order IDs for batch cancel (integers)">
+          <input
+            value={batchOrderIds}
+            onChange={(event) => setBatchOrderIds(event.target.value)}
+            placeholder="1001,1002"
+            inputMode="numeric"
+          />
+        </Field>
+      </div>
+      <div className="history-actions">
+        <Button
+          tone="outline"
+          loading={busy}
+          onClick={() => void run(() => testOrder(baseOrder(), productLine), "测试单校验通过。")}
+        >
+          Test order
+        </Button>
+        <Button
+          tone="outline"
+          loading={busy}
+          onClick={() =>
+            void run(
+              () => placeBatchOrders({ orders: [baseOrder()] }, productLine),
+              "批量下单请求已发送。",
+            )
+          }
+        >
+          Place batch order
+        </Button>
+        <Button
+          tone="outline"
+          disabled={!orderId}
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                amendOrder(
+                  {
+                    ...baseOrder(),
+                    orderId: toLong(orderId),
+                    newClientOrderId: `web-amend-${crypto.randomUUID()}`,
+                  },
+                  productLine,
+                ),
+              "改单请求已发送。",
+            )
+          }
+        >
+          Amend order
+        </Button>
+        <Button
+          tone="outline"
+          disabled={!orderId}
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                amendBatchOrders(
+                  {
+                    orders: [
+                      {
+                        ...baseOrder(),
+                        orderId: toLong(orderId),
+                        newClientOrderId: `web-batch-amend-${crypto.randomUUID()}`,
+                      },
+                    ],
+                  },
+                  productLine,
+                ),
+              "批量改单请求已发送。",
+            )
+          }
+        >
+          Amend batch
+        </Button>
+        <Button
+          tone="negative"
+          disabled={!batchOrderIds.trim()}
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                cancelBatchOrders(
+                  {
+                    orders: batchOrderIds
+                      .split(/[\s,]+/)
+                      .map((value) => value.trim())
+                      .filter(Boolean)
+                      .map((value) => ({
+                        userId: session.user.userId,
+                        orderId: toLong(value),
+                      })),
+                  },
+                  productLine,
+                ),
+              "批量撤单请求已发送。",
+            )
+          }
+        >
+          Cancel batch
+        </Button>
+        <Button
+          tone="negative"
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                closePosition(
+                  {
+                    userId: session.user.userId,
+                    clientOrderId: `web-close-${crypto.randomUUID()}`,
+                    symbol: symbol.trim(),
+                    marginMode: "CROSS",
+                    positionSide: "NET",
+                  },
+                  productLine,
+                ),
+              "平仓请求已发送。",
+            )
+          }
+        >
+          Close position
+        </Button>
+      </div>
+      <div className="grid-2">
+        <Field label="Algo type">
+          <select
+            value={algoType}
+            onChange={(event) => setAlgoType(event.target.value === "ICEBERG" ? "ICEBERG" : "TWAP")}
+          >
+            <option value="TWAP">TWAP</option>
+            <option value="ICEBERG">ICEBERG</option>
+          </select>
+        </Field>
+        <Field label="Trigger price ticks">
+          <input
+            value={triggerPriceTicks}
+            onChange={(event) => setTriggerPriceTicks(event.target.value)}
+            inputMode="numeric"
+          />
+        </Field>
+      </div>
+      <div className="history-actions">
+        <Button
+          tone="outline"
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                placeAlgoOrder(
+                  {
+                    ...baseOrder(),
+                    clientAlgoOrderId: `web-algo-${crypto.randomUUID()}`,
+                    algoType,
+                    childQuantitySteps: toLong(quantitySteps),
+                    intervalSeconds: 60,
+                    durationSeconds: 600,
+                    timeInForce: "GTC",
+                    startAt: new Date().toISOString(),
+                  },
+                  productLine,
+                ),
+              "算法单请求已发送。",
+            )
+          }
+        >
+          Place algo order
+        </Button>
+        <Button
+          tone="outline"
+          loading={busy}
+          onClick={() =>
+            void run(
+              () =>
+                placeBatchTriggerOrders(
+                  {
+                    orders: [
+                      {
+                        ...baseOrder(),
+                        clientTriggerOrderId: `web-trigger-batch-${crypto.randomUUID()}`,
+                        triggerType: "STOP_LOSS",
+                        triggerPriceTicks: toLong(triggerPriceTicks),
+                        activationPriceTicks: null,
+                        callbackRatePpm: null,
+                        expiresAt: null,
+                      },
+                    ],
+                  },
+                  productLine,
+                ),
+              "批量条件单请求已发送。",
+            )
+          }
+        >
+          Place trigger batch
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function toLong(value: string): string {
+  const normalized = value.trim()
+  return /^\d+$/.test(normalized) ? normalized : "0"
+}
+
+function AlgoTable({
+  rows,
+  productLine,
+  onDone,
+}: {
+  readonly rows: readonly RecordRow[]
+  readonly productLine: ProductLine
+  readonly onDone: (message: string) => void
+}) {
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Side</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <AlgoRow
+              key={text(row, "algoOrderId") || String(index)}
+              row={row}
+              productLine={productLine}
+              onDone={onDone}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function AlgoRow({
+  row,
+  productLine,
+  onDone,
+}: {
+  readonly row: RecordRow
+  readonly productLine: ProductLine
+  readonly onDone: (message: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const id = text(row, "algoOrderId")
+  return (
+    <tr>
+      <td className="mono">{id || "—"}</td>
+      <td>{text(row, "symbol") || "—"}</td>
+      <td>{text(row, "algoType") || "—"}</td>
+      <td>{text(row, "side") || "—"}</td>
+      <td>{text(row, "status") || "—"}</td>
+      <td>
+        <Button
+          tone="negative"
+          loading={loading}
+          disabled={!id}
+          onClick={() => {
+            if (!id || !window.confirm("Cancel this algorithmic order?")) return
+            const session = loadSession()
+            if (!session) return
+            setLoading(true)
+            void cancelAlgoOrder({ userId: session.user.userId, algoOrderId: id }, productLine)
+              .then(
+                () => onDone("算法单撤销请求已发送。"),
+                (reason: unknown) => onDone(readError(reason)),
+              )
+              .finally(() => setLoading(false))
+          }}
+        >
+          Cancel
+        </Button>
+      </td>
+    </tr>
+  )
+}
+
 function RecordTable({
   rows,
   mode,
 }: {
   readonly rows: readonly RecordRow[]
-  readonly mode: "ledger" | "transfers"
+  readonly mode: "ledger" | "product-ledger" | "transfers" | "fills"
 }) {
   const columns =
-    mode === "ledger"
+    mode === "ledger" || mode === "product-ledger"
       ? ["asset", "referenceType", "amountUnits", "balanceAfterUnits", "createdAt"]
-      : ["asset", "sourceAccountType", "targetAccountType", "amountUnits", "status", "createdAt"]
+      : mode === "transfers"
+        ? ["asset", "sourceAccountType", "targetAccountType", "amountUnits", "status", "createdAt"]
+        : ["tradeId", "symbol", "side", "priceTicks", "quantitySteps", "eventTime"]
   return (
     <div className="table-wrap">
       <table className="data-table">
@@ -316,9 +956,9 @@ function OrderRow({
       <td>
         {text(row, "side") || "—"} / {text(row, "type") || "—"}
       </td>
-      <td className="mono">{text(row, "price") || "—"}</td>
-      <td className="mono">{text(row, "origQty") || text(row, "quantity") || "—"}</td>
-      <td className="mono">{text(row, "executedQty") || "—"}</td>
+      <td className="mono">{orderPrice(row)}</td>
+      <td className="mono">{orderQuantity(row, "quantitySteps", "origQty", "quantity")}</td>
+      <td className="mono">{orderQuantity(row, "executedQuantitySteps", "executedQty")}</td>
       <td>{text(row, "status") || "—"}</td>
       <td>{text(row, "time") || text(row, "updateTime") || "—"}</td>
       {canCancel ? (
@@ -359,9 +999,21 @@ function dateValue(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-function isFilled(row: RecordRow): boolean {
-  const value = text(row, "status").toUpperCase()
-  return value === "FILLED" || value === "PARTIALLY_FILLED" || Number(text(row, "executedQty")) > 0
+function orderPrice(row: RecordRow): string {
+  const direct = text(row, "price")
+  if (direct) return direct
+  const ticks = text(row, "priceTicks")
+  return ticks ? `ticks ${ticks}` : "—"
+}
+
+function orderQuantity(row: RecordRow, primary: string, ...fallbacks: string[]): string {
+  const value = text(row, primary)
+  if (value) return primary.endsWith("Steps") ? `steps ${value}` : value
+  for (const key of fallbacks) {
+    const fallback = text(row, key)
+    if (fallback) return fallback
+  }
+  return "—"
 }
 
 function downloadCsv(rows: readonly RecordRow[], tab: Tab): void {

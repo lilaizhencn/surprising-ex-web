@@ -9,12 +9,13 @@ export function mapMarket(raw: ApiMarket): Market {
     symbol: raw.symbol,
     baseAsset,
     quoteAsset,
+    settleAsset: raw.settleAsset ?? quoteAsset,
     productLine: normalizeProductLine(raw.productLine, raw.contractType),
-    price: numeric(raw.lastPrice) ?? scaled(raw.lastPriceTicks, 100),
+    price: positiveNumeric(raw.lastPrice) ?? positiveScaled(raw.lastPriceTicks, 100),
     change24h: numeric(raw.change24h) ?? scaled(raw.change24hPpm, 10_000),
     volume24h: numeric(raw.volume24h) ?? scaled(raw.volume24hUnits, 100_000_000),
-    high24h: numeric(raw.high24h),
-    low24h: numeric(raw.low24h),
+    high24h: positiveNumeric(raw.high24h),
+    low24h: positiveNumeric(raw.low24h),
     pricePrecision: raw.pricePrecision ?? 2,
     quantityPrecision: raw.quantityPrecision ?? 6,
     priceTickUnits: integerScale(raw.priceTickUnits),
@@ -22,16 +23,16 @@ export function mapMarket(raw: ApiMarket): Market {
     maxLeverage: raw.maxLeverage ?? null,
     instrumentType: raw.instrumentType,
     contractValueAsset: raw.contractValueAsset,
-    contractMultiplierPpm: raw.contractMultiplierPpm,
-    initialMarginRatePpm: raw.initialMarginRatePpm,
-    maintenanceMarginRatePpm: raw.maintenanceMarginRatePpm,
-    makerFeeRatePpm: raw.makerFeeRatePpm,
-    takerFeeRatePpm: raw.takerFeeRatePpm,
+    contractMultiplierPpm: numeric(raw.contractMultiplierPpm) ?? undefined,
+    initialMarginRatePpm: numeric(raw.initialMarginRatePpm) ?? undefined,
+    maintenanceMarginRatePpm: numeric(raw.maintenanceMarginRatePpm) ?? undefined,
+    makerFeeRatePpm: numeric(raw.makerFeeRatePpm) ?? undefined,
+    takerFeeRatePpm: numeric(raw.takerFeeRatePpm) ?? undefined,
     fundingIntervalHours: raw.fundingIntervalHours,
     expiryTime: raw.expiryTime,
     deliveryTime: raw.deliveryTime,
     underlyingSymbol: raw.underlyingSymbol,
-    strikePriceUnits: raw.strikePriceUnits,
+    strikePriceUnits: raw.strikePriceUnits === undefined ? undefined : String(raw.strikePriceUnits),
     optionType: raw.optionType,
     optionExerciseStyle: raw.optionExerciseStyle,
     settlementMethod: raw.settlementMethod,
@@ -78,6 +79,16 @@ function numeric(value: string | number | undefined): number | null {
 function scaled(value: string | number | undefined, divisor: number): number | null {
   const numericValue = numeric(value)
   return numericValue === null ? null : numericValue / divisor
+}
+
+function positiveNumeric(value: string | number | undefined): number | null {
+  const result = numeric(value)
+  return result !== null && result > 0 ? result : null
+}
+
+function positiveScaled(value: string | number | undefined, divisor: number): number | null {
+  const result = scaled(value, divisor)
+  return result !== null && result > 0 ? result : null
 }
 
 function integerScale(value: string | number | undefined): string | undefined {

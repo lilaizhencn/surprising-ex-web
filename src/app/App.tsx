@@ -35,7 +35,7 @@ export function App() {
   if (path === "/assets")
     return (
       <AppShell accountArea>
-        <AssetsPage />
+        <AssetsPage account={new URLSearchParams(window.location.search).get("account")} />
       </AppShell>
     )
   if (path === "/assets/deposit")

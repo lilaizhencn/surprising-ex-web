@@ -1,7 +1,6 @@
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef } from "react"
 import { authApi } from "../../api/endpoints"
-import type { AuthSession } from "../../api/types"
-import { loadSession, saveSession } from "../../state/session"
+import { saveSession, useSession } from "../../state/session"
 import { AccountSidebar } from "./AccountSidebar"
 import { Footer } from "./Footer"
 import { TopNav } from "./TopNav"
@@ -15,20 +14,21 @@ export function AppShell({
   readonly showFooter?: boolean
   readonly accountArea?: boolean
 }) {
-  const [session, setSession] = useState<AuthSession | null>(() => loadSession())
+  const session = useSession()
+  const redirectingRef = useRef(false)
   useEffect(() => {
-    const onStorage = () => setSession(loadSession())
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
-  }, [])
+    if (accountArea && !session && !redirectingRef.current) {
+      window.location.replace("/auth/login?reason=session-expired")
+    }
+  }, [accountArea, session])
   const logout = async () => {
     const refreshToken = session?.refreshToken
     try {
       if (refreshToken) await authApi.logout(refreshToken)
     } catch {
     } finally {
+      redirectingRef.current = true
       saveSession(null)
-      setSession(null)
       window.location.href = "/"
     }
   }

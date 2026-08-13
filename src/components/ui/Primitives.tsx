@@ -127,7 +127,7 @@ export function Price({
 }) {
   return (
     <span className="mono">
-      {value === null ? "—" : `${prefix}${priceFormatter.format(value)}`}
+      {value === null || value <= 0 ? "—" : `${prefix}${priceFormatter.format(value)}`}
     </span>
   )
 }

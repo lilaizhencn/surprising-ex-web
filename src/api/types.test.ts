@@ -6,9 +6,11 @@ import {
   FundingPaymentPageSchema,
   FundingPaymentSchema,
   FundingRatePageSchema,
+  OrderBookSchema,
   OrderSubmissionSchema,
   ProductTransferRecordPageSchema,
   ProductTransferRecordSchema,
+  TriggerOrderQuerySchema,
 } from "./types"
 
 describe("gateway financial response schemas", () => {
@@ -77,5 +79,54 @@ describe("gateway financial response schemas", () => {
     expect(OrderSubmissionSchema.safeParse({ orderId: "1001", status: "REJECTED" }).success).toBe(
       true,
     )
+  })
+
+  it("accepts the trigger order response used by the trading ticket", () => {
+    const result = TriggerOrderQuerySchema.safeParse({
+      count: 1,
+      orders: [
+        {
+          triggerOrderId: 7001,
+          userId: 42,
+          symbol: "BTCUSDT_PERP",
+          side: "SELL",
+          triggerType: "STOP_LOSS",
+          triggerCondition: "LESS_OR_EQUAL",
+          triggerPriceTicks: "6400000000",
+          orderType: "MARKET",
+          timeInForce: "IOC",
+          priceTicks: 0,
+          quantitySteps: "100000",
+          status: "PENDING",
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.orders[0]?.triggerPriceTicks).toBe("6400000000")
+      expect(result.data.orders[0]?.quantitySteps).toBe("100000")
+    }
+  })
+
+  it("accepts REST tuple and WebSocket native order-book levels", () => {
+    expect(
+      OrderBookSchema.safeParse({
+        symbol: "BTC-USDT",
+        sequence: "12",
+        depth: 50,
+        bids: [["64000.00", "1.5"]],
+        asks: [["64001.00", "2.0"]],
+      }).success,
+    ).toBe(true)
+    expect(
+      OrderBookSchema.safeParse({
+        symbol: "BTC-USDT",
+        sequence: 13,
+        previousSequence: 12,
+        updateType: "SNAPSHOT",
+        bids: [{ priceTicks: "6400000", quantitySteps: "150", orderCount: 2 }],
+        asks: [{ priceTicks: "6400100", quantitySteps: "200", orderCount: 1 }],
+      }).success,
+    ).toBe(true)
   })
 })

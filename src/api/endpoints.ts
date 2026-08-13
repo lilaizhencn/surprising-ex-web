@@ -1,15 +1,18 @@
 import { z } from "zod"
+import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
-import { request } from "./client"
+import { request, requestBlob } from "./client"
 import type {
   ApiBalance,
   ApiCandle,
   ApiFundingPayment,
   ApiFundingRate,
   ApiMarket,
+  ApiOptionQuote,
   ApiOrder,
   ApiProductTransferRecord,
   ApiProductTransferResponse,
+  ApiTriggerOrder,
   ApiWithdrawalSubmission,
   AuthSession,
 } from "./types"
@@ -21,6 +24,7 @@ import {
   CandleListSchema,
   DepositAddressSchema,
   EmailVerificationChallengeSchema,
+  ExchangeRateConvertSchema,
   FundingPaymentPageSchema,
   FundingRatePageSchema,
   FundingRateSchema,
@@ -30,12 +34,16 @@ import {
   KycProfileSchema,
   LoginHistoryPageSchema,
   MarketListSchema,
+  OptionQuoteSchema,
   OrderBookSchema,
   OrderListSchema,
   OrderSubmissionSchema,
+  PositionListSchema,
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
+  TriggerOrderQuerySchema,
+  TriggerOrderSchema,
   UserSessionPageSchema,
   WalletRecordsSchema,
   WithdrawalSubmissionSchema,
@@ -43,9 +51,37 @@ import {
 
 const ArraySchema = z.array(GenericObjectSchema)
 const CLIENT_ORDER_ID_KEY = "clientOrderId"
+export type AccountType =
+  | "SPOT"
+  | "USDT_PERPETUAL"
+  | "COIN_PERPETUAL"
+  | "USDT_DELIVERY"
+  | "COIN_DELIVERY"
+  | "OPTION"
+
+const ACCOUNT_TYPE_BY_PRODUCT_LINE: Readonly<Record<ProductLine, AccountType>> = {
+  SPOT: "SPOT",
+  LINEAR_PERPETUAL: "USDT_PERPETUAL",
+  INVERSE_PERPETUAL: "COIN_PERPETUAL",
+  LINEAR_DELIVERY: "USDT_DELIVERY",
+  INVERSE_DELIVERY: "COIN_DELIVERY",
+  OPTION: "OPTION",
+}
+
+export function accountTypeForProductLine(productLine: ProductLine): AccountType {
+  return ACCOUNT_TYPE_BY_PRODUCT_LINE[productLine]
+}
 const ObjectOrArraySchema = z.union([
   ArraySchema,
-  z.object({ items: ArraySchema.optional(), orders: ArraySchema.optional() }).passthrough(),
+  z
+    .object({
+      items: ArraySchema.optional(),
+      orders: ArraySchema.optional(),
+      positions: ArraySchema.optional(),
+      trades: ArraySchema.optional(),
+      fills: ArraySchema.optional(),
+    })
+    .passthrough(),
 ])
 
 export const authApi = {
@@ -87,8 +123,10 @@ export const authApi = {
 }
 
 export async function loadMarkets(productLine?: ProductLine): Promise<readonly ApiMarket[]> {
+  const query = new URLSearchParams({ status: "TRADING" })
+  if (productLine) query.set("productLine", productLine)
   const response = await request(
-    "/api/v1/gateway/instrument/list?status=TRADING",
+    `/api/v1/gateway/instrument/list?${query.toString()}`,
     MarketListSchema,
     productLine ? { productLine } : {},
   )
@@ -114,6 +152,15 @@ export function loadIndexPrice(symbol: string, productLine: ProductLine) {
   return request(`/api/v1/gateway/price-index/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
+}
+
+export function loadUsdValuation(amount: string, asset: string) {
+  const query = new URLSearchParams({
+    amount,
+    fromCurrency: asset,
+    toCurrency: "USD",
+  })
+  return request(`/api/v1/gateway/price-fx/convert?${query.toString()}`, ExchangeRateConvertSchema)
 }
 
 export async function loadFundingRateHistory(symbol: string, productLine: ProductLine) {
@@ -146,6 +193,9 @@ export async function loadCandles(
   productLine?: ProductLine,
 ): Promise<readonly ApiCandle[]> {
   const query = new URLSearchParams({ symbol, period, limit: "120" })
+  const range = candleRange(period, new Date(), 120)
+  query.set("startTime", range.startTime)
+  query.set("endTime", range.endTime)
   const response = await request(
     `/api/v1/gateway/candlestick/candles?${query.toString()}`,
     CandleListSchema,
@@ -154,16 +204,33 @@ export async function loadCandles(
   return response.candles ?? response.items ?? []
 }
 
+export function candleRange(
+  period: string,
+  end: Date,
+  limit: number,
+): Readonly<{ startTime: string; endTime: string }> {
+  const periodMilliseconds = periodMillisecondsFor(period)
+  const endTime = end.getTime()
+  return {
+    startTime: new Date(endTime - periodMilliseconds * limit).toISOString(),
+    endTime: end.toISOString(),
+  }
+}
+
 export async function loadBalances(
   productLine?: ProductLine,
   accountType?: string,
 ): Promise<readonly ApiBalance[]> {
-  const requestedAccountType = accountType ?? productLine
-  const query = requestedAccountType
-    ? `?accountType=${encodeURIComponent(requestedAccountType)}`
-    : ""
+  const session = typeof window === "undefined" ? null : loadSession()
+  const requestedAccountType =
+    accountType ?? (productLine ? accountTypeForProductLine(productLine) : undefined)
+  const query = new URLSearchParams()
+  if (session?.user.userId) query.set("userId", String(session.user.userId))
+  if (requestedAccountType && requestedAccountType !== "FUNDING")
+    query.set("accountType", requestedAccountType)
+  const path = requestedAccountType === "FUNDING" ? "balances" : "product-balances"
   const response = await request(
-    `/api/v1/gateway/account/product-balances${query}`,
+    `/api/v1/gateway/account/${path}?${query.toString()}`,
     BalanceListSchema,
     productLine ? { productLine } : {},
   )
@@ -287,6 +354,22 @@ export function createApiKey(
   })
 }
 
+export function updateApiKeyIpAllowlist(
+  apiKey: string,
+  ipAllowlist: readonly string[],
+  emailCode: string,
+  totpCode: string,
+) {
+  return request("/api/v1/security/api-keys", z.unknown(), {
+    method: "PATCH",
+    headers: {
+      "X-Security-Email-Code": emailCode,
+      "X-Security-TOTP-Code": totpCode,
+    },
+    body: { apiKey, ipAllowlist },
+  })
+}
+
 export function revokeApiKey(apiKey: string, emailCode: string, totpCode: string) {
   return request("/api/v1/security/api-keys", z.unknown(), {
     method: "DELETE",
@@ -312,6 +395,14 @@ export function uploadKycDocument(documentType: string, file: File) {
   })
 }
 
+export function loadKycDocuments() {
+  return request("/api/v1/compliance/kyc/documents", z.array(GenericObjectSchema))
+}
+
+export function downloadKycDocument(documentId: string | number) {
+  return requestBlob(`/api/v1/compliance/kyc/documents/${encodeURIComponent(String(documentId))}`)
+}
+
 export function submitKyc(body: Readonly<Record<string, unknown>>) {
   return request("/api/v1/compliance/kyc", GenericObjectSchema, {
     method: "POST",
@@ -325,11 +416,20 @@ export function createTransfer(
   asset: string,
   amountUnits: string,
   idempotencyKey: string,
+  emailCode = "",
+  totpCode = "",
 ): Promise<ApiProductTransferResponse> {
+  const session = loadSession()
+  if (!session) return Promise.reject(new Error("请先登录后再进行资金划转。"))
   return request("/api/v1/gateway/account/transfers", ProductTransferResponseSchema, {
     method: "POST",
     idempotencyKey,
+    headers: {
+      "X-Security-Email-Code": emailCode,
+      "X-Security-TOTP-Code": totpCode,
+    },
     body: {
+      userId: session.user.userId,
       sourceAccountType,
       targetAccountType,
       asset,
@@ -340,31 +440,125 @@ export function createTransfer(
   })
 }
 
-export function loadPositionMode(productLine: ProductLine) {
+export function loadPositionMode(userId: string | number, productLine: ProductLine) {
   return request(
-    `/api/v1/gateway/account/position-mode?productLine=${encodeURIComponent(productLine)}`,
+    `/api/v1/gateway/account/position-mode?userId=${encodeURIComponent(String(userId))}&productLine=${encodeURIComponent(productLine)}`,
     GenericObjectSchema,
     { productLine },
   )
 }
 
-export function updatePositionMode(productLine: ProductLine, positionMode: string) {
+export function updatePositionMode(
+  userId: string | number,
+  productLine: ProductLine,
+  positionMode: string,
+  referenceId: string,
+) {
   return request("/api/v1/gateway/account/position-mode", GenericObjectSchema, {
     method: "POST",
     productLine,
-    body: { productLine, positionMode },
+    idempotencyKey: referenceId,
+    body: { userId, productLine, positionMode, referenceId },
   })
 }
 
+export function loadLeverageSetting(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+  marginMode?: string,
+) {
+  const query = new URLSearchParams({ userId: String(userId), symbol, productLine })
+  if (marginMode) query.set("marginMode", marginMode)
+  return request(
+    `/api/v1/gateway/trading-leverage/settings?${query.toString()}`,
+    GenericObjectSchema,
+    { productLine },
+  )
+}
+
+export function updateLeverageSetting(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+  marginMode: string,
+  leveragePpm: number,
+  reason: string,
+) {
+  return request("/api/v1/gateway/trading-leverage/settings", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body: { userId, productLine, symbol, marginMode, leveragePpm, reason },
+  })
+}
+
+export function loadPositionMargin(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+  marginMode?: string,
+) {
+  const query = new URLSearchParams({ userId: String(userId), symbol })
+  if (marginMode) query.set("marginMode", marginMode)
+  return request(
+    `/api/v1/gateway/account/position-margin?${query.toString()}`,
+    GenericObjectSchema,
+    { productLine },
+  )
+}
+
+export function adjustPositionMargin(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+  marginMode: string,
+  positionSide: string,
+  amountUnits: string,
+  referenceId: string,
+  reason: string,
+) {
+  return request("/api/v1/gateway/account/position-margin-adjustments", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    idempotencyKey: referenceId,
+    body: { userId, symbol, marginMode, positionSide, amountUnits, referenceId, reason },
+  })
+}
+
+export function loadAccountRisk(
+  userId: string | number,
+  productLine: ProductLine,
+  settleAsset: string,
+) {
+  const query = new URLSearchParams({
+    userId: String(userId),
+    accountType: accountTypeForProductLine(productLine),
+    settleAsset,
+  })
+  return request(`/api/v1/gateway/risk/account/latest?${query.toString()}`, GenericObjectSchema, {
+    productLine,
+  })
+}
+
+export function loadPositionRisk(userId: string | number, productLine: ProductLine) {
+  const query = new URLSearchParams({ userId: String(userId) })
+  return request(`/api/v1/gateway/risk/positions/latest?${query.toString()}`, PositionListSchema, {
+    productLine,
+  }).then((response) =>
+    Array.isArray(response) ? response : (response.positions ?? response.items ?? []),
+  )
+}
+
 export async function loadPositions(
+  userId: string | number,
   productLine: ProductLine,
 ): Promise<readonly Record<string, unknown>[]> {
   const response = await request(
-    `/api/v1/gateway/account/positions?productLine=${encodeURIComponent(productLine)}`,
-    ObjectOrArraySchema,
+    `/api/v1/gateway/account/positions?userId=${encodeURIComponent(String(userId))}&productLine=${encodeURIComponent(productLine)}`,
+    PositionListSchema,
     { productLine },
   )
-  return Array.isArray(response) ? response : (response.items ?? response.orders ?? [])
+  return Array.isArray(response) ? response : (response.items ?? response.positions ?? [])
 }
 
 export async function loadAccountLedger(asset?: string, referenceType?: string) {
@@ -380,7 +574,7 @@ export async function loadAccountLedger(asset?: string, referenceType?: string) 
 
 export async function loadProductLedger(accountType: ProductLine, asset?: string) {
   const query = new URLSearchParams({
-    accountType,
+    accountType: accountTypeForProductLine(accountType),
     limit: "100",
   })
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
@@ -393,22 +587,31 @@ export async function loadProductLedger(accountType: ProductLine, asset?: string
 }
 
 export async function loadTransferHistory(
-  accountType?: ProductLine,
+  accountType: ProductLine,
   asset?: string,
 ): Promise<readonly ApiProductTransferRecord[]> {
   const query = new URLSearchParams({ limit: "100" })
-  if (accountType) query.set("accountType", accountType)
+  query.set("accountType", accountTypeForProductLine(accountType))
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
   const response = await request(
     `/api/v1/gateway/account/transfers?${query.toString()}`,
     ProductTransferRecordPageSchema,
-    accountType ? { productLine: accountType } : {},
+    { productLine: accountType },
   )
   return response.transfers
 }
 
+export function loadFundingSettlement(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol })
+  return request(
+    `/api/v1/gateway/funding/settlements/latest?${query.toString()}`,
+    GenericObjectSchema,
+    { productLine },
+  )
+}
+
 export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
-  return request("/api/v1/gateway/trading/orders", OrderSubmissionSchema, {
+  return request("/api/v1/gateway/trading", OrderSubmissionSchema, {
     method: "POST",
     productLine,
     idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
@@ -416,20 +619,205 @@ export function placeOrder(body: Readonly<Record<string, unknown>>, productLine:
   })
 }
 
-function binancePrefix(productLine: ProductLine): string {
-  if (productLine === "SPOT") return "/api/v3"
-  if (productLine === "OPTION") return "/eapi/v1"
-  if (productLine === "INVERSE_PERPETUAL" || productLine === "INVERSE_DELIVERY") return "/dapi/v1"
-  return "/fapi/v1"
+export function placeBatchOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading/batch", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
 }
 
-function querySymbol(symbol: string, _productLine: ProductLine, limit = "50"): string {
-  return new URLSearchParams({ symbol, limit }).toString()
+export function testOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/test", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function amendOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/amend", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function amendBatchOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading/batch-amend", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function closePosition(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/close-position", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelOpenOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading/cancel-open", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelBatchOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading/batch-cancel", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelAllAfter(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/cancel-all-after", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function placeAlgoOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/algo", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelAlgoOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return request("/api/v1/gateway/trading/algo/cancel", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelOpenAlgoOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading/algo/cancel-open", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export async function loadOpenAlgoOrders(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+) {
+  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const response = await request(
+    `/api/v1/gateway/trading/algo/open?${query.toString()}`,
+    ObjectOrArraySchema,
+    { productLine },
+  )
+  return Array.isArray(response) ? response : (response.items ?? response.orders ?? [])
+}
+
+export function placeTriggerOrder(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+): Promise<ApiTriggerOrder> {
+  return request("/api/v1/gateway/trading-trigger", TriggerOrderSchema, {
+    method: "POST",
+    productLine,
+    idempotencyKey: String(Reflect.get(body, "clientTriggerOrderId") ?? ""),
+    body,
+  })
+}
+
+export async function loadOpenTriggerOrders(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+): Promise<readonly ApiTriggerOrder[]> {
+  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const response = await request(
+    `/api/v1/gateway/trading-trigger/open?${query.toString()}`,
+    TriggerOrderQuerySchema,
+    { productLine },
+  )
+  return response.orders
+}
+
+export function cancelTriggerOrder(
+  userId: string | number,
+  triggerOrderId: string | number,
+  productLine: ProductLine,
+): Promise<ApiTriggerOrder> {
+  return request("/api/v1/gateway/trading-trigger/cancel", TriggerOrderSchema, {
+    method: "POST",
+    productLine,
+    idempotencyKey: `cancel-trigger-${triggerOrderId}`,
+    body: { userId, triggerOrderId },
+  })
+}
+
+export function placeBatchTriggerOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading-trigger/batch", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelBatchTriggerOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading-trigger/batch-cancel", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
+}
+
+export function cancelOpenTriggerOrders(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  return request("/api/v1/gateway/trading-trigger/cancel-open", GenericObjectSchema, {
+    method: "POST",
+    productLine,
+    body,
+  })
 }
 
 export async function loadOpenOrders(symbol: string, productLine: ProductLine) {
+  const session = loadSession()
+  if (!session) return [] as readonly ApiOrder[]
+  const query = new URLSearchParams({
+    userId: String(session.user.userId),
+    limit: "50",
+  })
+  if (symbol.trim()) query.set("symbol", symbol.trim())
   const response = await request(
-    `${binancePrefix(productLine)}/openOrders?${querySymbol(symbol, productLine)}`,
+    `/api/v1/gateway/trading/open?${query.toString()}`,
     OrderListSchema,
     { productLine },
   )
@@ -442,42 +830,73 @@ export async function loadOrderHistory(
   startTime?: number,
   endTime?: number,
 ) {
-  const query = new URLSearchParams(querySymbol(symbol, productLine))
+  const session = loadSession()
+  if (!session) return [] as readonly ApiOrder[]
+  const query = new URLSearchParams({
+    userId: String(session.user.userId),
+    limit: "100",
+  })
+  if (symbol.trim()) query.set("symbol", symbol.trim())
   if (startTime !== undefined) query.set("startTime", String(startTime))
   if (endTime !== undefined) query.set("endTime", String(endTime))
   const response = await request(
-    `${binancePrefix(productLine)}/allOrders?${query.toString()}`,
+    `/api/v1/gateway/trading/history?${query.toString()}`,
     OrderListSchema,
     { productLine },
   )
   return orderRows(response)
 }
 
-export function cancelOrder(symbol: string, orderId: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, orderId }).toString()
-  return request(`${binancePrefix(productLine)}/order?${query}`, GenericObjectSchema, {
-    method: "DELETE",
+export async function loadMyTrades(
+  userId: string | number,
+  symbol: string,
+  productLine: ProductLine,
+) {
+  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const response = await request(
+    `/api/v1/gateway/trading-trades/trades?${query.toString()}`,
+    ObjectOrArraySchema,
+    { productLine },
+  )
+  return Array.isArray(response)
+    ? response
+    : (response.trades ?? response.fills ?? response.items ?? [])
+}
+
+export function cancelOrder(_symbol: string, orderId: string, productLine: ProductLine) {
+  const session = loadSession()
+  if (!session) return Promise.reject(new Error("请先登录后再撤销订单。"))
+  return request(`/api/v1/gateway/trading/cancel`, GenericObjectSchema, {
+    method: "POST",
     productLine,
     idempotencyKey: `cancel-${orderId}`,
+    body: { userId: session.user.userId, orderId },
   })
 }
 
 export function loadOrderBook(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, limit: "20" }).toString()
-  return request(`${binancePrefix(productLine)}/depth?${query}`, OrderBookSchema, { productLine })
+  const query = new URLSearchParams({ symbol, depth: "20" }).toString()
+  return request(`/api/v1/gateway/trading-market/orderbook?${query}`, OrderBookSchema, {
+    productLine,
+  })
 }
 
 export async function loadLatestTrade(symbol: string, productLine: ProductLine) {
   const query = new URLSearchParams({ symbol }).toString()
-  return request(`${binancePrefix(productLine)}/ticker/price?${query}`, GenericObjectSchema, {
+  return request(`/api/v1/gateway/trading-market/latest-trade?${query}`, GenericObjectSchema, {
     productLine,
   })
+}
+
+export function loadOptionQuote(symbol: string): Promise<ApiOptionQuote> {
+  const query = new URLSearchParams({ symbol }).toString()
+  return request(`/api/v1/options/quote?${query}`, OptionQuoteSchema)
 }
 
 export function loadTicker24h(symbol: string, productLine: ProductLine) {
   const query = new URLSearchParams({ symbol })
   return request(
-    `${binancePrefix(productLine)}/ticker/24hr?${query.toString()}`,
+    `/api/v1/gateway/trading-market/ticker-24hr?${query.toString()}`,
     GenericObjectSchema,
     {
       productLine,
@@ -560,4 +979,13 @@ export function createWithdrawal(
 
 function orderRows(response: z.infer<typeof OrderListSchema>): readonly ApiOrder[] {
   return Array.isArray(response) ? response : (response.orders ?? response.items ?? [])
+}
+
+function periodMillisecondsFor(period: string): number {
+  const match = /^(\d+)(m|h|d)$/.exec(period)
+  if (!match) return 60 * 60 * 1000
+  const amount = Number(match[1])
+  const unit = match[2]
+  const multiplier = unit === "m" ? 60_000 : unit === "h" ? 3_600_000 : 86_400_000
+  return amount * multiplier
 }

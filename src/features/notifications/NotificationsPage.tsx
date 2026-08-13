@@ -6,13 +6,13 @@ import {
   markNotificationRead,
 } from "../../api/endpoints"
 import { Button, Panel, StateView } from "../../components/ui/Primitives"
-import { loadSession } from "../../state/session"
+import { useSession } from "../../state/session"
 
 type Notification = Readonly<Record<string, unknown>>
 const READ_AT_KEY = "readAt"
 
 export function NotificationsPage() {
-  const session = loadSession()
+  const session = useSession()
   const [rows, setRows] = useState<readonly Notification[]>([])
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -29,7 +29,14 @@ export function NotificationsPage() {
   const unreadCount = useMemo(() => rows.filter((row) => !row[READ_AT_KEY]).length, [rows])
   if (!session)
     return (
-      <div className="container section">
+      <div className="container section notifications-page">
+        <div className="page-heading">
+          <div>
+            <h1>Notification Center</h1>
+            <p>System and account messages are available after sign in.</p>
+          </div>
+          <Bell size={28} color="var(--color-primary)" />
+        </div>
         <Panel>
           <StateView kind="error" message="Sign in to view account notifications." />
           <a className="route-link" href="/auth/login">

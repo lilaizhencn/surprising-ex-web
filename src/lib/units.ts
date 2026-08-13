@@ -79,6 +79,23 @@ export function unitsToDecimal(units: string | number, scale: UnitScale): string
   return `${whole}.${fraction}`
 }
 
+export function signedUnitsToDecimal(units: string | number, scale: UnitScale): string {
+  const normalized = typeof units === "number" ? integerNumberAllowNegative(units) : units.trim()
+  if (normalized.startsWith("-")) {
+    return `-${unitsToDecimal(normalized.slice(1), scale)}`
+  }
+  return unitsToDecimal(normalized, scale)
+}
+
+export function stepUnitsToDecimal(
+  steps: string | number,
+  unitSize: UnitScale,
+  assetScale: UnitScale,
+): string {
+  const totalUnits = integerToBigInt(steps) * scaleToBigInt(unitSize)
+  return unitsToDecimal(totalUnits.toString(), assetScale)
+}
+
 function parseDecimal(value: string): Decimal {
   const normalized = value.trim()
   if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
@@ -109,6 +126,13 @@ function integerNumber(value: number): string {
   }
   if (!Number.isSafeInteger(value)) {
     throw new Error("整数单位必须以字符串传输。")
+  }
+  return String(value)
+}
+
+function integerNumberAllowNegative(value: number): string {
+  if (!Number.isFinite(value) || !Number.isInteger(value) || !Number.isSafeInteger(value)) {
+    throw new Error("整数单位无效。")
   }
   return String(value)
 }

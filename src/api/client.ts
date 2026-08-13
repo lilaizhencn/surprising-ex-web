@@ -27,6 +27,8 @@ export type RequestOptions = {
   readonly signal?: AbortSignal
 }
 
+export type BinaryRequestOptions = Omit<RequestOptions, "body">
+
 export async function request<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -74,10 +76,12 @@ export async function request<T>(
       saveSession(refreshed)
       return request(path, schema, options, false)
     } catch (error) {
-      if (error instanceof ApiError) saveSession(null)
+      saveSession(null)
       throw error
     }
   }
+
+  if (response.status === 401 && session && !path.includes("/auth/")) saveSession(null)
 
   if (!response.ok)
     throw new ApiError(readableMessage(payload, response.status), response.status, payload)
@@ -92,6 +96,46 @@ export async function request<T>(
     )
   }
   return result.data
+}
+
+export async function requestBlob(path: string, options: BinaryRequestOptions = {}): Promise<Blob> {
+  const method = options.method ?? "GET"
+  const session = loadSession()
+  const headers = new Headers(options.headers)
+  if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
+  if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
+  if (options.productLine) headers.set("X-Product-Line", options.productLine)
+  if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
+  const requestOptions: Options = {
+    method,
+    headers,
+    timeout: 10_000,
+    retry: { limit: 0 },
+    throwHttpErrors: false,
+  }
+  if (options.signal !== undefined) requestOptions.signal = options.signal
+  const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
+  if (response.status === 401 && session?.refreshToken && !path.includes("/auth/refresh")) {
+    try {
+      const refreshed = await request<AuthSession>(
+        "/api/v1/auth/refresh",
+        AuthSessionSchema,
+        { method: "POST", body: { refreshToken: session.refreshToken } },
+        false,
+      )
+      saveSession(refreshed)
+      return requestBlob(path, options)
+    } catch (error) {
+      saveSession(null)
+      throw error
+    }
+  }
+  if (response.status === 401 && session && !path.includes("/auth/")) saveSession(null)
+  if (!response.ok) {
+    const raw = await response.text()
+    throw new ApiError(readableMessage(parseResponse(raw), response.status), response.status)
+  }
+  return response.blob()
 }
 
 function parseResponse(raw: string): unknown {

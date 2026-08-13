@@ -6,6 +6,7 @@ import {
   createDepositAddress,
   createTransfer,
   createWithdrawal,
+  issueSecurityChallenge,
   loadAssetScales,
   loadBalances,
   loadDepositHistory,
@@ -15,14 +16,15 @@ import {
 } from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/units"
-import { loadSession } from "../../state/session"
+import { useSession } from "../../state/session"
+import type { ProductLine } from "../../types/domain"
 import { PRODUCT_LINES } from "../../types/domain"
 
 type RecordRow = Readonly<Record<string, unknown>>
 type RequestState = "idle" | "loading" | "success" | "error"
 
 export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | "transfer" }) {
-  const session = loadSession()
+  const session = useSession()
   const [asset, setAsset] = useState("BTC")
   const [network, setNetwork] = useState("")
   const [address, setAddress] = useState("")
@@ -40,6 +42,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   const [depositQr, setDepositQr] = useState("")
   const [state, setState] = useState<RequestState>("idle")
   const [message, setMessage] = useState("")
+  const [challengeLoading, setChallengeLoading] = useState(false)
+  const [challengeMessage, setChallengeMessage] = useState("")
 
   useEffect(() => {
     if (!session) return
@@ -51,7 +55,9 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         : mode === "withdraw"
           ? loadWithdrawalHistory(asset)
           : Promise.resolve([] as readonly RecordRow[]),
-      mode === "transfer" ? loadTransferHistory() : Promise.resolve([] as readonly RecordRow[]),
+      mode === "transfer"
+        ? loadAllTransferHistory(asset)
+        : Promise.resolve([] as readonly RecordRow[]),
       loadAssetScales(),
     ])
       .then(([chainRows, balanceRows, recordRows, transferRows, scales]) => {
@@ -181,6 +187,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         asset,
         decimalToUnits(amount, scale),
         key,
+        emailCode.trim(),
+        totpCode.trim(),
       )
       const accepted = requestStatusAccepted(response.status)
       setState(accepted ? "success" : "error")
@@ -371,6 +379,16 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               />
             </Field>
           </div>
+          <div className="inline-form">
+            <Button
+              tone="ghost"
+              loading={challengeLoading}
+              onClick={() => void sendChallenge("WITHDRAWAL")}
+            >
+              Send email code
+            </Button>
+            {challengeMessage ? <small>{challengeMessage}</small> : null}
+          </div>
         </Panel>
         <RecordPanel title="Withdrawal history" records={records} />
         <ActionSummary
@@ -438,6 +456,36 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           </div>
         </Field>
       </Panel>
+      <Panel>
+        <h2>Security verification</h2>
+        <p className="muted">Large transfers may require an email code and authenticator code.</p>
+        <div className="grid-2">
+          <Field label="Email code">
+            <input
+              value={emailCode}
+              onChange={(event) => setEmailCode(event.target.value)}
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Authenticator code">
+            <input
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value)}
+              inputMode="numeric"
+            />
+          </Field>
+        </div>
+        <div className="inline-form">
+          <Button
+            tone="ghost"
+            loading={challengeLoading}
+            onClick={() => void sendChallenge("LARGE_TRANSFER")}
+          >
+            Send email code
+          </Button>
+          {challengeMessage ? <small>{challengeMessage}</small> : null}
+        </div>
+      </Panel>
       <ActionSummary
         title="Transfer status"
         message={message}
@@ -448,6 +496,15 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       <RecordPanel title="Transfer history" records={transferRecords} />
     </FundingLayout>
   )
+
+  function sendChallenge(sceneCode: "WITHDRAWAL" | "LARGE_TRANSFER") {
+    setChallengeLoading(true)
+    setChallengeMessage("")
+    return issueSecurityChallenge(sceneCode)
+      .then(() => setChallengeMessage("验证码已发送，请在有效期内完成验证。"))
+      .catch((reason: unknown) => setChallengeMessage(readError(reason)))
+      .finally(() => setChallengeLoading(false))
+  }
 }
 
 function FundingLayout({
@@ -608,4 +665,17 @@ async function copyText(value: string) {
 
 async function loadFundingBalances(): Promise<readonly RecordRow[]> {
   return loadBalances(PRODUCT_LINES.spot, "FUNDING")
+}
+
+async function loadAllTransferHistory(asset: string): Promise<readonly RecordRow[]> {
+  const productLines: readonly ProductLine[] = [
+    PRODUCT_LINES.spot,
+    PRODUCT_LINES.usdMPerpetual,
+    PRODUCT_LINES.coinMPerpetual,
+    PRODUCT_LINES.usdMDelivery,
+    PRODUCT_LINES.coinMDelivery,
+    PRODUCT_LINES.option,
+  ]
+  const rows = await Promise.all(productLines.map((line) => loadTransferHistory(line, asset)))
+  return rows.flat()
 }

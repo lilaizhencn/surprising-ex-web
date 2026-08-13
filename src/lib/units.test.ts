@@ -4,6 +4,7 @@ import {
   decimalToStepUnits,
   decimalToUnits,
   isPositiveDecimal,
+  signedUnitsToDecimal,
   unitsToDecimal,
 } from "./units"
 
@@ -12,6 +13,7 @@ describe("asset unit conversion", () => {
     expect(decimalToUnits("0.00000001", "100000000")).toBe("1")
     expect(decimalToUnits("0.1", "1000000000000000000")).toBe("100000000000000000")
     expect(unitsToDecimal("100000000000000000", "1000000000000000000")).toBe("0.1")
+    expect(signedUnitsToDecimal("-125000000", "100000000")).toBe("-1.25")
   })
 
   it("rejects values beyond an asset precision", () => {

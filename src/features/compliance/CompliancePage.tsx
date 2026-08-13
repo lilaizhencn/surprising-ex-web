@@ -1,21 +1,39 @@
 import { Check, FileText, Upload, UserRound } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
-import { loadKyc, submitKyc, uploadKycDocument } from "../../api/endpoints"
+import {
+  downloadKycDocument,
+  loadKyc,
+  loadKycDocuments,
+  submitKyc,
+  uploadKycDocument,
+} from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
-import { loadSession } from "../../state/session"
+import { useSession } from "../../state/session"
 
 type RecordRow = Readonly<Record<string, unknown>>
 const DOCUMENT_ID_KEY = "documentId"
 
 export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
-  const session = loadSession()
+  const session = useSession()
   const [kyc, setKyc] = useState<RecordRow | null>(null)
   const [message, setMessage] = useState("")
+  const [documents, setDocuments] = useState<readonly RecordRow[]>([])
+  const [documentLoading, setDocumentLoading] = useState(false)
+  const refreshDocuments = () => {
+    if (!session) return
+    setDocumentLoading(true)
+    void loadKycDocuments()
+      .then(setDocuments, (reason: unknown) => setMessage(readError(reason)))
+      .finally(() => setDocumentLoading(false))
+  }
   useEffect(() => {
     if (!session) return
-    void loadKyc()
-      .then(setKyc)
+    void Promise.all([loadKyc(), loadKycDocuments()])
+      .then(([profile, rows]) => {
+        setKyc(profile)
+        setDocuments(rows)
+      })
       .catch((reason: unknown) => setMessage(readError(reason)))
   }, [session])
   if (!session)
@@ -78,6 +96,7 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
               onDone={(value, profile) => {
                 setMessage(value)
                 if (profile) setKyc(profile)
+                refreshDocuments()
               }}
             />
           ) : (
@@ -129,6 +148,52 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
           </div>
         </Panel>
       </div>
+      <Panel>
+        <div className="panel-heading">
+          <h2>Uploaded documents</h2>
+          <Button tone="outline" loading={documentLoading} onClick={refreshDocuments}>
+            Refresh
+          </Button>
+        </div>
+        {documents.length === 0 ? (
+          <StateView
+            kind={documentLoading ? "loading" : "empty"}
+            message="No uploaded KYC documents returned."
+          />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Uploaded</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((document, index) => {
+                  const id = documentValue(document, "documentId") || documentValue(document, "id")
+                  return (
+                    <tr key={id || String(index)}>
+                      <td className="mono">{id || "—"}</td>
+                      <td>{documentValue(document, "documentType") || "—"}</td>
+                      <td>{documentValue(document, "status") || "—"}</td>
+                      <td>{documentValue(document, "createdAt") || "—"}</td>
+                      <td>
+                        <Button tone="ghost" disabled={!id} onClick={() => void saveDocument(id)}>
+                          Download
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   )
 }
@@ -273,4 +338,23 @@ function text(row: RecordRow | null | undefined, key: string): string {
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : "合规服务暂不可用，请稍后重试。"
+}
+
+async function saveDocument(documentId: string): Promise<void> {
+  try {
+    const blob = await downloadKycDocument(documentId)
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `kyc-document-${documentId}`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    window.alert("文档下载失败，请稍后重试。")
+  }
+}
+
+function documentValue(row: RecordRow, key: string): string {
+  const value = row[key]
+  return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }

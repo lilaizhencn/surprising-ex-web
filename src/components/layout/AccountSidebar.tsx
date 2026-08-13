@@ -5,6 +5,7 @@ const icons = [Grid2X2, WalletCards, ChartNoAxesCombined, Layers3, Clock3] as co
 
 export function AccountSidebar() {
   const pathname = window.location.pathname
+  const account = new URLSearchParams(window.location.search).get("account")
   return (
     <aside className="account-sidebar">
       <div className="account-sidebar-heading">
@@ -18,8 +19,12 @@ export function AccountSidebar() {
         {accountNavigation.map((item, index) => {
           const Icon = icons[index] ?? Grid2X2
           const basePath = item.href.split("?")[0] ?? item.href
-          const active =
-            item.href === "/assets" ? pathname === "/assets" : pathname.startsWith(basePath)
+          const itemAccount = new URL(item.href, window.location.origin).searchParams.get("account")
+          const active = itemAccount
+            ? pathname === "/assets" && account === itemAccount
+            : item.href === "/assets"
+              ? pathname === "/assets" && !account
+              : pathname.startsWith(basePath)
           return (
             <a className={active ? "active" : ""} href={item.href} key={item.href}>
               <Icon size={21} />

@@ -9,10 +9,12 @@ export function MarketTable({
   markets,
   demo = false,
   favoriteOnly = false,
+  quoteUnavailable = false,
 }: {
   readonly markets: readonly Market[]
   readonly demo?: boolean
   readonly favoriteOnly?: boolean
+  readonly quoteUnavailable?: boolean
 }) {
   const [favorites, setFavorites] = useState<readonly string[]>(() => {
     try {
@@ -108,15 +110,23 @@ export function MarketTable({
                   <Price value={market.price} />
                 </td>
                 <td className="number">
-                  <Badge tone={positive ? "positive" : "negative"}>
-                    {positive ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
-                    {formatPercent(market.change24h)}
-                  </Badge>
+                  {quoteUnavailable ? (
+                    <span className="subtle">Unavailable</span>
+                  ) : (
+                    <Badge tone={positive ? "positive" : "negative"}>
+                      {positive ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                      {formatPercent(market.change24h)}
+                    </Badge>
+                  )}
                 </td>
                 <td className="number mono">
-                  {formatNumber(market.high24h)} / {formatNumber(market.low24h)}
+                  {quoteUnavailable
+                    ? "—"
+                    : `${formatNumber(market.high24h)} / ${formatNumber(market.low24h)}`}
                 </td>
-                <td className="number mono">{formatUsd(market.volume24h)}</td>
+                <td className="number mono">
+                  {quoteUnavailable ? "—" : formatUsd(market.volume24h)}
+                </td>
                 <td className="number">
                   {demo ? (
                     <Sparkline

@@ -1,6 +1,6 @@
 import { Filter } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { loadMarkets, loadTicker24h } from "../../api/endpoints"
+import { loadAssetScales, loadMarkets, loadTicker24h } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import { MarketTable } from "../../components/market/MarketTable"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
@@ -20,20 +20,25 @@ export function MarketsPage() {
       .then((rows) => {
         const mapped = rows.map(mapMarket)
         setMarkets(mapped)
-        void Promise.allSettled(
-          mapped
-            .slice(0, 50)
-            .map((market) =>
-              loadTicker24h(
-                market.symbol,
-                market.productLine === "UNKNOWN" ? "SPOT" : market.productLine,
+        void Promise.all([
+          loadAssetScales(),
+          Promise.allSettled(
+            mapped
+              .slice(0, 50)
+              .map((market) =>
+                loadTicker24h(
+                  market.symbol,
+                  market.productLine === "UNKNOWN" ? "SPOT" : market.productLine,
+                ),
               ),
-            ),
-        ).then((quotes) => {
+          ),
+        ]).then(([scales, quotes]) => {
           setMarkets((current) =>
             current.map((market, index) => {
               const quote = quotes[index]
-              return quote?.status === "fulfilled" ? mergeTicker(market, quote.value) : market
+              return quote?.status === "fulfilled"
+                ? mergeTicker(market, quote.value, scales)
+                : market
             }),
           )
         })
@@ -55,16 +60,17 @@ export function MarketsPage() {
       ),
     [minimumChange, query, scope, source],
   )
-  const status =
-    markets.length > 0 && markets.some((market) => market.price !== null)
-      ? { label: "Live data", className: "" }
-      : markets.length > 0
-        ? { label: "Live instruments", className: "status-pending" }
-        : config.demoDataEnabled
-          ? { label: "Demo data", className: "status-demo" }
-          : error
-            ? { label: "Unavailable", className: "status-error" }
-            : { label: "Loading", className: "status-loading" }
+  const hasLiveQuotes =
+    markets.length > 0 && markets.some((market) => market.price !== null && market.price > 0)
+  const status = hasLiveQuotes
+    ? { label: "Live data", className: "" }
+    : markets.length > 0
+      ? { label: "Live instruments", className: "status-pending" }
+      : config.demoDataEnabled
+        ? { label: "Demo data", className: "status-demo" }
+        : error
+          ? { label: "Unavailable", className: "status-error" }
+          : { label: "Loading", className: "status-loading" }
   return (
     <div className="container section markets-page">
       <div className="page-heading">
@@ -142,6 +148,7 @@ export function MarketsPage() {
           markets={filtered}
           favoriteOnly={scope === "favorites"}
           demo={config.demoDataEnabled && markets.length === 0}
+          quoteUnavailable={!hasLiveQuotes && !config.demoDataEnabled}
         />
       ) : (
         <Panel>
@@ -159,23 +166,81 @@ export function MarketsPage() {
   )
 }
 
-function mergeTicker(market: Market, quote: Readonly<Record<string, unknown>>): Market {
+function mergeTicker(
+  market: Market,
+  quote: Readonly<Record<string, unknown>>,
+  scales: Readonly<Record<string, string>>,
+): Market {
+  const value = (key: string): unknown => quote[key]
+  const lastPrice =
+    positiveNumberValue(quote, "lastPrice") ??
+    positiveDecimalFromUnits(
+      value("lastPriceTicks"),
+      market.priceTickUnits,
+      scales[market.quoteAsset],
+    ) ??
+    positiveNumberValue(quote, "price")
+  const openPrice = decimalFromUnits(
+    value("openPriceTicks"),
+    market.priceTickUnits,
+    scales[market.quoteAsset],
+  )
+  const highPrice = decimalFromUnits(
+    value("highPriceTicks"),
+    market.priceTickUnits,
+    scales[market.quoteAsset],
+  )
+  const lowPrice = decimalFromUnits(
+    value("lowPriceTicks"),
+    market.priceTickUnits,
+    scales[market.quoteAsset],
+  )
+  const change24h =
+    openPrice !== null && lastPrice !== null && openPrice !== 0
+      ? ((lastPrice - openPrice) / openPrice) * 100
+      : (numberValue(quote, "priceChangePercent") ?? numberValue(quote, "change24h"))
+  const volume24h =
+    decimalFromUnits(value("volumeSteps"), market.quantityStepUnits, scales[market.baseAsset]) ??
+    numberValue(quote, "quoteVolume") ??
+    numberValue(quote, "volume")
   return {
     ...market,
-    price: numberValue(quote, "lastPrice") ?? numberValue(quote, "price") ?? market.price,
-    change24h:
-      numberValue(quote, "priceChangePercent") ??
-      numberValue(quote, "change24h") ??
-      market.change24h,
-    volume24h:
-      numberValue(quote, "quoteVolume") ?? numberValue(quote, "volume") ?? market.volume24h,
-    high24h: numberValue(quote, "highPrice") ?? market.high24h,
-    low24h: numberValue(quote, "lowPrice") ?? market.low24h,
+    price: lastPrice ?? market.price,
+    change24h: change24h ?? market.change24h,
+    volume24h: volume24h ?? market.volume24h,
+    high24h: highPrice !== null && highPrice > 0 ? highPrice : market.high24h,
+    low24h: lowPrice !== null && lowPrice > 0 ? lowPrice : market.low24h,
   }
+}
+
+function decimalFromUnits(
+  value: unknown,
+  unitSize: string | undefined,
+  scale: string | undefined,
+): number | null {
+  if (value === undefined || !unitSize || !scale) return null
+  const parsed = typeof value === "number" || typeof value === "string" ? String(value) : null
+  if (parsed === null) return null
+  const result = (Number(parsed) * Number(unitSize)) / Number(scale)
+  return Number.isFinite(result) ? result : null
+}
+
+function positiveDecimalFromUnits(
+  value: unknown,
+  unitSize: string | undefined,
+  scale: string | undefined,
+): number | null {
+  const result = decimalFromUnits(value, unitSize, scale)
+  return result !== null && result > 0 ? result : null
 }
 
 function numberValue(row: Readonly<Record<string, unknown>>, key: string): number | null {
   const value = row[key]
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function positiveNumberValue(row: Readonly<Record<string, unknown>>, key: string): number | null {
+  const result = numberValue(row, key)
+  return result !== null && result > 0 ? result : null
 }

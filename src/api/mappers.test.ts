@@ -8,9 +8,9 @@ describe("market mapper", () => {
       baseAsset: "BTC",
       quoteAsset: "USDT",
       productLine: "SPOT",
-      lastPriceTicks: 6424550,
-      change24hPpm: 12500,
-      volume24hUnits: 12000000000000,
+      lastPriceTicks: "6424550",
+      change24hPpm: "12500",
+      volume24hUnits: "12000000000000",
     })
 
     expect(market.price).toBe(64245.5)
@@ -27,6 +27,14 @@ describe("market mapper", () => {
 
     expect(market.priceTickUnits).toBe("5")
     expect(market.quantityStepUnits).toBe("25")
+  })
+
+  it("does not present a zero quote as live price data", () => {
+    const market = mapMarket({ symbol: "BTCUSDT", lastPrice: 0, high24h: 0, low24h: 0 })
+
+    expect(market.price).toBeNull()
+    expect(market.high24h).toBeNull()
+    expect(market.low24h).toBeNull()
   })
 })
 
