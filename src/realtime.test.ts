@@ -160,7 +160,7 @@ it("closing a position does not double-count realized PnL", () => {
   const p = {
     symbol: "BTC",
     marginAsset: "USDT",
-    instrumentVersion: 1,
+    instrumentChangeId: 1,
     signedQuantitySteps: 2,
     entryPriceTicks: 100,
     realizedPnlUnits: 20,
@@ -176,7 +176,7 @@ it("closing a position does not double-count realized PnL", () => {
   const markets = [
     {
       symbol: "BTC",
-      version: 1,
+      changeId: 1,
       priceTickUnits: 1,
       notionalMultiplierUnits: 10,
       markPriceTicks: 120,

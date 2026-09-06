@@ -236,7 +236,8 @@ export function accountEquity(
   const equity = new Map<string, bigint>()
   for (const p of view.rows("position").filter((p) => Number(p["signedQuantitySteps"]) !== 0)) {
     const market = markets.find(
-      (m) => m["symbol"] === p["symbol"] && String(m["version"]) === String(p["instrumentVersion"]),
+      (m) =>
+        m["symbol"] === p["symbol"] && String(m["changeId"]) === String(p["instrumentChangeId"]),
     )
     const valuation = positionValuation(p, market)
     const risk = riskByPosition.get(positionKey(p))

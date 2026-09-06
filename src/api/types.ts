@@ -166,7 +166,7 @@ export const PositionSchema = z
   .object({
     userId: SafeIntegerWireSchema.optional(),
     symbol: z.string(),
-    instrumentVersion: SafeIntegerWireSchema.optional(),
+    instrumentChangeId: SafeIntegerWireSchema.optional(),
     marginMode: z.string().optional(),
     positionSide: z.string().optional(),
     signedQuantitySteps: SignedIntegerWireSchema,
