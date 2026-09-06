@@ -15,8 +15,8 @@ Surprising-EX Web 是交易所用户端。UI 要统一、产品线隔离要清�
 - 产品切换优先使用页面级隔离，不用简单 tab 混在同一个交易状态里。
 - 切换产品线或 symbol 后，必须重新拉取 instrument、行情 snapshot，并重新订阅对应 WebSocket channel。
 - 产品线映射必须和后端一致：spot、linear/inverse perpetual、linear/inverse delivery、option。
-- 公共行情关注 candles、depth、trades、index、mark、funding；私有行情关注 orders、matches、executionReports、positions、accountRisk、positionRisk。
-- L2 book 不能只靠增量盲目累加，要配合 REST snapshot、sequence 和断线重连。
+- 公共行情关注 candles、depth、trades、bookTicker、index、mark、funding；私有行情使用 accountState、orders、triggerOrders、executionReports、positions、positionRisk，不再订阅 matches。协议详见 REALTIME.md。
+- 新实时 depth 是完整的 20 档替换快照，空盘口也必须替换；兼容旧 delta 时仍须检查 sequence。私有状态通过版本化快照与绝对值事件恢复。
 
 ## UI 和文案
 
@@ -42,4 +42,3 @@ Surprising-EX Web 是交易所用户端。UI 要统一、产品线隔离要清�
 
 - 通过验证后 commit and push。
 - 不提交 `.idea/`、`.wrangler/`、`dist/`、`node_modules/`。
-

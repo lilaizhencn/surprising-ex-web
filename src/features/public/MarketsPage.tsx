@@ -4,21 +4,31 @@ import { loadAssetScales, loadMarkets, loadTicker24h } from "../../api/endpoints
 import { mapMarket } from "../../api/mappers"
 import { MarketTable } from "../../components/market/MarketTable"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
+import { useRealtimeFeed } from "../../hooks/useRealtime"
+import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
+import type { Subscription } from "../../realtime"
 import type { Market } from "../../types/domain"
 
 export function MarketsPage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
-  const [scope, setScope] = useState<"all" | "spot" | "futures" | "favorites">("all")
+  const [scope, setScope] = useState<"all" | "spot" | "favorites">("all")
   const [showFilters, setShowFilters] = useState(false)
   const [minimumChange, setMinimumChange] = useState("0")
   const [error, setError] = useState<string | null>(null)
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
+  const plan: Subscription[] = markets.map((m) => ({
+    channel: "trades",
+    productLine: "SPOT",
+    symbol: m.symbol,
+  }))
+  const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
-    void loadMarkets()
+    void loadMarkets("SPOT")
       .then((rows) => {
-        const mapped = rows.map(mapMarket)
+        const mapped = rows.map(mapMarket).filter((m) => m.productLine === "SPOT")
         setMarkets(mapped)
         void Promise.all([
           loadAssetScales(),
@@ -33,6 +43,7 @@ export function MarketsPage() {
               ),
           ),
         ]).then(([scales, quotes]) => {
+          setAssetScales(scales)
           setMarkets((current) =>
             current.map((market, index) => {
               const quote = quotes[index]
@@ -47,16 +58,26 @@ export function MarketsPage() {
         setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
       )
   }, [loadMarkets])
-  const source = markets.length > 0 ? markets : config.demoDataEnabled ? demoMarkets : []
+  const source = (
+    markets.length > 0
+      ? markets
+      : config.demoDataEnabled
+        ? demoMarkets.filter((m) => m.productLine === "SPOT")
+        : []
+  ).map((m) => {
+    const event = realtime.events.find(
+      (e) => e.productLine === "SPOT" && e.symbol === m.symbol && e.channel === "trades",
+    )
+    const price = eventPrice(event, m, assetScales)
+    return price === null ? m : { ...m, price }
+  })
   const filtered = useMemo(
     () =>
       source.filter(
         (market) =>
           market.symbol.toLowerCase().includes(query.toLowerCase()) &&
           Math.abs(market.change24h ?? 0) >= Number(minimumChange) &&
-          (scope === "all" ||
-            scope === "favorites" ||
-            (scope === "spot" ? market.productLine === "SPOT" : market.productLine !== "SPOT")),
+          (scope === "all" || scope === "favorites" || market.productLine === "SPOT"),
       ),
     [minimumChange, query, scope, source],
   )
@@ -107,13 +128,6 @@ export function MarketsPage() {
             onClick={() => setScope("spot")}
           >
             Spot
-          </button>
-          <button
-            type="button"
-            className={scope === "futures" ? "active" : ""}
-            onClick={() => setScope("futures")}
-          >
-            Futures
           </button>
         </div>
         <div className="cluster">

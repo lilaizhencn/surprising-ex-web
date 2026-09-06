@@ -1,204 +1,166 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
+import {
+  newerPublicEvent,
+  PRIVATE_CHANNELS,
+  PRODUCTS,
+  PrivateView,
+  privateSubscriptions,
+  type Subscription,
+  subscriptionKey,
+  unwrapEvent,
+  type WsEnvelope,
+} from "../realtime"
+import { RealtimeConnections } from "../realtimeConnections"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
-
-export type RealtimeEvent = Readonly<Record<string, unknown>>
-
+export type RealtimeEvent = WsEnvelope
+const EMPTY_VIEWS: Readonly<Partial<Record<ProductLine, PrivateView>>> = {}
+const EMPTY_EVENTS: readonly WsEnvelope[] = []
+export function isAuthenticatedMessage(event: RealtimeEvent): boolean {
+  return event.op === "authenticated" || event["type"] === "authenticated"
+}
 export function useRealtime(
   session: AuthSession | null,
   symbol: string,
   productLine: ProductLine,
   period: string,
 ) {
-  const [state, setState] = useState<RealtimeState>("offline")
+  const plan: Subscription[] = symbol
+    ? [
+        "trades",
+        "depth",
+        "candles",
+        ...(productLine === "SPOT" ? [] : ["index", "mark"]),
+        ...(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"].includes(productLine) ? ["funding"] : []),
+      ].map((channel) => ({
+        channel,
+        symbol,
+        productLine,
+        ...(channel === "candles" ? { period } : {}),
+      }))
+    : []
+  return useRealtimeFeed(session, plan)
+}
+
+export function useRealtimeFeed(
+  session: AuthSession | null,
+  subscriptions: readonly Subscription[],
+) {
+  const [state, setState] = useState<RealtimeState>("connecting")
   const [lastEventAt, setLastEventAt] = useState<string | null>(null)
-  const [events, setEvents] = useState<readonly RealtimeEvent[]>([])
+  const [events, setEvents] = useState<readonly WsEnvelope[]>([])
+  const [views, setViews] = useState<Readonly<Partial<Record<ProductLine, PrivateView>>>>({})
+  const [revision, setRevision] = useState(0)
+  const publicConnections = useRef<RealtimeConnections | null>(null)
+  const privateConnections = useRef<RealtimeConnections | null>(null)
+  const desired = useRef(subscriptions)
+  desired.current = subscriptions
+  const key = subscriptions.map(subscriptionKey).sort().join("|")
+  const latest = useRef(new Map<string, WsEnvelope>())
   const accessToken = session?.accessToken ?? null
-  const sessionUserId = session?.user.userId === undefined ? null : String(session.user.userId)
-
+  const userId = session ? String(session.user.userId) : null
+  const identity = `${userId ?? ""}:${accessToken ?? ""}`
+  const [owner, setOwner] = useState(identity)
   useEffect(() => {
-    const baseUrl = config.wsBaseUrlForProductLine(productLine)
-    if (!baseUrl || !symbol) {
-      setState("offline")
-      return
-    }
+    // The key tracks the structural plan, not the newly allocated array identity.
+    void key
+    publicConnections.current?.update(desired.current)
+    const active = new Set(desired.current.map(subscriptionKey))
+    for (const k of latest.current.keys()) if (!active.has(k)) latest.current.delete(k)
+  }, [key])
+  useEffect(() => {
     let closed = false
-    let socket: WebSocket | null = null
-    let initialConnectTimer: number | undefined
-    let reconnectTimer: number | undefined
-    let heartbeatTimer: number | undefined
-    let attempt = 0
-
-    const connect = () => {
-      if (closed) return
-      setState(attempt === 0 ? "connecting" : "degraded")
-      socket = new WebSocket(baseUrl)
-      socket.onopen = () => {
-        attempt = 0
-        setState("live")
-        subscribe(socket, publicSubscriptions(symbol, productLine, period))
-        heartbeatTimer = window.setInterval(() => {
-          if (socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ op: "ping", id: `ping-public-${Date.now()}` }))
-          }
-        }, 20_000)
-      }
-      socket.onmessage = (message) => {
-        const event = parseEvent(message.data)
-        if (!event) {
-          setState("degraded")
-          return
-        }
-        setLastEventAt(new Date().toISOString())
-        setEvents((current) => [event, ...current].slice(0, 80))
-      }
-      socket.onerror = () => setState("degraded")
-      socket.onclose = () => {
-        if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
-        if (closed) return
-        attempt += 1
-        setState("degraded")
-        reconnectTimer = window.setTimeout(connect, Math.min(1000 * 2 ** attempt, 15_000))
-      }
+    let flush: ReturnType<typeof setTimeout> | undefined
+    const current: Partial<Record<ProductLine, PrivateView>> = {}
+    let tape: WsEnvelope[] = []
+    let executions: WsEnvelope[] = []
+    const publicLive = new Map<ProductLine, boolean>()
+    latest.current.clear()
+    const publish = () => {
+      if (closed || flush) return
+      flush = setTimeout(() => {
+        flush = undefined
+        setViews({ ...current })
+        setOwner(identity)
+        setEvents([...executions, ...latest.current.values(), ...tape])
+        setRevision((n) => n + 1)
+      }, 50)
     }
-
-    initialConnectTimer = window.setTimeout(connect, 0)
+    const publicManager = new RealtimeConnections(
+      config.wsBaseUrlForProductLine,
+      null,
+      (raw) => {
+        if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
+        const event = unwrapEvent(raw)
+        const key = [raw.productLine, raw.channel, raw.symbol ?? "*", raw.period ?? ""].join(":")
+        if (!newerPublicEvent(event, latest.current.get(key))) return
+        latest.current.set(key, event)
+        if (event.channel === "trades") tape = [event, ...tape].slice(0, 80)
+        setLastEventAt(new Date().toISOString())
+        publish()
+      },
+      (products, live) => {
+        if (closed) return
+        for (const p of products) {
+          publicLive.set(p, live)
+          if (!live)
+            for (const k of latest.current.keys())
+              if (k.startsWith(p + ":")) latest.current.delete(k)
+        }
+        setState([...publicLive.values()].every(Boolean) ? "live" : "degraded")
+        publish()
+      },
+    )
+    publicConnections.current = publicManager
+    publicManager.update(desired.current)
+    const privateManager =
+      accessToken && userId
+        ? new RealtimeConnections(
+            config.wsBaseUrlForProductLine,
+            accessToken,
+            (event) => {
+              if (closed || String(event.userId) !== userId || !event.productLine) return
+              if (event.op === "snapshot" || PRIVATE_CHANNELS.has(event.channel ?? "")) {
+                current[event.productLine] ??= new PrivateView()
+                if (current[event.productLine]?.apply(event)) publish()
+              }
+              if (event.op === "event" && event.channel === "executionReports") {
+                const next = unwrapEvent(event)
+                executions = [next, ...executions.filter((e) => e.id !== next.id)].slice(0, 80)
+                publish()
+              }
+            },
+            (products, live) => {
+              if (closed) return
+              for (const p of products) {
+                if (live) current[p] = new PrivateView()
+                else if (current[p]) current[p].status = "STALE"
+              }
+              publish()
+            },
+          )
+        : null
+    privateConnections.current = privateManager
+    privateManager?.update(privateSubscriptions(PRODUCTS))
+    publish()
+    const freshness = setInterval(publish, 1000)
     return () => {
       closed = true
-      if (initialConnectTimer !== undefined) window.clearTimeout(initialConnectTimer)
-      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
-      if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
-      socket?.close()
+      clearTimeout(flush)
+      clearInterval(freshness)
+      publicManager.close()
+      privateManager?.close()
     }
-  }, [period, productLine, symbol])
-
-  useEffect(() => {
-    const baseUrl = config.wsBaseUrlForProductLine(productLine)
-    if (!accessToken || !sessionUserId || !baseUrl || !symbol) return
-    let closed = false
-    let socket: WebSocket | null = null
-    let initialConnectTimer: number | undefined
-    let reconnectTimer: number | undefined
-    let heartbeatTimer: number | undefined
-    let attempt = 0
-    const connect = () => {
-      if (closed) return
-      socket = new WebSocket(baseUrl)
-      socket.onopen = () => {
-        attempt = 0
-        if (!socket || socket.readyState !== WebSocket.OPEN) return
-        socket.send(
-          JSON.stringify({
-            op: "authenticate",
-            id: `auth-${sessionUserId}`,
-            token: accessToken,
-          }),
-        )
-        heartbeatTimer = window.setInterval(() => {
-          if (socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ op: "ping", id: `ping-private-${Date.now()}` }))
-          }
-        }, 20_000)
-      }
-      socket.onmessage = (message) => {
-        const event = parseEvent(message.data)
-        if (!event) return
-        if (isAuthenticatedMessage(event)) {
-          subscribe(socket, privateSubscriptions(symbol, productLine))
-        }
-        setLastEventAt(new Date().toISOString())
-        setEvents((current) => [event, ...current].slice(0, 80))
-      }
-      socket.onclose = () => {
-        if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
-        if (closed) return
-        attempt += 1
-        reconnectTimer = window.setTimeout(connect, Math.min(1000 * 2 ** attempt, 15_000))
-      }
-    }
-
-    initialConnectTimer = window.setTimeout(connect, 0)
-    return () => {
-      closed = true
-      if (initialConnectTimer !== undefined) window.clearTimeout(initialConnectTimer)
-      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
-      if (heartbeatTimer !== undefined) window.clearInterval(heartbeatTimer)
-      socket?.close()
-    }
-  }, [accessToken, productLine, sessionUserId, symbol])
-
-  return { state, lastEventAt, events }
-}
-
-export function isAuthenticatedMessage(event: RealtimeEvent): boolean {
-  return (
-    Reflect.get(event, "op") === "authenticated" || Reflect.get(event, "type") === "authenticated"
-  )
-}
-
-type Subscription = Readonly<{
-  id: string
-  channel: string
-  productLine: ProductLine
-  symbol?: string
-  period?: string
-}>
-
-function publicSubscriptions(
-  symbol: string,
-  productLine: ProductLine,
-  period: string,
-): readonly Subscription[] {
-  const channels: Subscription[] = [
-    { id: `candles-${period}`, channel: "candles", productLine, symbol, period },
-    { id: "depth", channel: "depth", productLine, symbol },
-    { id: "trades", channel: "trades", productLine, symbol },
-  ]
-  if (productLine !== "SPOT" && productLine !== "OPTION") {
-    channels.push(
-      { id: "index", channel: "index", productLine, symbol },
-      { id: "mark", channel: "mark", productLine, symbol },
-      { id: "funding", channel: "funding", productLine, symbol },
-    )
+  }, [accessToken, userId, identity])
+  return {
+    state,
+    lastEventAt,
+    events: owner === identity ? events : EMPTY_EVENTS,
+    views: owner === identity ? views : EMPTY_VIEWS,
+    revision,
+    refresh: () => privateConnections.current?.refresh(),
   }
-  return channels
-}
-
-function privateSubscriptions(symbol: string, productLine: ProductLine): readonly Subscription[] {
-  const channels: Subscription[] = [
-    { id: "orders", channel: "orders", productLine, symbol },
-    { id: "matches", channel: "matches", productLine, symbol },
-    { id: "executionReports", channel: "executionReports", productLine, symbol },
-    { id: "triggerOrders", channel: "triggerOrders", productLine, symbol },
-  ]
-  if (productLine !== "SPOT") {
-    channels.push(
-      { id: "positions", channel: "positions", productLine, symbol },
-      { id: "positionRisk", channel: "positionRisk", productLine, symbol },
-      { id: "accountRisk", channel: "accountRisk", productLine },
-    )
-  }
-  return channels
-}
-
-function subscribe(socket: WebSocket | null, channels: readonly Subscription[]) {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return
-  for (const channel of channels) socket.send(JSON.stringify({ op: "subscribe", ...channel }))
-}
-
-function parseEvent(value: unknown): RealtimeEvent | null {
-  if (typeof value !== "string") return null
-  try {
-    const parsed: unknown = JSON.parse(value)
-    return isRecord(parsed) ? parsed : null
-  } catch {
-    return null
-  }
-}
-
-function isRecord(value: unknown): value is RealtimeEvent {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

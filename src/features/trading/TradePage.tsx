@@ -5,7 +5,6 @@ import {
   cancelOrder,
   cancelTriggerOrder,
   loadAssetScales,
-  loadBalances,
   loadCandles,
   loadFundingPayments,
   loadFundingRate,
@@ -15,11 +14,8 @@ import {
   loadLatestTrade,
   loadMarkets,
   loadMarkPrice,
-  loadOpenOrders,
-  loadOpenTriggerOrders,
   loadOptionQuote,
   loadOrderBook,
-  loadPositions,
   placeOrder,
   placeTriggerOrder,
 } from "../../api/endpoints"
@@ -34,7 +30,13 @@ import type {
   ApiOrderBookLevel,
   ApiTriggerOrder,
 } from "../../api/types"
-import { CandleSchema, OrderBookSchema } from "../../api/types"
+import {
+  BalanceSchema,
+  CandleSchema,
+  OrderBookSchema,
+  OrderSchema,
+  TriggerOrderSchema,
+} from "../../api/types"
 import { PriceChart } from "../../components/trading/PriceChart"
 import {
   Badge,
@@ -58,6 +60,7 @@ import {
   stepUnitsToDecimal,
   unitsToDecimal,
 } from "../../lib/units"
+import type { WsEnvelope } from "../../realtime"
 import { useSession } from "../../state/session"
 import {
   type Candle,
@@ -139,6 +142,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
   const [book, setBook] = useState<ApiOrderBook | null>(null)
   const bookSequenceRef = useRef<string | null>(null)
+  const processedEvents = useRef(new Set<string>())
+  const marketGeneration = useRef(0)
+  const streamRevision = useRef(0)
   const bookResyncingRef = useRef(false)
   const [latestTrade, setLatestTrade] = useState<Record<string, unknown> | null>(null)
   const [optionQuote, setOptionQuote] = useState<ApiOptionQuote | null>(null)
@@ -217,6 +223,43 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     ? closeSideForPosition(activeTriggerPosition)
     : null
   const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period)
+  useEffect(() => {
+    const account = realtime.views[view.line]
+    if (!session || !account) {
+      setBalances([])
+      setPositions([])
+      setOpenOrders([])
+      setTriggerOrders([])
+      return
+    }
+    const parsedBalances = account.rows("balance").map((row) => BalanceSchema.safeParse(row))
+    const parsedOrders = account
+      .rows("order")
+      .filter((row) => row["status"] === "OPEN" && row["symbol"] === current?.symbol)
+      .map((row) =>
+        OrderSchema.safeParse({
+          ...row,
+          status: Number(row["executedQuantitySteps"]) > 0 ? "PARTIALLY_FILLED" : "ACCEPTED",
+        }),
+      )
+    const parsedTriggers = account
+      .rows("trigger")
+      .filter(
+        (row) =>
+          ["PENDING", "TRIGGERING"].includes(String(row["status"])) &&
+          row["symbol"] === current?.symbol,
+      )
+      .map((row) => TriggerOrderSchema.safeParse(row))
+    if ([...parsedBalances, ...parsedOrders, ...parsedTriggers].some((result) => !result.success)) {
+      setError("实时账户数据格式异常，等待新快照 / Invalid account update")
+      return
+    }
+    setBalances(parsedBalances.flatMap((result) => (result.success ? [result.data] : [])))
+    setPositions(account.rows("position").filter((row) => Number(row["signedQuantitySteps"]) !== 0))
+    setOpenOrders(parsedOrders.flatMap((result) => (result.success ? [result.data] : [])))
+    setTriggerOrders(parsedTriggers.flatMap((result) => (result.success ? [result.data] : [])))
+  }, [current?.symbol, realtime.views, realtime.revision, session, view.line])
+
   const updateMarketQuote = useCallback((symbol: string, price: number | null) => {
     if (price === null || !Number.isFinite(price) || price <= 0) return
     setMarketQuotes((previous) =>
@@ -279,12 +322,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const resyncOrderBook = useCallback(() => {
     if (!current || bookResyncingRef.current) return
     bookResyncingRef.current = true
+    const generation = marketGeneration.current
+    const revision = streamRevision.current
     void loadOrderBook(current.symbol, view.line)
       .then((nextBook) => {
+        if (generation !== marketGeneration.current || revision !== streamRevision.current) return
         setBook(normalizeOrderBook(nextBook, current, assetScales))
         bookSequenceRef.current = orderBookSequence(nextBook)
       })
-      .catch((reason: unknown) => setError(readError(reason)))
+      .catch((reason: unknown) => {
+        if (generation === marketGeneration.current) setError(readError(reason))
+      })
       .finally(() => {
         bookResyncingRef.current = false
       })
@@ -297,10 +345,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [favorites])
 
   useEffect(() => {
+    let cancelled = false
     setMarketsRequestFinished(false)
     setError(null)
     void loadMarkets(view.line)
       .then((rows) => {
+        if (cancelled) return
         const productMarkets = rows
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
@@ -311,9 +361,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         }
       })
       .catch((reason: unknown) => {
+        if (cancelled) return
         setMarketsRequestFinished(true)
         setError(readError(reason))
       })
+    return () => {
+      cancelled = true
+    }
   }, [view.line])
   useEffect(() => {
     if (!current) return
@@ -324,6 +378,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setLatestTrade(null)
     setOptionQuote(null)
     setTriggerOrders([])
+    const generation = ++marketGeneration.current
+    const revision = streamRevision.current
     void Promise.allSettled([
       loadCandles(current.symbol, period, view.line),
       loadOrderBook(current.symbol, view.line),
@@ -331,43 +387,25 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       view.line === PRODUCT_LINES.option
         ? loadOptionQuote(current.symbol).catch(() => null)
         : Promise.resolve(null),
-      session
-        ? loadOpenOrders(current.symbol, view.line)
-        : Promise.resolve([] as readonly ApiOrder[]),
-      session && view.line !== PRODUCT_LINES.spot
-        ? loadPositions(session.user.userId, view.line)
-        : Promise.resolve([] as readonly Record<string, unknown>[]),
-      session ? loadBalances(view.line) : Promise.resolve([] as readonly ApiBalance[]),
       loadAssetScales(),
-      session
-        ? loadOpenTriggerOrders(session.user.userId, current.symbol, view.line)
-        : Promise.resolve([] as readonly ApiTriggerOrder[]),
-    ]).then(
-      ([
-        candleResult,
-        bookResult,
-        tradeResult,
-        optionQuoteResult,
-        orderRows,
-        positionRows,
-        balanceRows,
-        scales,
-        triggerRows,
-      ]) => {
-        const nextScales = scales.status === "fulfilled" ? scales.value : {}
+    ]).then(([candleResult, bookResult, tradeResult, optionQuoteResult, scales]) => {
+      if (generation !== marketGeneration.current) return
+      const nextScales = scales.status === "fulfilled" ? scales.value : {}
+      if (revision === streamRevision.current)
         setCandles(candleResult.status === "fulfilled" ? candleResult.value.map(mapCandle) : [])
-        if (bookResult.status === "fulfilled") {
-          setBook(normalizeOrderBook(bookResult.value, current, nextScales))
-          bookSequenceRef.current = orderBookSequence(bookResult.value)
-        } else {
-          setBook(null)
-          bookSequenceRef.current = null
-        }
-        const normalizedLatestTrade =
-          tradeResult.status === "fulfilled" && tradeResult.value
-            ? normalizeTrade(tradeResult.value, current, nextScales)
-            : null
-        setLatestTrade(normalizedLatestTrade)
+      if (revision === streamRevision.current && bookResult.status === "fulfilled") {
+        setBook(normalizeOrderBook(bookResult.value, current, nextScales))
+        bookSequenceRef.current = orderBookSequence(bookResult.value)
+      } else if (revision === streamRevision.current) {
+        setBook(null)
+        bookSequenceRef.current = null
+      }
+      const normalizedLatestTrade =
+        tradeResult.status === "fulfilled" && tradeResult.value
+          ? normalizeTrade(tradeResult.value, current, nextScales)
+          : null
+      if (revision === streamRevision.current) setLatestTrade(normalizedLatestTrade)
+      if (revision === streamRevision.current)
         updateMarketQuote(
           current.symbol,
           normalizedLatestTrade
@@ -376,14 +414,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               ? orderBookPrice(bookResult.value, current, nextScales)
               : null,
         )
-        setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
-        setOpenOrders(orderRows.status === "fulfilled" ? orderRows.value : [])
-        setPositions(positionRows.status === "fulfilled" ? positionRows.value : [])
-        setBalances(balanceRows.status === "fulfilled" ? balanceRows.value : [])
-        setAssetScales(nextScales)
-        setTriggerOrders(triggerRows.status === "fulfilled" ? triggerRows.value : [])
-      },
-    )
+      setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
+      setAssetScales(nextScales)
+    })
+    return () => {
+      marketGeneration.current++
+    }
   }, [current?.symbol, period, session, updateMarketQuote, view.line])
 
   useEffect(() => {
@@ -425,109 +461,111 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [current?.symbol, session, view.line])
 
   useEffect(() => {
-    if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
+    if (!current || view.line === PRODUCT_LINES.spot) {
       setMarkPrice(null)
       setIndexPrice(null)
       return
     }
+    let cancelled = false
+    const revision = streamRevision.current
     void Promise.allSettled([
       loadMarkPrice(current.symbol, view.line),
       loadIndexPrice(current.symbol, view.line),
     ]).then(([markResult, indexResult]) => {
+      if (cancelled || revision !== streamRevision.current) return
       setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
       setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
     })
+    return () => {
+      cancelled = true
+    }
   }, [current?.symbol, view.line])
 
   useEffect(() => {
-    const event = realtime.events[0]
-    if (!event || !current) return
-    const eventSymbol = text(event, "symbol")
-    if (eventSymbol && eventSymbol !== current.symbol) return
-    const channel = text(event, "channel")
-    const data = record(valueAt(event, "data"))
-    if (!data) return
-    if (channel === "candles") {
-      const candle = CandleSchema.safeParse(data)
-      if (!candle.success) return
-      const next = mapCandle(candle.data)
-      setCandles((rows) =>
-        [...rows.filter((row) => row.time !== next.time), next]
-          .sort((left, right) => left.time.localeCompare(right.time))
-          .slice(-120),
+    if (!current) return
+    const applyEvent = (event: WsEnvelope) => {
+      if (
+        event.op !== "event" ||
+        event.productLine !== view.line ||
+        !event.id ||
+        processedEvents.current.has(event.id)
       )
-      return
-    }
-    if (channel === "depth") {
-      const orderBook = OrderBookSchema.safeParse(data)
-      if (orderBook.success) {
-        const nextSequence = orderBookSequence(orderBook.data)
-        const currentSequence = bookSequenceRef.current
-        if (!nextSequence) return
-        if (orderBook.data.updateType === "DELTA") {
-          const previousSequence = orderBook.data.previousSequence
-          if (
-            !currentSequence ||
-            previousSequence === undefined ||
-            compareSequences(String(previousSequence), currentSequence) !== 0 ||
-            compareSequences(nextSequence, currentSequence) <= 0
-          ) {
-            resyncOrderBook()
+        return
+      processedEvents.current.add(event.id)
+      if (processedEvents.current.size > 20000)
+        processedEvents.current = new Set([...processedEvents.current].slice(-10000))
+      streamRevision.current++
+      const eventSymbol = text(event, "symbol")
+      if (eventSymbol && eventSymbol !== current.symbol) return
+      const channel = text(event, "channel")
+      const data = record(valueAt(event, "data"))
+      if (!data) return
+      if (channel === "candles") {
+        const candle = CandleSchema.safeParse(data)
+        if (!candle.success) return
+        const next = mapCandle(candle.data)
+        setCandles((rows) =>
+          [...rows.filter((row) => row.time !== next.time), next]
+            .sort((left, right) => left.time.localeCompare(right.time))
+            .slice(-120),
+        )
+        return
+      }
+      if (channel === "depth") {
+        const orderBook = OrderBookSchema.safeParse(data)
+        if (orderBook.success) {
+          const nextSequence = orderBookSequence(orderBook.data)
+          const currentSequence = bookSequenceRef.current
+          if (!nextSequence) return
+          if (orderBook.data.updateType === "DELTA") {
+            const previousSequence = orderBook.data.previousSequence
+            if (
+              !currentSequence ||
+              previousSequence === undefined ||
+              compareSequences(String(previousSequence), currentSequence) !== 0 ||
+              compareSequences(nextSequence, currentSequence) <= 0
+            ) {
+              resyncOrderBook()
+              return
+            }
+            setBook((previousBook) =>
+              previousBook
+                ? mergeOrderBook(
+                    previousBook,
+                    normalizeOrderBook(orderBook.data, current, assetScales),
+                  )
+                : null,
+            )
+            bookSequenceRef.current = nextSequence
             return
           }
-          setBook((previousBook) =>
-            previousBook
-              ? mergeOrderBook(
-                  previousBook,
-                  normalizeOrderBook(orderBook.data, current, assetScales),
-                )
-              : null,
-          )
-          bookSequenceRef.current = nextSequence
-          return
+          if (!currentSequence || compareSequences(nextSequence, currentSequence) > 0) {
+            bookSequenceRef.current = nextSequence
+            setBook(normalizeOrderBook(orderBook.data, current, assetScales))
+          }
         }
-        if (!currentSequence || compareSequences(nextSequence, currentSequence) > 0) {
-          bookSequenceRef.current = nextSequence
-          setBook(normalizeOrderBook(orderBook.data, current, assetScales))
-        }
+        return
       }
-      return
-    }
-    if (channel === "trades") {
-      const nextTrade = normalizeTrade(data, current, assetScales)
-      setLatestTrade(nextTrade)
-      updateMarketQuote(current.symbol, marketPriceFromRecord(nextTrade, current, assetScales))
-      return
-    }
-    if (channel === "mark") {
-      setMarkPrice(data)
-      updateMarketQuote(current.symbol, marketPriceFromRecord(data, current, assetScales))
-      return
-    }
-    if (channel === "index") {
-      setIndexPrice(data)
-      if (current.price === null)
+      if (channel === "trades") {
+        const nextTrade = normalizeTrade(data, current, assetScales)
+        setLatestTrade(nextTrade)
+        updateMarketQuote(current.symbol, marketPriceFromRecord(nextTrade, current, assetScales))
+        return
+      }
+      if (channel === "mark") {
+        setMarkPrice(data)
         updateMarketQuote(current.symbol, marketPriceFromRecord(data, current, assetScales))
-      return
+        return
+      }
+      if (channel === "index") {
+        setIndexPrice(data)
+        if (current.price === null)
+          updateMarketQuote(current.symbol, marketPriceFromRecord(data, current, assetScales))
+        return
+      }
     }
-    if (
-      [
-        "orders",
-        "matches",
-        "executionReports",
-        "triggerOrders",
-        "positions",
-        "positionRisk",
-        "accountRisk",
-      ].includes(channel)
-    ) {
-      refresh()
-    }
-  }, [assetScales, current, realtime.events, resyncOrderBook, updateMarketQuote])
-
-  useEffect(() => {
-    if (realtime.state === "live") refresh()
-  }, [realtime.state])
+    for (const event of [...realtime.events].reverse()) applyEvent(event)
+  }, [assetScales, current, realtime.events, resyncOrderBook, updateMarketQuote, view.line])
 
   const submit = async () => {
     if (!session) {
@@ -709,23 +747,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     }
   }
   const refresh = () => {
-    if (!current) return
-    void Promise.all([
-      loadOrderBook(current.symbol, view.line),
-      loadOpenOrders(current.symbol, view.line),
-      session ? loadBalances(view.line) : Promise.resolve([] as readonly ApiBalance[]),
-      session
-        ? loadOpenTriggerOrders(session.user.userId, current.symbol, view.line)
-        : Promise.resolve([] as readonly ApiTriggerOrder[]),
-    ])
-      .then(([bookResult, orderRows, balanceRows, triggerRows]) => {
-        setBook(normalizeOrderBook(bookResult, current, assetScales))
-        bookSequenceRef.current = orderBookSequence(bookResult)
-        setOpenOrders(orderRows)
-        setBalances(balanceRows)
-        setTriggerOrders(triggerRows)
-      })
-      .catch((reason: unknown) => setError(readError(reason)))
+    realtime.refresh()
+    resyncOrderBook()
   }
 
   return (
@@ -803,6 +826,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
                   {realtime.state === "live" ? "Realtime" : realtime.state}
                 </Badge>
+                {session && !realtime.views[view.line]?.ready() ? (
+                  <Badge tone="neutral">Account syncing</Badge>
+                ) : null}
               </span>
               {realtime.lastEventAt ? (
                 <small className="muted">Updated {formatDate(realtime.lastEventAt)}</small>
@@ -878,7 +904,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             priceScale={current ? assetScales[current.quoteAsset] : undefined}
             quantityStepUnits={current?.quantityStepUnits}
             quantityScale={current ? assetScales[current.baseAsset] : undefined}
-            refreshToken={realtime.lastEventAt}
+            accountView={realtime.views[view.line]}
+            onRefresh={realtime.refresh}
             onSettingsChange={handleSettingsChange}
           />
           <div className="trade-chart-toolbar">

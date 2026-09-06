@@ -2,16 +2,13 @@ import { RefreshCw, Settings2, ShieldAlert } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   adjustPositionMargin,
-  loadAccountRisk,
   loadLeverageSetting,
-  loadPositionMargin,
-  loadPositionMode,
-  loadPositionRisk,
   updateLeverageSetting,
   updatePositionMode,
 } from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { decimalToUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
+import { integer, type PrivateView } from "../../realtime"
 import type { ProductLine } from "../../types/domain"
 
 type MarginMode = "CROSS" | "ISOLATED"
@@ -31,7 +28,8 @@ type Props = Readonly<{
   readonly positions: readonly Record<string, unknown>[]
   readonly settleAsset: string
   readonly assetScale: string | undefined
-  readonly refreshToken: string | null
+  readonly accountView: PrivateView | undefined
+  readonly onRefresh: () => void
   readonly priceTickUnits: string | undefined
   readonly priceScale: string | undefined
   readonly quantityStepUnits: string | undefined
@@ -46,7 +44,8 @@ export function TradingAccountControls({
   positions,
   settleAsset,
   assetScale,
-  refreshToken,
+  accountView,
+  onRefresh,
   priceTickUnits,
   priceScale,
   quantityStepUnits,
@@ -58,59 +57,90 @@ export function TradingAccountControls({
   const [positionSide, setPositionSide] = useState<PositionSide>("NET")
   const [leverage, setLeverage] = useState("1")
   const [maxLeverage, setMaxLeverage] = useState("1")
-  const [positionMargin, setPositionMargin] = useState<Record<string, unknown> | null>(null)
-  const [risk, setRisk] = useState<Record<string, unknown> | null>(null)
-  const [positionRisk, setPositionRisk] = useState<readonly Record<string, unknown>[]>([])
+  const [refresh, setRefresh] = useState(0)
+  const positionRisk = (accountView?.rows("risk") ?? [])
+    .filter((row) => text(row, "symbol") === symbol)
+    .filter((row) =>
+      positions.some(
+        (p) =>
+          text(p, "symbol") === symbol && text(p, "positionSide") === text(row, "positionSide"),
+      ),
+    )
+    .map((row) => ({
+      ...positions.find(
+        (p) =>
+          text(p, "symbol") === symbol && text(p, "positionSide") === text(row, "positionSide"),
+      ),
+      ...row,
+    }))
+  const selectedPosition = positions.find(
+    (row) =>
+      text(row, "symbol") === symbol &&
+      text(row, "positionSide") === positionSide &&
+      text(row, "marginMode") === marginMode,
+  )
+  const selectedRisk = positionRisk.find((row) => text(row, "positionSide") === positionSide)
+  const balance = accountView?.rows("balance").find((row) => text(row, "asset") === settleAsset)
+  let walletBalanceUnits: string | undefined
+  try {
+    walletBalanceUnits = (
+      integer(balance?.["availableUnits"]) + integer(balance?.["lockedUnits"])
+    ).toString()
+  } catch {
+    /* Wait for a valid balance snapshot. */
+  }
+  const risk = accountView?.ready() ? { ...selectedRisk, walletBalanceUnits } : null
+  const positionMargin = accountView?.ready()
+    ? { marginUnits: selectedPosition?.["positionMarginUnits"] ?? "0" }
+    : null
   const [marginAmount, setMarginAmount] = useState("")
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
+  const snapshotMode = accountView?.positionMode
+
+  useEffect(() => {
+    if (!snapshotMode) return
+    const nextMode = snapshotMode === "HEDGE" ? "HEDGE" : "ONE_WAY"
+    setPositionMode(nextMode)
+    setPositionSide((side) =>
+      nextMode === "HEDGE"
+        ? side === "NET"
+          ? preferredHedgeSide(symbol, positions, [], side)
+          : side
+        : "NET",
+    )
+  }, [snapshotMode, symbol, positions])
+
+  useEffect(() => {
+    onSettingsChange({ marginMode, positionMode, positionSide })
+  }, [marginMode, positionMode, positionSide, onSettingsChange])
 
   useEffect(() => {
     if (!userId || productLine === "SPOT") return
+    let cancelled = false
+    void refresh
     setLoading(true)
     setMessage("")
-    void Promise.all([
-      loadPositionMode(userId, productLine),
-      loadLeverageSetting(userId, symbol, productLine, marginMode),
-      loadPositionMargin(userId, symbol, productLine, marginMode),
-      loadAccountRisk(userId, productLine, settleAsset),
-      loadPositionRisk(userId, productLine),
-    ])
-      .then(([modeResult, leverageResult, marginResult, riskResult, positionRiskResult]) => {
-        const nextMode = modeValue(modeResult)
+    void loadLeverageSetting(userId, symbol, productLine, marginMode)
+      .then((leverageResult) => {
+        if (cancelled) return
         const nextMarginMode = marginValue(leverageResult) ?? marginMode
-        const nextSide =
-          nextMode === "HEDGE"
-            ? preferredHedgeSide(symbol, positions, positionRiskResult, positionSide)
-            : "NET"
         const nextLeverage = ppmToLeverage(leverageResult)
-        setPositionMode(nextMode)
         setMarginMode(nextMarginMode)
-        setPositionSide(nextSide)
         setLeverage(nextLeverage)
         setMaxLeverage(ppmToLeverage(leverageResult, "maxLeveragePpm"))
-        setPositionMargin(marginResult)
-        setRisk(riskResult)
-        setPositionRisk(positionRiskResult)
-        onSettingsChange({
-          marginMode: nextMarginMode,
-          positionMode: nextMode,
-          positionSide: nextSide,
-        })
       })
-      .catch((reason: unknown) => setMessage(readError(reason)))
-      .finally(() => setLoading(false))
-  }, [
-    marginMode,
-    onSettingsChange,
-    positions,
-    productLine,
-    refreshToken,
-    settleAsset,
-    symbol,
-    userId,
-  ])
+      .catch((reason: unknown) => {
+        if (!cancelled) setMessage(readError(reason))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [marginMode, productLine, refresh, symbol, userId])
 
   const saveLeverage = async () => {
     if (!userId || !Number.isFinite(Number(leverage)) || Number(leverage) <= 0) {
@@ -219,7 +249,14 @@ export function TradingAccountControls({
         <h2>
           <Settings2 size={17} /> Account settings & risk
         </h2>
-        <Button tone="ghost" onClick={() => window.location.reload()} aria-label="Refresh settings">
+        <Button
+          tone="ghost"
+          onClick={() => {
+            onRefresh()
+            setRefresh((n) => n + 1)
+          }}
+          aria-label="Refresh settings"
+        >
           <RefreshCw size={15} /> Refresh
         </Button>
       </div>
@@ -293,6 +330,11 @@ export function TradingAccountControls({
           </div>
         </Field>
       </div>
+      <p className="muted">
+        {accountView?.ready()
+          ? `Selected position risk · ${symbol} · ${positionSide}`
+          : "Account syncing"}
+      </p>
       <div className="risk-summary-grid">
         <RiskValue label="Status" value={text(risk, "status")} />
         <RiskValue label="Margin ratio" value={ppmToPercent(risk, "marginRatioPpm")} />
@@ -384,10 +426,6 @@ function RiskValue({ label, value }: { readonly label: string; readonly value: s
       <strong className="mono">{value || "—"}</strong>
     </div>
   )
-}
-
-function modeValue(value: Record<string, unknown>): PositionMode {
-  return text(value, "positionMode") === "HEDGE" ? "HEDGE" : "ONE_WAY"
 }
 
 function marginValue(value: Record<string, unknown>): MarginMode | null {

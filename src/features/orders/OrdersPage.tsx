@@ -15,8 +15,6 @@ import {
   loadAccountLedger,
   loadMyTrades,
   loadOpenAlgoOrders,
-  loadOpenOrders,
-  loadOpenTriggerOrders,
   loadOrderHistory,
   loadProductLedger,
   loadTransferHistory,
@@ -27,6 +25,7 @@ import {
 } from "../../api/endpoints"
 import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
 import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
+import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { loadSession, useSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
@@ -60,31 +59,34 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(false)
   const [actionMessage, setActionMessage] = useState("")
   const [countdown, setCountdown] = useState("0")
+  const realtime = useRealtimeFeed(session, [])
+  const privateView = realtime.views[productLine]
 
   const load = () => {
     if (!session) return
-    setLoading(true)
     setError("")
+    if (tab === "open" || tab === "triggers") {
+      realtime.refresh()
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     const task =
-      tab === "open"
-        ? loadOpenOrders(symbol, productLine)
-        : tab === "history"
-          ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
-          : tab === "fills"
-            ? session
-              ? loadMyTrades(session.user.userId, symbol, productLine)
-              : Promise.resolve([])
-            : tab === "ledger"
-              ? loadAccountLedger(symbol)
-              : tab === "product-ledger"
-                ? loadProductLedger(productLine, symbol)
-                : tab === "transfers"
-                  ? loadTransferHistory(productLine, symbol)
-                  : tab === "algo"
-                    ? loadOpenAlgoOrders(session.user.userId, symbol, productLine)
-                    : tab === "triggers"
-                      ? loadOpenTriggerOrders(session.user.userId, symbol, productLine)
-                      : Promise.resolve([])
+      tab === "history"
+        ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
+        : tab === "fills"
+          ? session
+            ? loadMyTrades(session.user.userId, symbol, productLine)
+            : Promise.resolve([])
+          : tab === "ledger"
+            ? loadAccountLedger(symbol)
+            : tab === "product-ledger"
+              ? loadProductLedger(productLine, symbol)
+              : tab === "transfers"
+                ? loadTransferHistory(productLine, symbol)
+                : tab === "algo"
+                  ? loadOpenAlgoOrders(session.user.userId, symbol, productLine)
+                  : Promise.resolve([])
     void task
       .then(
         (result) => setRows(result),
@@ -93,16 +95,31 @@ export function OrdersPage() {
       .finally(() => setLoading(false))
   }
   useEffect(load, [productLine, session, tab])
+  const liveRows: readonly RecordRow[] =
+    tab === "open"
+      ? (privateView?.rows("order") ?? [])
+          .filter((r) => r["status"] === "OPEN")
+          .map((r) => ({
+            ...r,
+            status: Number(r["executedQuantitySteps"]) > 0 ? "PARTIALLY_FILLED" : "ACCEPTED",
+          }))
+      : tab === "triggers"
+        ? (privateView?.rows("trigger") ?? []).filter((r) =>
+            ["PENDING", "TRIGGERING"].includes(String(r["status"])),
+          )
+        : rows
   const filtered = useMemo(
     () =>
-      rows.filter(
+      liveRows.filter(
         (row) =>
           JSON.stringify(row).toLowerCase().includes(search.toLowerCase()) &&
+          (!symbol || text(row, "symbol") === symbol) &&
           (status === "ALL" || text(row, "status").toUpperCase() === status),
       ),
-    [rows, search, status],
+    [liveRows, search, status, symbol],
   )
   const displayRows = filtered
+  const snapshotPending = (tab === "open" || tab === "triggers") && !privateView?.ready()
   const runBulkAction = async (operation: () => Promise<unknown>, success: string) => {
     setLoading(true)
     setActionMessage("")
@@ -362,7 +379,7 @@ export function OrdersPage() {
           />
         ) : error ? (
           <StateView kind="error" message={error} retry={load} />
-        ) : loading ? (
+        ) : loading || snapshotPending ? (
           <StateView kind="loading" message="Loading order state" />
         ) : displayRows.length === 0 ? (
           <StateView
@@ -413,7 +430,7 @@ export function OrdersPage() {
             canCancel={tab === "open"}
             productLine={productLine}
             onDone={(message) => {
-              setError(message)
+              setActionMessage(message)
               load()
             }}
           />

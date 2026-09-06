@@ -9,6 +9,7 @@ import {
 import { mapBalance } from "../../api/mappers"
 import type { ApiBalance } from "../../api/types"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
+import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
 import { formatUsd } from "../../lib/format"
@@ -27,24 +28,21 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [ledgerError, setLedgerError] = useState<string | null>(null)
   const session = useSession()
+  const realtime = useRealtimeAssets(session, assetScales)
   useEffect(() => {
     if (!session) return
+    let cancelled = false
     setLoading(true)
     void Promise.allSettled([
-      loadBalances("SPOT"),
-      loadBalances("LINEAR_PERPETUAL"),
-      loadBalances("INVERSE_PERPETUAL"),
-      loadBalances("LINEAR_DELIVERY"),
-      loadBalances("INVERSE_DELIVERY"),
-      loadBalances("OPTION"),
       loadBalances(undefined, "FUNDING"),
       loadAssetScales(),
       loadAccountLedger(),
     ])
-      .then((results) => {
-        const balanceResults = results.slice(0, 7)
-        const scaleResult = results[7]
-        const ledgerResult = results[8]
+      .then(async (results) => {
+        if (cancelled) return
+        const balanceResults = results.slice(0, 1)
+        const scaleResult = results[1]
+        const ledgerResult = results[2]
         const assetScales = scaleResult?.status === "fulfilled" ? scaleResult.value : {}
         const rawRows = balanceResults.flatMap((result) => {
           if (result.status !== "fulfilled") return []
@@ -52,27 +50,34 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           const value = result.value as readonly ApiBalance[]
           return value.filter(isBalanceRow)
         })
-        if (rawRows.length === 0) {
+        if (balanceResults.some((result) => result.status === "rejected")) {
           const rejected = balanceResults.find((result) => result.status === "rejected")
           throw rejected?.status === "rejected" ? rejected.reason : new Error("账户服务暂不可用")
         }
         setLedger(ledgerResult?.status === "fulfilled" ? ledgerResult.value : [])
         setAssetScales(assetScales)
         setLedgerError(ledgerResult?.status === "rejected" ? readError(ledgerResult.reason) : null)
-        void Promise.all(rawRows.map((row) => mapBalanceWithUsd(row, assetScales))).then(
-          setBalances,
-        )
+        const funding = await Promise.all(rawRows.map((row) => mapBalanceWithUsd(row, assetScales)))
+        if (cancelled) return
+        setBalances(funding)
         setError(null)
       })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "账户服务暂不可用"),
-      )
-      .finally(() => setLoading(false))
+      .catch((reason: unknown) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "账户服务暂不可用")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [session])
   const demo = config.demoDataEnabled && balances.length === 0 && !session
-  const allRows = balances.length > 0 ? balances : demo ? demoBalances : []
+  const allRows = session ? [...realtime.balances, ...balances] : demo ? demoBalances : []
   const rows = allRows.filter((balance) => accountMatches(balance, account))
-  const hasUsdValuation = rows.some((balance) => balance.estimatedUsd !== null)
+  const hasUsdValuation =
+    (demo || (realtime.ready && !loading && !error)) &&
+    rows.every((balance) => balance.estimatedUsd !== null)
   const total = hasUsdValuation
     ? rows.reduce((sum, balance) => sum + (balance.estimatedUsd ?? 0), 0)
     : null
@@ -89,6 +94,11 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {hidden ? "Show" : "Hide"}
         </Button>
       </div>
+      {session && !realtime.ready ? (
+        <div role="status">
+          资产同步中 / Syncing assets{realtime.error ? `: ${realtime.error}` : ""}
+        </div>
+      ) : null}
       {demo ? (
         <div className="demo-banner">演示数据：未登录，资产数字仅用于本地视觉检查。</div>
       ) : null}
@@ -224,7 +234,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       <div className="section-title">
         <h2>My Accounts</h2>
       </div>
-      {loading || rows.length > 0 ? (
+      {loading || !realtime.ready || rows.length > 0 ? (
         <div className="table-wrap">
           <table className="data-table asset-account-table">
             <thead>
@@ -236,7 +246,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || (session && !realtime.ready) ? (
                 <tr>
                   <td colSpan={4}>
                     <StateView kind="loading" message="Loading account balances" />
