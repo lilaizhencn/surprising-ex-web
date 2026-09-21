@@ -1,18 +1,9 @@
 import type { ProductLine } from "../types/domain"
 
-const WS_SLUG_BY_PRODUCT_LINE: Record<ProductLine, string> = {
-  SPOT: "spot",
-  LINEAR_PERPETUAL: "linear-perpetual",
-  INVERSE_PERPETUAL: "inverse-perpetual",
-  LINEAR_DELIVERY: "linear-delivery",
-  INVERSE_DELIVERY: "inverse-delivery",
-  OPTION: "option",
-}
-
-function defaultWebSocketBaseUrl(productLine: ProductLine = "LINEAR_PERPETUAL"): string {
+function defaultWebSocketBaseUrl(_productLine: ProductLine = "LINEAR_PERPETUAL"): string {
   if (typeof window === "undefined") return ""
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${protocol}//${window.location.host}/ws/${WS_SLUG_BY_PRODUCT_LINE[productLine]}/v1`
+  return `${protocol}//${window.location.host}/ws/v1`
 }
 
 export const config = {

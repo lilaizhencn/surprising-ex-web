@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv } from "vite"
 
+// biome-ignore lint/style/noDefaultExport: Vite requires a default config export
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
   const websocketTarget = (name: string, fallbackPort: number) =>
@@ -17,7 +18,7 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/ws\/spot/, "/ws"),
         },
         "/ws/linear-perpetual": {
-          target: websocketTarget("VITE_WS_LINEAR_PERPETUAL_PROXY_TARGET", 9197),
+          target: websocketTarget("VITE_WS_LINEAR_PERPETUAL_PROXY_TARGET", 9094),
           changeOrigin: true,
           ws: true,
           rewrite: (path) => path.replace(/^\/ws\/linear-perpetual/, "/ws"),
@@ -51,7 +52,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         "/ws": {
-          target: websocketTarget("VITE_WS_PROXY_TARGET", 9097),
+          target: websocketTarget("VITE_WS_PROXY_TARGET", 9094),
           changeOrigin: true,
           ws: true,
         },

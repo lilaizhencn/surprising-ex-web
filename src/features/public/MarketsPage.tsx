@@ -9,26 +9,28 @@ import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import type { Subscription } from "../../realtime"
-import type { Market } from "../../types/domain"
+import { type Market, PRODUCT_LINES } from "../../types/domain"
 
 export function MarketsPage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
-  const [scope, setScope] = useState<"all" | "spot" | "favorites">("all")
+  const [scope, setScope] = useState<"all" | "perpetual" | "favorites">("all")
   const [showFilters, setShowFilters] = useState(false)
   const [minimumChange, setMinimumChange] = useState("0")
   const [error, setError] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const plan: Subscription[] = markets.map((m) => ({
     channel: "trades",
-    productLine: "SPOT",
+    productLine: PRODUCT_LINES.usdMPerpetual,
     symbol: m.symbol,
   }))
   const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
-    void loadMarkets("SPOT")
+    void loadMarkets(PRODUCT_LINES.usdMPerpetual)
       .then((rows) => {
-        const mapped = rows.map(mapMarket).filter((m) => m.productLine === "SPOT")
+        const mapped = rows
+          .map(mapMarket)
+          .filter((m) => m.productLine === PRODUCT_LINES.usdMPerpetual)
         setMarkets(mapped)
         void Promise.all([
           loadAssetScales(),
@@ -38,7 +40,9 @@ export function MarketsPage() {
               .map((market) =>
                 loadTicker24h(
                   market.symbol,
-                  market.productLine === "UNKNOWN" ? "SPOT" : market.productLine,
+                  market.productLine === "UNKNOWN"
+                    ? PRODUCT_LINES.usdMPerpetual
+                    : market.productLine,
                 ),
               ),
           ),
@@ -62,11 +66,19 @@ export function MarketsPage() {
     markets.length > 0
       ? markets
       : config.demoDataEnabled
-        ? demoMarkets.filter((m) => m.productLine === "SPOT")
+        ? demoMarkets.map((m) => ({
+            ...m,
+            productLine: PRODUCT_LINES.usdMPerpetual,
+            settleAsset: m.quoteAsset,
+            maxLeverage: 125,
+          }))
         : []
   ).map((m) => {
     const event = realtime.events.find(
-      (e) => e.productLine === "SPOT" && e.symbol === m.symbol && e.channel === "trades",
+      (e) =>
+        e.productLine === PRODUCT_LINES.usdMPerpetual &&
+        e.symbol === m.symbol &&
+        e.channel === "trades",
     )
     const price = eventPrice(event, m, assetScales)
     return price === null ? m : { ...m, price }
@@ -77,7 +89,9 @@ export function MarketsPage() {
         (market) =>
           market.symbol.toLowerCase().includes(query.toLowerCase()) &&
           Math.abs(market.change24h ?? 0) >= Number(minimumChange) &&
-          (scope === "all" || scope === "favorites" || market.productLine === "SPOT"),
+          (scope === "all" ||
+            scope === "favorites" ||
+            market.productLine === PRODUCT_LINES.usdMPerpetual),
       ),
     [minimumChange, query, scope, source],
   )
@@ -124,10 +138,10 @@ export function MarketsPage() {
           </button>
           <button
             type="button"
-            className={scope === "spot" ? "active" : ""}
-            onClick={() => setScope("spot")}
+            className={scope === "perpetual" ? "active" : ""}
+            onClick={() => setScope("perpetual")}
           >
-            Spot
+            Perpetual
           </button>
         </div>
         <div className="cluster">

@@ -90,7 +90,7 @@ const views = [
     key: "usd-m-perpetuals",
     line: PRODUCT_LINES.usdMPerpetual,
     title: "USD-M Perpetual",
-    symbol: "BTC-USDT",
+    symbol: "BTC-USDT-SWAP",
     dark: true,
   },
   {

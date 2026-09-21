@@ -13,20 +13,36 @@ import {
 import { config } from "../../lib/config"
 import { demoMarkets, demoTrend } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
-import type { Market } from "../../types/domain"
+import { type Market, PRODUCT_LINES } from "../../types/domain"
 
 export function HomePage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    void loadMarkets()
-      .then((rows) => setMarkets(rows.map(mapMarket)))
+    void loadMarkets(PRODUCT_LINES.usdMPerpetual)
+      .then((rows) =>
+        setMarkets(
+          rows
+            .map(mapMarket)
+            .filter((market) => market.productLine === PRODUCT_LINES.usdMPerpetual),
+        ),
+      )
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
       )
   }, [])
-  const source = markets.length > 0 ? markets : config.demoDataEnabled ? demoMarkets : []
+  const source =
+    markets.length > 0
+      ? markets
+      : config.demoDataEnabled
+        ? demoMarkets.map((market) => ({
+            ...market,
+            productLine: PRODUCT_LINES.usdMPerpetual,
+            settleAsset: market.quoteAsset,
+            maxLeverage: 125,
+          }))
+        : []
   const displayed = source
     .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
     .slice(0, 3)
@@ -51,7 +67,7 @@ export function HomePage() {
           <div className="cluster hero-actions">
             <Button
               onClick={() => {
-                window.location.href = "/trade/spot"
+                window.location.href = "/trade/usd-perpetual"
               }}
             >
               Start Trading <ArrowRight size={16} />
