@@ -204,6 +204,16 @@ export async function loadCandles(
   return response.candles ?? response.items ?? []
 }
 
+export async function loadRecentTrades(symbol: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ symbol, limit: "50" })
+  const response = await request(
+    `/api/v1/gateway/candlestick/trades/recent?${query.toString()}`,
+    z.object({ trades: z.array(GenericObjectSchema) }),
+    { productLine },
+  )
+  return response.trades
+}
+
 export function candleRange(
   period: string,
   end: Date,
@@ -874,8 +884,8 @@ export function cancelOrder(_symbol: string, orderId: string, productLine: Produ
   })
 }
 
-export function loadOrderBook(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, depth: "20" }).toString()
+export function loadOrderBook(symbol: string, productLine: ProductLine, depth = 50) {
+  const query = new URLSearchParams({ symbol, depth: String(depth) }).toString()
   return request(`/api/v1/gateway/trading-market/orderbook?${query}`, OrderBookSchema, {
     productLine,
   })

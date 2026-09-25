@@ -15,6 +15,7 @@ import {
   loadMarkPrice,
   loadOptionQuote,
   loadOrderBook,
+  loadRecentTrades,
   placeOrder,
   placeTriggerOrder,
 } from "../../api/endpoints"
@@ -128,6 +129,38 @@ const productKeyAliases: Readonly<Record<string, string>> = {
 }
 
 type Level = ApiOrderBookLevel
+const chartPeriodMs: Readonly<Record<string, number>> = {
+  "1m": 60_000,
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+}
+function periodMillisecondsForChart(period: string): number {
+  return chartPeriodMs[period] ?? 60_000
+}
+function applyTradeToCandles(
+  rows: readonly Candle[],
+  time: number,
+  interval: number,
+  price: number,
+  quantity: number,
+): readonly Candle[] {
+  const bucket = new Date(Math.floor(time / interval) * interval).toISOString()
+  const previous = rows.find((row) => row.time === bucket)
+  const next: Candle = previous
+    ? {
+        ...previous,
+        high: Math.max(previous.high, price),
+        low: Math.min(previous.low, price),
+        close: price,
+        volume: previous.volume + quantity,
+      }
+    : { time: bucket, open: price, high: price, low: price, close: price, volume: quantity }
+  return [...rows.filter((row) => row.time !== bucket), next]
+    .sort((left, right) => left.time.localeCompare(right.time))
+    .slice(-120)
+}
 
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
@@ -140,12 +173,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [pairTab, setPairTab] = useState<"all" | "favorites">("all")
   const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
   const [book, setBook] = useState<ApiOrderBook | null>(null)
+  const [bookDepth, setBookDepth] = useState<10 | 20 | 50>(50)
   const bookSequenceRef = useRef<string | null>(null)
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
   const streamRevision = useRef(0)
   const bookResyncingRef = useRef(false)
-  const [latestTrade, setLatestTrade] = useState<Record<string, unknown> | null>(null)
+  const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
   const [optionQuote, setOptionQuote] = useState<ApiOptionQuote | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [triggerOrders, setTriggerOrders] = useState<readonly ApiTriggerOrder[]>([])
@@ -166,6 +200,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
   const [period, setPeriod] = useState("1m")
+  const [accountTab, setAccountTab] = useState<
+    "positions" | "triggers" | "fundingMarket" | "fundingPayments"
+  >("positions")
+  const [dayCandles, setDayCandles] = useState<readonly Candle[]>([])
   const [price, setPrice] = useState("")
   const [triggerPrice, setTriggerPrice] = useState("")
   const [triggerType, setTriggerType] = useState<"STOP_LOSS" | "TAKE_PROFIT">("STOP_LOSS")
@@ -181,11 +219,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [submitMessage, setSubmitMessage] = useState("")
   const demo = config.demoDataEnabled && !marketsRequestFinished
   const availableMarkets = markets.length > 0 ? markets : demo ? demoMarkets : []
-  const filteredMarkets = availableMarkets.filter(
-    (market) =>
-      market.symbol.toLowerCase().includes(pairSearch.toLowerCase()) &&
-      (pairTab === "all" || favorites.includes(market.symbol)),
-  )
+  const filteredMarkets = availableMarkets
+    .filter(
+      (market) =>
+        market.symbol.toLowerCase().includes(pairSearch.toLowerCase()) &&
+        (pairTab === "all" || favorites.includes(market.symbol)),
+    )
+    .sort((left, right) =>
+      left.symbol === selected
+        ? -1
+        : right.symbol === selected
+          ? 1
+          : left.symbol.localeCompare(right.symbol),
+    )
   const current = useMemo(() => {
     const base =
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null
@@ -195,6 +241,21 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ? base
       : { ...base, price: livePrice }
   }, [availableMarkets, marketQuotes, selected])
+  const dayStats = useMemo(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000
+    const rows = dayCandles.filter((candle) => Date.parse(candle.time) >= cutoff)
+    if (rows.length === 0) return null
+    const first = rows[0]
+    const last = rows[rows.length - 1]
+    if (!first || !last) return null
+    return {
+      open: first.open,
+      high: Math.max(...rows.map((row) => row.high)),
+      low: Math.min(...rows.map((row) => row.low)),
+      close: last.close,
+      change: first.open > 0 ? ((last.close - first.open) / first.open) * 100 : null,
+    }
+  }, [dayCandles])
   const balance = useMemo(() => {
     const asset =
       view.line === PRODUCT_LINES.spot
@@ -322,12 +383,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (!current || bookResyncingRef.current) return
     bookResyncingRef.current = true
     const generation = marketGeneration.current
-    const revision = streamRevision.current
-    void loadOrderBook(current.symbol, view.line)
+    void loadOrderBook(current.symbol, view.line, bookDepth)
       .then((nextBook) => {
-        if (generation !== marketGeneration.current || revision !== streamRevision.current) return
+        if (generation !== marketGeneration.current) return
+        const nextSequence = orderBookSequence(nextBook)
+        const currentSequence = bookSequenceRef.current
+        if (nextSequence && currentSequence && compareSequences(nextSequence, currentSequence) < 0)
+          return
         setBook(normalizeOrderBook(nextBook, current, assetScales))
-        bookSequenceRef.current = orderBookSequence(nextBook)
+        bookSequenceRef.current = nextSequence
       })
       .catch((reason: unknown) => {
         if (generation === marketGeneration.current) setError(readError(reason))
@@ -335,7 +399,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .finally(() => {
         bookResyncingRef.current = false
       })
-  }, [assetScales, current, view.line])
+  }, [assetScales, bookDepth, current, view.line])
+
+  useEffect(() => {
+    resyncOrderBook()
+    const timer = window.setInterval(resyncOrderBook, 2_000)
+    return () => window.clearInterval(timer)
+  }, [assetScales, bookDepth, current?.symbol, view.line])
 
   useEffect(() => {
     try {
@@ -374,14 +444,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setCandles([])
     setBook(null)
     bookSequenceRef.current = null
-    setLatestTrade(null)
     setOptionQuote(null)
     setTriggerOrders([])
     const generation = ++marketGeneration.current
     const revision = streamRevision.current
     void Promise.allSettled([
       loadCandles(current.symbol, period, view.line),
-      loadOrderBook(current.symbol, view.line),
+      loadOrderBook(current.symbol, view.line, bookDepth),
       view.line === PRODUCT_LINES.option
         ? loadOptionQuote(current.symbol).catch(() => null)
         : Promise.resolve(null),
@@ -391,6 +460,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
       if (candleResult.status === "fulfilled") {
         const history = candleResult.value.map(mapCandle)
+        const latestCandle = history.at(-1)
+        if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
         setCandles((live) => {
           const byTime = new Map(history.map((candle) => [candle.time, candle]))
           for (const candle of live) byTime.set(candle.time, candle)
@@ -406,13 +477,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setBook(null)
         bookSequenceRef.current = null
       }
-      if (revision === streamRevision.current)
-        updateMarketQuote(
-          current.symbol,
-          bookResult.status === "fulfilled"
-            ? orderBookPrice(bookResult.value, current, nextScales)
-            : null,
-        )
       setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
       setAssetScales(nextScales)
     })
@@ -422,12 +486,48 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [current?.symbol, period, session, updateMarketQuote, view.line])
 
   useEffect(() => {
-    if (
-      !current ||
-      !session ||
-      view.line === PRODUCT_LINES.spot ||
-      view.line === PRODUCT_LINES.option
-    ) {
+    setRecentTrades([])
+    if (!current?.symbol) return
+    let cancelled = false
+    void loadRecentTrades(current.symbol, view.line)
+      .then((history) => {
+        if (cancelled) return
+        setRecentTrades((live) => {
+          const byId = new Map<string, Record<string, unknown>>()
+          for (const trade of [...history, ...live])
+            byId.set(
+              text(trade, "tradeId") || text(trade, "sequence") || JSON.stringify(trade),
+              trade,
+            )
+          return [...byId.values()]
+            .sort((left, right) => text(right, "eventTime").localeCompare(text(left, "eventTime")))
+            .slice(0, 50)
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [current?.symbol, view.line])
+
+  useEffect(() => {
+    if (!current) return
+    let cancelled = false
+    setDayCandles([])
+    void loadCandles(current.symbol, "1h", view.line)
+      .then((rows) => {
+        if (!cancelled) setDayCandles(rows.map(mapCandle))
+      })
+      .catch(() => {
+        if (!cancelled) setDayCandles([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [current?.symbol, view.line])
+
+  useEffect(() => {
+    if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
       setFunding(null)
       setFundingPayments([])
       setFundingPaymentsError("")
@@ -451,12 +551,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }
     })
     setFundingPaymentsError("")
-    void loadFundingPayments(session.user.userId, current.symbol, view.line)
-      .then((rows) => setFundingPayments(rows))
-      .catch((reason: unknown) => {
-        setFundingPayments([])
-        setFundingPaymentsError(readError(reason))
-      })
+    if (session) {
+      void loadFundingPayments(session.user.userId, current.symbol, view.line)
+        .then((rows) => setFundingPayments(rows))
+        .catch((reason: unknown) => {
+          setFundingPayments([])
+          setFundingPaymentsError(readError(reason))
+        })
+    } else {
+      setFundingPayments([])
+    }
   }, [current?.symbol, session, view.line])
 
   useEffect(() => {
@@ -502,7 +606,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (channel === "candles") {
         const candle = CandleSchema.safeParse(data)
         if (!candle.success) return
+        const candlePeriod = text(data, "period") || text(event, "period")
+        if (candlePeriod && candlePeriod !== period) return
         const next = mapCandle(candle.data)
+        updateMarketQuote(current.symbol, next.close)
         setCandles((rows) =>
           [...rows.filter((row) => row.time !== next.time), next]
             .sort((left, right) => left.time.localeCompare(right.time))
@@ -547,24 +654,44 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }
       if (channel === "trades") {
         const nextTrade = normalizeTrade(data, current, assetScales)
-        setLatestTrade(nextTrade)
+        setRecentTrades((previous) =>
+          [
+            { ...nextTrade, eventTime: event.eventTime ?? new Date().toISOString() },
+            ...previous,
+          ].slice(0, 50),
+        )
         updateMarketQuote(current.symbol, marketPriceFromRecord(nextTrade, current, assetScales))
+        const tradePrice = numberValue(nextTrade, "price")
+        const tradeQuantity = numberValue(nextTrade, "quantity")
+        const tradeTime = Date.parse(event.eventTime ?? "")
+        if (tradePrice !== null && tradePrice > 0 && Number.isFinite(tradeTime)) {
+          const quantity = Math.max(tradeQuantity ?? 0, 0)
+          setCandles((rows) =>
+            applyTradeToCandles(
+              rows,
+              tradeTime,
+              periodMillisecondsForChart(period),
+              tradePrice,
+              quantity,
+            ),
+          )
+          setDayCandles((rows) =>
+            applyTradeToCandles(rows, tradeTime, 3_600_000, tradePrice, quantity),
+          )
+        }
         return
       }
       if (channel === "mark") {
         setMarkPrice(data)
-        updateMarketQuote(current.symbol, marketPriceFromRecord(data, current, assetScales))
         return
       }
       if (channel === "index") {
         setIndexPrice(data)
-        if (current.price === null)
-          updateMarketQuote(current.symbol, marketPriceFromRecord(data, current, assetScales))
         return
       }
     }
     for (const event of [...realtime.events].reverse()) applyEvent(event)
-  }, [assetScales, current, realtime.events, resyncOrderBook, updateMarketQuote, view.line])
+  }, [assetScales, current, period, realtime.events, resyncOrderBook, updateMarketQuote, view.line])
 
   const submit = async () => {
     if (!session) {
@@ -776,7 +903,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               Favorites
             </button>
           </div>
-          {filteredMarkets.slice(0, 12).map((market) => (
+          {filteredMarkets.map((market) => (
             <div
               className={`pair-row ${market.symbol === current?.symbol ? "active" : ""}`}
               key={market.symbol}
@@ -802,7 +929,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 />
               </button>
               <span className={(market.change24h ?? 0) >= 0 ? "positive mono" : "negative mono"}>
-                <Price value={market.price} />
+                <Price
+                  value={
+                    market.symbol === current?.symbol
+                      ? (candles.at(-1)?.close ?? marketQuotes[market.symbol] ?? market.price)
+                      : (marketQuotes[market.symbol] ?? market.price)
+                  }
+                  dollar={isDollarQuote(market.quoteAsset)}
+                />
               </span>
             </div>
           ))}
@@ -841,27 +975,55 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <div>
               <small>Last Price</small>
               <strong className="positive mono">
-                <Price value={current?.price ?? null} />
+                <Price
+                  value={candles.at(-1)?.close ?? current?.price ?? null}
+                  dollar={isDollarQuote(current?.quoteAsset)}
+                />
               </strong>
             </div>
             <div>
               <small>24h Change</small>
               <strong
-                className={(current?.change24h ?? 0) >= 0 ? "positive mono" : "negative mono"}
+                className={
+                  (dayStats?.change ?? current?.change24h ?? 0) >= 0
+                    ? "positive mono"
+                    : "negative mono"
+                }
               >
-                {formatPercent(current?.change24h ?? null)}
+                {formatPercent(dayStats?.change ?? current?.change24h ?? null)}
+              </strong>
+            </div>
+            <div>
+              <small>24h Open</small>
+              <strong className="mono">
+                <Price value={dayStats?.open ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
               </strong>
             </div>
             <div>
               <small>24h High</small>
               <strong className="mono">
-                <Price value={current?.high24h ?? null} />
+                <Price
+                  value={dayStats?.high ?? current?.high24h ?? null}
+                  dollar={isDollarQuote(current?.quoteAsset)}
+                />
               </strong>
             </div>
             <div>
               <small>24h Low</small>
               <strong className="mono">
-                <Price value={current?.low24h ?? null} />
+                <Price
+                  value={dayStats?.low ?? current?.low24h ?? null}
+                  dollar={isDollarQuote(current?.quoteAsset)}
+                />
+              </strong>
+            </div>
+            <div>
+              <small>24h Close</small>
+              <strong className="mono">
+                <Price
+                  value={dayStats?.close ?? null}
+                  dollar={isDollarQuote(current?.quoteAsset)}
+                />
               </strong>
             </div>
             {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
@@ -869,22 +1031,27 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <div>
                   <small>Mark price</small>
                   <strong className="mono">
-                    <Price value={numberValue(markPrice, "markPrice")} />
+                    <Price
+                      value={numberValue(markPrice, "markPrice")}
+                      dollar={isDollarQuote(current?.quoteAsset)}
+                    />
                   </strong>
                 </div>
                 <div>
                   <small>Index price</small>
                   <strong className="mono">
-                    <Price value={numberValue(indexPrice, "indexPrice")} />
+                    <Price
+                      value={numberValue(indexPrice, "indexPrice")}
+                      dollar={isDollarQuote(current?.quoteAsset)}
+                    />
                   </strong>
                 </div>
-                <div>
-                  <small>Funding rate</small>
-                  <strong className="mono positive">{fundingRate(funding)}</strong>
-                </div>
-                <div>
-                  <small>Next funding</small>
-                  <strong className="mono">{fundingTime(funding)}</strong>
+                <div className="funding-summary">
+                  <small>Funding / Next funding</small>
+                  <strong className="mono">
+                    <span className="positive">{fundingRate(funding)}</span> ·{" "}
+                    {fundingTime(funding)}
+                  </strong>
                 </div>
               </>
             ) : null}
@@ -930,114 +1097,199 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <RefreshCw size={16} />
             </Button>
           </div>
-          <PriceChart candles={candles} demo={demo} unavailable={!demo && candles.length === 0} />
+          <PriceChart
+            candles={candles}
+            period={period}
+            dollar={isDollarQuote(current?.quoteAsset)}
+            demo={demo}
+            unavailable={!demo && candles.length === 0}
+          />
           <div className="trade-bottom">
-            <OrderBook book={book} />
+            <OrderBook
+              book={book}
+              depth={bookDepth}
+              dollar={isDollarQuote(current?.quoteAsset)}
+              onDepthChange={setBookDepth}
+            />
             <Panel dense>
               <div className="panel-heading">
-                <h2>Recent trade</h2>
-                <Badge tone="neutral">{latestTrade ? "Live" : "Waiting"}</Badge>
+                <h2>Recent trades</h2>
+                <Badge tone="neutral">{recentTrades.length > 0 ? "Recent" : "Waiting"}</Badge>
               </div>
-              <div className="trade-list">
-                <span className="mono">{text(latestTrade, "price") || "—"}</span>
-                <span className="subtle">
-                  {text(latestTrade, "quantity") ||
-                    text(latestTrade, "qty") ||
-                    "Waiting for next trade"}
-                </span>
-              </div>
+              {recentTrades.length === 0 ? (
+                <p className="subtle">Waiting for recent trades.</p>
+              ) : (
+                <div className="recent-trades">
+                  {recentTrades.slice(0, 20).map((trade, index) => (
+                    <div
+                      className="recent-trade-row"
+                      key={`${text(trade, "coreSequence")}-${index}`}
+                    >
+                      <span
+                        className={
+                          text(trade, "side") === "SELL" ? "negative mono" : "positive mono"
+                        }
+                      >
+                        {displayPrice(text(trade, "price"), isDollarQuote(current?.quoteAsset))}
+                      </span>
+                      <span className="mono">
+                        {formatTradeQuantity(text(trade, "quantity") || text(trade, "qty"))}
+                      </span>
+                      <time className="mono">{formatClock(text(trade, "eventTime"))}</time>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Panel>
           </div>
-          <Panel dense>
-            <div className="panel-heading">
-              <h2>
-                {view.line === PRODUCT_LINES.spot
-                  ? "Account order state"
-                  : "Positions & order state"}
-              </h2>
-              <Badge tone="info">Backend</Badge>
+          <div className="trade-account-shell">
+            <div className="trade-account-tabs" role="tablist" aria-label="Account data">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={accountTab === "positions"}
+                className={accountTab === "positions" ? "active" : ""}
+                onClick={() => setAccountTab("positions")}
+              >
+                Positions & order state
+              </button>
+              {view.line !== PRODUCT_LINES.spot ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={accountTab === "triggers"}
+                  className={accountTab === "triggers" ? "active" : ""}
+                  onClick={() => setAccountTab("triggers")}
+                >
+                  止盈止损 / Take-profit & stop-loss
+                </button>
+              ) : null}
+              {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+                <>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={accountTab === "fundingMarket"}
+                    className={accountTab === "fundingMarket" ? "active" : ""}
+                    onClick={() => setAccountTab("fundingMarket")}
+                  >
+                    Funding market history
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={accountTab === "fundingPayments"}
+                    className={accountTab === "fundingPayments" ? "active" : ""}
+                    onClick={() => setAccountTab("fundingPayments")}
+                  >
+                    Funding payment history
+                  </button>
+                </>
+              ) : null}
             </div>
-            {positions.length > 0 ? (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Symbol</th>
-                      <th>Side</th>
-                      <th>Quantity</th>
-                      <th>Entry</th>
-                      <th>Realized PnL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {positions.map((position, index) => (
-                      <tr key={text(position, "positionId") || String(index)}>
-                        <td>{text(position, "symbol") || "—"}</td>
-                        <td>{text(position, "positionSide") || text(position, "side") || "—"}</td>
-                        <td className="mono">
-                          {formatPositionQuantity(position, current, assetScales)}
-                        </td>
-                        <td className="mono">
-                          {formatPositionEntry(position, current, assetScales)}
-                        </td>
-                        <td className="mono">
-                          {formatPositionPnl(position, current, assetScales)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <StateView
-                kind="empty"
-                message={
-                  session && view.line !== PRODUCT_LINES.spot
-                    ? "No open positions returned."
-                    : view.line === PRODUCT_LINES.spot
-                      ? "Log in to view your open orders and account state."
-                      : "Positions are available for derivative product lines after login."
-                }
-              />
-            )}
-            {openOrders.length > 0 ? (
-              <OpenOrders
-                rows={openOrders}
-                productLine={view.line}
-                onDone={(value) => {
-                  setSubmitMessage(value)
-                  refresh()
-                }}
-              />
-            ) : null}
-            {view.line !== PRODUCT_LINES.spot ? (
-              <TriggerOrders
-                rows={triggerOrders}
-                productLine={view.line}
-                userId={session?.user.userId}
-                market={current}
-                assetScales={assetScales}
-                onDone={(value) => {
-                  setSubmitMessage(value)
-                  refresh()
-                }}
-              />
-            ) : null}
-          </Panel>
-          {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
-            <>
-              <FundingMarketHistory
-                rows={fundingHistory}
-                settlement={fundingSettlement}
-                error={fundingMarketError}
-              />
-              <FundingPayments
-                rows={fundingPayments}
-                error={fundingPaymentsError}
-                assetScales={assetScales}
-              />
-            </>
-          ) : null}
+            <div className="trade-account-body" role="tabpanel">
+              {accountTab === "positions" ? (
+                <Panel dense>
+                  <div className="panel-heading">
+                    <h2>
+                      {view.line === PRODUCT_LINES.spot
+                        ? "Account order state"
+                        : "Positions & order state"}
+                    </h2>
+                    <Badge tone="info">Backend</Badge>
+                  </div>
+                  {positions.length > 0 ? (
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Quantity</th>
+                            <th>Entry</th>
+                            <th>Realized PnL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {positions.map((position, index) => (
+                            <tr key={text(position, "positionId") || String(index)}>
+                              <td>{text(position, "symbol") || "—"}</td>
+                              <td>
+                                {text(position, "positionSide") || text(position, "side") || "—"}
+                              </td>
+                              <td className="mono">
+                                {formatPositionQuantity(position, current, assetScales)}
+                              </td>
+                              <td className="mono">
+                                {formatPositionEntry(position, current, assetScales)}
+                              </td>
+                              <td className="mono">
+                                {formatPositionPnl(position, current, assetScales)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <StateView
+                      kind="empty"
+                      message={
+                        session && view.line !== PRODUCT_LINES.spot
+                          ? "No open positions returned."
+                          : view.line === PRODUCT_LINES.spot
+                            ? "Log in to view your open orders and account state."
+                            : "Positions are available for derivative product lines after login."
+                      }
+                    />
+                  )}
+                  {openOrders.length > 0 ? (
+                    <OpenOrders
+                      rows={openOrders}
+                      productLine={view.line}
+                      onDone={(value) => {
+                        setSubmitMessage(value)
+                        refresh()
+                      }}
+                    />
+                  ) : null}
+                </Panel>
+              ) : null}
+              {accountTab === "triggers" && view.line !== PRODUCT_LINES.spot ? (
+                <Panel dense>
+                  <TriggerOrders
+                    rows={triggerOrders}
+                    productLine={view.line}
+                    userId={session?.user.userId}
+                    market={current}
+                    assetScales={assetScales}
+                    onDone={(value) => {
+                      setSubmitMessage(value)
+                      refresh()
+                    }}
+                  />
+                </Panel>
+              ) : null}
+              {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+                <>
+                  {accountTab === "fundingMarket" ? (
+                    <FundingMarketHistory
+                      rows={fundingHistory}
+                      settlement={fundingSettlement}
+                      error={fundingMarketError}
+                    />
+                  ) : null}
+                  {accountTab === "fundingPayments" ? (
+                    <FundingPayments
+                      rows={fundingPayments}
+                      error={fundingPaymentsError}
+                      assetScales={assetScales}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          </div>
         </main>
         <aside className="trade-ticket">
           <div className="ticket-tabs">
@@ -1236,31 +1488,74 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   )
 }
 
-function OrderBook({ book }: { readonly book: ApiOrderBook | null }) {
-  const bids = book?.bids ?? []
-  const asks = book?.asks ?? []
+function OrderBook({
+  book,
+  depth,
+  dollar,
+  onDepthChange,
+}: {
+  readonly book: ApiOrderBook | null
+  readonly depth: 10 | 20 | 50
+  readonly dollar: boolean
+  readonly onDepthChange: (depth: 10 | 20 | 50) => void
+}) {
+  const bids = [...(book?.bids ?? [])]
+    .sort((left, right) => levelPrice(right) - levelPrice(left))
+    .slice(0, depth)
+  const asks = [...(book?.asks ?? [])]
+    .sort((left, right) => levelPrice(left) - levelPrice(right))
+    .slice(0, depth)
   return (
-    <Panel dense>
+    <Panel dense className="order-book-panel">
       <div className="panel-heading">
         <h2>Order book</h2>
-        <Badge tone="info">{book ? "Live snapshot" : "Waiting"}</Badge>
+        <label className="book-depth-control">
+          档位
+          <select
+            aria-label="Order book depth"
+            value={depth}
+            onChange={(event) => onDepthChange(Number(event.target.value) as 10 | 20 | 50)}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </label>
       </div>
       {bids.length === 0 && asks.length === 0 ? (
         <StateView kind="empty" message="Order book data is not available." />
       ) : (
-        <div className="order-book">
-          <span>Price</span>
-          <span>Amount</span>
-          <span>Total</span>
-          {asks
-            .slice(0, 5)
-            .reverse()
-            .map((level, index) => (
-              <LevelRow key={`ask-${index}`} level={level} tone="negative" />
-            ))}
-          {bids.slice(0, 5).map((level, index) => (
-            <LevelRow key={`bid-${index}`} level={level} tone="positive" />
-          ))}
+        <div className="order-book-sides">
+          <section className="order-book-side" aria-label="Asks, low to high">
+            <h3 className="negative">卖盘 · 低到高</h3>
+            <div className="order-book">
+              <span>Price</span>
+              <span>Amount</span>
+              {asks.map((level, index) => (
+                <LevelRow
+                  key={`ask-${levelPrice(level)}-${index}`}
+                  level={level}
+                  tone="negative"
+                  dollar={dollar}
+                />
+              ))}
+            </div>
+          </section>
+          <section className="order-book-side" aria-label="Bids, high to low">
+            <h3 className="positive">买盘 · 高到低</h3>
+            <div className="order-book">
+              <span>Price</span>
+              <span>Amount</span>
+              {bids.map((level, index) => (
+                <LevelRow
+                  key={`bid-${levelPrice(level)}-${index}`}
+                  level={level}
+                  tone="positive"
+                  dollar={dollar}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </Panel>
@@ -1322,20 +1617,24 @@ function mergeOrderBookLevels(
 function LevelRow({
   level,
   tone,
+  dollar,
 }: {
   readonly level: Level
   readonly tone: "positive" | "negative"
+  readonly dollar: boolean
 }) {
   const price = Array.isArray(level) ? String(level[0]) : String(level.priceTicks)
   const amount = Array.isArray(level) ? String(level[1]) : String(level.quantitySteps)
-  const total = Number(price) * Number(amount)
   return (
     <>
-      <strong className={`${tone} mono`}>{price}</strong>
+      <strong className={`${tone} mono`}>{displayPrice(price, dollar)}</strong>
       <span className="mono">{amount}</span>
-      <span className="mono">{Number.isFinite(total) ? total.toFixed(2) : "—"}</span>
     </>
   )
+}
+
+function levelPrice(level: Level): number {
+  return Number(Array.isArray(level) ? level[0] : level.priceTicks)
 }
 
 function normalizeTrade(
@@ -1398,20 +1697,6 @@ function marketPriceFromRecord(
   } catch {
     return null
   }
-}
-
-function orderBookPrice(
-  book: ApiOrderBook,
-  market: Market,
-  assetScales: Readonly<Record<string, string>>,
-): number | null {
-  const level = book.bids?.[0] ?? book.asks?.[0]
-  if (level === undefined) return null
-  if (Array.isArray(level)) {
-    const parsed = Number(level[0])
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-  }
-  return marketPriceFromRecord({ priceTicks: level.priceTicks }, market, assetScales)
 }
 
 function OpenOrders({
@@ -1740,6 +2025,39 @@ function Detail({ label, value }: { readonly label: string; readonly value: stri
       <strong className="mono">{value}</strong>
     </div>
   )
+}
+
+function isDollarQuote(asset: string | null | undefined): boolean {
+  return asset === "USD" || asset === "USDT" || asset === "USDC"
+}
+
+const dollarDisplayFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+const tradeQuantityFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
+
+function displayPrice(value: string, dollar: boolean): string {
+  if (!value) return "—"
+  const numeric = Number(value)
+  return dollar && Number.isFinite(numeric) ? dollarDisplayFormatter.format(numeric) : value
+}
+function formatTradeQuantity(value: string): string {
+  const quantity = Number(value)
+  return value && Number.isFinite(quantity) && quantity >= 0
+    ? tradeQuantityFormatter.format(quantity)
+    : "—"
+}
+
+function formatClock(value: string): string {
+  const time = Date.parse(value)
+  return Number.isFinite(time)
+    ? new Intl.DateTimeFormat(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(time)
+    : "—"
 }
 
 function formatDate(value: string | null | undefined): string {

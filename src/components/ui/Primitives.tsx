@@ -2,6 +2,10 @@ import { Check, Copy, LoaderCircle, Search, Star, TriangleAlert } from "lucide-r
 import type { ButtonHTMLAttributes, ReactNode } from "react"
 
 const priceFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
+const dollarPriceFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
 type ButtonTone = "primary" | "outline" | "ghost" | "positive" | "negative"
 
@@ -121,13 +125,17 @@ export function Badge({
 export function Price({
   value,
   prefix = "",
+  dollar = false,
 }: {
   readonly value: number | null
   readonly prefix?: string
+  readonly dollar?: boolean
 }) {
   return (
     <span className="mono">
-      {value === null || value <= 0 ? "—" : `${prefix}${priceFormatter.format(value)}`}
+      {value === null || value <= 0
+        ? "—"
+        : `${prefix}${(dollar ? dollarPriceFormatter : priceFormatter).format(value)}`}
     </span>
   )
 }

@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { mapBalance, mapMarket } from "./mappers"
+import { mapBalance, mapCandle, mapMarket } from "./mappers"
+
+describe("candle mapper", () => {
+  it("keeps OHLC and actual base volume for the chart", () => {
+    expect(
+      mapCandle({
+        openTime: "2026-09-25T16:04:00Z",
+        openPrice: "83925.3",
+        highPrice: "83949.9",
+        lowPrice: "83925.3",
+        closePrice: "83949.9",
+        baseVolume: "0.00000002",
+      }),
+    ).toMatchObject({ open: 83925.3, close: 83949.9, volume: 0.00000002 })
+  })
+})
 
 describe("market mapper", () => {
   it("normalizes integer prices using backend scale metadata", () => {

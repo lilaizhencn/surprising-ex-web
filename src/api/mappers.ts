@@ -46,6 +46,7 @@ export function mapCandle(raw: ApiCandle): Candle {
     high: numeric(raw.highPrice) ?? 0,
     low: numeric(raw.lowPrice) ?? 0,
     close: numeric(raw.closePrice) ?? 0,
+    volume: numeric(raw.baseVolume) ?? 0,
   }
 }
 
