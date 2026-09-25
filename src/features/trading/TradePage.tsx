@@ -389,8 +389,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     ]).then(([candleResult, bookResult, optionQuoteResult, scales]) => {
       if (generation !== marketGeneration.current) return
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
-      if (revision === streamRevision.current)
-        setCandles(candleResult.status === "fulfilled" ? candleResult.value.map(mapCandle) : [])
+      if (candleResult.status === "fulfilled") {
+        const history = candleResult.value.map(mapCandle)
+        setCandles((live) => {
+          const byTime = new Map(history.map((candle) => [candle.time, candle]))
+          for (const candle of live) byTime.set(candle.time, candle)
+          return [...byTime.values()]
+            .sort((left, right) => left.time.localeCompare(right.time))
+            .slice(-120)
+        })
+      }
       if (revision === streamRevision.current && bookResult.status === "fulfilled") {
         setBook(normalizeOrderBook(bookResult.value, current, nextScales))
         bookSequenceRef.current = orderBookSequence(bookResult.value)
