@@ -11,7 +11,6 @@ import {
   loadFundingRateHistory,
   loadFundingSettlement,
   loadIndexPrice,
-  loadLatestTrade,
   loadMarkets,
   loadMarkPrice,
   loadOptionQuote,
@@ -166,7 +165,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
-  const [period, setPeriod] = useState("1h")
+  const [period, setPeriod] = useState("1m")
   const [price, setPrice] = useState("")
   const [triggerPrice, setTriggerPrice] = useState("")
   const [triggerType, setTriggerType] = useState<"STOP_LOSS" | "TAKE_PROFIT">("STOP_LOSS")
@@ -383,12 +382,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     void Promise.allSettled([
       loadCandles(current.symbol, period, view.line),
       loadOrderBook(current.symbol, view.line),
-      loadLatestTrade(current.symbol, view.line).catch(() => null),
       view.line === PRODUCT_LINES.option
         ? loadOptionQuote(current.symbol).catch(() => null)
         : Promise.resolve(null),
       loadAssetScales(),
-    ]).then(([candleResult, bookResult, tradeResult, optionQuoteResult, scales]) => {
+    ]).then(([candleResult, bookResult, optionQuoteResult, scales]) => {
       if (generation !== marketGeneration.current) return
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
       if (revision === streamRevision.current)
@@ -400,19 +398,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setBook(null)
         bookSequenceRef.current = null
       }
-      const normalizedLatestTrade =
-        tradeResult.status === "fulfilled" && tradeResult.value
-          ? normalizeTrade(tradeResult.value, current, nextScales)
-          : null
-      if (revision === streamRevision.current) setLatestTrade(normalizedLatestTrade)
       if (revision === streamRevision.current)
         updateMarketQuote(
           current.symbol,
-          normalizedLatestTrade
-            ? marketPriceFromRecord(normalizedLatestTrade, current, nextScales)
-            : bookResult.status === "fulfilled"
-              ? orderBookPrice(bookResult.value, current, nextScales)
-              : null,
+          bookResult.status === "fulfilled"
+            ? orderBookPrice(bookResult.value, current, nextScales)
+            : null,
         )
       setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
       setAssetScales(nextScales)
@@ -730,7 +721,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           setSubmitMessage(response.rejectReason ?? "订单被后端拒绝。")
           return
         }
-        if (response.status !== "PENDING_RESERVE" && response.status !== "ACCEPTED") {
+        if (
+          response.status !== "PENDING_RESERVE" &&
+          response.status !== "ACCEPTED" &&
+          response.status !== "PARTIALLY_FILLED" &&
+          response.status !== "FILLED"
+        ) {
           setSubmitState("error")
           setSubmitMessage(`订单未被接受，当前状态：${response.status}`)
           return
@@ -909,7 +905,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             onSettingsChange={handleSettingsChange}
           />
           <div className="trade-chart-toolbar">
-            {["15m", "1h", "4h", "1d"].map((value) => (
+            {["1m", "15m", "1h", "4h", "1d"].map((value) => (
               <button
                 type="button"
                 className={period === value ? "active" : ""}
@@ -926,20 +922,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <RefreshCw size={16} />
             </Button>
           </div>
-          <PriceChart candles={candles} demo={demo} unavailable={!demo && candles.length < 2} />
+          <PriceChart candles={candles} demo={demo} unavailable={!demo && candles.length === 0} />
           <div className="trade-bottom">
             <OrderBook book={book} />
             <Panel dense>
               <div className="panel-heading">
                 <h2>Recent trade</h2>
-                <Badge tone="neutral">{latestTrade ? "Live snapshot" : "Waiting"}</Badge>
+                <Badge tone="neutral">{latestTrade ? "Live" : "Waiting"}</Badge>
               </div>
               <div className="trade-list">
                 <span className="mono">{text(latestTrade, "price") || "—"}</span>
                 <span className="subtle">
                   {text(latestTrade, "quantity") ||
                     text(latestTrade, "qty") ||
-                    "No latest trade returned"}
+                    "Waiting for next trade"}
                 </span>
               </div>
             </Panel>

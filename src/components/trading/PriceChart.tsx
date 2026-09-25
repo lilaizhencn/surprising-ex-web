@@ -9,7 +9,7 @@ export function PriceChart({
   readonly demo: boolean
   readonly unavailable: boolean
 }) {
-  if (unavailable || (!demo && candles.length < 2))
+  if (unavailable || (!demo && candles.length === 0))
     return (
       <div className="price-chart chart-unavailable" role="status" aria-live="polite">
         <span className="eyebrow">Chart unavailable</span>
@@ -17,7 +17,13 @@ export function PriceChart({
         <span className="subtle">No valid candle response was returned for this market.</span>
       </div>
     )
-  const values = candles.length > 1 ? candles.map((candle) => candle.close) : [0, 1]
+  const firstCandle = candles[0]
+  const values =
+    candles.length > 1
+      ? candles.map((candle) => candle.close)
+      : firstCandle
+        ? [firstCandle.close, firstCandle.close]
+        : [0, 1]
   const min = Math.min(...values)
   const max = Math.max(...values)
   const range = max - min || 1

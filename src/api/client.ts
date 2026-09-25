@@ -141,11 +141,62 @@ export async function requestBlob(path: string, options: BinaryRequestOptions = 
 function parseResponse(raw: string): unknown {
   if (!raw.trim()) return null
   try {
-    return JSON.parse(raw)
+    return JSON.parse(quoteUnsafeJsonIntegers(raw))
   } catch (error) {
     if (error instanceof SyntaxError) return raw
     throw error
   }
+}
+
+// Core order IDs and balance units are signed 64-bit integers. Preserve their exact
+// decimal text before JSON.parse converts them to imprecise JavaScript numbers.
+export function quoteUnsafeJsonIntegers(raw: string): string {
+  let output = ""
+  let quoted = false
+  let escaped = false
+  for (let index = 0; index < raw.length; ) {
+    const char = raw.charAt(index)
+    if (quoted) {
+      output += char
+      if (escaped) escaped = false
+      else if (char === "\\") escaped = true
+      else if (char === '"') quoted = false
+      index++
+      continue
+    }
+    if (char === '"') {
+      quoted = true
+      output += char
+      index++
+      continue
+    }
+    if (char !== "-" && (char < "0" || char > "9")) {
+      output += char
+      index++
+      continue
+    }
+    const start = index
+    if (raw.charAt(index) === "-") index++
+    while (index < raw.length && raw.charAt(index) >= "0" && raw.charAt(index) <= "9") index++
+    if (raw.charAt(index) === ".") {
+      index++
+      while (index < raw.length && raw.charAt(index) >= "0" && raw.charAt(index) <= "9") index++
+    }
+    if (raw.charAt(index) === "e" || raw.charAt(index) === "E") {
+      index++
+      if (raw.charAt(index) === "+" || raw.charAt(index) === "-") index++
+      while (index < raw.length && raw.charAt(index) >= "0" && raw.charAt(index) <= "9") index++
+    }
+    const token = raw.slice(start, index)
+    const integer = /^-?\d+$/.test(token)
+    output +=
+      integer &&
+      (BigInt(token) > BigInt(Number.MAX_SAFE_INTEGER) ||
+        BigInt(token) < BigInt(Number.MIN_SAFE_INTEGER))
+        ? `"${token}"`
+        : token
+  }
+  return output
 }
 
 function readableMessage(payload: unknown, status: number): string {

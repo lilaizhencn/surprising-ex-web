@@ -227,7 +227,7 @@ const OrderStatusSchema = z.enum([
   "FILLED",
 ])
 
-export const OrderSubmissionSchema = z
+const DirectOrderSubmissionSchema = z
   .object({
     orderId: z.union([z.string(), z.number()]),
     status: OrderStatusSchema,
@@ -236,6 +236,14 @@ export const OrderSubmissionSchema = z
     rejectReason: z.string().nullable().optional(),
   })
   .passthrough()
+
+export const OrderSubmissionSchema = z.union([
+  DirectOrderSubmissionSchema,
+  z
+    .object({ result: DirectOrderSubmissionSchema })
+    .passthrough()
+    .transform((response) => response.result),
+])
 
 export const OrderListSchema = z.union([
   z.array(OrderSchema),

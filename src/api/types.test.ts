@@ -79,6 +79,12 @@ describe("gateway financial response schemas", () => {
     expect(OrderSubmissionSchema.safeParse({ orderId: "1001", status: "REJECTED" }).success).toBe(
       true,
     )
+    expect(
+      OrderSubmissionSchema.parse({
+        outcome: "TERMINAL",
+        result: { orderId: "1286349972006421045", status: "ACCEPTED" },
+      }).orderId,
+    ).toBe("1286349972006421045")
   })
 
   it("accepts the trigger order response used by the trading ticket", () => {
