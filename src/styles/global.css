@@ -1677,6 +1677,7 @@ button:disabled {
   border-bottom: 1px solid var(--color-border);
 }
 .ticket-tabs button {
+  height: calc(var(--trade-heading-height) - var(--space-1) - 1px);
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
@@ -2344,6 +2345,7 @@ button:disabled {
 
 /* Three-column trading workspace */
 .trade-shell {
+  --trade-heading-height: 53px;
   grid-template-columns: 280px minmax(0, 1fr) 350px;
   align-items: start;
 }
@@ -2599,8 +2601,8 @@ button:disabled {
     grid-column: 2 / 4;
     grid-row: 1;
     display: flex;
-    height: 66px;
-    min-height: 66px;
+    height: var(--trade-heading-height);
+    min-height: var(--trade-heading-height);
     gap: 8px;
     padding: 7px 14px;
     overflow: visible;
@@ -2781,7 +2783,10 @@ button:disabled {
 @media (min-width: 1201px) {
   .trade-shell {
     align-items: stretch;
-    grid-template-rows: 66px max(932px, calc(100vh - var(--top-nav-height) - 66px));
+    grid-template-rows: var(--trade-heading-height) max(
+        932px,
+        calc(100vh - var(--top-nav-height) - var(--trade-heading-height))
+      );
   }
   .trade-ticket,
   .trade-main,

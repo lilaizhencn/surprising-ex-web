@@ -1285,20 +1285,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </div>
               ) : null}
             </div>
-            <span className="cluster">
-              {t(view.title)} · {current?.baseAsset ?? t("Asset")}
-              <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
-                {realtime.state === "live" ? t("Realtime") : realtime.state}
-              </Badge>
-              {session && !realtime.views[view.line]?.ready() ? (
-                <Badge tone="neutral">{t("Account syncing")}</Badge>
-              ) : null}
-            </span>
-            {realtime.lastEventAt ? (
-              <small className="muted">
-                {t("Updated")} {formatDate(realtime.lastEventAt)}
-              </small>
-            ) : null}
           </div>
           <div>
             <small>{t("Last Price")}</small>
