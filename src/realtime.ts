@@ -148,7 +148,7 @@ export function unwrapEvent(event: WsEnvelope): WsEnvelope {
     value = {
       ...body,
       updateType: "SNAPSHOT",
-      depth: 20,
+      depth: 50,
       sequence: String(body["exportSequence"] ?? 0),
       bids: rows(body["levels"]).filter((v) => v["side"] === "BUY"),
       asks: rows(body["levels"]).filter((v) => v["side"] === "SELL"),

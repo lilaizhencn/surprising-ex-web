@@ -108,6 +108,7 @@ it("preserves 64-bit identifiers without rounding or rewriting string contents",
   expect(data["price"]).toBe(12.5)
 })
 it("normalizes full depth snapshots, including empty sides", () => {
+  expect(record(unwrapEvent(event("depth", 1, { levels: [] })).data)["depth"]).toBe(50)
   expect(
     record(
       unwrapEvent(
