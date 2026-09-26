@@ -79,6 +79,15 @@ export function unitsToDecimal(units: string | number, scale: UnitScale): string
   return `${whole}.${fraction}`
 }
 
+export function addDecimalQuantities(left: string, right: string): string {
+  const a = parseDecimal(left)
+  const b = parseDecimal(right)
+  const digits = Math.max(a.fractionDigits, b.fractionDigits)
+  const total =
+    a.coefficient * ten(digits - a.fractionDigits) + b.coefficient * ten(digits - b.fractionDigits)
+  return unitsToDecimal(total.toString(), ten(digits).toString())
+}
+
 export function signedUnitsToDecimal(units: string | number, scale: UnitScale): string {
   const normalized = typeof units === "number" ? integerNumberAllowNegative(units) : units.trim()
   if (normalized.startsWith("-")) {

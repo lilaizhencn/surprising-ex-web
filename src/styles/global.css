@@ -1594,13 +1594,13 @@ button:disabled {
 .order-book {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
   padding-top: var(--space-4);
   color: var(--color-ink-muted);
   font-size: var(--font-body-small);
 }
-.order-book > *:nth-child(2n) {
+.order-book > *:not(:nth-child(3n + 1)) {
   text-align: right;
 }
 .order-book strong {
@@ -1640,9 +1640,10 @@ button:disabled {
   min-height: 0;
   overflow-y: auto;
 }
+.recent-trade-columns,
 .recent-trade-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px;
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border-soft);
@@ -2391,11 +2392,22 @@ button:disabled {
   overflow: hidden;
 }
 .order-book-columns {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
   align-items: center;
-  justify-content: space-between;
   color: var(--color-ink-muted);
   font-size: var(--font-body-small);
+}
+.order-book-columns > :not(:first-child) {
+  text-align: right;
+}
+.order-book-columns > *,
+.order-book > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .order-book-scroll {
   min-height: 0;
@@ -2421,7 +2433,7 @@ button:disabled {
 }
 .trade-market-side .order-book {
   grid-auto-rows: 26px;
-  gap: 0 var(--space-3);
+  gap: 0 6px;
   padding-top: 0;
   align-items: center;
 }
@@ -2792,4 +2804,21 @@ button:disabled {
   .trade-market-side .order-book-sides {
     overflow: hidden;
   }
+}
+
+.recent-trade-columns {
+  flex-shrink: 0;
+  padding: 8px 0;
+  color: var(--color-ink-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+.recent-trade-columns > :not(:first-child),
+.recent-trade-row > :last-child {
+  text-align: right;
+}
+.recent-trade-columns > *,
+.recent-trade-row > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

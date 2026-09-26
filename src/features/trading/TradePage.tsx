@@ -58,6 +58,7 @@ import { config, storageKeys } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
 import {
+  addDecimalQuantities,
   decimalProductExceedsUnits,
   decimalToStepUnits,
   decimalToUnits,
@@ -1544,6 +1545,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   : 0
               }
               dollar={isDollarQuote(current?.quoteAsset)}
+              baseAsset={current?.baseAsset ?? "—"}
+              quoteAsset={current?.quoteAsset ?? "—"}
               onDepthChange={setBookDepth}
               onPrecisionChange={setBookPrecision}
             />
@@ -1552,6 +1555,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <div className="panel-heading">
                 <h2>Recent trades</h2>
                 <Badge tone="neutral">{recentTrades.length > 0 ? "Recent" : "Waiting"}</Badge>
+              </div>
+              <div className="recent-trade-columns">
+                <span>价格 ({current?.quoteAsset ?? "—"})</span>
+                <span>数量 ({current?.baseAsset ?? "—"})</span>
+                <span>时间</span>
               </div>
               {recentTrades.length === 0 ? (
                 <p className="subtle">Waiting for recent trades.</p>
@@ -1783,6 +1791,8 @@ export function OrderBook({
   depth,
   precision,
   priceStep,
+  baseAsset,
+  quoteAsset,
   dollar,
   onDepthChange,
   onPrecisionChange,
@@ -1792,15 +1802,27 @@ export function OrderBook({
   readonly depth: 10 | 20 | 50
   readonly precision: 1 | 10 | 100
   readonly priceStep: number
+  readonly baseAsset: string
+  readonly quoteAsset: string
   readonly dollar: boolean
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
   readonly onPrecisionChange: (precision: 1 | 10 | 100) => void
 }) {
   const askSideRef = useRef<HTMLDivElement>(null)
-  const bids = aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid").slice(0, depth)
-  const asks = aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask")
-    .slice(0, depth)
-    .reverse()
+  const withTotals = (levels: Level[]) => {
+    let total = "0"
+    return levels.slice(0, depth).map((level) => {
+      total = addDecimalQuantities(
+        total,
+        String(Array.isArray(level) ? level[1] : level.quantitySteps),
+      )
+      return { level, total }
+    })
+  }
+  const bids = withTotals(aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid"))
+  const asks = withTotals(
+    aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask"),
+  ).reverse()
   useLayoutEffect(() => {
     const askSide = askSideRef.current
     if (askSide) askSide.scrollTop = askSide.scrollHeight
@@ -1835,15 +1857,17 @@ export function OrderBook({
       <div className="order-book-sides">
         <section className="order-book-side" aria-label="Asks, high to low">
           <div className="order-book-columns">
-            <span>Price</span>
-            <span>Amount</span>
+            <span>价格 ({quoteAsset})</span>
+            <span>数量 ({baseAsset})</span>
+            <span>合计 ({baseAsset})</span>
           </div>
           <div ref={askSideRef} className="order-book-scroll order-book-asks">
             <div className="order-book">
-              {asks.map((level) => (
+              {asks.map(({ level, total }) => (
                 <LevelRow
                   key={`ask-${levelPrice(level)}`}
                   level={level}
+                  total={total}
                   tone="negative"
                   dollar={dollar}
                 />
@@ -1861,15 +1885,17 @@ export function OrderBook({
         </div>
         <section className="order-book-side" aria-label="Bids, high to low">
           <div className="order-book-columns">
-            <span>Price</span>
-            <span>Amount</span>
+            <span>价格 ({quoteAsset})</span>
+            <span>数量 ({baseAsset})</span>
+            <span>合计 ({baseAsset})</span>
           </div>
           <div className="order-book-scroll">
             <div className="order-book">
-              {bids.map((level) => (
+              {bids.map(({ level, total }) => (
                 <LevelRow
                   key={`bid-${levelPrice(level)}`}
                   level={level}
+                  total={total}
                   tone="positive"
                   dollar={dollar}
                 />
@@ -1891,17 +1917,17 @@ function aggregateBookLevels(
     side === "bid" ? levelPrice(right) - levelPrice(left) : levelPrice(left) - levelPrice(right),
   )
   if (!Number.isFinite(priceStep) || priceStep <= 0) return sorted
-  const buckets = new Map<string, number>()
+  const buckets = new Map<string, string>()
   for (const level of sorted) {
     const price = levelPrice(level)
-    const quantity = Number(Array.isArray(level) ? level[1] : level.quantitySteps)
-    if (!Number.isFinite(price) || !Number.isFinite(quantity)) continue
+    const quantity = String(Array.isArray(level) ? level[1] : level.quantitySteps)
+    if (!Number.isFinite(price) || !Number.isFinite(Number(quantity))) continue
     const bucket =
       side === "bid"
         ? Math.floor((price + priceStep * 1e-9) / priceStep)
         : Math.ceil((price - priceStep * 1e-9) / priceStep)
     const key = String(Number((bucket * priceStep).toFixed(10)))
-    buckets.set(key, (buckets.get(key) ?? 0) + quantity)
+    buckets.set(key, addDecimalQuantities(buckets.get(key) ?? "0", quantity))
   }
   return [...buckets].map(([price, quantity]) => [price, String(quantity)] as Level)
 }
@@ -1978,10 +2004,12 @@ function mergeOrderBookLevels(
 
 function LevelRow({
   level,
+  total,
   tone,
   dollar,
 }: {
   readonly level: Level
+  readonly total: string
   readonly tone: "positive" | "negative"
   readonly dollar: boolean
 }) {
@@ -1990,7 +2018,12 @@ function LevelRow({
   return (
     <>
       <strong className={`${tone} mono`}>{displayPrice(price, dollar)}</strong>
-      <span className="mono">{amount}</span>
+      <span className="mono" title={amount}>
+        {amount}
+      </span>
+      <span className="mono" title={total}>
+        {total}
+      </span>
     </>
   )
 }
@@ -2413,6 +2446,7 @@ function formatClock(value: string): string {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        hourCycle: "h23",
       }).format(time)
     : "—"
 }
