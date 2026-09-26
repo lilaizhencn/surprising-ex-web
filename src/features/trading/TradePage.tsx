@@ -1,5 +1,5 @@
 import { BarChart3, ChevronDown, Info, RefreshCw, Settings2, Star, XCircle } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
   cancelOrder,
@@ -1810,8 +1810,15 @@ function OrderBook({
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
   readonly onPrecisionChange: (precision: 1 | 10 | 100) => void
 }) {
+  const askSideRef = useRef<HTMLElement>(null)
   const bids = aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid").slice(0, depth)
-  const asks = aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask").slice(0, depth)
+  const asks = aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask")
+    .slice(0, depth)
+    .reverse()
+  useLayoutEffect(() => {
+    const askSide = askSideRef.current
+    if (askSide) askSide.scrollTop = askSide.scrollHeight
+  }, [book, depth, precision])
   return (
     <Panel dense className="order-book-panel">
       <div className="panel-heading">
@@ -1843,8 +1850,11 @@ function OrderBook({
         <StateView kind="empty" message="Order book data is not available." />
       ) : (
         <div className="order-book-sides">
-          <section className="order-book-side" aria-label="Asks, low to high">
-            <h3 className="negative">卖盘 · 低到高</h3>
+          <section
+            ref={askSideRef}
+            className="order-book-side order-book-asks"
+            aria-label="Asks, high to low"
+          >
             <div className="order-book">
               <span>Price</span>
               <span>Amount</span>
@@ -1867,7 +1877,6 @@ function OrderBook({
             </strong>
           </div>
           <section className="order-book-side" aria-label="Bids, high to low">
-            <h3 className="positive">买盘 · 高到低</h3>
             <div className="order-book">
               <span>Price</span>
               <span>Amount</span>

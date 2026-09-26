@@ -2388,6 +2388,20 @@ button:disabled {
 .trade-market-side .order-book-side::-webkit-scrollbar {
   display: none;
 }
+.trade-market-side .order-book-asks {
+  display: flex;
+  flex-direction: column;
+}
+.trade-market-side .order-book-asks .order-book {
+  flex: none;
+  margin-top: auto;
+}
+.trade-market-side .order-book-asks .order-book > span:nth-child(-n + 2) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
 .trade-market-side .book-depth-control {
   gap: 4px;
 }
