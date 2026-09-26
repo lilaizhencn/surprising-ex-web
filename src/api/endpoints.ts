@@ -123,6 +123,27 @@ export const authApi = {
   me: () => request("/api/v1/auth/me", JwtPrincipalSchema),
 }
 
+export async function loadRuntimeProducts(): Promise<readonly ProductLine[]> {
+  const result = await request(
+    "/api/v1/runtime",
+    z.object({
+      productLines: z
+        .array(
+          z.enum([
+            "SPOT",
+            "LINEAR_PERPETUAL",
+            "INVERSE_PERPETUAL",
+            "LINEAR_DELIVERY",
+            "INVERSE_DELIVERY",
+            "OPTION",
+          ]),
+        )
+        .min(1),
+    }),
+  )
+  return result.productLines
+}
+
 export async function loadMarkets(productLine?: ProductLine): Promise<readonly ApiMarket[]> {
   const query = new URLSearchParams({ status: "TRADING" })
   if (productLine) query.set("productLine", productLine)
@@ -205,8 +226,8 @@ export async function loadCandles(
   return response.candles ?? response.items ?? []
 }
 
-export async function loadRecentTrades(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, limit: "50" })
+export async function loadRecentTrades(symbol: string, productLine: ProductLine, limit = 50) {
+  const query = new URLSearchParams({ symbol, limit: String(limit) })
   const response = await request(
     `/api/v1/gateway/candlestick/trades/recent?${query.toString()}`,
     z.object({ trades: z.array(GenericObjectSchema) }),

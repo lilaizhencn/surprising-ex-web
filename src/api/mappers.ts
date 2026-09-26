@@ -41,7 +41,7 @@ export function mapMarket(raw: ApiMarket): Market {
 
 export function mapCandle(raw: ApiCandle): Candle {
   return {
-    time: raw.openTime,
+    time: new Date(raw.openTime).toISOString(),
     open: numeric(raw.openPrice) ?? 0,
     high: numeric(raw.highPrice) ?? 0,
     low: numeric(raw.lowPrice) ?? 0,

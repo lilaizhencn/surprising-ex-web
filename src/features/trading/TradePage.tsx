@@ -152,25 +152,27 @@ const chartPeriodMs: Readonly<Record<string, number>> = {
 function periodMillisecondsForChart(period: string): number {
   return chartPeriodMs[period] ?? 60_000
 }
-function applyTradeToCandles(
+export function applyTradeToCandles(
   rows: readonly Candle[],
   time: number,
   interval: number,
   price: number,
   quantity: number,
 ): readonly Candle[] {
-  const bucket = new Date(Math.floor(time / interval) * interval).toISOString()
-  const previous = rows.find((row) => row.time === bucket)
+  const bucketTime = Math.floor(time / interval) * interval
+  const bucket = new Date(bucketTime).toISOString()
+  const previous = rows.find((row) => Date.parse(row.time) === bucketTime)
   const next: Candle = previous
     ? {
         ...previous,
+        time: bucket,
         high: Math.max(previous.high, price),
         low: Math.min(previous.low, price),
         close: price,
         volume: previous.volume + quantity,
       }
     : { time: bucket, open: price, high: price, low: price, close: price, volume: quantity }
-  return [...rows.filter((row) => row.time !== bucket), next]
+  return [...rows.filter((row) => Date.parse(row.time) !== bucketTime), next]
     .sort((left, right) => left.time.localeCompare(right.time))
     .slice(-120)
 }
@@ -523,13 +525,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     let cancelled = false
     const refreshPairQuotes = async () => {
       const quotes = await Promise.allSettled(
-        markets.map((market) => loadMarkPrice(market.symbol, view.line)),
+        markets.map((market) => loadRecentTrades(market.symbol, view.line, 1)),
       )
       if (cancelled) return
       quotes.forEach((result, index) => {
         const symbol = markets[index]?.symbol
-        if (symbol && result.status === "fulfilled") {
-          updateMarketQuote(symbol, numberValue(result.value, "markPrice"))
+        const market = markets[index]
+        if (
+          symbol &&
+          market &&
+          result.status === "fulfilled" &&
+          latestTradeRef.current?.symbol !== symbol
+        ) {
+          updateMarketQuote(
+            symbol,
+            marketPriceFromRecord(result.value[0] ?? {}, market, assetScales),
+          )
         }
       })
     }
@@ -539,7 +550,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [markets, updateMarketQuote, view.line])
+  }, [markets, assetScales, updateMarketQuote, view.line])
   useEffect(() => {
     if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
     let cancelled = false
@@ -588,7 +599,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           if (generation !== marketGeneration.current) return
           const history = rows.map(mapCandle)
           const latestCandle = history.at(-1)
-          if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
+          if (latestCandle && latestTradeRef.current?.symbol !== current.symbol)
+            updateMarketQuote(current.symbol, latestCandle.close)
           setCandles((live) => {
             const byTime = new Map(history.map((candle) => [candle.time, candle]))
             for (const candle of live) byTime.set(candle.time, candle)
@@ -756,7 +768,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           liveTrade.bucket === next.time &&
           candleSequence !== null &&
           candleSequence < liveTrade.sequence
-        if (!olderThanLiveTrade) updateMarketQuote(current.symbol, next.close)
+        if (!olderThanLiveTrade && (!liveTrade || next.time >= liveTrade.bucket))
+          updateMarketQuote(current.symbol, next.close)
         setCandles((rows) => {
           const live = rows.find((row) => row.time === next.time)
           const resolved =

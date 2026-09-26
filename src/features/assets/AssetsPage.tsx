@@ -1,27 +1,19 @@
 import { Eye, EyeOff, FileText, PieChart, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
-import {
-  loadAccountLedger,
-  loadAssetScales,
-  loadBalances,
-  loadUsdValuation,
-} from "../../api/endpoints"
-import { mapBalance } from "../../api/mappers"
-import type { ApiBalance } from "../../api/types"
+import { loadAccountLedger, loadAssetScales } from "../../api/endpoints"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
 import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
 import { formatUsd } from "../../lib/format"
-import { signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
+import { signedUnitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
 import type { Balance } from "../../types/domain"
 
 type LedgerRow = Readonly<Record<string, unknown> & { readonly amountUnits?: string | number }>
 
 export function AssetsPage({ account }: { readonly account: string | null }) {
-  const [balances, setBalances] = useState<readonly Balance[]>([])
   const [error, setError] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -34,35 +26,13 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
     if (!session) return
     let cancelled = false
     setLoading(true)
-    void Promise.allSettled([
-      loadBalances(undefined, "FUNDING"),
-      loadAssetScales(),
-      loadAccountLedger(),
-    ])
-      .then(async (results) => {
+    void Promise.allSettled([loadAssetScales(), loadAccountLedger()])
+      .then(([scaleResult, ledgerResult]) => {
         if (cancelled) return
-        const balanceResults = results.slice(0, 1)
-        const scaleResult = results[1]
-        const ledgerResult = results[2]
-        const assetScales = scaleResult?.status === "fulfilled" ? scaleResult.value : {}
-        const rawRows = balanceResults.flatMap((result) => {
-          if (result.status !== "fulfilled") return []
-          if (!Array.isArray(result.value)) return []
-          const value = result.value as readonly ApiBalance[]
-          return value.filter(isBalanceRow)
-        })
-        if (balanceResults.some((result) => result.status === "rejected")) {
-          const rejected = balanceResults.find((result) => result.status === "rejected")
-          throw rejected?.status === "rejected"
-            ? rejected.reason
-            : new Error(t("Asset service unavailable"))
-        }
-        setLedger(ledgerResult?.status === "fulfilled" ? ledgerResult.value : [])
-        setAssetScales(assetScales)
-        setLedgerError(ledgerResult?.status === "rejected" ? readError(ledgerResult.reason) : null)
-        const funding = await Promise.all(rawRows.map((row) => mapBalanceWithUsd(row, assetScales)))
-        if (cancelled) return
-        setBalances(funding)
+        if (scaleResult.status === "rejected") throw scaleResult.reason
+        setAssetScales(scaleResult.value)
+        setLedger(ledgerResult.status === "fulfilled" ? ledgerResult.value : [])
+        setLedgerError(ledgerResult.status === "rejected" ? readError(ledgerResult.reason) : null)
         setError(null)
       })
       .catch((reason: unknown) => {
@@ -76,8 +46,8 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       cancelled = true
     }
   }, [session])
-  const demo = config.demoDataEnabled && balances.length === 0 && !session
-  const allRows = session ? [...realtime.balances, ...balances] : demo ? demoBalances : []
+  const demo = config.demoDataEnabled && !session
+  const allRows = session ? realtime.balances : demo ? demoBalances : []
   const rows = allRows.filter((balance) => accountMatches(balance, account))
   const hasUsdValuation =
     (demo || (realtime.ready && !loading && !error)) &&
@@ -95,7 +65,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           <p>{t("Review account balances and move funds with explicit confirmation.")}</p>
         </div>
         <Button tone="outline" onClick={() => setHidden(!hidden)}>
-          {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {hidden ? "Show" : "Hide"}
+          {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {t(hidden ? "Show" : "Hide")}
         </Button>
       </div>
       {session && !realtime.ready ? (
@@ -126,7 +96,11 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                   ? "—"
                   : formatUsd(total)
                 : "Log in to view"}{" "}
-            <small>{total === null ? "Backend valuation unavailable" : "USD"}</small>
+            <small>
+              {total === null
+                ? t(loading || !realtime.ready ? "Syncing assets" : "Valuation unavailable")
+                : "USD"}
+            </small>
           </div>
           <div className="balance-actions">
             <Button
@@ -177,10 +151,14 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
             </>
           ) : (
             <StateView
-              kind={session ? "empty" : "error"}
+              kind={session && (loading || !realtime.ready) ? "loading" : "empty"}
               message={
                 session
-                  ? "Asset distribution is unavailable until balances are returned."
+                  ? loading || !realtime.ready
+                    ? "Syncing assets"
+                    : total === null
+                      ? "Valuation unavailable"
+                      : "No assets to display yet."
                   : "Sign in to view your asset distribution."
               }
             />
@@ -202,8 +180,8 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           </div>
           {ledger.length === 0 ? (
             <StateView
-              kind="empty"
-              message="No funding ledger entries returned by the account service."
+              kind={loading ? "loading" : "empty"}
+              message={loading ? "Loading funding history" : "No funding account activity yet."}
             />
           ) : (
             <div className="asset-ledger-list">
@@ -304,53 +282,6 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         </Panel>
       )}
     </div>
-  )
-}
-
-function isBalanceRow(row: ApiBalance): row is ApiBalance {
-  return "asset" in row
-}
-
-async function mapBalanceWithUsd(
-  raw: ApiBalance,
-  assetScales: Readonly<Record<string, string>>,
-): Promise<Balance> {
-  const balance = mapBalance(raw, assetScales)
-  const scale = assetScales[raw.asset]
-  const available =
-    raw.availableUnits !== undefined && scale
-      ? stepUnitsToDecimal(raw.availableUnits, "1", scale)
-      : raw.free === undefined
-        ? "0"
-        : String(raw.free)
-  const locked =
-    raw.lockedUnits !== undefined && scale
-      ? stepUnitsToDecimal(raw.lockedUnits, "1", scale)
-      : raw.locked === undefined
-        ? "0"
-        : String(raw.locked)
-  const amount = decimalAdd(available, locked)
-  try {
-    const valuation = await loadUsdValuation(amount, raw.asset)
-    const estimatedUsd = Number(valuation.convertedAmount)
-    return Number.isFinite(estimatedUsd) ? { ...balance, estimatedUsd } : balance
-  } catch {
-    return balance
-  }
-}
-
-function decimalAdd(left: string, right: string): string {
-  const [leftWhole, leftFraction = ""] = left.split(".")
-  const [rightWhole, rightFraction = ""] = right.split(".")
-  const digits = Math.max(leftFraction.length, rightFraction.length)
-  const leftValue = BigInt(`${leftWhole}${leftFraction.padEnd(digits, "0")}`)
-  const rightValue = BigInt(`${rightWhole}${rightFraction.padEnd(digits, "0")}`)
-  const total = leftValue + rightValue
-  if (digits === 0) return total.toString()
-  const normalized = total.toString().padStart(digits + 1, "0")
-  return `${normalized.slice(0, -digits)}.${normalized.slice(-digits).replace(/0+$/, "")}`.replace(
-    /\.$/,
-    "",
   )
 }
 

@@ -620,5 +620,9 @@
   "Take-profit and stop-loss prices are in the wrong order for this position.": "止盈和止损价格的高低顺序与仓位方向不符。",
   "OCO pair was not accepted.": "双向止盈止损未被接受。",
   "Take-profit and stop-loss accepted together.": "止盈和止损已同时接受。",
-  "One-way trigger": "单向"
+  "One-way trigger": "单向",
+  "Valuation unavailable": "暂时无法估值",
+  "No assets to display yet.": "暂无可展示的资产。",
+  "Loading funding history": "正在加载资金账户流水",
+  "No funding account activity yet.": "资金账户暂无流水。"
 }

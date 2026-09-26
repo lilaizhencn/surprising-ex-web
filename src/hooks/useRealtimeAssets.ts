@@ -7,7 +7,6 @@ import { decimalToStepUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "..
 import {
   accountEquity,
   integer,
-  PRODUCTS,
   type Row,
   record,
   type Subscription,
@@ -110,7 +109,7 @@ export function useRealtimeAssets(
   useEffect(() => {
     const next: Subscription[] = []
     const assets = new Set<string>()
-    for (const product of PRODUCTS) {
+    for (const product of realtime.products) {
       for (const b of realtime.views[product]?.rows("balance") ?? []) assets.add(String(b["asset"]))
       for (const p of realtime.views[product]?.rows("position") ?? []) {
         if (Number(p["signedQuantitySteps"]) !== 0) {
@@ -125,9 +124,9 @@ export function useRealtimeAssets(
         next.push({ channel: "bookTicker", productLine: "SPOT", symbol: m.symbol })
       }
     setHeld(next)
-  }, [realtime.views, mappedMarkets])
+  }, [realtime.views, realtime.products, mappedMarkets])
   const result = useMemo(() => {
-    let ready = Boolean(session && fx && markets.length)
+    let ready = Boolean(session && fx && markets.length && realtime.products.length)
     const balances: Balance[] = []
     const prices = new Map<string, number>([["USDT", 1]])
     for (const m of mappedMarkets.filter(
@@ -152,7 +151,7 @@ export function useRealtimeAssets(
       const price = eventPrice(event, m, scales) ?? initialPrice
       if (price !== null && price > 0) prices.set(m.baseAsset, price)
     }
-    for (const product of PRODUCTS) {
+    for (const product of realtime.products) {
       const view = realtime.views[product]
       if (!view) {
         ready = false
@@ -199,6 +198,15 @@ export function useRealtimeAssets(
       }
     }
     return { balances, ready }
-  }, [session, fx, markets, mappedMarkets, realtime.views, realtime.events, scales])
-  return { ...result, error, refresh: realtime.refresh }
+  }, [
+    session,
+    fx,
+    markets,
+    mappedMarkets,
+    realtime.views,
+    realtime.events,
+    realtime.products,
+    scales,
+  ])
+  return { ...result, error: error ?? realtime.error, refresh: realtime.refresh }
 }

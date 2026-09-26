@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react"
+import { loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
 import {
   newerPublicEvent,
   PRIVATE_CHANNELS,
-  PRODUCTS,
   PrivateView,
   privateSubscriptions,
   type Subscription,
@@ -49,6 +49,8 @@ export function useRealtimeFeed(
   session: AuthSession | null,
   subscriptions: readonly Subscription[],
 ) {
+  const [products, setProducts] = useState<readonly ProductLine[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<RealtimeState>("connecting")
   const [lastEventAt, setLastEventAt] = useState<string | null>(null)
   const [events, setEvents] = useState<readonly WsEnvelope[]>([])
@@ -145,7 +147,18 @@ export function useRealtimeFeed(
           )
         : null
     privateConnections.current = privateManager
-    privateManager?.update(privateSubscriptions(PRODUCTS))
+    void loadRuntimeProducts()
+      .then((enabled) => {
+        if (closed) return
+        setProducts(enabled)
+        setError(null)
+        privateManager?.update(privateSubscriptions(enabled))
+      })
+      .catch((reason: unknown) => {
+        if (closed) return
+        setError(reason instanceof Error ? reason.message : "Account availability unavailable")
+        setState("degraded")
+      })
     publish()
     const freshness = setInterval(publish, 1000)
     return () => {
@@ -157,6 +170,8 @@ export function useRealtimeFeed(
     }
   }, [accessToken, userId, identity])
   return {
+    products,
+    error,
     state,
     lastEventAt,
     events: owner === identity ? events : EMPTY_EVENTS,
