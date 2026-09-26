@@ -294,7 +294,7 @@ export function PriceChart({
       }
     }
     if (bars.length > 0 && (lastPeriod.current !== period || !previous)) {
-      const visibleBars = Math.min(80, Math.max(bars.length, 16))
+      const visibleBars = Math.min(80, Math.max(bars.length, 6))
       chart
         .timeScale()
         .setVisibleLogicalRange({ from: bars.length - visibleBars, to: bars.length + 2 })
