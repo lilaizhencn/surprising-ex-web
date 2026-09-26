@@ -23,6 +23,26 @@ const candleTime = new Intl.DateTimeFormat(undefined, {
   hour12: false,
 })
 
+export function prepareChartCandles(candles: readonly Candle[]): Candle[] {
+  const bySecond = new Map<number, Candle>()
+  for (const candle of [...candles].sort(
+    (left, right) => Date.parse(left.time) - Date.parse(right.time),
+  )) {
+    const timestamp = Date.parse(candle.time)
+    if (
+      !Number.isFinite(timestamp) ||
+      ![candle.open, candle.high, candle.low, candle.close].every(
+        (price) => Number.isFinite(price) && price > 0,
+      ) ||
+      candle.high < Math.max(candle.open, candle.close) ||
+      candle.low > Math.min(candle.open, candle.close)
+    )
+      continue
+    bySecond.set(Math.floor(timestamp / 1000), candle)
+  }
+  return [...bySecond.values()].slice(-120)
+}
+
 export function PriceChart({
   candles,
   period,
@@ -41,18 +61,7 @@ export function PriceChart({
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null)
   const lastPeriod = useRef<string | null>(null)
-  const valid = candles
-    .filter(
-      (candle) =>
-        Number.isFinite(Date.parse(candle.time)) &&
-        [candle.open, candle.high, candle.low, candle.close].every(
-          (price) => Number.isFinite(price) && price > 0,
-        ) &&
-        candle.high >= Math.max(candle.open, candle.close) &&
-        candle.low <= Math.min(candle.open, candle.close),
-    )
-    .sort((left, right) => left.time.localeCompare(right.time))
-    .slice(-120)
+  const valid = prepareChartCandles(candles)
   const latest = valid.at(-1)
   const formatPrice = (price: number) => (dollar ? dollarPrice : otherPrice).format(price)
 
