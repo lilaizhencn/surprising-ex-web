@@ -731,8 +731,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ])
       inFlight = false
       if (cancelled) return
-      if (markResult.status === "fulfilled") setMarkPrice(markResult.value)
-      if (indexResult.status === "fulfilled") setIndexPrice(indexResult.value)
+      setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
+      setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
     }
     void refreshPrices()
     const timer = window.setInterval(() => void refreshPrices(), 1_000)
