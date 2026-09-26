@@ -144,6 +144,7 @@ const productKeyAliases: Readonly<Record<string, string>> = {
 type Level = ApiOrderBookLevel
 const chartPeriodMs: Readonly<Record<string, number>> = {
   "1m": 60_000,
+  "5m": 300_000,
   "15m": 900_000,
   "1h": 3_600_000,
   "4h": 14_400_000,
@@ -521,12 +522,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     }
   }, [view.line])
   useEffect(() => {
-    if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
+    if (!pairOpen || markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
     let cancelled = false
+    let inFlight = false
     const refreshPairQuotes = async () => {
+      if (inFlight) return
+      inFlight = true
       const quotes = await Promise.allSettled(
         markets.map((market) => loadRecentTrades(market.symbol, view.line, 1)),
       )
+      inFlight = false
       if (cancelled) return
       quotes.forEach((result, index) => {
         const symbol = markets[index]?.symbol
@@ -550,7 +555,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [markets, assetScales, updateMarketQuote, view.line])
+  }, [pairOpen, markets, assetScales, updateMarketQuote, view.line])
   useEffect(() => {
     if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
     let cancelled = false
@@ -1386,7 +1391,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <DeliveryDetails market={current} />
           ) : null}
           <div className="trade-chart-toolbar">
-            {["1m", "15m", "1h", "4h", "1d"].map((value) => (
+            {["1m", "5m", "15m", "1h", "4h", "1d"].map((value) => (
               <button
                 type="button"
                 className={period === value ? "active" : ""}
@@ -1404,6 +1409,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </Button>
           </div>
           <PriceChart
+            key={`${view.line}:${current?.symbol ?? view.symbol}`}
             candles={candles}
             period={period}
             dollar={isDollarQuote(current?.quoteAsset)}

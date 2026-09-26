@@ -28,6 +28,7 @@ const candleTime = new Intl.DateTimeFormat(undefined, {
 
 const periodMs: Record<string, number> = {
   "1m": 60_000,
+  "5m": 300_000,
   "15m": 900_000,
   "1h": 3_600_000,
   "4h": 14_400_000,
@@ -196,7 +197,9 @@ export function PriceChart({
     const price = chart.addSeries(CandlestickSeries, {
       upColor: initial.up,
       downColor: initial.down,
-      borderVisible: false,
+      borderVisible: true,
+      borderUpColor: initial.up,
+      borderDownColor: initial.down,
       wickUpColor: initial.up,
       wickDownColor: initial.down,
     })
@@ -236,6 +239,8 @@ export function PriceChart({
       price.applyOptions({
         upColor: next.up,
         downColor: next.down,
+        borderUpColor: next.up,
+        borderDownColor: next.down,
         wickUpColor: next.up,
         wickDownColor: next.down,
       })
@@ -301,7 +306,28 @@ export function PriceChart({
     const first = Number(bars[0]?.time)
     const last = Number(bars.at(-1)?.time)
     const previous = lastBar.current
+    // A closed bar can receive a delayed trade/history correction. Replace both
+    // series together when any earlier candle changed, not only the latest bar.
+    const displayedBars = price.data()
+    const displayedVolumes = volume.data()
+    const historyChanged = bars.slice(0, -1).some((bar, index) => {
+      const displayed = displayedBars[index]
+      const displayedVolume = displayedVolumes[index]
+      return (
+        !displayed ||
+        !("open" in displayed) ||
+        displayed.time !== bar.time ||
+        displayed.open !== bar.open ||
+        displayed.high !== bar.high ||
+        displayed.low !== bar.low ||
+        displayed.close !== bar.close ||
+        !displayedVolume ||
+        !("value" in displayedVolume) ||
+        displayedVolume.value !== volumes[index]?.value
+      )
+    })
     const reset =
+      historyChanged ||
       lastPeriod.current !== period ||
       !previous ||
       bars.length === 0 ||
@@ -321,6 +347,7 @@ export function PriceChart({
       }
     }
     if (bars.length > 0 && (lastPeriod.current !== period || !previous)) {
+      price.priceScale().applyOptions({ autoScale: true })
       chart.timeScale().applyOptions({ barSpacing: 8, rightOffset: 2 })
       chart.timeScale().scrollToPosition(2, false)
       lastPeriod.current = period

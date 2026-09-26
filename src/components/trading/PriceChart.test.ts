@@ -34,4 +34,16 @@ describe("prepareChartCandles", () => {
       ["2026-09-26T03:06:00.000Z", 101, 0],
     ])
   })
+  it("uses five-minute buckets without assigning volume to missing trades", () => {
+    const rows = prepareChartCandles(
+      [{ time: "2026-09-26T03:00:00Z", open: 100, high: 102, low: 99, close: 101, volume: 3 }],
+      "5m",
+      Date.parse("2026-09-26T03:11:30Z"),
+    )
+    expect(rows.map((bar) => [bar.time, bar.volume])).toEqual([
+      ["2026-09-26T03:00:00Z", 3],
+      ["2026-09-26T03:05:00.000Z", 0],
+      ["2026-09-26T03:10:00.000Z", 0],
+    ])
+  })
 })
