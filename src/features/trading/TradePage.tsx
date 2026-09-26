@@ -985,214 +985,210 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   return (
     <div className="trade-page">
       <div className="trade-shell">
-        <main className="trade-main">
-          <header className="trade-market-header">
-            <div>
-              <div className="trade-pair-picker" ref={pairPickerRef}>
-                <h1>
-                  <button
-                    type="button"
-                    className="trade-pair-trigger"
-                    aria-expanded={pairOpen}
-                    aria-label="Select trading pair"
-                    onClick={() => setPairOpen((open) => !open)}
-                  >
-                    {current ? <AssetIcon asset={current.baseAsset} /> : null}
-                    <span>{current?.symbol ?? view.symbol}</span>
-                    <ChevronDown size={17} />
-                  </button>
-                  <Info size={18} />
-                </h1>
-                {pairOpen ? (
-                  <div className="trade-pair-popover">
-                    <SearchField
-                      value={pairSearch}
-                      onChange={setPairSearch}
-                      placeholder="Search pairs..."
-                    />
-                    <div className="trade-tabs">
-                      <button
-                        type="button"
-                        className={pairTab === "all" ? "active" : ""}
-                        onClick={() => setPairTab("all")}
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        className={pairTab === "favorites" ? "active" : ""}
-                        onClick={() => setPairTab("favorites")}
-                      >
-                        Favorites
-                      </button>
-                    </div>
-                    <div className="trade-pair-list">
-                      {filteredMarkets.map((market) => (
-                        <div
-                          className={`pair-row ${market.symbol === current?.symbol ? "active" : ""}`}
-                          key={market.symbol}
-                        >
-                          <button
-                            type="button"
-                            className="pair-favorite"
-                            aria-label={
-                              favorites.includes(market.symbol)
-                                ? `Remove ${market.symbol} from favorites`
-                                : `Add ${market.symbol} to favorites`
-                            }
-                            onClick={() => toggleFavorite(market.symbol)}
-                          >
-                            <Star
-                              size={15}
-                              fill={favorites.includes(market.symbol) ? "currentColor" : "none"}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            className="pair-select"
-                            onClick={() => {
-                              setSelected(market.symbol)
-                              setPairOpen(false)
-                            }}
-                          >
-                            <AssetIcon asset={market.baseAsset} />
-                            <span>{market.symbol}</span>
-                          </button>
-                          <span className="pair-market-values">
-                            <strong className="mono">
-                              <Price
-                                value={marketQuotes[market.symbol] ?? market.price}
-                                dollar={isDollarQuote(market.quoteAsset)}
-                              />
-                            </strong>
-                            <small
-                              className={
-                                (pairChanges[market.symbol] ?? market.change24h ?? 0) >= 0
-                                  ? "positive mono"
-                                  : "negative mono"
-                              }
-                            >
-                              {formatPercent(pairChanges[market.symbol] ?? market.change24h)}
-                            </small>
-                          </span>
-                        </div>
-                      ))}
-                      {filteredMarkets.length === 0 ? (
-                        <StateView
-                          kind="empty"
-                          message={
-                            pairTab === "favorites"
-                              ? "No favorite pairs yet."
-                              : "No matching trading pairs."
-                          }
-                        />
-                      ) : null}
-                    </div>
+        <header className="trade-market-header">
+          <div>
+            <div className="trade-pair-picker" ref={pairPickerRef}>
+              <h1>
+                <button
+                  type="button"
+                  className="trade-pair-trigger"
+                  aria-expanded={pairOpen}
+                  aria-label="Select trading pair"
+                  onClick={() => setPairOpen((open) => !open)}
+                >
+                  {current ? <AssetIcon asset={current.baseAsset} /> : null}
+                  <span>{current?.symbol ?? view.symbol}</span>
+                  <ChevronDown size={17} />
+                </button>
+                <Info size={18} />
+              </h1>
+              {pairOpen ? (
+                <div className="trade-pair-popover">
+                  <SearchField
+                    value={pairSearch}
+                    onChange={setPairSearch}
+                    placeholder="Search pairs..."
+                  />
+                  <div className="trade-tabs">
+                    <button
+                      type="button"
+                      className={pairTab === "all" ? "active" : ""}
+                      onClick={() => setPairTab("all")}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={pairTab === "favorites" ? "active" : ""}
+                      onClick={() => setPairTab("favorites")}
+                    >
+                      Favorites
+                    </button>
                   </div>
-                ) : null}
-              </div>
-              <span className="cluster">
-                {view.title} · {current?.baseAsset ?? "Asset"}
-                <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
-                  {realtime.state === "live" ? "Realtime" : realtime.state}
-                </Badge>
-                {session && !realtime.views[view.line]?.ready() ? (
-                  <Badge tone="neutral">Account syncing</Badge>
-                ) : null}
-              </span>
-              {realtime.lastEventAt ? (
-                <small className="muted">Updated {formatDate(realtime.lastEventAt)}</small>
+                  <div className="trade-pair-list">
+                    {filteredMarkets.map((market) => (
+                      <div
+                        className={`pair-row ${market.symbol === current?.symbol ? "active" : ""}`}
+                        key={market.symbol}
+                      >
+                        <button
+                          type="button"
+                          className="pair-favorite"
+                          aria-label={
+                            favorites.includes(market.symbol)
+                              ? `Remove ${market.symbol} from favorites`
+                              : `Add ${market.symbol} to favorites`
+                          }
+                          onClick={() => toggleFavorite(market.symbol)}
+                        >
+                          <Star
+                            size={15}
+                            fill={favorites.includes(market.symbol) ? "currentColor" : "none"}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          className="pair-select"
+                          onClick={() => {
+                            setSelected(market.symbol)
+                            setPairOpen(false)
+                          }}
+                        >
+                          <AssetIcon asset={market.baseAsset} />
+                          <span>{market.symbol}</span>
+                        </button>
+                        <span className="pair-market-values">
+                          <strong className="mono">
+                            <Price
+                              value={marketQuotes[market.symbol] ?? market.price}
+                              dollar={isDollarQuote(market.quoteAsset)}
+                            />
+                          </strong>
+                          <small
+                            className={
+                              (pairChanges[market.symbol] ?? market.change24h ?? 0) >= 0
+                                ? "positive mono"
+                                : "negative mono"
+                            }
+                          >
+                            {formatPercent(pairChanges[market.symbol] ?? market.change24h)}
+                          </small>
+                        </span>
+                      </div>
+                    ))}
+                    {filteredMarkets.length === 0 ? (
+                      <StateView
+                        kind="empty"
+                        message={
+                          pairTab === "favorites"
+                            ? "No favorite pairs yet."
+                            : "No matching trading pairs."
+                        }
+                      />
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
             </div>
-            <div>
-              <small>Last Price</small>
-              <strong className="positive mono">
-                <Price
-                  value={
-                    candles.at(-1)?.close ??
-                    (current ? marketQuotes[current.symbol] : null) ??
-                    current?.price ??
-                    null
-                  }
-                  dollar={isDollarQuote(current?.quoteAsset)}
-                />
-              </strong>
-            </div>
-            <div>
-              <small>24h Change</small>
-              <strong
-                className={
-                  (dayStats?.change ?? current?.change24h ?? 0) >= 0
-                    ? "positive mono"
-                    : "negative mono"
-                }
-              >
-                {formatPercent(dayStats?.change ?? current?.change24h ?? null)}
-              </strong>
-            </div>
-            <div>
-              <small>24h Open</small>
-              <strong className="mono">
-                <Price value={dayStats?.open ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
-              </strong>
-            </div>
-            <div>
-              <small>24h High</small>
-              <strong className="mono">
-                <Price
-                  value={dayStats?.high ?? current?.high24h ?? null}
-                  dollar={isDollarQuote(current?.quoteAsset)}
-                />
-              </strong>
-            </div>
-            <div>
-              <small>24h Low</small>
-              <strong className="mono">
-                <Price
-                  value={dayStats?.low ?? current?.low24h ?? null}
-                  dollar={isDollarQuote(current?.quoteAsset)}
-                />
-              </strong>
-            </div>
-            <div>
-              <small>24h Close</small>
-              <strong className="mono">
-                <Price
-                  value={dayStats?.close ?? null}
-                  dollar={isDollarQuote(current?.quoteAsset)}
-                />
-              </strong>
-            </div>
-            {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
-              <>
-                <div>
-                  <small>Mark price</small>
-                  <strong className="mono">
-                    <Price
-                      value={numberValue(markPrice, "markPrice")}
-                      dollar={isDollarQuote(current?.quoteAsset)}
-                    />
-                  </strong>
-                </div>
-                <div>
-                  <small>Index price</small>
-                  <strong className="mono">
-                    <Price
-                      value={numberValue(indexPrice, "indexPrice")}
-                      dollar={isDollarQuote(current?.quoteAsset)}
-                    />
-                  </strong>
-                </div>
-                <div className="funding-summary">
-                  <small>Funding / Next funding</small>
-                  <strong className="mono">
-                    <span className="positive">{fundingRate(funding)}</span> ·{" "}
-                    {fundingTime(funding)}
-                  </strong>
-                </div>
-              </>
+            <span className="cluster">
+              {view.title} · {current?.baseAsset ?? "Asset"}
+              <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
+                {realtime.state === "live" ? "Realtime" : realtime.state}
+              </Badge>
+              {session && !realtime.views[view.line]?.ready() ? (
+                <Badge tone="neutral">Account syncing</Badge>
+              ) : null}
+            </span>
+            {realtime.lastEventAt ? (
+              <small className="muted">Updated {formatDate(realtime.lastEventAt)}</small>
             ) : null}
-          </header>
+          </div>
+          <div>
+            <small>Last Price</small>
+            <strong className="positive mono">
+              <Price
+                value={
+                  candles.at(-1)?.close ??
+                  (current ? marketQuotes[current.symbol] : null) ??
+                  current?.price ??
+                  null
+                }
+                dollar={isDollarQuote(current?.quoteAsset)}
+              />
+            </strong>
+          </div>
+          <div>
+            <small>24h Change</small>
+            <strong
+              className={
+                (dayStats?.change ?? current?.change24h ?? 0) >= 0
+                  ? "positive mono"
+                  : "negative mono"
+              }
+            >
+              {formatPercent(dayStats?.change ?? current?.change24h ?? null)}
+            </strong>
+          </div>
+          <div>
+            <small>24h Open</small>
+            <strong className="mono">
+              <Price value={dayStats?.open ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
+            </strong>
+          </div>
+          <div>
+            <small>24h High</small>
+            <strong className="mono">
+              <Price
+                value={dayStats?.high ?? current?.high24h ?? null}
+                dollar={isDollarQuote(current?.quoteAsset)}
+              />
+            </strong>
+          </div>
+          <div>
+            <small>24h Low</small>
+            <strong className="mono">
+              <Price
+                value={dayStats?.low ?? current?.low24h ?? null}
+                dollar={isDollarQuote(current?.quoteAsset)}
+              />
+            </strong>
+          </div>
+          <div>
+            <small>24h Close</small>
+            <strong className="mono">
+              <Price value={dayStats?.close ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
+            </strong>
+          </div>
+          {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+            <>
+              <div>
+                <small>Mark price</small>
+                <strong className="mono">
+                  <Price
+                    value={numberValue(markPrice, "markPrice")}
+                    dollar={isDollarQuote(current?.quoteAsset)}
+                  />
+                </strong>
+              </div>
+              <div>
+                <small>Index price</small>
+                <strong className="mono">
+                  <Price
+                    value={numberValue(indexPrice, "indexPrice")}
+                    dollar={isDollarQuote(current?.quoteAsset)}
+                  />
+                </strong>
+              </div>
+              <div className="funding-summary">
+                <small>Funding / Next funding</small>
+                <strong className="mono">
+                  <span className="positive">{fundingRate(funding)}</span> · {fundingTime(funding)}
+                </strong>
+              </div>
+            </>
+          ) : null}
+        </header>
+        <main className="trade-main">
           {view.line === PRODUCT_LINES.option ? (
             <OptionDetails market={current} quote={optionQuote} />
           ) : null}
@@ -1221,6 +1217,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             candles={candles}
             period={period}
             dollar={isDollarQuote(current?.quoteAsset)}
+            volumeUnit={
+              current?.productLine === PRODUCT_LINES.usdMPerpetual
+                ? "张"
+                : (current?.baseAsset ?? "")
+            }
             demo={demo}
             unavailable={!demo && candles.length === 0}
           />
@@ -1435,6 +1436,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {marketSideTab === "book" ? (
             <OrderBook
               book={book}
+              latestTrade={recentTrades[0] ?? null}
               depth={bookDepth}
               precision={bookPrecision}
               priceStep={
@@ -1678,6 +1680,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
 function OrderBook({
   book,
+  latestTrade,
   depth,
   precision,
   priceStep,
@@ -1686,6 +1689,7 @@ function OrderBook({
   onPrecisionChange,
 }: {
   readonly book: ApiOrderBook | null
+  readonly latestTrade: Readonly<Record<string, unknown>> | null
   readonly depth: 10 | 20 | 50
   readonly precision: 1 | 10 | 100
   readonly priceStep: number
@@ -1741,6 +1745,14 @@ function OrderBook({
               ))}
             </div>
           </section>
+          <div className="order-book-last-trade" aria-live="polite">
+            <span>最新成交</span>
+            <strong
+              className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
+            >
+              {displayPrice(text(latestTrade, "price"), dollar)}
+            </strong>
+          </div>
           <section className="order-book-side" aria-label="Bids, high to low">
             <h3 className="positive">买盘 · 高到低</h3>
             <div className="order-book">

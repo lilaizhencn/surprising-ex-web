@@ -2538,3 +2538,128 @@ button:disabled {
     grid-template-rows: 1fr;
   }
 }
+
+/* Trading ticker spans the chart and depth column, leaving a taller chart below. */
+@media (min-width: 1201px) {
+  .trade-market-header {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    display: flex;
+    height: 66px;
+    min-height: 66px;
+    gap: 8px;
+    padding: 7px 14px;
+    overflow: visible;
+  }
+  .trade-market-header > div {
+    flex: 1 1 0;
+    gap: 2px;
+    font-size: 11px;
+  }
+  .trade-market-header > div:first-child {
+    flex: 0 0 188px;
+    grid-row: auto;
+  }
+  .trade-market-header > div:nth-child(2) {
+    flex: 0 0 94px;
+  }
+  .trade-market-header > div:nth-child(3) {
+    flex: 0 0 78px;
+  }
+  .trade-market-header .funding-summary {
+    flex: 0 0 145px;
+  }
+  .trade-market-header h1,
+  .trade-pair-trigger {
+    font-size: 15px;
+  }
+  .trade-market-header small {
+    font-size: 10px;
+  }
+  .trade-market-header > div > strong {
+    font-size: 11px;
+  }
+  .trade-market-header > div:nth-child(2) > strong {
+    font-size: 17px;
+  }
+  .trade-market-header > div:first-child > small {
+    display: none;
+  }
+  .trade-market-header .cluster {
+    font-size: 10px;
+  }
+  .trade-main,
+  .trade-market-side {
+    grid-row: 2;
+  }
+  .trade-ticket {
+    grid-row: 1 / 3;
+  }
+}
+.trade-main .price-chart {
+  height: 470px;
+}
+.trade-market-side .order-book-sides {
+  grid-template-rows: minmax(0, 1fr) 48px minmax(0, 1fr);
+}
+.order-book-last-trade {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-muted);
+  font-size: 11px;
+}
+.order-book-last-trade strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 1200px) and (min-width: 769px) {
+  .trade-market-header {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .trade-main {
+    grid-row: 2;
+  }
+  .trade-market-side {
+    grid-row: 3;
+  }
+  .trade-ticket {
+    grid-row: 1 / 4;
+  }
+}
+@media (max-width: 768px) {
+  .trade-market-header {
+    order: 0;
+    width: 100%;
+  }
+  .trade-main .price-chart {
+    height: 330px;
+  }
+  .trade-market-side .order-book-sides {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 48px minmax(0, 1fr);
+  }
+}
+.chart-volume-info {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(var(--space-4) + 18%);
+  left: calc(var(--space-4) + 8px);
+  display: flex;
+  gap: 6px;
+  color: var(--color-ink-muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+.chart-volume-info b {
+  color: var(--color-ink);
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}

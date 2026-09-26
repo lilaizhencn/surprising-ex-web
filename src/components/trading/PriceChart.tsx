@@ -47,12 +47,14 @@ export function PriceChart({
   candles,
   period,
   dollar,
+  volumeUnit,
   demo,
   unavailable,
 }: {
   readonly candles: readonly Candle[]
   readonly period: string
   readonly dollar: boolean
+  readonly volumeUnit: string
   readonly demo: boolean
   readonly unavailable: boolean
 }) {
@@ -88,6 +90,11 @@ export function PriceChart({
         background: { type: ColorType.Solid, color: initial.surface },
         textColor: initial.ink,
         attributionLogo: true,
+        panes: {
+          enableResize: false,
+          separatorColor: initial.border,
+          separatorHoverColor: initial.border,
+        },
       },
       grid: { vertLines: { color: initial.grid }, horzLines: { color: initial.grid } },
       rightPriceScale: { borderColor: initial.border },
@@ -101,19 +108,27 @@ export function PriceChart({
       wickUpColor: initial.up,
       wickDownColor: initial.down,
     })
-    const volume = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "",
-    })
-    volume.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0 } })
-    price.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.29 } })
+    chart.addPane()
+    const volume = chart.addSeries(
+      HistogramSeries,
+      { priceFormat: { type: "volume" }, priceScaleId: "" },
+      1,
+    )
+    chart.panes()[0]?.setStretchFactor(0.76)
+    chart.panes()[1]?.setStretchFactor(0.24)
+    price.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.08 } })
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.22, bottom: 0.02 } })
     chartRef.current = chart
     candleRef.current = price
     volumeRef.current = volume
     const applyTheme = () => {
       const next = colors()
       chart.applyOptions({
-        layout: { background: { type: ColorType.Solid, color: next.surface }, textColor: next.ink },
+        layout: {
+          background: { type: ColorType.Solid, color: next.surface },
+          textColor: next.ink,
+          panes: { separatorColor: next.border, separatorHoverColor: next.border },
+        },
         grid: { vertLines: { color: next.grid }, horzLines: { color: next.grid } },
         rightPriceScale: { borderColor: next.border },
         timeScale: { borderColor: next.border },
@@ -212,6 +227,9 @@ export function PriceChart({
         role="img"
         aria-label={`${period} candlestick and volume chart`}
       />
+      <div className="chart-volume-info" aria-live="polite">
+        成交量（{volumeUnit}） <b>{latest ? otherPrice.format(latest.volume) : "—"}</b>
+      </div>
       {(unavailable || (!demo && valid.length === 0)) && (
         <div className="chart-empty">等待真实 K 线和成交量数据</div>
       )}
