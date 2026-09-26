@@ -212,7 +212,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
-  const [period, setPeriod] = useState("1m")
+  const [period, setPeriod] = useState("15m")
   const [accountTab, setAccountTab] = useState<
     "positions" | "triggers" | "fundingMarket" | "fundingPayments" | "settings"
   >("positions")
