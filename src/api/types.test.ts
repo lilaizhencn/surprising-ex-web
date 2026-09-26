@@ -136,3 +136,26 @@ describe("gateway financial response schemas", () => {
     ).toBe(true)
   })
 })
+
+it("accepts a depth baseline without a predecessor and zero-quantity removal deltas", () => {
+  expect(
+    OrderBookSchema.safeParse({
+      updateType: "SNAPSHOT",
+      sequence: "1",
+      previousSequence: null,
+      depth: 50,
+      bids: [],
+      asks: [],
+    }).success,
+  ).toBe(true)
+  expect(
+    OrderBookSchema.safeParse({
+      updateType: "DELTA",
+      sequence: "2",
+      previousSequence: "1",
+      depth: 50,
+      bids: [{ priceTicks: 100, quantitySteps: 0, orderCount: 0 }],
+      asks: [],
+    }).success,
+  ).toBe(true)
+})

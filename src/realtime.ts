@@ -142,18 +142,7 @@ export class PrivateView {
 export function unwrapEvent(event: WsEnvelope): WsEnvelope {
   const data = record(event.data)
   if (event.op !== "event" || !("value" in data)) return event
-  let value = data["value"]
-  const body = record(value)
-  if (event.channel === "depth" && Array.isArray(body["levels"])) {
-    value = {
-      ...body,
-      updateType: "SNAPSHOT",
-      depth: 50,
-      sequence: String(body["exportSequence"] ?? 0),
-      bids: rows(body["levels"]).filter((v) => v["side"] === "BUY"),
-      asks: rows(body["levels"]).filter((v) => v["side"] === "SELL"),
-    }
-  }
+  const value = data["value"]
   return {
     ...event,
     version: String(data["version"]),

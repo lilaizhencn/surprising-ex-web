@@ -107,16 +107,19 @@ it("preserves 64-bit identifiers without rounding or rewriting string contents",
   expect(data["text"]).toBe("9007199254740993")
   expect(data["price"]).toBe(12.5)
 })
-it("normalizes full depth snapshots, including empty sides", () => {
-  expect(record(unwrapEvent(event("depth", 1, { levels: [] })).data)["depth"]).toBe(50)
-  expect(
-    record(
-      unwrapEvent(
-        event("depth", 1, { levels: [{ side: "BUY", priceTicks: 10, quantitySteps: 2 }] }),
-      ).data,
-    )["asks"],
-  ).toEqual([])
-  expect(record(unwrapEvent(event("depth", 2, { levels: [] })).data)["bids"]).toEqual([])
+it("preserves depth snapshots and absolute deltas including zero removals", () => {
+  for (const value of [
+    { updateType: "SNAPSHOT", sequence: "1", depth: 50, bids: [], asks: [] },
+    {
+      updateType: "DELTA",
+      sequence: "2",
+      previousSequence: "1",
+      depth: 50,
+      bids: [{ priceTicks: 10, quantitySteps: 0, orderCount: 0 }],
+      asks: [],
+    },
+  ])
+    expect(unwrapEvent(event("depth", 2, value)).data).toEqual(value)
 })
 it("accepts restarted price publishers while rejecting old core book versions", () => {
   expect(

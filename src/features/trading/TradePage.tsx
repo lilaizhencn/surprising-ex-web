@@ -183,7 +183,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const bookSequenceRef = useRef<string | null>(null)
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
-  const streamRevision = useRef(0)
   const bookResyncingRef = useRef(false)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
   const latestTradeRef = useRef<{
@@ -443,7 +442,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (!current || !assetScales[current.quoteAsset] || bookResyncingRef.current) return
     bookResyncingRef.current = true
     const generation = marketGeneration.current
-    void loadOrderBook(current.symbol, view.line, bookDepth)
+    void loadOrderBook(current.symbol, view.line, 50)
       .then((nextBook) => {
         if (generation !== marketGeneration.current) return
         const nextSequence = orderBookSequence(nextBook)
@@ -459,13 +458,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .finally(() => {
         bookResyncingRef.current = false
       })
-  }, [assetScales, bookDepth, current, view.line])
+  }, [assetScales, current, view.line])
 
   useEffect(() => {
-    resyncOrderBook()
-    const timer = window.setInterval(resyncOrderBook, 2_000)
-    return () => window.clearInterval(timer)
-  }, [assetScales, bookDepth, current?.symbol, view.line])
+    setBook(null)
+    bookSequenceRef.current = null
+    processedEvents.current.clear()
+  }, [current?.symbol, view.line])
 
   useEffect(() => {
     try {
@@ -558,20 +557,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (!current) return
     setPrice("")
     setCandles([])
-    setBook(null)
-    bookSequenceRef.current = null
     setOptionQuote(null)
     setTriggerOrders([])
     const generation = ++marketGeneration.current
-    const revision = streamRevision.current
     void Promise.allSettled([
       loadCandles(current.symbol, period, view.line),
-      loadOrderBook(current.symbol, view.line, bookDepth),
       view.line === PRODUCT_LINES.option
         ? loadOptionQuote(current.symbol).catch(() => null)
         : Promise.resolve(null),
       loadAssetScales(),
-    ]).then(([candleResult, bookResult, optionQuoteResult, scales]) => {
+    ]).then(([candleResult, optionQuoteResult, scales]) => {
       if (generation !== marketGeneration.current) return
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
       if (candleResult.status === "fulfilled") {
@@ -585,17 +580,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             .sort((left, right) => left.time.localeCompare(right.time))
             .slice(-120)
         })
-      }
-      if (
-        revision === streamRevision.current &&
-        bookResult.status === "fulfilled" &&
-        nextScales[current.quoteAsset]
-      ) {
-        setBook(normalizeOrderBook(bookResult.value, current, nextScales))
-        bookSequenceRef.current = orderBookSequence(bookResult.value)
-      } else if (revision === streamRevision.current) {
-        setBook(null)
-        bookSequenceRef.current = null
       }
       setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
       setAssetScales(nextScales)
@@ -725,7 +709,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       processedEvents.current.add(event.id)
       if (processedEvents.current.size > 20000)
         processedEvents.current = new Set([...processedEvents.current].slice(-10000))
-      streamRevision.current++
       const eventSymbol = text(event, "symbol")
       if (eventSymbol && eventSymbol !== current.symbol) return
       const channel = text(event, "channel")
@@ -770,12 +753,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           const currentSequence = bookSequenceRef.current
           if (!nextSequence) return
           if (orderBook.data.updateType === "DELTA") {
+            if (currentSequence && compareSequences(nextSequence, currentSequence) <= 0) return
             const previousSequence = orderBook.data.previousSequence
             if (
               !currentSequence ||
-              previousSequence === undefined ||
-              compareSequences(String(previousSequence), currentSequence) !== 0 ||
-              compareSequences(nextSequence, currentSequence) <= 0
+              previousSequence == null ||
+              compareSequences(String(previousSequence), currentSequence) !== 0
             ) {
               resyncOrderBook()
               return
@@ -1039,7 +1022,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }
   const refresh = () => {
     realtime.refresh()
-    resyncOrderBook()
   }
 
   return (
@@ -1795,7 +1777,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   )
 }
 
-function OrderBook({
+export function OrderBook({
   book,
   latestTrade,
   depth,
@@ -1814,7 +1796,7 @@ function OrderBook({
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
   readonly onPrecisionChange: (precision: 1 | 10 | 100) => void
 }) {
-  const askSideRef = useRef<HTMLElement>(null)
+  const askSideRef = useRef<HTMLDivElement>(null)
   const bids = aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid").slice(0, depth)
   const asks = aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask")
     .slice(0, depth)
@@ -1850,52 +1832,52 @@ function OrderBook({
           </DropdownSelect>
         </div>
       </div>
-      {bids.length === 0 && asks.length === 0 ? (
-        <StateView kind="empty" message="Order book data is not available." />
-      ) : (
-        <div className="order-book-sides">
-          <section
-            ref={askSideRef}
-            className="order-book-side order-book-asks"
-            aria-label="Asks, high to low"
-          >
+      <div className="order-book-sides">
+        <section className="order-book-side" aria-label="Asks, high to low">
+          <div className="order-book-columns">
+            <span>Price</span>
+            <span>Amount</span>
+          </div>
+          <div ref={askSideRef} className="order-book-scroll order-book-asks">
             <div className="order-book">
-              <span>Price</span>
-              <span>Amount</span>
-              {asks.map((level, index) => (
+              {asks.map((level) => (
                 <LevelRow
-                  key={`ask-${levelPrice(level)}-${index}`}
+                  key={`ask-${levelPrice(level)}`}
                   level={level}
                   tone="negative"
                   dollar={dollar}
                 />
               ))}
             </div>
-          </section>
-          <div className="order-book-last-trade" aria-live="polite">
-            <span>最新成交</span>
-            <strong
-              className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
-            >
-              {displayPrice(text(latestTrade, "price"), dollar)}
-            </strong>
           </div>
-          <section className="order-book-side" aria-label="Bids, high to low">
+        </section>
+        <div className="order-book-last-trade" aria-live="polite">
+          <span>最新成交</span>
+          <strong
+            className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
+          >
+            {displayPrice(text(latestTrade, "price"), dollar)}
+          </strong>
+        </div>
+        <section className="order-book-side" aria-label="Bids, high to low">
+          <div className="order-book-columns">
+            <span>Price</span>
+            <span>Amount</span>
+          </div>
+          <div className="order-book-scroll">
             <div className="order-book">
-              <span>Price</span>
-              <span>Amount</span>
-              {bids.map((level, index) => (
+              {bids.map((level) => (
                 <LevelRow
-                  key={`bid-${levelPrice(level)}-${index}`}
+                  key={`bid-${levelPrice(level)}`}
                   level={level}
                   tone="positive"
                   dollar={dollar}
                 />
               ))}
             </div>
-          </section>
-        </div>
-      )}
+          </div>
+        </section>
+      </div>
     </Panel>
   )
 }

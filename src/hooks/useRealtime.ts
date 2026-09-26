@@ -98,7 +98,8 @@ export function useRealtimeFeed(
         const key = [raw.productLine, raw.channel, raw.symbol ?? "*", raw.period ?? ""].join(":")
         if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)
-        if (event.channel === "trades") tape = [event, ...tape].slice(0, 80)
+        if (event.channel === "trades" || event.channel === "depth")
+          tape = [event, ...tape].slice(0, 256)
         setLastEventAt(new Date().toISOString())
         publish()
       },

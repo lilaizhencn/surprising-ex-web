@@ -20,7 +20,7 @@ Markets show spot instruments. Trading subscriptions are scoped by product, symb
 
 Snapshot fences preserve newer updates and terminal tombstones. Periodic snapshots heal dropped packets. Non-ready or expired snapshots are not displayed as a current asset valuation. Private-state events do not trigger REST account queries. Explicit ledger and algo-order queries remain separate.
 
-订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。新 `depth` 是最多 20 档的完整替换快照，包括空盘口，不能累加。
+订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。`depth` 首条是买卖各最多 50 档的 SNAPSHOT（空盘口也覆盖），后续 DELTA 按价格档位写入绝对数量，数量为零删除。逐条校验 previousSequence 与本地 sequence；断档才通过 REST 重建 50 档基线，正常运行不轮询全量。渲染批处理保留全部增量，不能合并成最后一条；退订重连重新接收首条快照。盘口为空仍保留固定高度、表头和中间最新成交价，不显示空数据提示。
 
 Open orders, active triggers and nonzero positions are materialized directly. Zero balances remain explicit. Depth frames replace both sides, including empty sides. Late HTTP market responses cannot overwrite newer streamed data.
 

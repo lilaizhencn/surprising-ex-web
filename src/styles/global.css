@@ -2381,12 +2381,35 @@ button:disabled {
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
+.trade-market-side {
+  overflow-anchor: none;
+}
 .trade-market-side .order-book-side {
+  display: grid;
+  grid-template-rows: 26px minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
+}
+.order-book-columns {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+}
+.order-book-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-anchor: none;
   scrollbar-width: none;
 }
-.trade-market-side .order-book-side::-webkit-scrollbar {
+.order-book-scroll::-webkit-scrollbar,
+.recent-trades::-webkit-scrollbar {
   display: none;
+}
+.recent-trades {
+  scrollbar-width: none;
+  overflow-anchor: none;
 }
 .trade-market-side .order-book-asks {
   display: flex;
@@ -2396,11 +2419,14 @@ button:disabled {
   flex: none;
   margin-top: auto;
 }
-.trade-market-side .order-book-asks .order-book > span:nth-child(-n + 2) {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-surface);
+.trade-market-side .order-book {
+  grid-auto-rows: 26px;
+  gap: 0 var(--space-3);
+  padding-top: 0;
+  align-items: center;
+}
+.trade-market-side .panel-heading {
+  flex-shrink: 0;
 }
 .trade-market-side .book-depth-control {
   gap: 4px;
@@ -2759,7 +2785,7 @@ button:disabled {
   }
   .trade-side-panel,
   .trade-market-side > .order-book-panel {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     height: auto;
     min-height: 0;
   }

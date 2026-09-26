@@ -312,7 +312,7 @@ export const OrderBookSchema = z
   .object({
     symbol: z.string().optional(),
     sequence: IdentifierSchema.optional(),
-    previousSequence: IdentifierSchema.optional(),
+    previousSequence: IdentifierSchema.nullish(),
     updateType: z.enum(["SNAPSHOT", "DELTA"]).optional(),
     depth: z.number().optional(),
     lastUpdateId: z.union([z.string(), z.number()]).optional(),
