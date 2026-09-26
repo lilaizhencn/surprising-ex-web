@@ -5,6 +5,7 @@ import {
   cancelOrder,
   cancelTriggerOrder,
   loadAssetScales,
+  loadBalances,
   loadCandles,
   loadFundingPayments,
   loadFundingRate,
@@ -13,8 +14,11 @@ import {
   loadIndexPrice,
   loadMarkets,
   loadMarkPrice,
+  loadOpenOrders,
+  loadOpenTriggerOrders,
   loadOptionQuote,
   loadOrderBook,
+  loadPositions,
   loadRecentTrades,
   placeOrder,
   placeTriggerOrder,
@@ -22,6 +26,7 @@ import {
 import { mapCandle, mapMarket } from "../../api/mappers"
 import type {
   ApiBalance,
+  ApiCandle,
   ApiFundingPayment,
   ApiFundingRate,
   ApiOptionQuote,
@@ -70,6 +75,7 @@ import {
   PRODUCT_LINES,
   type ProductLine,
 } from "../../types/domain"
+import { marketQuantitySpec } from "./marketQuantity"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import {
   closeSideForPosition,
@@ -283,15 +289,39 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     ? closeSideForPosition(activeTriggerPosition)
     : null
   const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period)
+  const privateViewReady = useRef(false)
+  privateViewReady.current = realtime.views[view.line]?.ready() ?? false
+
+  useEffect(() => {
+    setBalances([])
+    setPositions([])
+    setOpenOrders([])
+    setTriggerOrders([])
+    if (!session || !current) return
+    let cancelled = false
+    void Promise.allSettled([
+      loadBalances(view.line),
+      loadPositions(session.user.userId, view.line),
+      loadOpenOrders(current.symbol, view.line),
+      loadOpenTriggerOrders(session.user.userId, current.symbol, view.line),
+    ]).then(([balanceResult, positionResult, orderResult, triggerResult]) => {
+      if (cancelled || privateViewReady.current) return
+      if (balanceResult.status === "fulfilled") setBalances(balanceResult.value)
+      if (positionResult.status === "fulfilled")
+        setPositions(
+          positionResult.value.filter((position) => Number(position["signedQuantitySteps"]) !== 0),
+        )
+      if (orderResult.status === "fulfilled") setOpenOrders(orderResult.value)
+      if (triggerResult.status === "fulfilled") setTriggerOrders(triggerResult.value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session?.user.userId, current?.symbol, view.line])
+
   useEffect(() => {
     const account = realtime.views[view.line]
-    if (!session || !account) {
-      setBalances([])
-      setPositions([])
-      setOpenOrders([])
-      setTriggerOrders([])
-      return
-    }
+    if (!session || !account?.ready()) return
     const parsedBalances = account.rows("balance").map((row) => BalanceSchema.safeParse(row))
     const parsedOrders = account
       .rows("order")
@@ -350,10 +380,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       const signedSteps = signedPositionSteps(activeTriggerPosition)
       const magnitude = signedSteps < 0n ? -signedSteps : signedSteps
       try {
-        const baseScale = assetScales[current.baseAsset]
-        if (!current.quantityStepUnits || !baseScale) throw new Error("position scale unavailable")
+        const quantitySpec = marketQuantitySpec(current, assetScales)
         const positionQuantity = Number(
-          stepUnitsToDecimal(magnitude.toString(), current.quantityStepUnits, baseScale),
+          stepUnitsToDecimal(magnitude.toString(), quantitySpec.unitSize, quantitySpec.scale),
         )
         const value = positionQuantity * (next / 100)
         setQuantity(Number.isFinite(value) && value > 0 ? String(value) : "")
@@ -459,7 +488,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (generation !== marketGeneration.current) return
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
       if (candleResult.status === "fulfilled") {
-        const history = candleResult.value.map(mapCandle)
+        const history = candleResult.value.map((row) => mapDisplayCandle(row, current, nextScales))
         const latestCandle = history.at(-1)
         if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
         setCandles((live) => {
@@ -516,7 +545,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setDayCandles([])
     void loadCandles(current.symbol, "1h", view.line)
       .then((rows) => {
-        if (!cancelled) setDayCandles(rows.map(mapCandle))
+        if (!cancelled)
+          setDayCandles(rows.map((row) => mapDisplayCandle(row, current, assetScales)))
       })
       .catch(() => {
         if (!cancelled) setDayCandles([])
@@ -524,7 +554,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.symbol, view.line])
+  }, [current?.symbol, view.line, assetScales])
 
   useEffect(() => {
     if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
@@ -608,7 +638,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         if (!candle.success) return
         const candlePeriod = text(data, "period") || text(event, "period")
         if (candlePeriod && candlePeriod !== period) return
-        const next = mapCandle(candle.data)
+        const next = mapDisplayCandle(candle.data, current, assetScales)
         updateMarketQuote(current.symbol, next.close)
         setCandles((rows) =>
           [...rows.filter((row) => row.time !== next.time), next]
@@ -754,7 +784,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (orderType === "STOP" && !current.priceTickUnits) {
         throw new Error("条件单触发价规格尚未加载，订单未提交。")
       }
-      quantitySteps = decimalToStepUnits(quantity, current.quantityStepUnits, baseScale)
+      const quantitySpec = marketQuantitySpec(current, assetScales)
+      quantitySteps = decimalToStepUnits(quantity, quantitySpec.unitSize, quantitySpec.scale)
       if (orderType === "STOP" && activeTriggerPosition) {
         const positionCapacity = signedPositionSteps(activeTriggerPosition)
         const absoluteCapacity = positionCapacity < 0n ? -positionCapacity : positionCapacity
@@ -1073,8 +1104,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             }
             priceTickUnits={current?.priceTickUnits}
             priceScale={current ? assetScales[current.quoteAsset] : undefined}
-            quantityStepUnits={current?.quantityStepUnits}
-            quantityScale={current ? assetScales[current.baseAsset] : undefined}
+            quantityStepUnits={
+              current?.productLine === PRODUCT_LINES.usdMPerpetual
+                ? String(current.contractMultiplierPpm ?? "")
+                : current?.quantityStepUnits
+            }
+            quantityScale={
+              current?.productLine === PRODUCT_LINES.usdMPerpetual
+                ? "1000000"
+                : current
+                  ? assetScales[current.baseAsset]
+                  : undefined
+            }
             accountView={realtime.views[view.line]}
             onRefresh={realtime.refresh}
             onSettingsChange={handleSettingsChange}
@@ -1133,7 +1174,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                         {displayPrice(text(trade, "price"), isDollarQuote(current?.quoteAsset))}
                       </span>
                       <span className="mono">
-                        {formatTradeQuantity(text(trade, "quantity") || text(trade, "qty"))}
+                        {formatTradeQuantity(tradeDisplayQuantity(trade, current, assetScales))}
                       </span>
                       <time className="mono">{formatClock(text(trade, "eventTime"))}</time>
                     </div>
@@ -1562,21 +1603,54 @@ function OrderBook({
   )
 }
 
+function mapDisplayCandle(
+  row: ApiCandle,
+  market: Market,
+  assetScales: Readonly<Record<string, string>>,
+): Candle {
+  const candle = mapCandle(row)
+  if (market.productLine !== PRODUCT_LINES.usdMPerpetual) return candle
+  const multiplier = market.contractMultiplierPpm
+  const baseScale = Number(assetScales[market.baseAsset])
+  const stepUnits = Number(market.quantityStepUnits)
+  if (!multiplier || !Number.isFinite(baseScale) || !Number.isFinite(stepUnits) || stepUnits <= 0) {
+    return { ...candle, volume: 0 }
+  }
+  return { ...candle, volume: candle.volume * (multiplier / 1000000) * (baseScale / stepUnits) }
+}
+
+function tradeDisplayQuantity(
+  trade: Readonly<Record<string, unknown>>,
+  market: Market | null,
+  assetScales: Readonly<Record<string, string>>,
+): string {
+  const steps = text(trade, "quantitySteps")
+  if (steps && market) {
+    try {
+      const spec = marketQuantitySpec(market, assetScales)
+      return stepUnitsToDecimal(steps, spec.unitSize, spec.scale)
+    } catch {
+      return ""
+    }
+  }
+  return text(trade, "quantity") || text(trade, "qty")
+}
+
 function normalizeOrderBook(
   book: ApiOrderBook,
   market: Market,
   assetScales: Readonly<Record<string, string>>,
 ): ApiOrderBook {
   const priceScale = assetScales[market.quoteAsset]
-  const quantityScale = assetScales[market.baseAsset]
+  const quantitySpec = marketQuantitySpec(market, assetScales)
   const normalizeLevel = (level: ApiOrderBookLevel): ApiOrderBookLevel => {
     if (Array.isArray(level) || !market.priceTickUnits || !market.quantityStepUnits) return level
     return {
       priceTicks: stepUnitsToDecimal(level.priceTicks, market.priceTickUnits, priceScale ?? "1"),
       quantitySteps: stepUnitsToDecimal(
         level.quantitySteps,
-        market.quantityStepUnits,
-        quantityScale ?? "1",
+        quantitySpec.unitSize,
+        quantitySpec.scale,
       ),
       orderCount: level.orderCount,
     }
@@ -1653,16 +1727,17 @@ function normalizeTrade(
           assetScales[market.quoteAsset] ?? "1",
         )
       : undefined)
+  const quantitySpec = marketQuantitySpec(market, assetScales)
   const quantity =
-    value("quantity") ??
-    value("qty") ??
     (value("quantitySteps") !== undefined && market.quantityStepUnits
       ? stepUnitsToDecimal(
           String(value("quantitySteps")),
-          market.quantityStepUnits,
-          assetScales[market.baseAsset] ?? "1",
+          quantitySpec.unitSize,
+          quantitySpec.scale,
         )
-      : undefined)
+      : undefined) ??
+    value("quantity") ??
+    value("qty")
   return {
     ...trade,
     ...(price !== undefined ? { price } : {}),
@@ -1903,11 +1978,12 @@ function formatTriggerOrderQuantity(
   market: Market | null,
   assetScales: Readonly<Record<string, string>>,
 ): string {
-  if (!market?.quantityStepUnits || !assetScales[market.baseAsset]) {
+  if (!market) {
     return `steps ${String(row.quantitySteps)}`
   }
   try {
-    return `${stepUnitsToDecimal(row.quantitySteps, market.quantityStepUnits, assetScales[market.baseAsset] ?? "1")} ${market.baseAsset}`
+    const spec = marketQuantitySpec(market, assetScales)
+    return `${stepUnitsToDecimal(row.quantitySteps, spec.unitSize, spec.scale)} ${market.baseAsset}`
   } catch {
     return `steps ${String(row.quantitySteps)}`
   }
@@ -2089,15 +2165,14 @@ function formatPositionQuantity(
 ): string {
   const signedSteps = text(position, "signedQuantitySteps")
   if (!signedSteps) return text(position, "quantity") || text(position, "quantitySteps") || "—"
-  const quantityStepUnits = market?.quantityStepUnits
-  const quantityScale = market === null ? undefined : assetScales[market.baseAsset]
-  if (quantityStepUnits === undefined || quantityScale === undefined) {
+  if (!market) {
     return `steps ${signedSteps}`
   }
   try {
     const negative = signedSteps.startsWith("-")
     const magnitude = negative ? signedSteps.slice(1) : signedSteps
-    const amount = stepUnitsToDecimal(magnitude, quantityStepUnits, quantityScale)
+    const spec = marketQuantitySpec(market, assetScales)
+    const amount = stepUnitsToDecimal(magnitude, spec.unitSize, spec.scale)
     return `${negative ? "-" : "+"}${amount} ${market?.baseAsset ?? ""}`
   } catch {
     return `steps ${signedSteps}`
