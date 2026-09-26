@@ -24,6 +24,7 @@ import {
   testOrder,
 } from "../../api/endpoints"
 import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { loadSession, useSession } from "../../state/session"
@@ -251,7 +252,7 @@ export function OrdersPage() {
       </div>
       <div className="history-toolbar">
         <SearchField value={search} onChange={setSearch} placeholder="Search symbol or ID" />
-        <select
+        <DropdownSelect
           value={productLine}
           onChange={(event) => setProductLine(event.target.value as ProductLine)}
           aria-label="Product line"
@@ -262,7 +263,7 @@ export function OrdersPage() {
           <option value={PRODUCT_LINES.usdMDelivery}>USD-M delivery</option>
           <option value={PRODUCT_LINES.coinMDelivery}>Coin-M delivery</option>
           <option value={PRODUCT_LINES.option}>Options</option>
-        </select>
+        </DropdownSelect>
         <input
           value={symbol}
           onChange={(event) => setSymbol(event.target.value)}
@@ -280,7 +281,7 @@ export function OrdersPage() {
         <Button tone="outline" onClick={load}>
           <RefreshCw size={16} /> Refresh
         </Button>
-        <select
+        <DropdownSelect
           value={status}
           onChange={(event) => setStatus(event.target.value)}
           aria-label="Order status"
@@ -290,7 +291,7 @@ export function OrdersPage() {
           <option value="PARTIALLY_FILLED">Partially filled</option>
           <option value="FILLED">Filled</option>
           <option value="CANCELED">Canceled</option>
-        </select>
+        </DropdownSelect>
         <input
           type="date"
           value={from}
@@ -555,13 +556,13 @@ function AdvancedTradingActions({
           <input value={symbol} readOnly aria-label="Advanced symbol" />
         </Field>
         <Field label="Side">
-          <select
+          <DropdownSelect
             value={side}
             onChange={(event) => setSide(event.target.value === "SELL" ? "SELL" : "BUY")}
           >
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
-          </select>
+          </DropdownSelect>
         </Field>
         <Field label="Price ticks (integer)">
           <input
@@ -710,13 +711,13 @@ function AdvancedTradingActions({
       </div>
       <div className="grid-2">
         <Field label="Algo type">
-          <select
+          <DropdownSelect
             value={algoType}
             onChange={(event) => setAlgoType(event.target.value === "ICEBERG" ? "ICEBERG" : "TWAP")}
           >
             <option value="TWAP">TWAP</option>
             <option value="ICEBERG">ICEBERG</option>
-          </select>
+          </DropdownSelect>
         </Field>
         <Field label="Trigger price ticks">
           <input

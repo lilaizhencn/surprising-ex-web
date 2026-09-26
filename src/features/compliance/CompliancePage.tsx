@@ -8,6 +8,7 @@ import {
   submitKyc,
   uploadKycDocument,
 } from "../../api/endpoints"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { useSession } from "../../state/session"
 
@@ -282,18 +283,21 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
           />
         </Field>
         <Field label="Verification level">
-          <select value={level} onChange={(event) => setLevel(event.target.value)}>
+          <DropdownSelect value={level} onChange={(event) => setLevel(event.target.value)}>
             <option value="BASIC">Basic</option>
             <option value="INTERMEDIATE">Intermediate</option>
             <option value="ADVANCED">Advanced</option>
-          </select>
+          </DropdownSelect>
         </Field>
         <Field label="Document type">
-          <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
+          <DropdownSelect
+            value={documentType}
+            onChange={(event) => setDocumentType(event.target.value)}
+          >
             <option value="PASSPORT">Passport</option>
             <option value="ID_CARD">National ID</option>
             <option value="ADDRESS_PROOF">Address proof</option>
-          </select>
+          </DropdownSelect>
         </Field>
       </div>
       <label className="upload-box">

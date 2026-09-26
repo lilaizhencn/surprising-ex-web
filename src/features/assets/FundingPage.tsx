@@ -14,6 +14,7 @@ import {
   loadWalletChains,
   loadWithdrawalHistory,
 } from "../../api/endpoints"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
@@ -232,21 +233,21 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           <h2>1. Select asset & network</h2>
           <div className="grid-2">
             <Field label="Asset">
-              <select value={asset} onChange={(event) => setAsset(event.target.value)}>
+              <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
                 <option>BTC</option>
                 <option>ETH</option>
                 <option>USDT</option>
-              </select>
+              </DropdownSelect>
             </Field>
             <Field label="Network">
-              <select value={network} onChange={(event) => setNetwork(event.target.value)}>
+              <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
                 <option value="">Select network</option>
                 {chains.map((chain) => (
                   <option key={chainName(chain)} value={chainName(chain)}>
                     {chainName(chain)}
                   </option>
                 ))}
-              </select>
+              </DropdownSelect>
             </Field>
           </div>
         </Panel>
@@ -314,21 +315,21 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           <h2>1. Transfer details</h2>
           <div className="grid-2">
             <Field label="Asset">
-              <select value={asset} onChange={(event) => setAsset(event.target.value)}>
+              <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
                 <option>BTC</option>
                 <option>ETH</option>
                 <option>USDT</option>
-              </select>
+              </DropdownSelect>
             </Field>
             <Field label="Network">
-              <select value={network} onChange={(event) => setNetwork(event.target.value)}>
+              <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
                 <option value="">Select network</option>
                 {chains.map((chain) => (
                   <option key={chainName(chain)} value={chainName(chain)}>
                     {chainName(chain)}
                   </option>
                 ))}
-              </select>
+              </DropdownSelect>
             </Field>
           </div>
           <Field label="Recipient address">
@@ -410,7 +411,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         <h2>Transfer accounts</h2>
         <div className="grid-2">
           <Field label="From">
-            <select value={source} onChange={(event) => setSource(event.target.value)}>
+            <DropdownSelect value={source} onChange={(event) => setSource(event.target.value)}>
               <option>FUNDING</option>
               <option>SPOT</option>
               <option>USDT_PERPETUAL</option>
@@ -418,10 +419,10 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               <option>USDT_DELIVERY</option>
               <option>COIN_DELIVERY</option>
               <option>OPTION</option>
-            </select>
+            </DropdownSelect>
           </Field>
           <Field label="To">
-            <select value={target} onChange={(event) => setTarget(event.target.value)}>
+            <DropdownSelect value={target} onChange={(event) => setTarget(event.target.value)}>
               <option>SPOT</option>
               <option>FUNDING</option>
               <option>USDT_PERPETUAL</option>
@@ -429,7 +430,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               <option>USDT_DELIVERY</option>
               <option>COIN_DELIVERY</option>
               <option>OPTION</option>
-            </select>
+            </DropdownSelect>
           </Field>
         </div>
         <button

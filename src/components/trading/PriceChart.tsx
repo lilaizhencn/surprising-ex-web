@@ -59,25 +59,38 @@ export function PriceChart({
   useEffect(() => {
     const element = containerRef.current
     if (!element) return
+    const colors = () => {
+      const style = getComputedStyle(element)
+      const read = (name: string) => style.getPropertyValue(name).trim()
+      return {
+        surface: read("--color-surface"),
+        ink: read("--color-ink-muted"),
+        grid: read("--color-border-soft"),
+        border: read("--color-border"),
+        up: read("--color-positive"),
+        down: read("--color-negative"),
+      }
+    }
+    const initial = colors()
     const chart = createChart(element, {
       width: element.clientWidth,
       height: element.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: "#151719" },
-        textColor: "#a8b0bf",
+        background: { type: ColorType.Solid, color: initial.surface },
+        textColor: initial.ink,
         attributionLogo: true,
       },
-      grid: { vertLines: { color: "#252a32" }, horzLines: { color: "#252a32" } },
-      rightPriceScale: { borderColor: "#343a44" },
-      timeScale: { borderColor: "#343a44", timeVisible: true, secondsVisible: false },
-      crosshair: { vertLine: { color: "#586174" }, horzLine: { color: "#586174" } },
+      grid: { vertLines: { color: initial.grid }, horzLines: { color: initial.grid } },
+      rightPriceScale: { borderColor: initial.border },
+      timeScale: { borderColor: initial.border, timeVisible: true, secondsVisible: false },
+      crosshair: { vertLine: { color: initial.ink }, horzLine: { color: initial.ink } },
     })
     const price = chart.addSeries(CandlestickSeries, {
-      upColor: "#4bd5a0",
-      downColor: "#ed6676",
+      upColor: initial.up,
+      downColor: initial.down,
       borderVisible: false,
-      wickUpColor: "#4bd5a0",
-      wickDownColor: "#ed6676",
+      wickUpColor: initial.up,
+      wickDownColor: initial.down,
     })
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
@@ -88,11 +101,33 @@ export function PriceChart({
     chartRef.current = chart
     candleRef.current = price
     volumeRef.current = volume
+    const applyTheme = () => {
+      const next = colors()
+      chart.applyOptions({
+        layout: { background: { type: ColorType.Solid, color: next.surface }, textColor: next.ink },
+        grid: { vertLines: { color: next.grid }, horzLines: { color: next.grid } },
+        rightPriceScale: { borderColor: next.border },
+        timeScale: { borderColor: next.border },
+        crosshair: { vertLine: { color: next.ink }, horzLine: { color: next.ink } },
+      })
+      price.applyOptions({
+        upColor: next.up,
+        downColor: next.down,
+        wickUpColor: next.up,
+        wickDownColor: next.down,
+      })
+    }
+    const themeObserver = new MutationObserver(applyTheme)
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    })
     const resize = new ResizeObserver(() =>
       chart.applyOptions({ width: element.clientWidth, height: element.clientHeight }),
     )
     resize.observe(element)
     return () => {
+      themeObserver.disconnect()
       resize.disconnect()
       chart.remove()
       chartRef.current = null

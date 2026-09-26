@@ -46,6 +46,10 @@ export function eventPrice(
       ask = fromTicks(record(data["ask"])["priceTicks"])
     return bid !== null && ask !== null ? (bid + ask) / 2 : (bid ?? ask)
   }
+  if (event.channel === "mark" && data["markPriceUnits"] !== undefined && scale) {
+    const price = Number(data["markPriceUnits"]) / Number(scale)
+    return Number.isFinite(price) && price > 0 ? price : null
+  }
   if (data["priceTicks"] !== undefined) return fromTicks(data["priceTicks"])
   const price = Number(data["price"])
   return Number.isFinite(price) && price > 0 ? price : null

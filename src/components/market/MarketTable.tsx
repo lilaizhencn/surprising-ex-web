@@ -91,6 +91,7 @@ export function MarketTable({
           ) : null}
           {sorted.map((market) => {
             const positive = (market.change24h ?? 0) >= 0
+            const hasChange = market.change24h !== null
             return (
               <tr key={`${market.productLine}-${market.symbol}`}>
                 <td>
@@ -107,14 +108,29 @@ export function MarketTable({
                   </a>
                 </td>
                 <td className="number">
-                  <Price value={market.price} />
+                  <Price
+                    value={
+                      market.price === null || market.price >= 1
+                        ? market.price
+                        : Number(market.price.toFixed(6))
+                    }
+                    dollar={
+                      market.price !== null && market.price >= 1 && market.quoteAsset === "USDT"
+                    }
+                  />
                 </td>
                 <td className="number">
                   {quoteUnavailable ? (
                     <span className="subtle">Unavailable</span>
                   ) : (
-                    <Badge tone={positive ? "positive" : "negative"}>
-                      {positive ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                    <Badge tone={hasChange ? (positive ? "positive" : "negative") : "neutral"}>
+                      {hasChange ? (
+                        positive ? (
+                          <ArrowUp size={13} />
+                        ) : (
+                          <ArrowDown size={13} />
+                        )
+                      ) : null}
                       {formatPercent(market.change24h)}
                     </Badge>
                   )}

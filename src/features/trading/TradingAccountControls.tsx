@@ -6,6 +6,7 @@ import {
   updateLeverageSetting,
   updatePositionMode,
 } from "../../api/endpoints"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { decimalToUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
 import { integer, type PrivateView } from "../../realtime"
@@ -263,7 +264,7 @@ export function TradingAccountControls({
       {loading ? <StateView kind="loading" message="Loading account settings and risk…" /> : null}
       <div className="trading-settings-grid">
         <Field label="Margin mode">
-          <select
+          <DropdownSelect
             value={marginMode}
             onChange={(event) =>
               void saveMarginMode(event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS")
@@ -271,10 +272,10 @@ export function TradingAccountControls({
           >
             <option value="CROSS">Cross</option>
             <option value="ISOLATED">Isolated</option>
-          </select>
+          </DropdownSelect>
         </Field>
         <Field label="Position mode">
-          <select
+          <DropdownSelect
             value={positionMode}
             onChange={(event) =>
               void savePositionMode(event.target.value === "HEDGE" ? "HEDGE" : "ONE_WAY")
@@ -282,11 +283,11 @@ export function TradingAccountControls({
           >
             <option value="ONE_WAY">One-way</option>
             <option value="HEDGE">Hedge</option>
-          </select>
+          </DropdownSelect>
         </Field>
         {positionMode === "HEDGE" ? (
           <Field label="TP/SL target side">
-            <select
+            <DropdownSelect
               value={positionSide}
               onChange={(event) => {
                 const nextSide: PositionSide = event.target.value === "SHORT" ? "SHORT" : "LONG"
@@ -296,7 +297,7 @@ export function TradingAccountControls({
             >
               <option value="LONG">LONG / 多仓</option>
               <option value="SHORT">SHORT / 空仓</option>
-            </select>
+            </DropdownSelect>
           </Field>
         ) : null}
         <Field label={`Leverage (max ${maxLeverage}x)`}>

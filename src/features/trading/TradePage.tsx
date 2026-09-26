@@ -1,4 +1,4 @@
-import { BarChart3, Info, RefreshCw, Settings2, Star, XCircle } from "lucide-react"
+import { BarChart3, ChevronDown, Info, RefreshCw, Settings2, Star, XCircle } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
@@ -43,7 +43,9 @@ import {
   TriggerOrderSchema,
 } from "../../api/types"
 import { PriceChart } from "../../components/trading/PriceChart"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import {
+  AssetIcon,
   Badge,
   Button,
   Field,
@@ -90,42 +92,36 @@ const views = [
     line: PRODUCT_LINES.spot,
     title: "Spot Trading",
     symbol: "BTC-USDT-SPOT",
-    dark: false,
   },
   {
     key: "usd-m-perpetuals",
     line: PRODUCT_LINES.usdMPerpetual,
     title: "USD-M Perpetual",
     symbol: "BTC-USDT-SWAP",
-    dark: true,
   },
   {
     key: "coin-m-perpetuals",
     line: PRODUCT_LINES.coinMPerpetual,
     title: "Coin-M Perpetual",
     symbol: "BTC-USD-PERP",
-    dark: true,
   },
   {
     key: "delivery-futures",
     line: PRODUCT_LINES.usdMDelivery,
     title: "Delivery Futures",
     symbol: "BTC-USDT-260925",
-    dark: false,
   },
   {
     key: "coin-m-delivery",
     line: PRODUCT_LINES.coinMDelivery,
     title: "Coin-M Delivery",
     symbol: "BTC-USD-260925",
-    dark: false,
   },
   {
     key: "options",
     line: PRODUCT_LINES.option,
     title: "Options Trading",
     symbol: "BTC-USDT-260925-59000-C",
-    dark: false,
   },
 ] as const
 
@@ -177,9 +173,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [selected, setSelected] = useState<string>(view.symbol)
   const [pairSearch, setPairSearch] = useState("")
   const [pairTab, setPairTab] = useState<"all" | "favorites">("all")
+  const [pairOpen, setPairOpen] = useState(false)
+  const pairPickerRef = useRef<HTMLDivElement>(null)
+  const [marketSideTab, setMarketSideTab] = useState<"book" | "trades">("book")
   const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
   const [book, setBook] = useState<ApiOrderBook | null>(null)
   const [bookDepth, setBookDepth] = useState<10 | 20 | 50>(50)
+  const [bookPrecision, setBookPrecision] = useState<1 | 10 | 100>(1)
   const bookSequenceRef = useRef<string | null>(null)
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
@@ -192,6 +192,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [balances, setBalances] = useState<readonly ApiBalance[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [marketQuotes, setMarketQuotes] = useState<Readonly<Record<string, number>>>({})
+  const [pairChanges, setPairChanges] = useState<Readonly<Record<string, number>>>({})
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
   const [funding, setFunding] = useState<ApiFundingRate | null>(null)
   const [markPrice, setMarkPrice] = useState<Record<string, unknown> | null>(null)
@@ -207,7 +208,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
   const [period, setPeriod] = useState("1m")
   const [accountTab, setAccountTab] = useState<
-    "positions" | "triggers" | "fundingMarket" | "fundingPayments"
+    "positions" | "triggers" | "fundingMarket" | "fundingPayments" | "settings"
   >("positions")
   const [dayCandles, setDayCandles] = useState<readonly Candle[]>([])
   const [price, setPrice] = useState("")
@@ -238,15 +239,26 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           ? 1
           : left.symbol.localeCompare(right.symbol),
     )
+  useEffect(() => {
+    if (!pairOpen) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!pairPickerRef.current?.contains(event.target as Node)) setPairOpen(false)
+    }
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPairOpen(false)
+    }
+    document.addEventListener("pointerdown", closeOutside)
+    document.addEventListener("keydown", closeEscape)
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside)
+      document.removeEventListener("keydown", closeEscape)
+    }
+  }, [pairOpen])
   const current = useMemo(() => {
-    const base =
+    return (
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null
-    if (!base) return null
-    const livePrice = marketQuotes[base.symbol]
-    return livePrice === undefined || livePrice === base.price
-      ? base
-      : { ...base, price: livePrice }
-  }, [availableMarkets, marketQuotes, selected])
+    )
+  }, [availableMarkets, selected])
   const dayStats = useMemo(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000
     const rows = dayCandles.filter((candle) => Date.parse(candle.time) >= cutoff)
@@ -401,7 +413,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setQuantity("")
       return
     }
-    const referencePrice = Number(price || current.price)
+    const referencePrice = Number(price || marketQuotes[current.symbol] || current.price)
     const factor = next / 100
     const quantityValue =
       side === "SELL" ? availableNumber * factor : (availableNumber / referencePrice) * factor
@@ -467,6 +479,62 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       cancelled = true
     }
   }, [view.line])
+  useEffect(() => {
+    if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
+    let cancelled = false
+    const refreshPairQuotes = async () => {
+      const quotes = await Promise.allSettled(
+        markets.map((market) => loadMarkPrice(market.symbol, view.line)),
+      )
+      if (cancelled) return
+      quotes.forEach((result, index) => {
+        const symbol = markets[index]?.symbol
+        if (symbol && result.status === "fulfilled") {
+          updateMarketQuote(symbol, numberValue(result.value, "markPrice"))
+        }
+      })
+    }
+    void refreshPairQuotes()
+    const timer = window.setInterval(() => void refreshPairQuotes(), 10_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [markets, updateMarketQuote, view.line])
+  useEffect(() => {
+    if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
+    let cancelled = false
+    void Promise.allSettled(
+      markets.map((market) => loadCandles(market.symbol, "1h", view.line)),
+    ).then((results) => {
+      if (cancelled) return
+      const changes: Record<string, number> = {}
+      results.forEach((result, index) => {
+        const symbol = markets[index]?.symbol
+        if (!symbol || result.status !== "fulfilled") return
+        const rows = result.value
+          .map(mapCandle)
+          .filter((candle) => Date.parse(candle.time) >= Date.now() - 86_400_000)
+        const open = rows[0]?.open
+        const close = rows.at(-1)?.close
+        if (open && close) changes[symbol] = ((close - open) / open) * 100
+      })
+      setPairChanges(changes)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [markets, view.line])
+  useEffect(() => {
+    if (!current || price) return
+    const quote = marketQuotes[current.symbol]
+    const quoteScale = Number(assetScales[current.quoteAsset])
+    const priceTick = Number(current.priceTickUnits)
+    if (!quote || !Number.isFinite(quoteScale) || quoteScale <= 0 || !priceTick) return
+    const step = priceTick / quoteScale
+    const decimals = Math.max(2, (String(step).split(".")[1] ?? "").length)
+    setPrice((Math.round(quote / step) * step).toFixed(Math.min(decimals, 10)))
+  }, [assetScales, current, marketQuotes, price])
   useEffect(() => {
     if (!current) return
     setPrice(current.price === null ? "" : String(current.price))
@@ -808,7 +876,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           (balance.free === undefined
             ? undefined
             : decimalToUnits(String(balance.free), balanceScale))
-        const referencePrice = executionType === "MARKET" ? current.price : price
+        const referencePrice =
+          executionType === "MARKET" ? (marketQuotes[current.symbol] ?? current.price) : price
         if (side === "BUY" && referencePrice === null) {
           throw new Error("市场参考价尚未加载，无法校验可用余额。")
         }
@@ -914,82 +983,114 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }
 
   return (
-    <div className={`trade-page ${view.dark ? "trade-dark" : ""}`}>
+    <div className="trade-page">
       <div className="trade-shell">
-        <aside className="trade-pairs">
-          <SearchField value={pairSearch} onChange={setPairSearch} placeholder="Search pairs..." />
-          <div className="trade-tabs">
-            <button
-              type="button"
-              className={pairTab === "all" ? "active" : ""}
-              onClick={() => setPairTab("all")}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              className={pairTab === "favorites" ? "active" : ""}
-              onClick={() => setPairTab("favorites")}
-            >
-              Favorites
-            </button>
-          </div>
-          {filteredMarkets.map((market) => (
-            <div
-              className={`pair-row ${market.symbol === current?.symbol ? "active" : ""}`}
-              key={market.symbol}
-            >
-              <button
-                type="button"
-                className="pair-select"
-                onClick={() => setSelected(market.symbol)}
-              >
-                {market.symbol}
-              </button>
-              <button
-                type="button"
-                className="pair-favorite"
-                aria-label={
-                  favorites.includes(market.symbol) ? "Remove from favorites" : "Add to favorites"
-                }
-                onClick={() => toggleFavorite(market.symbol)}
-              >
-                <Star
-                  size={15}
-                  fill={favorites.includes(market.symbol) ? "currentColor" : "none"}
-                />
-              </button>
-              <span className={(market.change24h ?? 0) >= 0 ? "positive mono" : "negative mono"}>
-                <Price
-                  value={
-                    market.symbol === current?.symbol
-                      ? (candles.at(-1)?.close ?? marketQuotes[market.symbol] ?? market.price)
-                      : (marketQuotes[market.symbol] ?? market.price)
-                  }
-                  dollar={isDollarQuote(market.quoteAsset)}
-                />
-              </span>
-            </div>
-          ))}
-          {filteredMarkets.length === 0 ? (
-            <StateView
-              kind={demo ? "empty" : "error"}
-              message={
-                pairTab === "favorites"
-                  ? "No favorite pairs yet. Select the star beside a pair to pin it here."
-                  : demo
-                    ? "No demo pair matches."
-                    : "No market pairs returned by the backend."
-              }
-            />
-          ) : null}
-        </aside>
         <main className="trade-main">
           <header className="trade-market-header">
             <div>
-              <h1>
-                {current?.symbol ?? view.symbol} <Info size={18} />
-              </h1>
+              <div className="trade-pair-picker" ref={pairPickerRef}>
+                <h1>
+                  <button
+                    type="button"
+                    className="trade-pair-trigger"
+                    aria-expanded={pairOpen}
+                    aria-label="Select trading pair"
+                    onClick={() => setPairOpen((open) => !open)}
+                  >
+                    {current ? <AssetIcon asset={current.baseAsset} /> : null}
+                    <span>{current?.symbol ?? view.symbol}</span>
+                    <ChevronDown size={17} />
+                  </button>
+                  <Info size={18} />
+                </h1>
+                {pairOpen ? (
+                  <div className="trade-pair-popover">
+                    <SearchField
+                      value={pairSearch}
+                      onChange={setPairSearch}
+                      placeholder="Search pairs..."
+                    />
+                    <div className="trade-tabs">
+                      <button
+                        type="button"
+                        className={pairTab === "all" ? "active" : ""}
+                        onClick={() => setPairTab("all")}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        className={pairTab === "favorites" ? "active" : ""}
+                        onClick={() => setPairTab("favorites")}
+                      >
+                        Favorites
+                      </button>
+                    </div>
+                    <div className="trade-pair-list">
+                      {filteredMarkets.map((market) => (
+                        <div
+                          className={`pair-row ${market.symbol === current?.symbol ? "active" : ""}`}
+                          key={market.symbol}
+                        >
+                          <button
+                            type="button"
+                            className="pair-favorite"
+                            aria-label={
+                              favorites.includes(market.symbol)
+                                ? `Remove ${market.symbol} from favorites`
+                                : `Add ${market.symbol} to favorites`
+                            }
+                            onClick={() => toggleFavorite(market.symbol)}
+                          >
+                            <Star
+                              size={15}
+                              fill={favorites.includes(market.symbol) ? "currentColor" : "none"}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            className="pair-select"
+                            onClick={() => {
+                              setSelected(market.symbol)
+                              setPairOpen(false)
+                            }}
+                          >
+                            <AssetIcon asset={market.baseAsset} />
+                            <span>{market.symbol}</span>
+                          </button>
+                          <span className="pair-market-values">
+                            <strong className="mono">
+                              <Price
+                                value={marketQuotes[market.symbol] ?? market.price}
+                                dollar={isDollarQuote(market.quoteAsset)}
+                              />
+                            </strong>
+                            <small
+                              className={
+                                (pairChanges[market.symbol] ?? market.change24h ?? 0) >= 0
+                                  ? "positive mono"
+                                  : "negative mono"
+                              }
+                            >
+                              {formatPercent(pairChanges[market.symbol] ?? market.change24h)}
+                            </small>
+                          </span>
+                        </div>
+                      ))}
+                      {filteredMarkets.length === 0 ? (
+                        <StateView
+                          kind="empty"
+                          message={
+                            pairTab === "favorites"
+                              ? "No favorite pairs yet."
+                              : "No matching trading pairs."
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <span className="cluster">
                 {view.title} · {current?.baseAsset ?? "Asset"}
                 <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
@@ -1007,7 +1108,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <small>Last Price</small>
               <strong className="positive mono">
                 <Price
-                  value={candles.at(-1)?.close ?? current?.price ?? null}
+                  value={
+                    candles.at(-1)?.close ??
+                    (current ? marketQuotes[current.symbol] : null) ??
+                    current?.price ??
+                    null
+                  }
                   dollar={isDollarQuote(current?.quoteAsset)}
                 />
               </strong>
@@ -1093,33 +1199,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {view.key === "delivery-futures" || view.key === "coin-m-delivery" ? (
             <DeliveryDetails market={current} />
           ) : null}
-          <TradingAccountControls
-            userId={session?.user.userId}
-            symbol={current?.symbol ?? view.symbol}
-            productLine={view.line}
-            positions={positions}
-            settleAsset={current?.settleAsset ?? current?.quoteAsset ?? "USDT"}
-            assetScale={
-              current ? assetScales[current.settleAsset ?? current.quoteAsset] : undefined
-            }
-            priceTickUnits={current?.priceTickUnits}
-            priceScale={current ? assetScales[current.quoteAsset] : undefined}
-            quantityStepUnits={
-              current?.productLine === PRODUCT_LINES.usdMPerpetual
-                ? String(current.contractMultiplierPpm ?? "")
-                : current?.quantityStepUnits
-            }
-            quantityScale={
-              current?.productLine === PRODUCT_LINES.usdMPerpetual
-                ? "1000000"
-                : current
-                  ? assetScales[current.baseAsset]
-                  : undefined
-            }
-            accountView={realtime.views[view.line]}
-            onRefresh={realtime.refresh}
-            onSettingsChange={handleSettingsChange}
-          />
           <div className="trade-chart-toolbar">
             {["1m", "15m", "1h", "4h", "1d"].map((value) => (
               <button
@@ -1145,44 +1224,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             demo={demo}
             unavailable={!demo && candles.length === 0}
           />
-          <div className="trade-bottom">
-            <OrderBook
-              book={book}
-              depth={bookDepth}
-              dollar={isDollarQuote(current?.quoteAsset)}
-              onDepthChange={setBookDepth}
-            />
-            <Panel dense>
-              <div className="panel-heading">
-                <h2>Recent trades</h2>
-                <Badge tone="neutral">{recentTrades.length > 0 ? "Recent" : "Waiting"}</Badge>
-              </div>
-              {recentTrades.length === 0 ? (
-                <p className="subtle">Waiting for recent trades.</p>
-              ) : (
-                <div className="recent-trades">
-                  {recentTrades.slice(0, 20).map((trade, index) => (
-                    <div
-                      className="recent-trade-row"
-                      key={`${text(trade, "coreSequence")}-${index}`}
-                    >
-                      <span
-                        className={
-                          text(trade, "side") === "SELL" ? "negative mono" : "positive mono"
-                        }
-                      >
-                        {displayPrice(text(trade, "price"), isDollarQuote(current?.quoteAsset))}
-                      </span>
-                      <span className="mono">
-                        {formatTradeQuantity(tradeDisplayQuantity(trade, current, assetScales))}
-                      </span>
-                      <time className="mono">{formatClock(text(trade, "eventTime"))}</time>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-          </div>
           <div className="trade-account-shell">
             <div className="trade-account-tabs" role="tablist" aria-label="Account data">
               <button
@@ -1227,8 +1268,46 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   </button>
                 </>
               ) : null}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={accountTab === "settings"}
+                className={accountTab === "settings" ? "active" : ""}
+                onClick={() => setAccountTab("settings")}
+              >
+                Account settings & risk
+              </button>
             </div>
             <div className="trade-account-body" role="tabpanel">
+              {accountTab === "settings" ? (
+                <TradingAccountControls
+                  userId={session?.user.userId}
+                  symbol={current?.symbol ?? view.symbol}
+                  productLine={view.line}
+                  positions={positions}
+                  settleAsset={current?.settleAsset ?? current?.quoteAsset ?? "USDT"}
+                  assetScale={
+                    current ? assetScales[current.settleAsset ?? current.quoteAsset] : undefined
+                  }
+                  priceTickUnits={current?.priceTickUnits}
+                  priceScale={current ? assetScales[current.quoteAsset] : undefined}
+                  quantityStepUnits={
+                    current?.productLine === PRODUCT_LINES.usdMPerpetual
+                      ? String(current.contractMultiplierPpm ?? "")
+                      : current?.quantityStepUnits
+                  }
+                  quantityScale={
+                    current?.productLine === PRODUCT_LINES.usdMPerpetual
+                      ? "1000000"
+                      : current
+                        ? assetScales[current.baseAsset]
+                        : undefined
+                  }
+                  accountView={realtime.views[view.line]}
+                  onRefresh={realtime.refresh}
+                  onSettingsChange={handleSettingsChange}
+                />
+              ) : null}
               {accountTab === "positions" ? (
                 <Panel dense>
                   <div className="panel-heading">
@@ -1332,6 +1411,74 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </div>
           </div>
         </main>
+        <aside className="trade-market-side">
+          <div className="trade-tabs" role="tablist" aria-label="Market depth and trades">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={marketSideTab === "book"}
+              className={marketSideTab === "book" ? "active" : ""}
+              onClick={() => setMarketSideTab("book")}
+            >
+              Order book
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={marketSideTab === "trades"}
+              className={marketSideTab === "trades" ? "active" : ""}
+              onClick={() => setMarketSideTab("trades")}
+            >
+              Recent trades
+            </button>
+          </div>
+          {marketSideTab === "book" ? (
+            <OrderBook
+              book={book}
+              depth={bookDepth}
+              precision={bookPrecision}
+              priceStep={
+                current?.priceTickUnits && assetScales[current.quoteAsset]
+                  ? Number(current.priceTickUnits) / Number(assetScales[current.quoteAsset])
+                  : 0
+              }
+              dollar={isDollarQuote(current?.quoteAsset)}
+              onDepthChange={setBookDepth}
+              onPrecisionChange={setBookPrecision}
+            />
+          ) : (
+            <Panel dense className="trade-side-panel">
+              <div className="panel-heading">
+                <h2>Recent trades</h2>
+                <Badge tone="neutral">{recentTrades.length > 0 ? "Recent" : "Waiting"}</Badge>
+              </div>
+              {recentTrades.length === 0 ? (
+                <p className="subtle">Waiting for recent trades.</p>
+              ) : (
+                <div className="recent-trades">
+                  {recentTrades.slice(0, 50).map((trade, index) => (
+                    <div
+                      className="recent-trade-row"
+                      key={`${text(trade, "coreSequence")}-${index}`}
+                    >
+                      <span
+                        className={
+                          text(trade, "side") === "SELL" ? "negative mono" : "positive mono"
+                        }
+                      >
+                        {displayPrice(text(trade, "price"), isDollarQuote(current?.quoteAsset))}
+                      </span>
+                      <span className="mono">
+                        {formatTradeQuantity(tradeDisplayQuantity(trade, current, assetScales))}
+                      </span>
+                      <time className="mono">{formatClock(text(trade, "eventTime"))}</time>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          )}
+        </aside>
         <aside className="trade-ticket">
           <div className="ticket-tabs">
             <button
@@ -1391,7 +1538,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 ) : null}
               </div>
               <Field label="触发类型 / Trigger type">
-                <select
+                <DropdownSelect
                   aria-label="Trigger type"
                   value={triggerType}
                   onChange={(event) =>
@@ -1402,7 +1549,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 >
                   <option value="STOP_LOSS">止损 Stop loss</option>
                   <option value="TAKE_PROFIT">止盈 Take profit</option>
-                </select>
+                </DropdownSelect>
               </Field>
               <Field
                 label="触发价格 / Trigger price"
@@ -1427,7 +1574,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     : "触发后挂出限价平仓单"
                 }
               >
-                <select
+                <DropdownSelect
                   aria-label="Execution"
                   value={triggerExecutionType}
                   onChange={(event) =>
@@ -1436,7 +1583,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 >
                   <option value="MARKET">市价 Market</option>
                   <option value="LIMIT">限价 Limit</option>
-                </select>
+                </DropdownSelect>
               </Field>
             </>
           ) : null}
@@ -1532,27 +1679,39 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 function OrderBook({
   book,
   depth,
+  precision,
+  priceStep,
   dollar,
   onDepthChange,
+  onPrecisionChange,
 }: {
   readonly book: ApiOrderBook | null
   readonly depth: 10 | 20 | 50
+  readonly precision: 1 | 10 | 100
+  readonly priceStep: number
   readonly dollar: boolean
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
+  readonly onPrecisionChange: (precision: 1 | 10 | 100) => void
 }) {
-  const bids = [...(book?.bids ?? [])]
-    .sort((left, right) => levelPrice(right) - levelPrice(left))
-    .slice(0, depth)
-  const asks = [...(book?.asks ?? [])]
-    .sort((left, right) => levelPrice(left) - levelPrice(right))
-    .slice(0, depth)
+  const bids = aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid").slice(0, depth)
+  const asks = aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask").slice(0, depth)
   return (
     <Panel dense className="order-book-panel">
       <div className="panel-heading">
         <h2>Order book</h2>
-        <label className="book-depth-control">
+        <div className="book-depth-control">
+          精度
+          <DropdownSelect
+            aria-label="Order book price precision"
+            value={precision}
+            onChange={(event) => onPrecisionChange(Number(event.target.value) as 1 | 10 | 100)}
+          >
+            <option value={1}>1×</option>
+            <option value={10}>10×</option>
+            <option value={100}>100×</option>
+          </DropdownSelect>
           档位
-          <select
+          <DropdownSelect
             aria-label="Order book depth"
             value={depth}
             onChange={(event) => onDepthChange(Number(event.target.value) as 10 | 20 | 50)}
@@ -1560,8 +1719,8 @@ function OrderBook({
             <option value={10}>10</option>
             <option value={20}>20</option>
             <option value={50}>50</option>
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
       </div>
       {bids.length === 0 && asks.length === 0 ? (
         <StateView kind="empty" message="Order book data is not available." />
@@ -1601,6 +1760,30 @@ function OrderBook({
       )}
     </Panel>
   )
+}
+
+function aggregateBookLevels(
+  levels: readonly Level[],
+  priceStep: number,
+  side: "bid" | "ask",
+): Level[] {
+  const sorted = [...levels].sort((left, right) =>
+    side === "bid" ? levelPrice(right) - levelPrice(left) : levelPrice(left) - levelPrice(right),
+  )
+  if (!Number.isFinite(priceStep) || priceStep <= 0) return sorted
+  const buckets = new Map<string, number>()
+  for (const level of sorted) {
+    const price = levelPrice(level)
+    const quantity = Number(Array.isArray(level) ? level[1] : level.quantitySteps)
+    if (!Number.isFinite(price) || !Number.isFinite(quantity)) continue
+    const bucket =
+      side === "bid"
+        ? Math.floor((price + priceStep * 1e-9) / priceStep)
+        : Math.ceil((price - priceStep * 1e-9) / priceStep)
+    const key = String(Number((bucket * priceStep).toFixed(10)))
+    buckets.set(key, (buckets.get(key) ?? 0) + quantity)
+  }
+  return [...buckets].map(([price, quantity]) => [price, String(quantity)] as Level)
 }
 
 function mapDisplayCandle(
