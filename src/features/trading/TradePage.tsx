@@ -546,7 +546,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [markets, view.line])
   useEffect(() => {
     if (!current || price) return
-    const quote = marketQuotes[current.symbol]
+    const quote = marketQuotes[current.symbol] ?? current.price
     const quoteScale = Number(assetScales[current.quoteAsset])
     const priceTick = Number(current.priceTickUnits)
     if (!quote || !Number.isFinite(quoteScale) || quoteScale <= 0 || !priceTick) return
@@ -556,7 +556,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [assetScales, current, marketQuotes, price])
   useEffect(() => {
     if (!current) return
-    setPrice(current.price === null ? "" : String(current.price))
+    setPrice("")
     setCandles([])
     setBook(null)
     bookSequenceRef.current = null
@@ -1747,7 +1747,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <span>Available</span>
             <span className="mono">
               {session
-                ? `${balanceAmount(balance, assetScales) ?? "—"} ${balance?.asset ?? current?.quoteAsset ?? ""}`
+                ? `${displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
                 : "Login required"}
             </span>
             <span>Est. fee</span>
@@ -2527,7 +2527,8 @@ function estimatedFee(market: Market | null, price: string, quantity: string): s
   ) {
     return "—"
   }
-  return `${((priceValue * quantityValue * rate) / 1_000_000).toFixed(8)} ${market?.quoteAsset ?? ""}`
+  const fee = ((priceValue * quantityValue * rate) / 1_000_000).toFixed(8)
+  return `${displayPrice(fee, isDollarQuote(market?.quoteAsset))} ${market?.quoteAsset ?? ""}`
 }
 
 function numericValue(value: string | number | undefined): number | null {
