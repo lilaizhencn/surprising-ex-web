@@ -21,4 +21,17 @@ describe("prepareChartCandles", () => {
       ]).map((row) => row.close),
     ).toEqual([99, 102])
   })
+
+  it("keeps no-trade periods continuous with zero volume", () => {
+    const rows = prepareChartCandles(
+      [{ time: "2026-09-26T03:04:00Z", open: 100, high: 102, low: 99, close: 101, volume: 3 }],
+      "1m",
+      Date.parse("2026-09-26T03:06:30Z"),
+    )
+    expect(rows.map((row) => [row.time, row.close, row.volume])).toEqual([
+      ["2026-09-26T03:04:00Z", 101, 3],
+      ["2026-09-26T03:05:00.000Z", 101, 0],
+      ["2026-09-26T03:06:00.000Z", 101, 0],
+    ])
+  })
 })

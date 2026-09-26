@@ -26,7 +26,6 @@ import {
 import { mapCandle, mapMarket } from "../../api/mappers"
 import type {
   ApiBalance,
-  ApiCandle,
   ApiFundingPayment,
   ApiFundingRate,
   ApiOptionQuote,
@@ -174,6 +173,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [pairSearch, setPairSearch] = useState("")
   const [pairTab, setPairTab] = useState<"all" | "favorites">("all")
   const [pairOpen, setPairOpen] = useState(false)
+  const [contractInfoOpen, setContractInfoOpen] = useState(false)
   const pairPickerRef = useRef<HTMLDivElement>(null)
   const [marketSideTab, setMarketSideTab] = useState<"book" | "trades">("book")
   const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
@@ -186,6 +186,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const streamRevision = useRef(0)
   const bookResyncingRef = useRef(false)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
+  const latestTradeRef = useRef<{
+    symbol: string
+    bucket: string
+    price: number
+    sequence: number
+  } | null>(null)
   const [optionQuote, setOptionQuote] = useState<ApiOptionQuote | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [triggerOrders, setTriggerOrders] = useState<readonly ApiTriggerOrder[]>([])
@@ -274,6 +280,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       change: first.open > 0 ? ((last.close - first.open) / first.open) * 100 : null,
     }
   }, [dayCandles])
+  const lastTradePrice = current
+    ? marketPriceFromRecord(recentTrades[0] ?? {}, current, assetScales)
+    : null
+  const displayedDayStats =
+    dayStats && lastTradePrice && lastTradePrice > 0
+      ? {
+          ...dayStats,
+          high: Math.max(dayStats.high, lastTradePrice),
+          low: Math.min(dayStats.low, lastTradePrice),
+          close: lastTradePrice,
+          change: ((lastTradePrice - dayStats.open) / dayStats.open) * 100,
+        }
+      : dayStats
   const balance = useMemo(() => {
     const asset =
       view.line === PRODUCT_LINES.spot
@@ -556,7 +575,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (generation !== marketGeneration.current) return
       const nextScales = scales.status === "fulfilled" ? scales.value : {}
       if (candleResult.status === "fulfilled") {
-        const history = candleResult.value.map((row) => mapDisplayCandle(row, current, nextScales))
+        const history = candleResult.value.map(mapCandle)
         const latestCandle = history.at(-1)
         if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
         setCandles((live) => {
@@ -584,6 +603,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   useEffect(() => {
     setRecentTrades([])
+    latestTradeRef.current = null
     if (!current?.symbol) return
     let cancelled = false
     void loadRecentTrades(current.symbol, view.line)
@@ -613,8 +633,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setDayCandles([])
     void loadCandles(current.symbol, "1h", view.line)
       .then((rows) => {
-        if (!cancelled)
-          setDayCandles(rows.map((row) => mapDisplayCandle(row, current, assetScales)))
+        if (!cancelled) setDayCandles(rows.map(mapCandle))
       })
       .catch(() => {
         if (!cancelled) setDayCandles([])
@@ -668,17 +687,24 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       return
     }
     let cancelled = false
-    const revision = streamRevision.current
-    void Promise.allSettled([
-      loadMarkPrice(current.symbol, view.line),
-      loadIndexPrice(current.symbol, view.line),
-    ]).then(([markResult, indexResult]) => {
-      if (cancelled || revision !== streamRevision.current) return
-      setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
-      setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
-    })
+    let inFlight = false
+    const refreshPrices = async () => {
+      if (inFlight) return
+      inFlight = true
+      const [markResult, indexResult] = await Promise.allSettled([
+        loadMarkPrice(current.symbol, view.line),
+        loadIndexPrice(current.symbol, view.line),
+      ])
+      inFlight = false
+      if (cancelled) return
+      if (markResult.status === "fulfilled") setMarkPrice(markResult.value)
+      if (indexResult.status === "fulfilled") setIndexPrice(indexResult.value)
+    }
+    void refreshPrices()
+    const timer = window.setInterval(() => void refreshPrices(), 1_000)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
     }
   }, [current?.symbol, view.line])
 
@@ -706,13 +732,31 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         if (!candle.success) return
         const candlePeriod = text(data, "period") || text(event, "period")
         if (candlePeriod && candlePeriod !== period) return
-        const next = mapDisplayCandle(candle.data, current, assetScales)
-        updateMarketQuote(current.symbol, next.close)
-        setCandles((rows) =>
-          [...rows.filter((row) => row.time !== next.time), next]
+        const next = mapCandle(candle.data)
+        const liveTrade = latestTradeRef.current
+        const candleSequence = numberValue(candle.data, "lastSequence")
+        const olderThanLiveTrade =
+          liveTrade?.symbol === current.symbol &&
+          liveTrade.bucket === next.time &&
+          candleSequence !== null &&
+          candleSequence < liveTrade.sequence
+        if (!olderThanLiveTrade) updateMarketQuote(current.symbol, next.close)
+        setCandles((rows) => {
+          const live = rows.find((row) => row.time === next.time)
+          const resolved =
+            olderThanLiveTrade && liveTrade
+              ? {
+                  ...next,
+                  high: Math.max(next.high, live?.high ?? liveTrade.price),
+                  low: Math.min(next.low, live?.low ?? liveTrade.price),
+                  close: live?.close ?? liveTrade.price,
+                  volume: Math.max(next.volume, live?.volume ?? 0),
+                }
+              : next
+          return [...rows.filter((row) => row.time !== next.time), resolved]
             .sort((left, right) => left.time.localeCompare(right.time))
-            .slice(-120),
-        )
+            .slice(-120)
+        })
         return
       }
       if (channel === "depth") {
@@ -763,6 +807,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const tradeQuantity = numberValue(nextTrade, "quantity")
         const tradeTime = Date.parse(event.eventTime ?? "")
         if (tradePrice !== null && tradePrice > 0 && Number.isFinite(tradeTime)) {
+          const tradeSequence = numberValue(data, "sequence") ?? numberValue(data, "coreSequence")
+          if (tradeSequence !== null) {
+            latestTradeRef.current = {
+              symbol: current.symbol,
+              bucket: new Date(
+                Math.floor(tradeTime / periodMillisecondsForChart(period)) *
+                  periodMillisecondsForChart(period),
+              ).toISOString(),
+              price: tradePrice,
+              sequence: tradeSequence,
+            }
+          }
           const quantity = Math.max(tradeQuantity ?? 0, 0)
           setCandles((rows) =>
             applyTradeToCandles(
@@ -997,11 +1053,65 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   onClick={() => setPairOpen((open) => !open)}
                 >
                   {current ? <AssetIcon asset={current.baseAsset} /> : null}
-                  <span>{current?.symbol ?? view.symbol}</span>
+                  <span>{(current?.symbol ?? view.symbol).replace(/-SWAP$/, "")}</span>
                   <ChevronDown size={17} />
                 </button>
-                <Info size={18} />
+                <button
+                  type="button"
+                  className="trade-contract-info-trigger"
+                  aria-label="Contract information"
+                  aria-expanded={contractInfoOpen}
+                  onClick={() => setContractInfoOpen((open) => !open)}
+                >
+                  <Info size={17} />
+                </button>
               </h1>
+              {contractInfoOpen && current ? (
+                <div
+                  className="trade-contract-popover"
+                  role="dialog"
+                  aria-label="Contract information"
+                >
+                  <strong>{current.symbol}</strong>
+                  <dl>
+                    <div>
+                      <dt>Product</dt>
+                      <dd>{view.title}</dd>
+                    </div>
+                    <div>
+                      <dt>Base / Quote</dt>
+                      <dd>
+                        {current.baseAsset} / {current.quoteAsset}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Settlement</dt>
+                      <dd>{current.settleAsset ?? current.quoteAsset}</dd>
+                    </div>
+                    <div>
+                      <dt>Price tick</dt>
+                      <dd>
+                        {current.priceTickUnits && assetScales[current.quoteAsset]
+                          ? Number(current.priceTickUnits) / Number(assetScales[current.quoteAsset])
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Contract size</dt>
+                      <dd>
+                        {current.contractMultiplierPpm
+                          ? current.contractMultiplierPpm / 1_000_000
+                          : "—"}{" "}
+                        {current.contractValueAsset ?? current.baseAsset}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Max leverage</dt>
+                      <dd>{current.maxLeverage ? `${current.maxLeverage}×` : "—"}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ) : null}
               {pairOpen ? (
                 <div className="trade-pair-popover">
                   <SearchField
@@ -1108,6 +1218,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <strong className="positive mono">
               <Price
                 value={
+                  lastTradePrice ??
                   candles.at(-1)?.close ??
                   (current ? marketQuotes[current.symbol] : null) ??
                   current?.price ??
@@ -1121,25 +1232,28 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <small>24h Change</small>
             <strong
               className={
-                (dayStats?.change ?? current?.change24h ?? 0) >= 0
+                (displayedDayStats?.change ?? current?.change24h ?? 0) >= 0
                   ? "positive mono"
                   : "negative mono"
               }
             >
-              {formatPercent(dayStats?.change ?? current?.change24h ?? null)}
+              {formatPercent(displayedDayStats?.change ?? current?.change24h ?? null)}
             </strong>
           </div>
           <div>
             <small>24h Open</small>
             <strong className="mono">
-              <Price value={dayStats?.open ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
+              <Price
+                value={displayedDayStats?.open ?? null}
+                dollar={isDollarQuote(current?.quoteAsset)}
+              />
             </strong>
           </div>
           <div>
             <small>24h High</small>
             <strong className="mono">
               <Price
-                value={dayStats?.high ?? current?.high24h ?? null}
+                value={displayedDayStats?.high ?? current?.high24h ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
               />
             </strong>
@@ -1148,7 +1262,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <small>24h Low</small>
             <strong className="mono">
               <Price
-                value={dayStats?.low ?? current?.low24h ?? null}
+                value={displayedDayStats?.low ?? current?.low24h ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
               />
             </strong>
@@ -1156,7 +1270,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           <div>
             <small>24h Close</small>
             <strong className="mono">
-              <Price value={dayStats?.close ?? null} dollar={isDollarQuote(current?.quoteAsset)} />
+              <Price
+                value={displayedDayStats?.close ?? null}
+                dollar={isDollarQuote(current?.quoteAsset)}
+              />
             </strong>
           </div>
           {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
@@ -1217,11 +1334,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             candles={candles}
             period={period}
             dollar={isDollarQuote(current?.quoteAsset)}
-            volumeUnit={
-              current?.productLine === PRODUCT_LINES.usdMPerpetual
-                ? "张"
-                : (current?.baseAsset ?? "")
-            }
+            volumeUnit={current?.baseAsset ?? ""}
             demo={demo}
             unavailable={!demo && candles.length === 0}
           />
@@ -1796,22 +1909,6 @@ function aggregateBookLevels(
     buckets.set(key, (buckets.get(key) ?? 0) + quantity)
   }
   return [...buckets].map(([price, quantity]) => [price, String(quantity)] as Level)
-}
-
-function mapDisplayCandle(
-  row: ApiCandle,
-  market: Market,
-  assetScales: Readonly<Record<string, string>>,
-): Candle {
-  const candle = mapCandle(row)
-  if (market.productLine !== PRODUCT_LINES.usdMPerpetual) return candle
-  const multiplier = market.contractMultiplierPpm
-  const baseScale = Number(assetScales[market.baseAsset])
-  const stepUnits = Number(market.quantityStepUnits)
-  if (!multiplier || !Number.isFinite(baseScale) || !Number.isFinite(stepUnits) || stepUnits <= 0) {
-    return { ...candle, volume: 0 }
-  }
-  return { ...candle, volume: candle.volume * (multiplier / 1000000) * (baseScale / stepUnits) }
 }
 
 function tradeDisplayQuantity(

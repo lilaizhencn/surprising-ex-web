@@ -2663,3 +2663,93 @@ button:disabled {
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
 }
+.chart-canvas {
+  position: relative;
+}
+.chart-canvas::after {
+  position: absolute;
+  top: calc((100% - 26px) * 0.76);
+  right: 0;
+  left: 0;
+  border-top: 2px solid var(--color-border);
+  content: "";
+  pointer-events: none;
+}
+.trade-contract-info-trigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+.trade-contract-info-trigger:hover {
+  color: var(--color-primary);
+}
+.trade-contract-popover {
+  position: absolute;
+  z-index: 31;
+  top: calc(100% + 12px);
+  left: 0;
+  width: 310px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 16px 45px rgb(0 0 0 / 22%);
+  white-space: normal;
+}
+.trade-contract-popover dl {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+.trade-contract-popover dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trade-contract-popover dt {
+  color: var(--color-ink-muted);
+}
+.trade-contract-popover dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+@media (min-width: 1201px) {
+  .trade-shell {
+    align-items: stretch;
+    grid-template-rows: 66px max(932px, calc(100vh - var(--top-nav-height) - 66px));
+  }
+  .trade-ticket,
+  .trade-main,
+  .trade-market-side {
+    align-self: stretch;
+  }
+  .trade-market-side {
+    display: flex;
+    flex-direction: column;
+  }
+  .trade-main,
+  .trade-market-side {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .trade-side-panel,
+  .trade-market-side > .order-book-panel {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+  .trade-market-side .order-book-sides {
+    overflow: hidden;
+  }
+}
