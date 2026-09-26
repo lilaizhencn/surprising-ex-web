@@ -10,6 +10,7 @@ import {
 } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 
 type RecordRow = Readonly<Record<string, unknown>>
@@ -42,14 +43,15 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
       <div className="account-content">
         <div className="page-heading">
           <div>
-            <h1>Identity Verification</h1>
-            <p>Review KYC status and submit documents through the backend workflow.</p>
+            <h1>{t("Identity Verification")}</h1>
+            <p>{t("Review KYC status and submit documents through the backend workflow.")}</p>
           </div>
         </div>
         <Panel>
           <StateView kind="error" message="Sign in to begin identity verification." />
           <a className="route-link" href="/auth/login">
-            Go to login
+            {" "}
+            {t("Go to login")}{" "}
           </a>
         </Panel>
       </div>
@@ -60,10 +62,12 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
     <div className="account-content">
       <div className="page-heading">
         <div>
-          <h1>Identity Verification</h1>
+          <h1>{t("Identity Verification")}</h1>
           <p>
-            Submit documents to the backend compliance workflow. Approval is never simulated by this
-            page.
+            {" "}
+            {t(
+              "Submit documents to the backend compliance workflow. Approval is never simulated by this page.",
+            )}{" "}
           </p>
         </div>
         <span className="verification-status">{status}</span>
@@ -79,17 +83,17 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
             <Step
               active={level !== "NOT_VERIFIED"}
               icon={<UserRound />}
-              label="Personal information"
+              label={t("Personal information")}
             />
             <Step
               active={status === "PENDING" || status === "VERIFIED"}
               icon={<FileText />}
-              label="Document review"
+              label={t("Document review")}
             />
             <Step
               active={text(kyc, "faceVerificationStatus") === "VERIFIED"}
               icon={<Upload />}
-              label="Face verification"
+              label={t("Face verification")}
             />
           </div>
           {flow ? (
@@ -102,20 +106,20 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
             />
           ) : (
             <div className="kyc-intro">
-              <h2>Verification tiers</h2>
+              <h2>{t("Verification tiers")}</h2>
               <div className="tier-grid">
                 <Tier
-                  title="Basic"
+                  title={t("Basic")}
                   text="Personal information and country."
                   active={level === "BASIC"}
                 />
                 <Tier
-                  title="Intermediate"
+                  title={t("Intermediate")}
                   text="Identity document upload."
                   active={level === "INTERMEDIATE" || level === "ADVANCED"}
                 />
                 <Tier
-                  title="Advanced"
+                  title={t("Advanced")}
                   text="Face verification provider status."
                   active={level === "ADVANCED"}
                 />
@@ -125,35 +129,38 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
                   window.location.href = "/account/kyc/verify"
                 }}
               >
-                Start verification
+                {" "}
+                {t("Start verification")}{" "}
               </Button>
             </div>
           )}
         </Panel>
         <Panel className="kyc-notice">
-          <h2>Backend review state</h2>
+          <h2>{t("Backend review state")}</h2>
           <p className="muted">
-            Current status: <strong>{status}</strong>. Rejection reason:{" "}
-            {text(kyc, "rejectionReason") || "—"}
+            {" "}
+            {t("Current status:")} <strong>{status}</strong>
+            {t(". Rejection reason:")} {text(kyc, "rejectionReason") || "—"}
           </p>
           <div className="notice-list">
             <span>
-              <Check size={16} /> No mock approval
+              <Check size={16} /> {t("No mock approval")}{" "}
             </span>
             <span>
-              <Check size={16} /> Documents upload through the real API
+              <Check size={16} /> {t("Documents upload through the real API")}{" "}
             </span>
             <span>
-              <Check size={16} /> Risk decisions remain server-side
+              <Check size={16} /> {t("Risk decisions remain server-side")}{" "}
             </span>
           </div>
         </Panel>
       </div>
       <Panel>
         <div className="panel-heading">
-          <h2>Uploaded documents</h2>
+          <h2>{t("Uploaded documents")}</h2>
           <Button tone="outline" loading={documentLoading} onClick={refreshDocuments}>
-            Refresh
+            {" "}
+            {t("Refresh")}{" "}
           </Button>
         </div>
         {documents.length === 0 ? (
@@ -167,9 +174,9 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Uploaded</th>
+                  <th>{t("Type")}</th>
+                  <th>{t("Status")}</th>
+                  <th>{t("Uploaded")}</th>
                   <th />
                 </tr>
               </thead>
@@ -184,7 +191,8 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
                       <td>{documentValue(document, "createdAt") || "—"}</td>
                       <td>
                         <Button tone="ghost" disabled={!id} onClick={() => void saveDocument(id)}>
-                          Download
+                          {" "}
+                          {t("Download")}{" "}
                         </Button>
                       </td>
                     </tr>
@@ -242,11 +250,11 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
   const [loading, setLoading] = useState(false)
   const submit = async () => {
     if (!/^[A-Z]{2}$/.test(country)) {
-      onDone("请输入两个字母的国家/地区代码，例如 SG。")
+      onDone(t("Enter a two-letter country or region code, such as SG."))
       return
     }
     if (documentIds.length === 0) {
-      onDone("请先上传至少一份证件。后端会保存文档并返回 documentId。")
+      onDone(t("Upload at least one document first."))
       return
     }
     setLoading(true)
@@ -263,7 +271,7 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
         faceVerificationStatus: "NOT_REQUIRED",
         documentIds,
       })
-      onDone("KYC 资料已提交，当前状态由后端审核服务返回。", profile)
+      onDone(t("Identity information submitted for review."), profile)
     } catch (reason: unknown) {
       onDone(readError(reason))
     } finally {
@@ -272,9 +280,9 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
   }
   return (
     <div className="kyc-form">
-      <h2>Submit identity information</h2>
+      <h2>{t("Submit identity information")}</h2>
       <div className="grid-2">
-        <Field label="Country or region">
+        <Field label={t("Country or region")}>
           <input
             value={country}
             onChange={(event) => setCountry(event.target.value.toUpperCase())}
@@ -282,21 +290,21 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
             maxLength={2}
           />
         </Field>
-        <Field label="Verification level">
+        <Field label={t("Verification level")}>
           <DropdownSelect value={level} onChange={(event) => setLevel(event.target.value)}>
-            <option value="BASIC">Basic</option>
-            <option value="INTERMEDIATE">Intermediate</option>
-            <option value="ADVANCED">Advanced</option>
+            <option value="BASIC">{t("Basic")}</option>
+            <option value="INTERMEDIATE">{t("Intermediate")}</option>
+            <option value="ADVANCED">{t("Advanced")}</option>
           </DropdownSelect>
         </Field>
-        <Field label="Document type">
+        <Field label={t("Document type")}>
           <DropdownSelect
             value={documentType}
             onChange={(event) => setDocumentType(event.target.value)}
           >
-            <option value="PASSPORT">Passport</option>
-            <option value="ID_CARD">National ID</option>
-            <option value="ADDRESS_PROOF">Address proof</option>
+            <option value="PASSPORT">{t("Passport")}</option>
+            <option value="ID_CARD">{t("National ID")}</option>
+            <option value="ADDRESS_PROOF">{t("Address proof")}</option>
           </DropdownSelect>
         </Field>
       </div>
@@ -317,7 +325,7 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
                   const idValue = result[DOCUMENT_ID_KEY]
                   if (typeof idValue === "number")
                     setDocumentIds((current) => [...current, idValue])
-                  onDone("证件已上传，点击提交完成 KYC 申请。")
+                  onDone(t("Document uploaded. Submit to complete your KYC application."))
                 },
                 (reason: unknown) => onDone(readError(reason)),
               )
@@ -326,11 +334,14 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
         />
       </label>
       <p className="muted">
-        Supported by the real `/api/v1/compliance/kyc/documents` endpoint. The page does not claim
-        face recognition capability.
+        {" "}
+        {t(
+          "Supported by the real `/api/v1/compliance/kyc/documents` endpoint. The page does not claim face recognition capability.",
+        )}{" "}
       </p>
       <Button loading={loading} onClick={() => void submit()}>
-        Submit for review
+        {" "}
+        {t("Submit for review")}{" "}
       </Button>
     </div>
   )
@@ -341,7 +352,9 @@ function text(row: RecordRow | null | undefined, key: string): string {
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "合规服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Compliance service unavailable. Please retry later.")
 }
 
 async function saveDocument(documentId: string): Promise<void> {
@@ -354,7 +367,7 @@ async function saveDocument(documentId: string): Promise<void> {
     anchor.click()
     URL.revokeObjectURL(url)
   } catch {
-    window.alert("文档下载失败，请稍后重试。")
+    window.alert(t("Document download failed. Please retry later."))
   }
 }
 

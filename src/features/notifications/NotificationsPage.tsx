@@ -6,6 +6,7 @@ import {
   markNotificationRead,
 } from "../../api/endpoints"
 import { Button, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 
 type Notification = Readonly<Record<string, unknown>>
@@ -32,15 +33,16 @@ export function NotificationsPage() {
       <div className="container section notifications-page">
         <div className="page-heading">
           <div>
-            <h1>Notification Center</h1>
-            <p>System and account messages are available after sign in.</p>
+            <h1>{t("Notification Center")}</h1>
+            <p>{t("System and account messages are available after sign in.")}</p>
           </div>
           <Bell size={28} color="var(--color-primary)" />
         </div>
         <Panel>
           <StateView kind="error" message="Sign in to view account notifications." />
           <a className="route-link" href="/auth/login">
-            Go to login
+            {" "}
+            {t("Go to login")}{" "}
           </a>
         </Panel>
       </div>
@@ -49,8 +51,12 @@ export function NotificationsPage() {
     <div className="container section notifications-page">
       <div className="page-heading">
         <div>
-          <h1>Notification Center</h1>
-          <p>System and account messages are loaded from the authenticated notification service.</p>
+          <h1>{t("Notification Center")}</h1>
+          <p>
+            {t(
+              "System and account messages are loaded from the authenticated notification service.",
+            )}
+          </p>
         </div>
         <Bell size={28} color="var(--color-primary)" />
       </div>
@@ -61,11 +67,13 @@ export function NotificationsPage() {
             checked={unreadOnly}
             onChange={(event) => setUnreadOnly(event.target.checked)}
           />{" "}
-          Unread only
+          {t("Unread only")}{" "}
         </label>
-        <span className="muted">{unreadCount} unread in this view</span>
+        <span className="muted">
+          {unreadCount} {t("unread in this view")}
+        </span>
         <Button tone="outline" onClick={load}>
-          <RefreshCw size={16} /> Refresh
+          <RefreshCw size={16} /> {t("Refresh")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -76,7 +84,7 @@ export function NotificationsPage() {
             )
           }
         >
-          <CheckCheck size={16} /> Mark all read
+          <CheckCheck size={16} /> {t("Mark all read")}{" "}
         </Button>
       </div>
       <Panel>
@@ -144,10 +152,11 @@ function NotificationRow({
               .finally(() => setLoading(false))
           }}
         >
-          Mark read
+          {" "}
+          {t("Mark read")}{" "}
         </Button>
       ) : (
-        <span className="muted">Read</span>
+        <span className="muted">{t("Read")}</span>
       )}
     </article>
   )
@@ -158,5 +167,7 @@ function text(row: Notification | null | undefined, key: string): string {
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "通知服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Notification service unavailable. Please retry later.")
 }

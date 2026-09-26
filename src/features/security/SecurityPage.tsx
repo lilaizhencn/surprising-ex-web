@@ -29,6 +29,7 @@ import {
 } from "../../api/endpoints"
 import type { ApiLoginHistoryEntry, ApiUserSession } from "../../api/types"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 
 type RecordRow = Readonly<Record<string, unknown>>
@@ -74,14 +75,15 @@ export function SecurityPage() {
       <div className="account-content">
         <div className="page-heading">
           <div>
-            <h1>Security Center</h1>
-            <p>Manage authentication, high-risk verification and API access.</p>
+            <h1>{t("Security Center")}</h1>
+            <p>{t("Manage authentication, high-risk verification and API access.")}</p>
           </div>
         </div>
         <Panel>
           <StateView kind="error" message="Sign in to manage account security." />
           <a className="route-link" href="/auth/login">
-            Go to login
+            {" "}
+            {t("Go to login")}{" "}
           </a>
         </Panel>
       </div>
@@ -92,8 +94,10 @@ export function SecurityPage() {
     <div className="account-content">
       <div className="page-heading">
         <div>
-          <h1>Security Center</h1>
-          <p>Manage authentication, high-risk verification and API access from backend state.</p>
+          <h1>{t("Security Center")}</h1>
+          <p>
+            {t("Manage authentication, high-risk verification and API access from backend state.")}
+          </p>
         </div>
         <div className="security-score">
           <ShieldCheck size={24} />
@@ -106,18 +110,18 @@ export function SecurityPage() {
         </div>
       ) : null}
       <section className="section-block">
-        <h2>Verification & Authentication</h2>
+        <h2>{t("Verification & Authentication")}</h2>
         <div className="security-grid">
           <SecurityCard
             icon={<LockKeyhole />}
-            title="Login Password"
+            title={t("Login Password")}
             text="Change your password after current-password and security verification."
             action="Change password"
             onClick={() => setShowPassword(true)}
           />
           <SecurityCard
             icon={<Smartphone />}
-            title="Authenticator App (2FA)"
+            title={t("Authenticator App (2FA)")}
             text={
               mfa
                 ? mfaEnabled
@@ -130,7 +134,7 @@ export function SecurityPage() {
           />
           <SecurityCard
             icon={<CheckCircle2 />}
-            title="Email Verification"
+            title={t("Email Verification")}
             text="Email verification and security challenges are controlled by the backend."
             action="Review scenes"
             onClick={() =>
@@ -159,17 +163,17 @@ export function SecurityPage() {
       ) : null}
       <section className="section-block" id="security-scenes">
         <div className="panel-heading">
-          <h2>Security scenes</h2>
-          <span className="muted">Each change requires email and TOTP verification.</span>
+          <h2>{t("Security scenes")}</h2>
+          <span className="muted">{t("Each change requires email and TOTP verification.")}</span>
         </div>
         {scenes.length > 0 ? (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Scene</th>
-                  <th>Status</th>
-                  <th>Verification</th>
+                  <th>{t("Scene")}</th>
+                  <th>{t("Status")}</th>
+                  <th>{t("Verification")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,9 +202,9 @@ export function SecurityPage() {
       </section>
       <section className="section-block">
         <div className="panel-heading">
-          <h2>API Management</h2>
+          <h2>{t("API Management")}</h2>
           <Button tone="outline" onClick={() => setShowKeyForm((value) => !value)}>
-            <KeyRound size={16} /> {showKeyForm ? "Close" : "Create API key"}
+            <KeyRound size={16} /> {showKeyForm ? t("Close") : t("Create API key")}
           </Button>
         </div>
         {showKeyForm ? (
@@ -222,10 +226,10 @@ export function SecurityPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Label</th>
-                  <th>Key</th>
-                  <th>Permissions</th>
-                  <th>Status</th>
+                  <th>{t("Label")}</th>
+                  <th>{t("Key")}</th>
+                  <th>{t("Permissions")}</th>
+                  <th>{t("Status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -246,11 +250,11 @@ export function SecurityPage() {
         )}
       </section>
       <section className="section-block">
-        <h2>Account tools</h2>
+        <h2>{t("Account tools")}</h2>
         <div className="security-grid">
           <SecurityCard
             icon={<MonitorSmartphone />}
-            title="Device management"
+            title={t("Device management")}
             text="Review active sessions, sign out other devices and inspect recent login attempts."
             action="View sessions"
             onClick={() =>
@@ -261,7 +265,7 @@ export function SecurityPage() {
       </section>
       <section className="section-block" id="security-sessions">
         <div className="panel-heading">
-          <h2>Device & session management</h2>
+          <h2>{t("Device & session management")}</h2>
           <Button
             tone="outline"
             disabled={sessions.length === 0}
@@ -270,7 +274,7 @@ export function SecurityPage() {
               setBusy(true)
               const refreshToken = session?.refreshToken
               if (!refreshToken) {
-                setMessage("当前会话缺少刷新凭证，未撤销其它设备。")
+                setMessage(t("No refresh credential. Other sessions were not revoked."))
                 setBusy(false)
                 return
               }
@@ -283,7 +287,8 @@ export function SecurityPage() {
                 .finally(() => setBusy(false))
             }}
           >
-            Revoke all other sessions
+            {" "}
+            {t("Revoke all other sessions")}{" "}
           </Button>
         </div>
         {sessions.length > 0 ? (
@@ -313,8 +318,8 @@ export function SecurityPage() {
       </section>
       <section className="section-block">
         <div className="panel-heading">
-          <h2>Login history</h2>
-          <span className="muted">Recent successful and rejected sign-in attempts.</span>
+          <h2>{t("Login history")}</h2>
+          <span className="muted">{t("Recent successful and rejected sign-in attempts.")}</span>
         </div>
         {loginHistory.length > 0 ? (
           <LoginHistoryTable entries={loginHistory} />
@@ -346,11 +351,11 @@ function SessionTable({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Device</th>
-            <th>IP address</th>
-            <th>Created</th>
-            <th>Expires</th>
-            <th>Status</th>
+            <th>{t("Device")}</th>
+            <th>{t("IP address")}</th>
+            <th>{t("Created")}</th>
+            <th>{t("Expires")}</th>
+            <th>{t("Status")}</th>
             <th />
           </tr>
         </thead>
@@ -371,7 +376,8 @@ function SessionTable({
                       if (window.confirm("Revoke this active session?")) onRevoke(session.sessionId)
                     }}
                   >
-                    Revoke
+                    {" "}
+                    {t("Revoke")}{" "}
                   </Button>
                 ) : null}
               </td>
@@ -389,11 +395,11 @@ function LoginHistoryTable({ entries }: { readonly entries: readonly ApiLoginHis
       <table className="data-table">
         <thead>
           <tr>
-            <th>Time</th>
-            <th>Result</th>
-            <th>Reason</th>
-            <th>IP address</th>
-            <th>Device</th>
+            <th>{t("Time")}</th>
+            <th>{t("Result")}</th>
+            <th>{t("Reason")}</th>
+            <th>{t("IP address")}</th>
+            <th>{t("Device")}</th>
           </tr>
         </thead>
         <tbody>
@@ -453,26 +459,26 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
   const [challengeMessage, setChallengeMessage] = useState("")
   return (
     <Panel className="security-action-panel">
-      <h2>Change password</h2>
+      <h2>{t("Change password")}</h2>
       <div className="grid-2">
-        <Field label="Current password">
+        <Field label={t("Current password")}>
           <input
             type="password"
             value={current}
             onChange={(event) => setCurrent(event.target.value)}
           />
         </Field>
-        <Field label="New password">
+        <Field label={t("New password")}>
           <input type="password" value={next} onChange={(event) => setNext(event.target.value)} />
         </Field>
-        <Field label="Email code">
+        <Field label={t("Email code")}>
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             inputMode="numeric"
           />
         </Field>
-        <Field label="Authenticator code">
+        <Field label={t("Authenticator code")}>
           <input
             value={totp}
             onChange={(event) => setTotp(event.target.value)}
@@ -487,13 +493,14 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
           setLoading(true)
           void issueSecurityChallenge("CHANGE_PASSWORD")
             .then(
-              () => setChallengeMessage("验证码已发送，请查收邮箱。"),
+              () => setChallengeMessage(t("Verification code sent. Check your email.")),
               (reason: unknown) => setChallengeMessage(readError(reason)),
             )
             .finally(() => setLoading(false))
         }}
       >
-        Send email code
+        {" "}
+        {t("Send email code")}{" "}
       </Button>
       {challengeMessage ? (
         <p className="form-message" role="status">
@@ -504,19 +511,20 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
         loading={loading}
         onClick={() => {
           if (!current || !next || !email || !totp) {
-            onDone("请完整填写密码和安全验证码。")
+            onDone(t("Enter the password and security verification codes."))
             return
           }
           setLoading(true)
           void changePassword(current, next, email, totp)
             .then(
-              () => onDone("密码修改请求已完成。"),
+              () => onDone(t("Password change completed.")),
               (reason: unknown) => onDone(readError(reason)),
             )
             .finally(() => setLoading(false))
         }}
       >
-        Confirm password change
+        {" "}
+        {t("Confirm password change")}{" "}
       </Button>
     </Panel>
   )
@@ -537,24 +545,25 @@ function MfaPanel({
       <h2>{enabled ? "Disable authenticator" : "Enable authenticator"}</h2>
       {!enabled && secret ? (
         <p className="notice">
-          Scan or save this backend-issued secret: <strong className="mono">{secret}</strong>
+          {" "}
+          {t("Scan or save this backend-issued secret:")} <strong className="mono">{secret}</strong>
         </p>
       ) : null}
-      <Field label="Authenticator code">
+      <Field label={t("Authenticator code")}>
         <input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" />
       </Field>
       <Button
         loading={loading}
         onClick={() => {
           if (!code) {
-            onDone("请输入 TOTP 验证码。")
+            onDone(t("Enter your authenticator code."))
             return
           }
           setLoading(true)
           const operation = enabled ? disableMfa(code) : confirmMfa(code)
           void operation
             .then(
-              () => onDone(enabled ? "2FA 已关闭。" : "2FA 已启用。"),
+              () => onDone(enabled ? t("2FA disabled.") : t("2FA enabled.")),
               (reason: unknown) => onDone(readError(reason)),
             )
             .finally(() => setLoading(false))
@@ -579,7 +588,8 @@ function MfaPanel({
             )
           }}
         >
-          Issue enrollment secret
+          {" "}
+          {t("Issue enrollment secret")}{" "}
         </Button>
       ) : null}
     </Panel>
@@ -605,16 +615,16 @@ function SceneRow({
       <td>
         <div className="inline-form">
           <input
-            placeholder="Email code"
+            placeholder={t("Email code")}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-label="Scene email code"
+            aria-label={t("Scene email code")}
           />
           <input
             placeholder="TOTP"
             value={totp}
             onChange={(event) => setTotp(event.target.value)}
-            aria-label="Scene TOTP code"
+            aria-label={t("Scene TOTP code")}
           />
           <Button
             tone="ghost"
@@ -623,13 +633,14 @@ function SceneRow({
               setLoading(true)
               void issueSecurityChallenge("SECURITY_SETTINGS")
                 .then(
-                  () => setChallengeMessage("验证码已发送。"),
+                  () => setChallengeMessage(t("Verification code sent.")),
                   (reason: unknown) => setChallengeMessage(readError(reason)),
                 )
                 .finally(() => setLoading(false))
             }}
           >
-            Send code
+            {" "}
+            {t("Send code")}{" "}
           </Button>
           <Button
             loading={loading}
@@ -638,13 +649,14 @@ function SceneRow({
               setLoading(true)
               void updateSecurityScene(sceneCode(scene), !enabled, email, totp)
                 .then(
-                  () => onDone("安全场景已更新。"),
+                  () => onDone(t("Security setting updated.")),
                   (reason: unknown) => onDone(readError(reason)),
                 )
                 .finally(() => setLoading(false))
             }}
           >
-            Toggle
+            {" "}
+            {t("Toggle")}{" "}
           </Button>
           {challengeMessage ? <small>{challengeMessage}</small> : null}
         </div>
@@ -662,20 +674,20 @@ function ApiKeyForm({ onDone }: { readonly onDone: (message: string) => void }) 
   return (
     <Panel className="security-action-panel">
       <div className="grid-2">
-        <Field label="Label">
+        <Field label={t("Label")}>
           <input
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            placeholder="Trading bot"
+            placeholder={t("Trading bot")}
           />
         </Field>
-        <Field label="Permissions">
+        <Field label={t("Permissions")}>
           <input value="READ_ONLY" readOnly />
         </Field>
-        <Field label="Email code">
+        <Field label={t("Email code")}>
           <input value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
-        <Field label="Authenticator code">
+        <Field label={t("Authenticator code")}>
           <input value={totp} onChange={(event) => setTotp(event.target.value)} />
         </Field>
       </div>
@@ -687,13 +699,14 @@ function ApiKeyForm({ onDone }: { readonly onDone: (message: string) => void }) 
             setLoading(true)
             void issueSecurityChallenge("SECURITY_SETTINGS")
               .then(
-                () => setChallengeMessage("验证码已发送。"),
+                () => setChallengeMessage(t("Verification code sent.")),
                 (reason: unknown) => setChallengeMessage(readError(reason)),
               )
               .finally(() => setLoading(false))
           }}
         >
-          Send email code
+          {" "}
+          {t("Send email code")}{" "}
         </Button>
         {challengeMessage ? <small>{challengeMessage}</small> : null}
       </div>
@@ -701,20 +714,23 @@ function ApiKeyForm({ onDone }: { readonly onDone: (message: string) => void }) 
         loading={loading}
         onClick={() => {
           if (!label || !email || !totp) {
-            onDone("请完整填写 API Key 信息和安全验证码。")
+            onDone(t("Enter API key details and security verification codes."))
             return
           }
           setLoading(true)
           void createApiKey(label, ["READ_ONLY"], [], email, totp)
             .then(
               (result) =>
-                onDone(`API Key 已创建：${text(result, "apiKey") || "请立即安全保存一次性密钥"}`),
+                onDone(
+                  `${t("API key created")}: ${text(result, "apiKey") || t("Save your one-time secret securely now")}`,
+                ),
               (reason: unknown) => onDone(readError(reason)),
             )
             .finally(() => setLoading(false))
         }}
       >
-        Create API key
+        {" "}
+        {t("Create API key")}{" "}
       </Button>
     </Panel>
   )
@@ -742,22 +758,22 @@ function ApiKeyRow({
       <td>
         <div className="inline-form">
           <input
-            placeholder="IP allowlist (comma separated)"
+            placeholder={t("IP allowlist (comma separated)")}
             value={allowlist}
             onChange={(event) => setAllowlist(event.target.value)}
-            aria-label="API key IP allowlist"
+            aria-label={t("API key IP allowlist")}
           />
           <input
-            placeholder="Email code"
+            placeholder={t("Email code")}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-label="API key email code"
+            aria-label={t("API key email code")}
           />
           <input
             placeholder="TOTP"
             value={totp}
             onChange={(event) => setTotp(event.target.value)}
-            aria-label="API key TOTP code"
+            aria-label={t("API key TOTP code")}
           />
           <Button
             tone="ghost"
@@ -766,13 +782,14 @@ function ApiKeyRow({
               setLoading(true)
               void issueSecurityChallenge("SECURITY_SETTINGS")
                 .then(
-                  () => setChallengeMessage("验证码已发送。"),
+                  () => setChallengeMessage(t("Verification code sent.")),
                   (reason: unknown) => setChallengeMessage(readError(reason)),
                 )
                 .finally(() => setLoading(false))
             }}
           >
-            Send code
+            {" "}
+            {t("Send code")}{" "}
           </Button>
           <Button
             tone="outline"
@@ -789,13 +806,14 @@ function ApiKeyRow({
                 totp,
               )
                 .then(
-                  () => onDone("API Key IP 白名单已更新。"),
+                  () => onDone(t("API key IP allowlist updated.")),
                   (reason: unknown) => onDone(readError(reason)),
                 )
                 .finally(() => setLoading(false))
             }}
           >
-            Update IPs
+            {" "}
+            {t("Update IPs")}{" "}
           </Button>
           {challengeMessage ? <small>{challengeMessage}</small> : null}
           <Button
@@ -805,13 +823,13 @@ function ApiKeyRow({
               setLoading(true)
               void revokeApiKey(key, email, totp)
                 .then(
-                  () => onDone("API Key 已撤销。"),
+                  () => onDone(t("API key revoked.")),
                   (reason: unknown) => onDone(readError(reason)),
                 )
                 .finally(() => setLoading(false))
             }}
           >
-            <Trash2 size={14} /> Revoke
+            <Trash2 size={14} /> {t("Revoke")}{" "}
           </Button>
         </div>
       </td>
@@ -834,5 +852,7 @@ function booleanValue(row: RecordRow | null | undefined, key: string): boolean {
   return value === true || value === "true"
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "安全服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Security service unavailable. Please retry later.")
 }

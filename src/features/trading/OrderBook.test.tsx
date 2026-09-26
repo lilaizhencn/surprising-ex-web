@@ -24,9 +24,9 @@ describe("empty order book layout", () => {
       expect(html).toContain('class="order-book-sides"')
       expect(html).toContain('class="order-book-last-trade"')
       expect(html).toContain("65,000.12")
-      expect(html).toContain("价格 (USDT)")
-      expect(html).toContain("数量 (BTC)")
-      expect(html).toContain("合计 (BTC)")
+      expect(html).toContain("Price (USDT)")
+      expect(html).toContain("Quantity (BTC)")
+      expect(html).toContain("Total (BTC)")
       expect(html).not.toContain("Order book data is not available")
     }
   })

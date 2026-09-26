@@ -8,6 +8,7 @@ import {
 } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { decimalToUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
 import { integer, type PrivateView } from "../../realtime"
 import type { ProductLine } from "../../types/domain"
@@ -145,7 +146,7 @@ export function TradingAccountControls({
 
   const saveLeverage = async () => {
     if (!userId || !Number.isFinite(Number(leverage)) || Number(leverage) <= 0) {
-      setMessage("请输入有效杠杆倍数。")
+      setMessage(t("Please enter valid leverage."))
       return
     }
     setSaving(true)
@@ -159,7 +160,7 @@ export function TradingAccountControls({
         Math.round(Number(leverage) * 1_000_000),
         "web trading settings",
       )
-      setMessage("杠杆设置已提交，最终状态以账户快照为准。")
+      setMessage(t("Leverage submitted. Confirm the result in your account snapshot."))
     } catch (reason: unknown) {
       setMessage(readError(reason))
     } finally {
@@ -182,7 +183,7 @@ export function TradingAccountControls({
         Math.round(Number(leverage) * 1_000_000),
         "web margin mode",
       )
-      setMessage("保证金模式已提交。")
+      setMessage(t("Margin mode submitted."))
     } catch (reason: unknown) {
       setMessage(readError(reason))
     } finally {
@@ -200,7 +201,9 @@ export function TradingAccountControls({
     setMessage("")
     try {
       await updatePositionMode(userId, productLine, next, `position-mode-${crypto.randomUUID()}`)
-      setMessage("持仓模式已提交。请在没有冲突持仓和挂单时切换。")
+      setMessage(
+        t("Position mode submitted. Switching requires no conflicting positions or orders."),
+      )
     } catch (reason: unknown) {
       setMessage(readError(reason))
     } finally {
@@ -215,7 +218,7 @@ export function TradingAccountControls({
       !Number.isFinite(Number(marginAmount)) ||
       Number(marginAmount) <= 0
     ) {
-      setMessage("请输入有效的保证金数量。")
+      setMessage(t("Please enter a valid margin amount."))
       return
     }
     setSaving(true)
@@ -234,7 +237,7 @@ export function TradingAccountControls({
         `web ${direction.toLowerCase()} position margin`,
       )
       setMarginAmount("")
-      setMessage("仓位保证金调整已提交。")
+      setMessage(t("Position margin adjustment submitted."))
     } catch (reason: unknown) {
       setMessage(readError(reason))
     } finally {
@@ -248,7 +251,7 @@ export function TradingAccountControls({
     <Panel dense className="trading-account-controls">
       <div className="panel-heading">
         <h2>
-          <Settings2 size={17} /> Account settings & risk
+          <Settings2 size={17} /> {t("Account settings & risk")}{" "}
         </h2>
         <Button
           tone="ghost"
@@ -256,37 +259,37 @@ export function TradingAccountControls({
             onRefresh()
             setRefresh((n) => n + 1)
           }}
-          aria-label="Refresh settings"
+          aria-label={t("Refresh settings")}
         >
-          <RefreshCw size={15} /> Refresh
+          <RefreshCw size={15} /> {t("Refresh")}{" "}
         </Button>
       </div>
       {loading ? <StateView kind="loading" message="Loading account settings and risk…" /> : null}
       <div className="trading-settings-grid">
-        <Field label="Margin mode">
+        <Field label={t("Margin mode")}>
           <DropdownSelect
             value={marginMode}
             onChange={(event) =>
               void saveMarginMode(event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS")
             }
           >
-            <option value="CROSS">Cross</option>
-            <option value="ISOLATED">Isolated</option>
+            <option value="CROSS">{t("Cross")}</option>
+            <option value="ISOLATED">{t("Isolated")}</option>
           </DropdownSelect>
         </Field>
-        <Field label="Position mode">
+        <Field label={t("Position mode")}>
           <DropdownSelect
             value={positionMode}
             onChange={(event) =>
               void savePositionMode(event.target.value === "HEDGE" ? "HEDGE" : "ONE_WAY")
             }
           >
-            <option value="ONE_WAY">One-way</option>
-            <option value="HEDGE">Hedge</option>
+            <option value="ONE_WAY">{t("One-way")}</option>
+            <option value="HEDGE">{t("Hedge")}</option>
           </DropdownSelect>
         </Field>
         {positionMode === "HEDGE" ? (
-          <Field label="TP/SL target side">
+          <Field label={t("TP/SL target side")}>
             <DropdownSelect
               value={positionSide}
               onChange={(event) => {
@@ -295,8 +298,8 @@ export function TradingAccountControls({
                 onSettingsChange({ marginMode, positionMode, positionSide: nextSide })
               }}
             >
-              <option value="LONG">LONG / 多仓</option>
-              <option value="SHORT">SHORT / 空仓</option>
+              <option value="LONG">{t("Long")}</option>
+              <option value="SHORT">{t("Short")}</option>
             </DropdownSelect>
           </Field>
         ) : null}
@@ -306,10 +309,11 @@ export function TradingAccountControls({
               value={leverage}
               onChange={(event) => setLeverage(event.target.value)}
               inputMode="decimal"
-              aria-label="Leverage"
+              aria-label={t("Leverage")}
             />
             <Button tone="outline" loading={saving} onClick={() => void saveLeverage()}>
-              Save
+              {" "}
+              {t("Save")}{" "}
             </Button>
           </div>
         </Field>
@@ -320,13 +324,15 @@ export function TradingAccountControls({
               onChange={(event) => setMarginAmount(event.target.value)}
               inputMode="decimal"
               placeholder="0"
-              aria-label="Position margin amount"
+              aria-label={t("Position margin amount")}
             />
             <Button tone="positive" loading={saving} onClick={() => void adjustMargin("ADD")}>
-              Add
+              {" "}
+              {t("Add")}{" "}
             </Button>
             <Button tone="negative" loading={saving} onClick={() => void adjustMargin("REDUCE")}>
-              Reduce
+              {" "}
+              {t("Reduce")}{" "}
             </Button>
           </div>
         </Field>
@@ -334,29 +340,29 @@ export function TradingAccountControls({
       <p className="muted">
         {accountView?.ready()
           ? `Selected position risk · ${symbol} · ${positionSide}`
-          : "Account syncing"}
+          : t("Account syncing")}
       </p>
       <div className="risk-summary-grid">
-        <RiskValue label="Status" value={text(risk, "status")} />
-        <RiskValue label="Margin ratio" value={ppmToPercent(risk, "marginRatioPpm")} />
+        <RiskValue label={t("Status")} value={text(risk, "status")} />
+        <RiskValue label={t("Margin ratio")} value={ppmToPercent(risk, "marginRatioPpm")} />
         <RiskValue
-          label="Wallet balance"
+          label={t("Wallet balance")}
           value={unitsValue(risk, "walletBalanceUnits", assetScale, settleAsset)}
         />
         <RiskValue
-          label="Equity"
+          label={t("Equity")}
           value={unitsValue(risk, "equityUnits", assetScale, settleAsset)}
         />
         <RiskValue
-          label="Unrealized PnL"
+          label={t("Unrealized PnL")}
           value={unitsValue(risk, "unrealizedPnlUnits", assetScale, settleAsset)}
         />
         <RiskValue
-          label="Maintenance margin"
+          label={t("Maintenance margin")}
           value={unitsValue(risk, "maintenanceMarginUnits", assetScale, settleAsset)}
         />
         <RiskValue
-          label="Position margin"
+          label={t("Position margin")}
           value={unitsValue(positionMargin, "marginUnits", assetScale, settleAsset)}
         />
       </div>
@@ -365,14 +371,14 @@ export function TradingAccountControls({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Position risk</th>
-                <th>Symbol</th>
-                <th>Size</th>
-                <th>Entry / mark</th>
-                <th>Margin ratio</th>
-                <th>Unrealized PnL</th>
-                <th>Liquidation price</th>
-                <th>Status</th>
+                <th>{t("Position risk")}</th>
+                <th>{t("Symbol")}</th>
+                <th>{t("Size")}</th>
+                <th>{t("Entry / mark")}</th>
+                <th>{t("Margin ratio")}</th>
+                <th>{t("Unrealized PnL")}</th>
+                <th>{t("Liquidation price")}</th>
+                <th>{t("Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -413,8 +419,8 @@ export function TradingAccountControls({
         </p>
       ) : null}
       <div className="settings-note">
-        <ShieldAlert size={15} /> Derivative order settings are enforced by the account, order and
-        risk services.
+        <ShieldAlert size={15} />{" "}
+        {t("Derivative order settings are enforced by the account, order and risk services.")}{" "}
       </div>
     </Panel>
   )
@@ -531,5 +537,7 @@ function text(value: Record<string, unknown> | null | undefined, key: string): s
 }
 
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "交易账户服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Trading account service is unavailable. Please retry later.")
 }

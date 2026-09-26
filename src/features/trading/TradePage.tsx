@@ -1,4 +1,13 @@
-import { BarChart3, ChevronDown, Info, RefreshCw, Settings2, Star, XCircle } from "lucide-react"
+import {
+  BarChart3,
+  ChevronDown,
+  CircleHelp,
+  Info,
+  RefreshCw,
+  Settings2,
+  Star,
+  XCircle,
+} from "lucide-react"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
@@ -20,6 +29,7 @@ import {
   loadOrderBook,
   loadPositions,
   loadRecentTrades,
+  placeBatchTriggerOrders,
   placeOrder,
   placeTriggerOrder,
 } from "../../api/endpoints"
@@ -54,6 +64,7 @@ import {
   StateView,
 } from "../../components/ui/Primitives"
 import { useRealtime } from "../../hooks/useRealtime"
+import { t } from "../../i18n"
 import { config, storageKeys } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
@@ -212,6 +223,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
+  const [bboEnabled, setBboEnabled] = useState(false)
+  const [bboPriceMode, setBboPriceMode] = useState("OPPONENT_1")
+  const useBbo = orderType === "LIMIT" && bboEnabled
   const [period, setPeriod] = useState("15m")
   const [accountTab, setAccountTab] = useState<
     "positions" | "triggers" | "fundingMarket" | "fundingPayments" | "settings"
@@ -219,6 +233,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [dayCandles, setDayCandles] = useState<readonly Candle[]>([])
   const [price, setPrice] = useState("")
   const [triggerPrice, setTriggerPrice] = useState("")
+  const [protectionMode, setProtectionMode] = useState<"SINGLE" | "OCO">("SINGLE")
+  const [takeProfitTriggerPrice, setTakeProfitTriggerPrice] = useState("")
+  const [takeProfitLimitPrice, setTakeProfitLimitPrice] = useState("")
+  const [takeProfitExecutionType, setTakeProfitExecutionType] = useState<"LIMIT" | "MARKET">(
+    "MARKET",
+  )
   const [triggerType, setTriggerType] = useState<"STOP_LOSS" | "TAKE_PROFIT">("STOP_LOSS")
   const [triggerExecutionType, setTriggerExecutionType] = useState<"LIMIT" | "MARKET">("MARKET")
   const [orderSettings, setOrderSettings] = useState<TradingOrderSettings>({
@@ -372,7 +392,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       )
       .map((row) => TriggerOrderSchema.safeParse(row))
     if ([...parsedBalances, ...parsedOrders, ...parsedTriggers].some((result) => !result.success)) {
-      setError("实时账户数据格式异常，等待新快照 / Invalid account update")
+      setError(t("Invalid account update; waiting for a new snapshot"))
       return
     }
     setBalances(parsedBalances.flatMap((result) => (result.success ? [result.data] : [])))
@@ -486,7 +506,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setMarkets(productMarkets)
         setMarketsRequestFinished(true)
         if (rows.length > 0 && productMarkets.length === 0) {
-          setError(`后端未返回 ${view.title} 的可交易合约，已阻止跨产品线操作。`)
+          setError(`${t("No tradable contracts returned for")} ${t(view.title)}.`)
         }
       })
       .catch((reason: unknown) => {
@@ -561,34 +581,42 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setOptionQuote(null)
     setTriggerOrders([])
     const generation = ++marketGeneration.current
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    const loadHistory = () => {
+      void loadCandles(current.symbol, period, view.line)
+        .then((rows) => {
+          if (generation !== marketGeneration.current) return
+          const history = rows.map(mapCandle)
+          const latestCandle = history.at(-1)
+          if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
+          setCandles((live) => {
+            const byTime = new Map(history.map((candle) => [candle.time, candle]))
+            for (const candle of live) byTime.set(candle.time, candle)
+            return [...byTime.values()]
+              .sort((left, right) => left.time.localeCompare(right.time))
+              .slice(-120)
+          })
+        })
+        .catch(() => {
+          if (generation === marketGeneration.current) retryTimer = setTimeout(loadHistory, 3_000)
+        })
+    }
+    loadHistory()
     void Promise.allSettled([
-      loadCandles(current.symbol, period, view.line),
       view.line === PRODUCT_LINES.option
         ? loadOptionQuote(current.symbol).catch(() => null)
         : Promise.resolve(null),
       loadAssetScales(),
-    ]).then(([candleResult, optionQuoteResult, scales]) => {
+    ]).then(([optionQuoteResult, scales]) => {
       if (generation !== marketGeneration.current) return
-      const nextScales = scales.status === "fulfilled" ? scales.value : {}
-      if (candleResult.status === "fulfilled") {
-        const history = candleResult.value.map(mapCandle)
-        const latestCandle = history.at(-1)
-        if (latestCandle) updateMarketQuote(current.symbol, latestCandle.close)
-        setCandles((live) => {
-          const byTime = new Map(history.map((candle) => [candle.time, candle]))
-          for (const candle of live) byTime.set(candle.time, candle)
-          return [...byTime.values()]
-            .sort((left, right) => left.time.localeCompare(right.time))
-            .slice(-120)
-        })
-      }
       setOptionQuote(optionQuoteResult.status === "fulfilled" ? optionQuoteResult.value : null)
-      setAssetScales(nextScales)
+      if (scales.status === "fulfilled") setAssetScales(scales.value)
     })
     return () => {
       marketGeneration.current++
+      clearTimeout(retryTimer)
     }
-  }, [current?.symbol, period, session, updateMarketQuote, view.line])
+  }, [current?.symbol, period, updateMarketQuote, view.line])
 
   useEffect(() => {
     setRecentTrades([])
@@ -838,42 +866,42 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const submit = async () => {
     if (!session) {
       setSubmitState("error")
-      setSubmitMessage("请先登录后再提交订单。")
+      setSubmitMessage(t("Please sign in before placing an order."))
       return
     }
     if (!current || !isPositiveDecimal(quantity)) {
       setSubmitState("error")
-      setSubmitMessage("请输入有效数量。")
+      setSubmitMessage(t("Please enter a valid quantity."))
       return
     }
     if (orderType === "STOP" && !triggerSupported) {
       setSubmitState("error")
-      setSubmitMessage("现货交易不支持仓位止盈止损，请使用限价或市价单。")
+      setSubmitMessage(t("Spot positions do not support TP/SL. Use a limit or market order."))
       return
     }
     if (orderType === "STOP" && !triggerCloseSide) {
       setSubmitState("error")
-      setSubmitMessage("当前交易对没有可平仓位，请先持有仓位后再设置止盈止损。")
+      setSubmitMessage(t("Open a position in this pair before setting TP/SL."))
       return
     }
     if (orderType === "STOP" && triggerCloseSide !== side) {
       setSubmitState("error")
       setSubmitMessage(
         triggerCloseSide === "SELL"
-          ? "当前是多仓，请选择卖出平仓后设置止盈止损。"
-          : "当前是空仓，请选择买入平仓后设置止盈止损。",
+          ? t("Select Sell to close your long position before setting TP/SL.")
+          : t("Select Buy to close your short position before setting TP/SL."),
       )
       return
     }
     const executionType = orderType === "STOP" ? triggerExecutionType : orderType
-    if (executionType !== "MARKET" && !isPositiveDecimal(price)) {
+    if (executionType !== "MARKET" && !useBbo && !isPositiveDecimal(price)) {
       setSubmitState("error")
-      setSubmitMessage("限价单需要有效价格。")
+      setSubmitMessage(t("Limit orders require a valid price."))
       return
     }
     if (orderType === "STOP" && !isPositiveDecimal(triggerPrice)) {
       setSubmitState("error")
-      setSubmitMessage("条件单需要有效触发价。")
+      setSubmitMessage(t("Trigger orders require a valid trigger price."))
       return
     }
     let quantitySteps: string
@@ -885,16 +913,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         !baseScale ||
         ((orderType === "STOP" || executionType !== "MARKET" || side === "BUY") && !quoteScale)
       ) {
-        throw new Error("交易对资产精度尚未加载，订单未提交。")
+        throw new Error(t("Asset precision is not loaded. Order not submitted."))
       }
       if (!current.quantityStepUnits) {
-        throw new Error("交易对数量步长尚未加载，订单未提交。")
+        throw new Error(t("Quantity step is not loaded. Order not submitted."))
       }
       if (executionType !== "MARKET" && !current.priceTickUnits) {
-        throw new Error("交易对价格跳动规格尚未加载，订单未提交。")
+        throw new Error(t("Price tick is not loaded. Order not submitted."))
       }
       if (orderType === "STOP" && !current.priceTickUnits) {
-        throw new Error("条件单触发价规格尚未加载，订单未提交。")
+        throw new Error(t("Trigger price tick is not loaded. Order not submitted."))
       }
       const quantitySpec = marketQuantitySpec(current, assetScales)
       quantitySteps = decimalToStepUnits(quantity, quantitySpec.unitSize, quantitySpec.scale)
@@ -902,18 +930,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const positionCapacity = signedPositionSteps(activeTriggerPosition)
         const absoluteCapacity = positionCapacity < 0n ? -positionCapacity : positionCapacity
         if (BigInt(quantitySteps) > absoluteCapacity) {
-          throw new Error("止盈止损数量不能超过当前持仓数量。")
+          throw new Error(t("TP/SL quantity cannot exceed the current position."))
         }
       }
       priceTicks =
-        executionType === "MARKET"
+        executionType === "MARKET" || useBbo
           ? 0
           : decimalToStepUnits(price, current.priceTickUnits ?? "", quoteScale ?? "")
 
-      if (orderType !== "STOP" && view.line === PRODUCT_LINES.spot) {
+      if (orderType !== "STOP" && view.line === PRODUCT_LINES.spot && !(useBbo && side === "BUY")) {
         const balanceScale = balance ? assetScales[balance.asset] : undefined
         if (!balance || !balanceScale) {
-          throw new Error("可用余额或资产精度尚未加载，订单未提交。")
+          throw new Error(
+            t("Available balance or asset precision is not loaded. Order not submitted."),
+          )
         }
         const availableUnits =
           balance.availableUnits ??
@@ -923,10 +953,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const referencePrice =
           executionType === "MARKET" ? (marketQuotes[current.symbol] ?? current.price) : price
         if (side === "BUY" && referencePrice === null) {
-          throw new Error("市场参考价尚未加载，无法校验可用余额。")
+          throw new Error(
+            t("Market reference price is unavailable. Cannot validate available balance."),
+          )
         }
         if (availableUnits === undefined) {
-          throw new Error("可用余额单位尚未加载，订单未提交。")
+          throw new Error(t("Balance units are unavailable. Order not submitted."))
         }
         const exceedsBalance =
           side === "SELL"
@@ -938,45 +970,93 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 balanceScale,
               )
         if (exceedsBalance) {
-          throw new Error("可用余额不足，订单未提交。")
+          throw new Error(t("Insufficient available balance. Order not submitted."))
         }
       }
     } catch (reason: unknown) {
       setSubmitState("error")
-      setSubmitMessage(reason instanceof Error ? reason.message : "数量精度无效。")
+      setSubmitMessage(reason instanceof Error ? reason.message : t("Invalid quantity precision."))
       return
     }
     setSubmitState("loading")
     try {
       if (orderType === "STOP") {
-        const response = await placeTriggerOrder(
-          {
-            userId: session.user.userId,
-            clientTriggerOrderId: `web-trigger-${crypto.randomUUID()}`,
-            ocoGroupId: `web-protection-${current.symbol}-${orderSettings.marginMode}-${orderSettings.positionSide}`,
-            symbol: current.symbol,
-            side,
-            triggerType,
-            triggerPriceTicks: decimalToStepUnits(
-              triggerPrice,
-              current.priceTickUnits ?? "",
-              assetScales[current.quoteAsset] ?? "",
-            ),
-            orderType: triggerExecutionType,
-            timeInForce: triggerExecutionType === "MARKET" ? "IOC" : "GTC",
-            priceTicks,
-            quantitySteps,
-            marginMode: orderSettings.marginMode,
-            positionSide: orderSettings.positionSide,
-          },
-          view.line,
-        )
-        if (response.status !== "PENDING" && response.status !== "TRIGGERING") {
-          setSubmitState("error")
-          setSubmitMessage(response.rejectReason ?? `条件单未被接受，当前状态：${response.status}`)
-          return
+        const requestId = crypto.randomUUID()
+        const leg = {
+          userId: session.user.userId,
+          clientTriggerOrderId: `web-trigger-${requestId}`,
+          symbol: current.symbol,
+          side,
+          triggerType,
+          triggerPriceTicks: decimalToStepUnits(
+            triggerPrice,
+            current.priceTickUnits ?? "",
+            assetScales[current.quoteAsset] ?? "",
+          ),
+          orderType: triggerExecutionType,
+          timeInForce: triggerExecutionType === "MARKET" ? "IOC" : "GTC",
+          priceTicks,
+          quantitySteps,
+          marginMode: orderSettings.marginMode,
+          positionSide: orderSettings.positionSide,
         }
-        setSubmitMessage(`条件单已接受（${response.status}），触发状态以私有推送为准。`)
+        if (protectionMode === "OCO") {
+          const takeProfitTicks = decimalToStepUnits(
+            takeProfitTriggerPrice,
+            current.priceTickUnits ?? "",
+            assetScales[current.quoteAsset] ?? "",
+          )
+          if (
+            BigInt(takeProfitTicks) <= 0n ||
+            (side === "SELL"
+              ? BigInt(takeProfitTicks) <= BigInt(leg.triggerPriceTicks)
+              : BigInt(takeProfitTicks) >= BigInt(leg.triggerPriceTicks))
+          ) {
+            throw new Error(
+              t("Take-profit and stop-loss prices are in the wrong order for this position."),
+            )
+          }
+          const ocoGroupId = `web-oco-${requestId}`
+          const response = await placeBatchTriggerOrders(
+            {
+              atomic: true,
+              orders: [
+                {
+                  ...leg,
+                  ocoGroupId,
+                  triggerType: "TAKE_PROFIT",
+                  clientTriggerOrderId: `web-tp-${requestId}`,
+                  triggerPriceTicks: takeProfitTicks,
+                  orderType: takeProfitExecutionType,
+                  timeInForce: takeProfitExecutionType === "MARKET" ? "IOC" : "GTC",
+                  priceTicks:
+                    takeProfitExecutionType === "MARKET"
+                      ? 0
+                      : decimalToStepUnits(
+                          takeProfitLimitPrice,
+                          current.priceTickUnits ?? "",
+                          assetScales[current.quoteAsset] ?? "",
+                        ),
+                },
+                { ...leg, ocoGroupId, triggerType: "STOP_LOSS" },
+              ],
+            },
+            view.line,
+          )
+          if (response["completed"] !== 2 || response["failed"] !== 0)
+            throw new Error(t("OCO pair was not accepted."))
+          setSubmitMessage(t("Take-profit and stop-loss accepted together."))
+        } else {
+          const response = await placeTriggerOrder(leg, view.line)
+          if (response.status !== "PENDING" && response.status !== "TRIGGERING") {
+            setSubmitState("error")
+            setSubmitMessage(
+              response.rejectReason ?? `${t("Trigger order not accepted")}: ${response.status}`,
+            )
+            return
+          }
+          setSubmitMessage(`${t("Trigger order accepted")}: ${response.status}`)
+        }
       } else {
         const response = await placeOrder(
           {
@@ -985,6 +1065,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             symbol: current.symbol,
             side,
             orderType,
+            ...(useBbo ? { bboPriceMode } : {}),
             timeInForce: orderType === "MARKET" ? "IOC" : "GTC",
             priceTicks,
             quantitySteps,
@@ -997,7 +1078,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         )
         if (response.status === "REJECTED") {
           setSubmitState("error")
-          setSubmitMessage(response.rejectReason ?? "订单被后端拒绝。")
+          setSubmitMessage(response.rejectReason ?? t("Order rejected."))
           return
         }
         if (
@@ -1007,14 +1088,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           response.status !== "FILLED"
         ) {
           setSubmitState("error")
-          setSubmitMessage(`订单未被接受，当前状态：${response.status}`)
+          setSubmitMessage(`${t("Order not accepted")}: ${response.status}`)
           return
         }
-        setSubmitMessage(`订单已接受（${response.status}），最终状态以订单查询和私有状态为准。`)
+        setSubmitMessage(`${t("Order accepted")}: ${response.status}`)
       }
       setSubmitState("success")
       setQuantity("")
       setTriggerPrice("")
+      setTakeProfitTriggerPrice("")
+      setTakeProfitLimitPrice("")
       refresh()
     } catch (reason: unknown) {
       setSubmitState("error")
@@ -1036,7 +1119,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   type="button"
                   className="trade-pair-trigger"
                   aria-expanded={pairOpen}
-                  aria-label="Select trading pair"
+                  aria-label={t("Select trading pair")}
                   onClick={() => setPairOpen((open) => !open)}
                 >
                   {current ? <AssetIcon asset={current.baseAsset} /> : null}
@@ -1046,7 +1129,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <button
                   type="button"
                   className="trade-contract-info-trigger"
-                  aria-label="Contract information"
+                  aria-label={t("Contract information")}
                   aria-expanded={contractInfoOpen}
                   onClick={() => setContractInfoOpen((open) => !open)}
                 >
@@ -1057,26 +1140,26 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <div
                   className="trade-contract-popover"
                   role="dialog"
-                  aria-label="Contract information"
+                  aria-label={t("Contract information")}
                 >
                   <strong>{current.symbol}</strong>
                   <dl>
                     <div>
-                      <dt>Product</dt>
-                      <dd>{view.title}</dd>
+                      <dt>{t("Product")}</dt>
+                      <dd>{t(view.title)}</dd>
                     </div>
                     <div>
-                      <dt>Base / Quote</dt>
+                      <dt>{t("Base / Quote")}</dt>
                       <dd>
                         {current.baseAsset} / {current.quoteAsset}
                       </dd>
                     </div>
                     <div>
-                      <dt>Settlement</dt>
+                      <dt>{t("Settlement")}</dt>
                       <dd>{current.settleAsset ?? current.quoteAsset}</dd>
                     </div>
                     <div>
-                      <dt>Price tick</dt>
+                      <dt>{t("Price tick")}</dt>
                       <dd>
                         {current.priceTickUnits && assetScales[current.quoteAsset]
                           ? Number(current.priceTickUnits) / Number(assetScales[current.quoteAsset])
@@ -1084,7 +1167,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                       </dd>
                     </div>
                     <div>
-                      <dt>Contract size</dt>
+                      <dt>{t("Contract size")}</dt>
                       <dd>
                         {current.contractMultiplierPpm
                           ? current.contractMultiplierPpm / 1_000_000
@@ -1093,7 +1176,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                       </dd>
                     </div>
                     <div>
-                      <dt>Max leverage</dt>
+                      <dt>{t("Max leverage")}</dt>
                       <dd>{current.maxLeverage ? `${current.maxLeverage}×` : "—"}</dd>
                     </div>
                   </dl>
@@ -1104,7 +1187,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <SearchField
                     value={pairSearch}
                     onChange={setPairSearch}
-                    placeholder="Search pairs..."
+                    placeholder={t("Search pairs...")}
                   />
                   <div className="trade-tabs">
                     <button
@@ -1112,14 +1195,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                       className={pairTab === "all" ? "active" : ""}
                       onClick={() => setPairTab("all")}
                     >
-                      All
+                      {" "}
+                      {t("All")}{" "}
                     </button>
                     <button
                       type="button"
                       className={pairTab === "favorites" ? "active" : ""}
                       onClick={() => setPairTab("favorites")}
                     >
-                      Favorites
+                      {" "}
+                      {t("Favorites")}{" "}
                     </button>
                   </div>
                   <div className="trade-pair-list">
@@ -1188,20 +1273,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               ) : null}
             </div>
             <span className="cluster">
-              {view.title} · {current?.baseAsset ?? "Asset"}
+              {t(view.title)} · {current?.baseAsset ?? t("Asset")}
               <Badge tone={realtime.state === "live" ? "positive" : "neutral"}>
-                {realtime.state === "live" ? "Realtime" : realtime.state}
+                {realtime.state === "live" ? t("Realtime") : realtime.state}
               </Badge>
               {session && !realtime.views[view.line]?.ready() ? (
-                <Badge tone="neutral">Account syncing</Badge>
+                <Badge tone="neutral">{t("Account syncing")}</Badge>
               ) : null}
             </span>
             {realtime.lastEventAt ? (
-              <small className="muted">Updated {formatDate(realtime.lastEventAt)}</small>
+              <small className="muted">
+                {t("Updated")} {formatDate(realtime.lastEventAt)}
+              </small>
             ) : null}
           </div>
           <div>
-            <small>Last Price</small>
+            <small>{t("Last Price")}</small>
             <strong className="positive mono">
               <Price
                 value={
@@ -1216,7 +1303,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </strong>
           </div>
           <div>
-            <small>24h Change</small>
+            <small>{t("24h Change")}</small>
             <strong
               className={
                 (displayedDayStats?.change ?? current?.change24h ?? 0) >= 0
@@ -1228,7 +1315,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </strong>
           </div>
           <div>
-            <small>24h Open</small>
+            <small>{t("24h Open")}</small>
             <strong className="mono">
               <Price
                 value={displayedDayStats?.open ?? null}
@@ -1237,7 +1324,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </strong>
           </div>
           <div>
-            <small>24h High</small>
+            <small>{t("24h High")}</small>
             <strong className="mono">
               <Price
                 value={displayedDayStats?.high ?? current?.high24h ?? null}
@@ -1246,7 +1333,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </strong>
           </div>
           <div>
-            <small>24h Low</small>
+            <small>{t("24h Low")}</small>
             <strong className="mono">
               <Price
                 value={displayedDayStats?.low ?? current?.low24h ?? null}
@@ -1255,7 +1342,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </strong>
           </div>
           <div>
-            <small>24h Close</small>
+            <small>{t("24h Close")}</small>
             <strong className="mono">
               <Price
                 value={displayedDayStats?.close ?? null}
@@ -1266,7 +1353,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
             <>
               <div>
-                <small>Mark price</small>
+                <small>{t("Mark price")}</small>
                 <strong className="mono">
                   <Price
                     value={numberValue(markPrice, "markPrice")}
@@ -1275,7 +1362,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </strong>
               </div>
               <div>
-                <small>Index price</small>
+                <small>{t("Index price")}</small>
                 <strong className="mono">
                   <Price
                     value={numberValue(indexPrice, "indexPrice")}
@@ -1284,7 +1371,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </strong>
               </div>
               <div className="funding-summary">
-                <small>Funding / Next funding</small>
+                <small>{t("Funding / Next funding")}</small>
                 <strong className="mono">
                   <span className="positive">{fundingRate(funding)}</span> · {fundingTime(funding)}
                 </strong>
@@ -1326,7 +1413,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             unavailable={!demo && candles.length === 0}
           />
           <div className="trade-account-shell">
-            <div className="trade-account-tabs" role="tablist" aria-label="Account data">
+            <div className="trade-account-tabs" role="tablist" aria-label={t("Account data")}>
               <button
                 type="button"
                 role="tab"
@@ -1334,7 +1421,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 className={accountTab === "positions" ? "active" : ""}
                 onClick={() => setAccountTab("positions")}
               >
-                Positions & order state
+                {" "}
+                {t("Positions & order state")}{" "}
               </button>
               {view.line !== PRODUCT_LINES.spot ? (
                 <button
@@ -1344,7 +1432,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   className={accountTab === "triggers" ? "active" : ""}
                   onClick={() => setAccountTab("triggers")}
                 >
-                  止盈止损 / Take-profit & stop-loss
+                  {" "}
+                  {t("Take-profit & stop-loss")}{" "}
                 </button>
               ) : null}
               {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
@@ -1356,7 +1445,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     className={accountTab === "fundingMarket" ? "active" : ""}
                     onClick={() => setAccountTab("fundingMarket")}
                   >
-                    Funding market history
+                    {" "}
+                    {t("Funding market history")}{" "}
                   </button>
                   <button
                     type="button"
@@ -1365,7 +1455,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     className={accountTab === "fundingPayments" ? "active" : ""}
                     onClick={() => setAccountTab("fundingPayments")}
                   >
-                    Funding payment history
+                    {" "}
+                    {t("Funding payment history")}{" "}
                   </button>
                 </>
               ) : null}
@@ -1376,7 +1467,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 className={accountTab === "settings" ? "active" : ""}
                 onClick={() => setAccountTab("settings")}
               >
-                Account settings & risk
+                {" "}
+                {t("Account settings & risk")}{" "}
               </button>
             </div>
             <div className="trade-account-body" role="tabpanel">
@@ -1415,20 +1507,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     <h2>
                       {view.line === PRODUCT_LINES.spot
                         ? "Account order state"
-                        : "Positions & order state"}
+                        : t("Positions & order state")}
                     </h2>
-                    <Badge tone="info">Backend</Badge>
+                    <Badge tone="info">{t("Backend")}</Badge>
                   </div>
                   {positions.length > 0 ? (
                     <div className="table-wrap">
                       <table className="data-table">
                         <thead>
                           <tr>
-                            <th>Symbol</th>
-                            <th>Side</th>
-                            <th>Quantity</th>
-                            <th>Entry</th>
-                            <th>Realized PnL</th>
+                            <th>{t("Symbol")}</th>
+                            <th>{t("Side")}</th>
+                            <th>{t("Quantity")}</th>
+                            <th>{t("Entry")}</th>
+                            <th>{t("Realized PnL")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1513,7 +1605,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           </div>
         </main>
         <aside className="trade-market-side">
-          <div className="trade-tabs" role="tablist" aria-label="Market depth and trades">
+          <div className="trade-tabs" role="tablist" aria-label={t("Market depth and trades")}>
             <button
               type="button"
               role="tab"
@@ -1521,7 +1613,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               className={marketSideTab === "book" ? "active" : ""}
               onClick={() => setMarketSideTab("book")}
             >
-              Order book
+              {" "}
+              {t("Order book")}{" "}
             </button>
             <button
               type="button"
@@ -1530,7 +1623,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               className={marketSideTab === "trades" ? "active" : ""}
               onClick={() => setMarketSideTab("trades")}
             >
-              Recent trades
+              {" "}
+              {t("Recent trades")}{" "}
             </button>
           </div>
           {marketSideTab === "book" ? (
@@ -1553,16 +1647,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           ) : (
             <Panel dense className="trade-side-panel">
               <div className="panel-heading">
-                <h2>Recent trades</h2>
-                <Badge tone="neutral">{recentTrades.length > 0 ? "Recent" : "Waiting"}</Badge>
+                <h2>{t("Recent trades")}</h2>
+                <Badge tone="neutral">{recentTrades.length > 0 ? t("Recent") : t("Waiting")}</Badge>
               </div>
               <div className="recent-trade-columns">
-                <span>价格 ({current?.quoteAsset ?? "—"})</span>
-                <span>数量 ({current?.baseAsset ?? "—"})</span>
-                <span>时间</span>
+                <span>
+                  {t("Price (")}
+                  {current?.quoteAsset ?? "—"})
+                </span>
+                <span>
+                  {t("Quantity (")}
+                  {current?.baseAsset ?? "—"})
+                </span>
+                <span>{t("Time")}</span>
               </div>
               {recentTrades.length === 0 ? (
-                <p className="subtle">Waiting for recent trades.</p>
+                <p className="subtle">{t("Waiting for recent trades.")}</p>
               ) : (
                 <div className="recent-trades">
                   {recentTrades.slice(0, 50).map((trade, index) => (
@@ -1595,14 +1695,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               className={side === "BUY" ? "buy active" : "buy"}
               onClick={() => setSide("BUY")}
             >
-              Buy
+              {" "}
+              {t("Buy")}{" "}
             </button>
             <button
               type="button"
               className={side === "SELL" ? "sell active" : "sell"}
               onClick={() => setSide("SELL")}
             >
-              Sell
+              {" "}
+              {t("Sell")}{" "}
             </button>
           </div>
           <div className="order-type-tabs">
@@ -1616,101 +1718,214 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 key={type}
                 onClick={() => setOrderType(type)}
               >
-                {type === "STOP" ? "TP / SL" : type}
+                {t(type === "STOP" ? "TP / SL" : type)}
               </button>
             ))}
           </div>
           {orderType === "STOP" ? (
             <>
-              <div className="trigger-explainer">
-                <div className="trigger-explainer-heading">
-                  <Badge tone={triggerType === "STOP_LOSS" ? "negative" : "positive"}>
-                    {triggerType === "STOP_LOSS" ? "止损 Stop loss" : "止盈 Take profit"}
-                  </Badge>
-                  <strong>{triggerConditionText(side, triggerType)}</strong>
-                </div>
-                <p>触发后只减仓平仓，不会开新仓。</p>
-                <small>
-                  {triggerCloseSide
-                    ? `当前仓位建议：${triggerCloseSide === "SELL" ? "卖出平多" : "买入平空"}。`
-                    : "需要先有当前交易对的持仓，且平仓数量不能超过持仓。"}
-                </small>
-                <small>止盈和止损使用同一互斥组，任一触发后另一笔会自动撤销。</small>
-                {triggerCloseSide && triggerCloseSide !== side ? (
+              <fieldset className="protection-mode" aria-label={t("Protection mode")}>
+                {(["SINGLE", "OCO"] as const).map((mode) => (
                   <button
+                    key={mode}
                     type="button"
-                    className="trigger-side-action"
-                    onClick={() => setSide(triggerCloseSide)}
+                    aria-pressed={protectionMode === mode}
+                    onClick={() => {
+                      setProtectionMode(mode)
+                      if (mode === "OCO") setTriggerType("STOP_LOSS")
+                    }}
                   >
-                    切换为{triggerCloseSide === "SELL" ? "卖出平多" : "买入平空"}
+                    {t(mode === "SINGLE" ? "One-way trigger" : "Two-way (OCO)")}
                   </button>
-                ) : null}
-              </div>
-              <Field label="触发类型 / Trigger type">
-                <DropdownSelect
-                  aria-label="Trigger type"
-                  value={triggerType}
-                  onChange={(event) =>
-                    setTriggerType(
-                      event.target.value === "TAKE_PROFIT" ? "TAKE_PROFIT" : "STOP_LOSS",
-                    )
-                  }
-                >
-                  <option value="STOP_LOSS">止损 Stop loss</option>
-                  <option value="TAKE_PROFIT">止盈 Take profit</option>
-                </DropdownSelect>
-              </Field>
+                ))}
+              </fieldset>
               <Field
-                label="触发价格 / Trigger price"
-                hint={triggerConditionText(side, triggerType)}
+                label={
+                  <span className="label-with-help">
+                    {t("Trigger type")}
+                    <span className="trigger-help">
+                      <button
+                        type="button"
+                        className="trigger-help-button"
+                        aria-label={t("Trigger rules")}
+                        aria-describedby="trigger-rules"
+                      >
+                        <CircleHelp size={14} />
+                      </button>
+                      <span role="tooltip" id="trigger-rules" className="trigger-tooltip">
+                        {protectionMode === "OCO"
+                          ? t(
+                              "Set both take-profit and stop-loss trigger and order prices. When one triggers, its order is submitted and the other leg is canceled.",
+                            )
+                          : t(
+                              "Set a trigger price and an order price. When the trigger condition is met, the system submits your order.",
+                            )}
+                        <br />
+                        {protectionMode === "OCO"
+                          ? `${t("Stop loss")}: ${triggerConditionText(side, "STOP_LOSS")} · ${t("Take profit")}: ${triggerConditionText(side, "TAKE_PROFIT")}`
+                          : triggerConditionText(side, triggerType)}
+                        <br />
+                        {t("Reduces the position after triggering; never opens a new position.")}
+                      </span>
+                    </span>
+                  </span>
+                }
               >
+                {protectionMode === "OCO" ? (
+                  <div className="protection-leg-title">{t("Stop loss")}</div>
+                ) : (
+                  <DropdownSelect
+                    aria-label={t("Trigger type")}
+                    value={triggerType}
+                    onChange={(event) =>
+                      setTriggerType(
+                        event.target.value === "TAKE_PROFIT" ? "TAKE_PROFIT" : "STOP_LOSS",
+                      )
+                    }
+                  >
+                    <option value="STOP_LOSS">{t("Stop loss")}</option>
+                    <option value="TAKE_PROFIT">{t("Take profit")}</option>
+                  </DropdownSelect>
+                )}
+              </Field>
+              <div className="trigger-price-source">
+                {t("Trigger source")} <strong>{t("Mark price")}</strong>
+              </div>
+              {triggerCloseSide && triggerCloseSide !== side ? (
+                <button
+                  type="button"
+                  className="trigger-side-action"
+                  onClick={() => setSide(triggerCloseSide)}
+                >
+                  {t("Switch to")}{" "}
+                  {triggerCloseSide === "SELL" ? t("Close long") : t("Close short")}
+                </button>
+              ) : null}
+              <Field label={t("Trigger price")}>
                 <div className="number-input">
                   <input
                     value={triggerPrice}
                     onChange={(event) => setTriggerPrice(event.target.value)}
                     inputMode="decimal"
-                    placeholder="输入触发价格"
-                    aria-label="止盈止损触发价格"
+                    placeholder={t("Enter trigger price")}
+                    aria-label={t("TP/SL trigger price")}
                   />
                   <span>{current?.quoteAsset ?? "USDT"}</span>
                 </div>
               </Field>
               <Field
-                label="触发后执行 / Execution"
+                label={t("Execution")}
                 hint={
                   triggerExecutionType === "MARKET"
-                    ? "触发后立即以市价平仓"
-                    : "触发后挂出限价平仓单"
+                    ? t("Close at market after triggering")
+                    : t("Place a limit close order after triggering")
                 }
               >
                 <DropdownSelect
-                  aria-label="Execution"
+                  aria-label={t("Execution")}
                   value={triggerExecutionType}
                   onChange={(event) =>
                     setTriggerExecutionType(event.target.value === "LIMIT" ? "LIMIT" : "MARKET")
                   }
                 >
-                  <option value="MARKET">市价 Market</option>
-                  <option value="LIMIT">限价 Limit</option>
+                  <option value="MARKET">{t("Market")}</option>
+                  <option value="LIMIT">{t("Limit")}</option>
                 </DropdownSelect>
               </Field>
             </>
           ) : null}
           {orderType !== "MARKET" && (orderType !== "STOP" || triggerExecutionType === "LIMIT") ? (
-            <Field label={orderType === "STOP" ? "触发后限价 / Limit price" : "Price"}>
-              <div className="number-input">
-                <input
-                  value={price}
-                  onChange={(event) => setPrice(event.target.value)}
-                  inputMode="decimal"
-                />
-                <span>{current?.quoteAsset ?? "USDT"}</span>
+            <Field label={orderType === "STOP" ? t("Limit price") : t("Price")}>
+              <div className="limit-price-control">
+                {useBbo ? (
+                  <DropdownSelect
+                    value={bboPriceMode}
+                    aria-label={t("BBO price mode")}
+                    onChange={(event) => setBboPriceMode(event.target.value)}
+                  >
+                    <option value="OPPONENT_1">{t("Opponent 1")}</option>
+                    <option value="OPPONENT_5">{t("Opponent 5")}</option>
+                    <option value="SAME_SIDE_1">{t("Same side 1")}</option>
+                    <option value="SAME_SIDE_5">{t("Same side 5")}</option>
+                  </DropdownSelect>
+                ) : (
+                  <div className="number-input">
+                    <input
+                      value={price}
+                      onChange={(event) => setPrice(event.target.value)}
+                      aria-label={t("Limit price")}
+                      inputMode="decimal"
+                    />
+                    <span>{current?.quoteAsset ?? "USDT"}</span>
+                  </div>
+                )}
+                {orderType === "LIMIT" ? (
+                  <div className="bbo-toggle-wrap">
+                    <button
+                      type="button"
+                      className="bbo-toggle"
+                      aria-pressed={bboEnabled}
+                      aria-describedby="bbo-explanation"
+                      onClick={() => setBboEnabled(!bboEnabled)}
+                    >
+                      {t("BBO")}
+                    </button>
+                    <div id="bbo-explanation" role="tooltip" className="bbo-tooltip">
+                      {t(
+                        "BBO quickly sets a limit order price from the order book. Same side uses your trading direction; opponent uses the opposite side. 1 selects the best price level and 5 selects the fifth best. The server selects the price when you submit; the order does not track later book changes.",
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </Field>
           ) : null}
+          {orderType === "STOP" && protectionMode === "OCO" ? (
+            <div className="protection-second-leg">
+              <strong className="protection-leg-title">{t("Take profit")}</strong>
+              <Field label={t("Trigger price")}>
+                <div className="number-input">
+                  <input
+                    value={takeProfitTriggerPrice}
+                    onChange={(event) => setTakeProfitTriggerPrice(event.target.value)}
+                    inputMode="decimal"
+                    aria-label={t("Take-profit trigger price")}
+                  />
+                  <span>{current?.quoteAsset ?? "USDT"}</span>
+                </div>
+              </Field>
+              <Field label={t("Execution")}>
+                <DropdownSelect
+                  value={takeProfitExecutionType}
+                  aria-label={t("Take-profit execution")}
+                  onChange={(event) =>
+                    setTakeProfitExecutionType(event.target.value === "LIMIT" ? "LIMIT" : "MARKET")
+                  }
+                >
+                  <option value="MARKET">{t("Market")}</option>
+                  <option value="LIMIT">{t("Limit")}</option>
+                </DropdownSelect>
+              </Field>
+              {takeProfitExecutionType === "LIMIT" ? (
+                <Field label={t("Limit price")}>
+                  <div className="number-input">
+                    <input
+                      value={takeProfitLimitPrice}
+                      onChange={(event) => setTakeProfitLimitPrice(event.target.value)}
+                      inputMode="decimal"
+                      aria-label={t("Take-profit limit price")}
+                    />
+                    <span>{current?.quoteAsset ?? "USDT"}</span>
+                  </div>
+                </Field>
+              ) : null}
+            </div>
+          ) : null}
           <Field
-            label={orderType === "STOP" ? "平仓数量 / Close quantity" : "Quantity"}
-            {...(orderType === "STOP" ? { hint: "不能超过当前仓位数量" } : {})}
+            label={orderType === "STOP" ? t("Close quantity") : t("Quantity")}
+            {...(orderType === "STOP"
+              ? { hint: t("Cannot exceed the current position size") }
+              : {})}
           >
             <div className="number-input">
               <input
@@ -1718,9 +1933,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 onChange={(event) => setQuantity(event.target.value)}
                 inputMode="decimal"
                 placeholder="0.00"
-                aria-label={orderType === "STOP" ? "止盈止损平仓数量" : "Order quantity"}
+                aria-label={orderType === "STOP" ? t("TP/SL close quantity") : t("Order quantity")}
               />
-              <span>{current?.baseAsset ?? "Asset"}</span>
+              <span>{current?.baseAsset ?? t("Asset")}</span>
             </div>
           </Field>
           {view.line === PRODUCT_LINES.spot || orderType === "STOP" ? (
@@ -1732,19 +1947,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 max="100"
                 value={percentage}
                 onChange={(event) => setOrderPercentage(Number(event.target.value))}
-                aria-label="Order percentage"
+                aria-label={t("Order percentage")}
               />
               <span>100%</span>
             </div>
           ) : null}
           <div className="ticket-summary">
-            <span>Available</span>
+            <span>{t("Available")}</span>
             <span className="mono">
               {session
                 ? `${displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
-                : "Login required"}
+                : t("Login required")}
             </span>
-            <span>Est. fee</span>
+            <span>{t("Est. fee")}</span>
             <span className="mono">{estimatedFee(current, price, quantity)}</span>
           </div>
           {submitMessage ? (
@@ -1761,13 +1976,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             onClick={() => void submit()}
           >
             {session && orderType === "STOP"
-              ? `${triggerType === "STOP_LOSS" ? "设置止损" : "设置止盈"}（${side === "SELL" ? "卖出平仓" : "买入平仓"}）`
+              ? `${protectionMode === "OCO" ? t("Set TP/SL pair") : triggerType === "STOP_LOSS" ? t("Set stop loss") : t("Set take profit")}（${side === "SELL" ? t("Sell to close") : t("Buy to close")}）`
               : session
-                ? `${side === "BUY" ? "Buy" : "Sell"} ${current?.baseAsset ?? "Asset"}`
-                : "Log in to trade"}
+                ? `${side === "BUY" ? t("Buy") : t("Sell")} ${current?.baseAsset ?? t("Asset")}`
+                : t("Log in to trade")}
           </Button>
           <a className="route-link ticket-login" href="/auth/login">
-            {session ? "Manage orders" : "Create an account"}
+            {session ? t("Manage orders") : t("Create an account")}
           </a>
         </aside>
       </div>
@@ -1778,7 +1993,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ) : null}
       {demo ? (
         <div className="demo-banner trade-demo-banner">
-          演示数据：未登录或行情服务不可用，价格与图表仅用于本地视觉检查。
+          {" "}
+          {t("Demo data: prices and charts are for local visual checks only.")}{" "}
         </div>
       ) : null}
     </div>
@@ -1830,21 +2046,24 @@ export function OrderBook({
   return (
     <Panel dense className="order-book-panel">
       <div className="panel-heading">
-        <h2>Order book</h2>
+        <h2>{t("Order book")}</h2>
         <div className="book-depth-control">
-          精度
+          {" "}
+          {t("Precision")}{" "}
           <DropdownSelect
-            aria-label="Order book price precision"
+            aria-label={t("Order book price precision")}
             value={precision}
             onChange={(event) => onPrecisionChange(Number(event.target.value) as 1 | 10 | 100)}
           >
-            <option value={1}>1×</option>
-            <option value={10}>10×</option>
-            <option value={100}>100×</option>
-          </DropdownSelect>
-          档位
+            {([1, 10, 100] as const).map((multiple) => (
+              <option key={multiple} value={multiple}>
+                {priceStep > 0 ? (priceStep * multiple).toFixed(8).replace(/\.?0+$/, "") : "—"}
+              </option>
+            ))}
+          </DropdownSelect>{" "}
+          {t("Depth")}{" "}
           <DropdownSelect
-            aria-label="Order book depth"
+            aria-label={t("Order book depth")}
             value={depth}
             onChange={(event) => onDepthChange(Number(event.target.value) as 10 | 20 | 50)}
           >
@@ -1855,11 +2074,20 @@ export function OrderBook({
         </div>
       </div>
       <div className="order-book-sides">
-        <section className="order-book-side" aria-label="Asks, high to low">
+        <section className="order-book-side" aria-label={t("Asks, high to low")}>
           <div className="order-book-columns">
-            <span>价格 ({quoteAsset})</span>
-            <span>数量 ({baseAsset})</span>
-            <span>合计 ({baseAsset})</span>
+            <span>
+              {t("Price (")}
+              {quoteAsset})
+            </span>
+            <span>
+              {t("Quantity (")}
+              {baseAsset})
+            </span>
+            <span>
+              {t("Total (")}
+              {baseAsset})
+            </span>
           </div>
           <div ref={askSideRef} className="order-book-scroll order-book-asks">
             <div className="order-book">
@@ -1876,18 +2104,27 @@ export function OrderBook({
           </div>
         </section>
         <div className="order-book-last-trade" aria-live="polite">
-          <span>最新成交</span>
+          <span>{t("Last trade")}</span>
           <strong
             className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
           >
             {displayPrice(text(latestTrade, "price"), dollar)}
           </strong>
         </div>
-        <section className="order-book-side" aria-label="Bids, high to low">
+        <section className="order-book-side" aria-label={t("Bids, high to low")}>
           <div className="order-book-columns">
-            <span>价格 ({quoteAsset})</span>
-            <span>数量 ({baseAsset})</span>
-            <span>合计 ({baseAsset})</span>
+            <span>
+              {t("Price (")}
+              {quoteAsset})
+            </span>
+            <span>
+              {t("Quantity (")}
+              {baseAsset})
+            </span>
+            <span>
+              {t("Total (")}
+              {baseAsset})
+            </span>
           </div>
           <div className="order-book-scroll">
             <div className="order-book">
@@ -2102,9 +2339,9 @@ function OpenOrders({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Open order</th>
-            <th>Side</th>
-            <th>Status</th>
+            <th>{t("Open order")}</th>
+            <th>{t("Side")}</th>
+            <th>{t("Status")}</th>
             <th />
           </tr>
         </thead>
@@ -2138,15 +2375,15 @@ function TriggerOrders({
   readonly assetScales: Readonly<Record<string, string>>
   readonly onDone: (message: string) => void
 }) {
-  const title = "止盈止损 / Take-profit & stop-loss"
+  const title = t("Take-profit & stop-loss")
   if (rows.length === 0) {
     return (
       <div className="trigger-orders-state">
         <div className="panel-heading">
           <h3>{title}</h3>
-          <Badge tone="neutral">0 active</Badge>
+          <Badge tone="neutral">{t("0 active")}</Badge>
         </div>
-        <StateView kind="empty" message="当前交易对暂无待触发条件单。" />
+        <StateView kind="empty" message={t("No pending trigger orders for this pair.")} />
       </div>
     )
   }
@@ -2154,18 +2391,20 @@ function TriggerOrders({
     <div className="trigger-orders-state">
       <div className="panel-heading">
         <h3>{title}</h3>
-        <Badge tone="info">{rows.length} active</Badge>
+        <Badge tone="info">
+          {rows.length} {t("active")}
+        </Badge>
       </div>
       <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Protection</th>
-              <th>Trigger price</th>
-              <th>Close side</th>
-              <th>Quantity</th>
-              <th>Execution</th>
-              <th>Status</th>
+              <th>{t("Protection")}</th>
+              <th>{t("Trigger price")}</th>
+              <th>{t("Close side")}</th>
+              <th>{t("Quantity")}</th>
+              <th>{t("Execution")}</th>
+              <th>{t("Status")}</th>
               <th />
             </tr>
           </thead>
@@ -2215,9 +2454,9 @@ function TriggerOrderRow({
       <td className="mono" title={`ticks: ${String(row.triggerPriceTicks)}`}>
         {triggerPrice} <small>{row.triggerCondition === "GREATER_OR_EQUAL" ? "≥" : "≤"}</small>
       </td>
-      <td>{row.side === "SELL" ? "卖出平多" : "买入平空"}</td>
+      <td>{row.side === "SELL" ? t("Close long") : t("Close short")}</td>
       <td className="mono">{quantity}</td>
-      <td>{row.orderType === "MARKET" ? "市价" : "限价"}</td>
+      <td>{row.orderType === "MARKET" ? t("Market") : t("Limit")}</td>
       <td>
         <Badge tone={triggerStatusTone(row.status)}>{triggerStatusLabel(row.status)}</Badge>
       </td>
@@ -2227,17 +2466,21 @@ function TriggerOrderRow({
           loading={loading}
           disabled={userId === undefined || row.status !== "PENDING"}
           onClick={() => {
-            if (userId === undefined || !window.confirm("撤销这笔止盈止损单？")) return
+            if (
+              userId === undefined ||
+              !window.confirm(t("Cancel this take-profit / stop-loss order?"))
+            )
+              return
             setLoading(true)
             void cancelTriggerOrder(userId, row.triggerOrderId, productLine)
               .then(
-                () => onDone("条件单撤销请求已发送。"),
+                () => onDone(t("Trigger order cancellation requested.")),
                 (reason: unknown) => onDone(readError(reason)),
               )
               .finally(() => setLoading(false))
           }}
         >
-          <XCircle size={14} /> 撤销
+          <XCircle size={14} /> {t("Revoke")}{" "}
         </Button>
       </td>
     </tr>
@@ -2245,19 +2488,19 @@ function TriggerOrderRow({
 }
 
 function triggerTypeLabel(value: ApiTriggerOrder["triggerType"]): string {
-  if (value === "STOP_LOSS") return "止损"
-  if (value === "TAKE_PROFIT") return "止盈"
-  return "追踪止损"
+  if (value === "STOP_LOSS") return t("Stop loss")
+  if (value === "TAKE_PROFIT") return t("Take profit")
+  return t("Trailing stop")
 }
 
 function triggerStatusLabel(value: ApiTriggerOrder["status"]): string {
   const labels: Readonly<Record<ApiTriggerOrder["status"], string>> = {
-    PENDING: "待触发",
-    TRIGGERING: "触发中",
-    TRIGGERED: "已触发",
-    TRIGGER_FAILED: "触发失败",
-    CANCELED: "已撤销",
-    EXPIRED: "已过期",
+    PENDING: t("Pending"),
+    TRIGGERING: t("Triggering"),
+    TRIGGERED: t("Triggered"),
+    TRIGGER_FAILED: t("Failed"),
+    CANCELED: t("Canceled"),
+    EXPIRED: t("Expired"),
   }
   return labels[value]
 }
@@ -2329,13 +2572,13 @@ function OpenOrderRow({
             setLoading(true)
             void cancelOrder(row.symbol, id, productLine)
               .then(
-                () => onDone("撤单请求已发送。"),
+                () => onDone(t("Cancellation requested.")),
                 (reason: unknown) => onDone(readError(reason)),
               )
               .finally(() => setLoading(false))
           }}
         >
-          <XCircle size={14} /> Cancel
+          <XCircle size={14} /> {t("Cancel")}{" "}
         </Button>
       </td>
     </tr>
@@ -2352,22 +2595,25 @@ function OptionDetails({
   return (
     <Panel dense className="contract-details">
       <div className="panel-heading">
-        <h2>Option contract</h2>
-        <Badge tone="info">Backend fields</Badge>
+        <h2>{t("Option contract")}</h2>
+        <Badge tone="info">{t("Backend fields")}</Badge>
       </div>
       <div className="contract-detail-grid">
-        <Detail label="Underlying" value={market?.underlyingSymbol ?? market?.baseAsset ?? "—"} />
-        <Detail label="Expiry" value={formatDate(market?.expiryTime)} />
-        <Detail label="Strike (units)" value={market?.strikePriceUnits?.toString() ?? "—"} />
-        <Detail label="Call / Put" value={market?.optionType ?? "—"} />
-        <Detail label="Exercise" value={market?.optionExerciseStyle ?? "—"} />
-        <Detail label="Settlement" value={market?.settlementMethod ?? "—"} />
         <Detail
-          label="Implied volatility"
+          label={t("Underlying")}
+          value={market?.underlyingSymbol ?? market?.baseAsset ?? "—"}
+        />
+        <Detail label={t("Expiry")} value={formatDate(market?.expiryTime)} />
+        <Detail label={t("Strike (units)")} value={market?.strikePriceUnits?.toString() ?? "—"} />
+        <Detail label={t("Call / Put")} value={market?.optionType ?? "—"} />
+        <Detail label={t("Exercise")} value={market?.optionExerciseStyle ?? "—"} />
+        <Detail label={t("Settlement")} value={market?.settlementMethod ?? "—"} />
+        <Detail
+          label={t("Implied volatility")}
           value={quote ? `${formatNumeric(Number(quote.impliedVolatility) * 100)}%` : "Unavailable"}
         />
         <Detail
-          label="Greeks"
+          label={t("Greeks")}
           value={
             quote
               ? `Δ ${formatNumeric(quote.delta)} · Γ ${formatNumeric(quote.gamma)}`
@@ -2393,16 +2639,19 @@ function DeliveryDetails({ market }: { readonly market: Market | null }) {
   return (
     <Panel dense className="contract-details">
       <div className="panel-heading">
-        <h2>Delivery contract</h2>
-        <Badge tone="info">Backend fields</Badge>
+        <h2>{t("Delivery contract")}</h2>
+        <Badge tone="info">{t("Backend fields")}</Badge>
       </div>
       <div className="contract-detail-grid">
-        <Detail label="Contract value" value={market?.contractValueAsset ?? "—"} />
-        <Detail label="Expiry" value={formatDate(market?.expiryTime)} />
-        <Detail label="Delivery time" value={formatDate(market?.deliveryTime)} />
-        <Detail label="Settlement" value={market?.settlementMethod ?? "—"} />
-        <Detail label="Contract multiplier" value={ppmValue(market?.contractMultiplierPpm)} />
-        <Detail label="Maintenance margin" value={ppmValue(market?.maintenanceMarginRatePpm)} />
+        <Detail label={t("Contract value")} value={market?.contractValueAsset ?? "—"} />
+        <Detail label={t("Expiry")} value={formatDate(market?.expiryTime)} />
+        <Detail label={t("Delivery time")} value={formatDate(market?.deliveryTime)} />
+        <Detail label={t("Settlement")} value={market?.settlementMethod ?? "—"} />
+        <Detail label={t("Contract multiplier")} value={ppmValue(market?.contractMultiplierPpm)} />
+        <Detail
+          label={t("Maintenance margin")}
+          value={ppmValue(market?.maintenanceMarginRatePpm)}
+        />
       </div>
     </Panel>
   )
@@ -2572,7 +2821,9 @@ function valueAt(row: Record<string, unknown> | null | undefined, key: string): 
   return row === null || row === undefined ? undefined : Reflect.get(row, key)
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "交易服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Trading service is unavailable. Please retry later.")
 }
 
 function fundingRate(
@@ -2618,8 +2869,8 @@ function FundingPayments({
   return (
     <Panel dense>
       <div className="panel-heading">
-        <h2>Funding payment history</h2>
-        <Badge tone="info">Backend records</Badge>
+        <h2>{t("Funding payment history")}</h2>
+        <Badge tone="info">{t("Backend records")}</Badge>
       </div>
       {error ? (
         <StateView kind="error" message={error} />
@@ -2630,11 +2881,11 @@ function FundingPayments({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Asset</th>
-                <th>Rate</th>
-                <th>Amount</th>
-                <th>Created</th>
+                <th>{t("Symbol")}</th>
+                <th>{t("Asset")}</th>
+                <th>{t("Rate")}</th>
+                <th>{t("Amount")}</th>
+                <th>{t("Created")}</th>
               </tr>
             </thead>
             <tbody>
@@ -2667,17 +2918,17 @@ function FundingMarketHistory({
   return (
     <Panel dense>
       <div className="panel-heading">
-        <h2>Funding market history</h2>
-        <Badge tone="info">Backend records</Badge>
+        <h2>{t("Funding market history")}</h2>
+        <Badge tone="info">{t("Backend records")}</Badge>
       </div>
       {error ? <StateView kind="error" message={error} /> : null}
       <div className="risk-summary-grid">
         <Detail
-          label="Latest settlement"
+          label={t("Latest settlement")}
           value={text(settlement, "fundingTime") || text(settlement, "eventTime") || "—"}
         />
-        <Detail label="Settlement status" value={text(settlement, "status") || "—"} />
-        <Detail label="Settled payments" value={text(settlement, "positionCount") || "—"} />
+        <Detail label={t("Settlement status")} value={text(settlement, "status") || "—"} />
+        <Detail label={t("Settled payments")} value={text(settlement, "positionCount") || "—"} />
       </div>
       {rows.length === 0 ? (
         <StateView kind="empty" message="No funding rate history returned for this contract." />
@@ -2686,10 +2937,10 @@ function FundingMarketHistory({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Funding time</th>
-                <th>Rate</th>
-                <th>Premium</th>
-                <th>Status</th>
+                <th>{t("Funding time")}</th>
+                <th>{t("Rate")}</th>
+                <th>{t("Premium")}</th>
+                <th>{t("Status")}</th>
               </tr>
             </thead>
             <tbody>

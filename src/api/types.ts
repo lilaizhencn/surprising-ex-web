@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { t } from "../i18n"
 
 const NumericSchema = z.union([z.string(), z.number()])
 const NullableNumericSchema = NumericSchema.nullable().optional()
@@ -6,13 +7,17 @@ const IdentifierSchema = z.union([z.string(), z.number()])
 const SafeIntegerWireSchema = z
   .union([
     z.string().regex(/^\d+$/),
-    z.number().int().nonnegative().refine(Number.isSafeInteger, "整数必须以字符串传输。"),
+    z
+      .number()
+      .int()
+      .nonnegative()
+      .refine(Number.isSafeInteger, t("Integers must be transmitted as strings.")),
   ])
   .transform(String)
 const SignedIntegerWireSchema = z
   .union([
     z.string().regex(/^-?\d+$/),
-    z.number().int().refine(Number.isSafeInteger, "整数必须以字符串传输。"),
+    z.number().int().refine(Number.isSafeInteger, t("Integers must be transmitted as strings.")),
   ])
   .transform(String)
 

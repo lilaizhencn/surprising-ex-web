@@ -1,7 +1,9 @@
 import { Bell, ChevronDown, CircleUserRound, Menu, Moon, Search, Sun } from "lucide-react"
 import { useState } from "react"
 import type { AuthSession } from "../../api/types"
+import { t } from "../../i18n"
 import { IconButton } from "../ui/Primitives"
+import { LanguagePicker } from "./LanguagePicker"
 import { publicNavigation } from "./navigation"
 
 const THEME_KEY = "theme"
@@ -25,25 +27,25 @@ export function TopNav({
   return (
     <header className="top-nav">
       <div className="top-nav-inner">
-        <a className="brand" href="/" aria-label="Surprising EX home">
+        <a className="brand" href="/" aria-label={t("Surprising EX home")}>
           <span className="brand-mark">S</span>
           <span>Surprising EX</span>
         </a>
         <nav
           className={`top-links ${mobileOpen ? "top-links-open" : ""}`}
-          aria-label="Primary navigation"
+          aria-label={t("Primary navigation")}
         >
           {publicNavigation.map((item) => (
             <div className="nav-item" key={item.href}>
               <a className={pathname.startsWith(item.href) ? "active" : ""} href={item.href}>
-                {item.label}
+                {t(item.label)}
                 {"menu" in item ? <ChevronDown size={15} /> : null}
               </a>
               {"menu" in item ? (
                 <div className="nav-menu">
                   {item.menu.map((child) => (
                     <a key={child.href} href={child.href}>
-                      {child.label}
+                      {t(child.label)}
                     </a>
                   ))}
                 </div>
@@ -52,8 +54,9 @@ export function TopNav({
           ))}
         </nav>
         <div className="nav-actions">
+          <LanguagePicker />
           <IconButton
-            label="Search"
+            label={t("Search")}
             onClick={() => {
               window.location.href = "/markets"
             }}
@@ -62,7 +65,7 @@ export function TopNav({
           </IconButton>
           {session ? (
             <IconButton
-              label="Notifications"
+              label={t("Notifications")}
               onClick={() => {
                 window.location.href = "/notifications"
               }}
@@ -70,23 +73,27 @@ export function TopNav({
               <Bell size={20} />
             </IconButton>
           ) : null}
-          <IconButton label={dark ? "Use light theme" : "Use dark theme"} onClick={toggleTheme}>
+          <IconButton
+            label={dark ? t("Use light theme") : t("Use dark theme")}
+            onClick={toggleTheme}
+          >
             {dark ? <Sun size={20} /> : <Moon size={20} />}
           </IconButton>
           <a
             className="nav-account"
             href={session ? "/account/security" : "/auth/login"}
-            aria-label={session ? "Account security" : "Sign in"}
+            aria-label={session ? t("Account security") : t("Sign in")}
           >
             <CircleUserRound size={21} />
           </a>
           {session ? (
             <button type="button" className="nav-logout" onClick={onLogout}>
-              Sign out
+              {" "}
+              {t("Sign out")}{" "}
             </button>
           ) : null}
           <IconButton
-            label="Open navigation"
+            label={t("Open navigation")}
             className="mobile-nav-toggle"
             onClick={() => setMobileOpen(!mobileOpen)}
           >

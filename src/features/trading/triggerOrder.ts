@@ -1,3 +1,4 @@
+import { t } from "../../i18n"
 import type { OrderSide } from "../../types/domain"
 
 export type TriggerPositionMode = "ONE_WAY" | "HEDGE"
@@ -42,7 +43,9 @@ export function triggerConditionText(
   const greaterOrEqual =
     (triggerType === "TAKE_PROFIT" && side === "SELL") ||
     (triggerType === "STOP_LOSS" && side === "BUY")
-  return greaterOrEqual ? "标记价格 ≥ 触发价时触发" : "标记价格 ≤ 触发价时触发"
+  return greaterOrEqual
+    ? t("Triggers when mark price \u2265 trigger price")
+    : t("Triggers when mark price \u2264 trigger price")
 }
 
 function text(row: Record<string, unknown>, key: string): string {

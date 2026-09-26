@@ -8,6 +8,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts"
 import { useEffect, useRef, useState } from "react"
+import { t } from "../../i18n"
 import type { Candle } from "../../types/domain"
 
 const dollarPrice = new Intl.NumberFormat("en-US", {
@@ -305,25 +306,36 @@ export function PriceChart({
     <div className="price-chart">
       <div className="chart-info">
         <div className="chart-info-time">
-          <strong>{period} K 线</strong>
-          <span>{latest ? `最新 ${candleTime.format(Date.parse(latest.time))}` : "等待成交"}</span>
+          <strong>
+            {period} {t("Candles")}
+          </strong>
+          <span>
+            {latest
+              ? `${t("Latest")} ${candleTime.format(Date.parse(latest.time))}`
+              : t("Waiting for trades")}
+          </span>
         </div>
         {latest ? (
           <div className="chart-ohlc">
             <span>
-              开 <b>{formatPrice(latest.open)}</b>
+              {" "}
+              {t("Open")} <b>{formatPrice(latest.open)}</b>
             </span>
             <span>
-              高 <b>{formatPrice(latest.high)}</b>
+              {" "}
+              {t("High")} <b>{formatPrice(latest.high)}</b>
             </span>
             <span>
-              低 <b>{formatPrice(latest.low)}</b>
+              {" "}
+              {t("Low")} <b>{formatPrice(latest.low)}</b>
             </span>
             <span>
-              收 <b>{formatPrice(latest.close)}</b>
+              {" "}
+              {t("Close")} <b>{formatPrice(latest.close)}</b>
             </span>
             <span>
-              量 <b>{otherPrice.format(latest.volume)}</b>
+              {" "}
+              {t("Volume")} <b>{otherPrice.format(latest.volume)}</b>
             </span>
           </div>
         ) : null}
@@ -335,12 +347,15 @@ export function PriceChart({
         aria-label={`${period} candlestick and volume chart`}
       />
       <div className="chart-volume-info" aria-live="polite">
-        成交量（{volumeUnit}） <b>{latest ? otherPrice.format(latest.volume) : "—"}</b>
+        {" "}
+        {t("Volume (")}
+        {volumeUnit}
+        {t(")")} <b>{latest ? otherPrice.format(latest.volume) : "—"}</b>
       </div>
       {(unavailable || (!demo && valid.length === 0)) && (
-        <div className="chart-empty">等待真实 K 线和成交量数据</div>
+        <div className="chart-empty">{t("Waiting for live candles and volume")}</div>
       )}
-      {demo ? <span className="chart-demo-label">演示图表</span> : null}
+      {demo ? <span className="chart-demo-label">{t("Demo chart")}</span> : null}
     </div>
   )
 }

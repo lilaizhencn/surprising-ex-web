@@ -10,6 +10,7 @@ import {
   Sparkline,
   StateView,
 } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets, demoTrend } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
@@ -29,7 +30,7 @@ export function HomePage() {
         ),
       )
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
+        setError(reason instanceof Error ? reason.message : t("Market data unavailable")),
       )
   }, [])
   const source =
@@ -50,18 +51,20 @@ export function HomePage() {
     <div className="home-page">
       <section className="hero container">
         <div className="hero-copy">
-          <h1>The Trusted Gateway to Digital Assets.</h1>
+          <h1>{t("The Trusted Gateway to Digital Assets.")}</h1>
           <p>
-            Secure, transparent, and high-performance infrastructure for institutional and retail
-            traders.
+            {" "}
+            {t(
+              "Secure, transparent, and high-performance infrastructure for institutional and retail traders.",
+            )}{" "}
           </p>
           <div className="hero-search">
             <Search size={18} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search coins, tokens, pairs..."
-              aria-label="Search coins, tokens, pairs"
+              placeholder={t("Search coins, tokens, pairs...")}
+              aria-label={t("Search coins, tokens, pairs")}
             />
           </div>
           <div className="cluster hero-actions">
@@ -70,7 +73,8 @@ export function HomePage() {
                 window.location.href = "/trade/usd-perpetual"
               }}
             >
-              Start Trading <ArrowRight size={16} />
+              {" "}
+              {t("Start Trading")} <ArrowRight size={16} />
             </Button>
             <Button
               tone="outline"
@@ -78,21 +82,24 @@ export function HomePage() {
                 window.location.href = "/markets"
               }}
             >
-              View Markets
+              {" "}
+              {t("View Markets")}{" "}
             </Button>
           </div>
         </div>
       </section>
       {config.demoDataEnabled && markets.length === 0 ? (
         <div className="container demo-banner">
-          演示数据：后端行情未连接，当前仅用于本地视觉检查。
+          {" "}
+          {t("Demo data: market data is disconnected; local visual checks only.")}{" "}
         </div>
       ) : null}
       <section className="section container">
         <div className="section-title">
-          <h2>Top Assets</h2>
+          <h2>{t("Top Assets")}</h2>
           <a className="route-link" href="/markets">
-            View all
+            {" "}
+            {t("View all")}{" "}
           </a>
         </div>
         {error && !config.demoDataEnabled ? (
@@ -123,7 +130,7 @@ export function HomePage() {
                 {markets.length === 0 && config.demoDataEnabled ? (
                   <Sparkline values={demoTrend} positive={(market.change24h ?? 0) >= 0} />
                 ) : (
-                  <span className="subtle trend-unavailable">Trend unavailable</span>
+                  <span className="subtle trend-unavailable">{t("Trend unavailable")}</span>
                 )}
               </Panel>
             ))}
@@ -132,31 +139,37 @@ export function HomePage() {
       </section>
       <section className="section container">
         <div className="section-title">
-          <h2>Institutional Grade</h2>
+          <h2>{t("Institutional Grade")}</h2>
         </div>
         <div className="grade-grid">
           <Panel>
             <ShieldCheck size={26} />
-            <h3>Security First Architecture</h3>
+            <h3>{t("Security First Architecture")}</h3>
             <p>
-              Multi-signature cold storage, rigorous testing, and anomaly detection keep the account
-              state explicit.
+              {" "}
+              {t(
+                "Multi-signature cold storage, rigorous testing, and anomaly detection keep the account state explicit.",
+              )}{" "}
             </p>
           </Panel>
           <Panel>
             <Zap size={26} />
-            <h3>Professional Efficiency</h3>
+            <h3>{t("Professional Efficiency")}</h3>
             <p>
-              Structured market data and precise order state help traders act without losing
-              context.
+              {" "}
+              {t(
+                "Structured market data and precise order state help traders act without losing context.",
+              )}{" "}
             </p>
           </Panel>
           <Panel className="grade-wide">
             <Globe2 size={26} />
-            <h3>Global Accessibility</h3>
+            <h3>{t("Global Accessibility")}</h3>
             <p>
-              One clear interface for public market reading, trading products, and account
-              operations.
+              {" "}
+              {t(
+                "One clear interface for public market reading, trading products, and account operations.",
+              )}{" "}
             </p>
           </Panel>
         </div>

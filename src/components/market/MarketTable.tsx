@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react"
 import { useEffect, useState } from "react"
+import { t } from "../../i18n"
 import { storageKeys } from "../../lib/config"
 import { formatNumber, formatPercent, formatUsd } from "../../lib/format"
 import type { Market } from "../../types/domain"
@@ -55,37 +56,44 @@ export function MarketTable({
       <table className="data-table markets-table">
         <thead>
           <tr>
-            <th aria-label="Favorite" />
+            <th aria-label={t("Favorite")} />
             <th>
               <button type="button" className="table-sort" onClick={() => setSort("symbol")}>
-                Trading pair
+                {" "}
+                {t("Trading pair")}{" "}
               </button>
             </th>
             <th className="number">
               <button type="button" className="table-sort" onClick={() => setSort("price")}>
-                Price
+                {" "}
+                {t("Price")}{" "}
               </button>
             </th>
             <th className="number">
               <button type="button" className="table-sort" onClick={() => setSort("change")}>
-                24h change
+                {" "}
+                {t("24h change")}{" "}
               </button>
             </th>
-            <th className="number">24h high/low</th>
+            <th className="number">{t("24h high/low")}</th>
             <th className="number">
               <button type="button" className="table-sort" onClick={() => setSort("volume")}>
-                24h vol
+                {" "}
+                {t("24h vol")}{" "}
               </button>
             </th>
-            <th className="number">Trend</th>
-            <th>Action</th>
+            <th className="number">{t("Trend")}</th>
+            <th>{t("Action")}</th>
           </tr>
         </thead>
         <tbody>
           {sorted.length === 0 ? (
             <tr>
               <td colSpan={8}>
-                No favorite markets yet. Select the star beside a trading pair to pin it here.
+                {" "}
+                {t(
+                  "No favorite markets yet. Select the star beside a trading pair to pin it here.",
+                )}{" "}
               </td>
             </tr>
           ) : null}
@@ -121,7 +129,7 @@ export function MarketTable({
                 </td>
                 <td className="number">
                   {quoteUnavailable ? (
-                    <span className="subtle">Unavailable</span>
+                    <span className="subtle">{t("Unavailable")}</span>
                   ) : (
                     <Badge tone={hasChange ? (positive ? "positive" : "negative") : "neutral"}>
                       {hasChange ? (
@@ -160,7 +168,8 @@ export function MarketTable({
                       window.location.href = `/trade/${routeProduct(market.productLine)}`
                     }}
                   >
-                    Trade <ArrowUpRight size={14} />
+                    {" "}
+                    {t("Trade")} <ArrowUpRight size={14} />
                   </Button>
                 </td>
               </tr>

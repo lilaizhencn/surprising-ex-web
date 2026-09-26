@@ -10,6 +10,7 @@ import { mapBalance } from "../../api/mappers"
 import type { ApiBalance } from "../../api/types"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
 import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
+import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
 import { formatUsd } from "../../lib/format"
@@ -52,7 +53,9 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         })
         if (balanceResults.some((result) => result.status === "rejected")) {
           const rejected = balanceResults.find((result) => result.status === "rejected")
-          throw rejected?.status === "rejected" ? rejected.reason : new Error("账户服务暂不可用")
+          throw rejected?.status === "rejected"
+            ? rejected.reason
+            : new Error(t("Asset service unavailable"))
         }
         setLedger(ledgerResult?.status === "fulfilled" ? ledgerResult.value : [])
         setAssetScales(assetScales)
@@ -63,7 +66,8 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         setError(null)
       })
       .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "账户服务暂不可用")
+        if (!cancelled)
+          setError(reason instanceof Error ? reason.message : t("Asset service unavailable"))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -87,8 +91,8 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
     <div className="account-content">
       <div className="page-heading">
         <div>
-          <h1>Asset Overview</h1>
-          <p>Review account balances and move funds with explicit confirmation.</p>
+          <h1>{t("Asset Overview")}</h1>
+          <p>{t("Review account balances and move funds with explicit confirmation.")}</p>
         </div>
         <Button tone="outline" onClick={() => setHidden(!hidden)}>
           {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {hidden ? "Show" : "Hide"}
@@ -96,11 +100,15 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       </div>
       {session && !realtime.ready ? (
         <div role="status">
-          资产同步中 / Syncing assets{realtime.error ? `: ${realtime.error}` : ""}
+          {" "}
+          {t("Syncing assets")}
+          {realtime.error ? `: ${realtime.error}` : ""}
         </div>
       ) : null}
       {demo ? (
-        <div className="demo-banner">演示数据：未登录，资产数字仅用于本地视觉检查。</div>
+        <div className="demo-banner">
+          {t("Demo data: balances are for local visual checks only.")}
+        </div>
       ) : null}
       {error && rows.length === 0 ? (
         <Panel>
@@ -109,7 +117,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       ) : null}
       <div className="asset-overview-grid">
         <Panel className="balance-hero">
-          <div className="eyebrow">ACCOUNT BALANCE</div>
+          <div className="eyebrow">{t("ACCOUNT BALANCE")}</div>
           <div className="balance-number mono">
             {hidden
               ? "••••••"
@@ -126,7 +134,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 window.location.href = "/assets/deposit"
               }}
             >
-              <Plus size={16} /> Deposit
+              <Plus size={16} /> {t("Deposit")}{" "}
             </Button>
             <Button
               tone="outline"
@@ -134,7 +142,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 window.location.href = "/assets/withdraw"
               }}
             >
-              <Send size={16} /> Withdraw
+              <Send size={16} /> {t("Withdraw")}{" "}
             </Button>
             <Button
               tone="outline"
@@ -142,12 +150,12 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 window.location.href = "/assets/transfer"
               }}
             >
-              <Shuffle size={16} /> Transfer
+              <Shuffle size={16} /> {t("Transfer")}{" "}
             </Button>
           </div>
         </Panel>
         <Panel className="distribution">
-          <h2>Asset distribution</h2>
+          <h2>{t("Asset distribution")}</h2>
           {hasDistribution ? (
             <>
               <div className="donut">
@@ -181,13 +189,15 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       </div>
       {ledgerError ? (
         <div className="inline-error" role="alert">
-          资金账本暂不可用：{ledgerError}
+          {" "}
+          {t("Funding ledger unavailable:")}
+          {ledgerError}
         </div>
       ) : null}
       <div className="asset-overview-grid">
         <Panel>
           <div className="panel-heading">
-            <h2>Funding ledger</h2>
+            <h2>{t("Funding ledger")}</h2>
             <FileText size={18} />
           </div>
           {ledger.length === 0 ? (
@@ -211,13 +221,14 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
             </div>
           )}
           <a className="route-link" href="/assets/orders">
-            View full transaction history
+            {" "}
+            {t("View full transaction history")}{" "}
           </a>
         </Panel>
         <Panel>
           <div className="panel-heading">
-            <h2>Account totals</h2>
-            <span className="muted">Live balances</span>
+            <h2>{t("Account totals")}</h2>
+            <span className="muted">{t("Live balances")}</span>
           </div>
           {aggregateAssets(rows)
             .slice(0, 6)
@@ -232,17 +243,17 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         </Panel>
       </div>
       <div className="section-title">
-        <h2>My Accounts</h2>
+        <h2>{t("My Accounts")}</h2>
       </div>
       {loading || !realtime.ready || rows.length > 0 ? (
         <div className="table-wrap">
           <table className="data-table asset-account-table">
             <thead>
               <tr>
-                <th>Account</th>
-                <th className="number">Balance (USD)</th>
-                <th className="number">Available</th>
-                <th className="number">Action</th>
+                <th>{t("Account")}</th>
+                <th className="number">{t("Balance (USD)")}</th>
+                <th className="number">{t("Available")}</th>
+                <th className="number">{t("Action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -270,7 +281,8 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                     </td>
                     <td className="number">
                       <a className="route-link" href="/assets/transfer">
-                        Move funds
+                        {" "}
+                        {t("Move funds")}{" "}
                       </a>
                     </td>
                   </tr>

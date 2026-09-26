@@ -10,8 +10,10 @@ import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
 import { SecurityPage } from "../features/security/SecurityPage"
 import { TradePage } from "../features/trading/TradePage"
+import { t, useLocale } from "../i18n"
 
 export function App() {
+  useLocale()
   const path = window.location.pathname
   if (path.startsWith("/auth/")) return <AuthPage mode={authMode(path)} />
   if (path === "/")
@@ -125,10 +127,11 @@ function NotFoundPage() {
     <div className="container section">
       <div className="not-found">
         <span className="eyebrow">404</span>
-        <h1>Page not found</h1>
-        <p>The requested route is not part of the current Surprising EX workspace.</p>
+        <h1>{t("Page not found")}</h1>
+        <p>{t("The requested route is not part of the current Surprising EX workspace.")}</p>
         <a className="route-link" href="/">
-          Return home
+          {" "}
+          {t("Return home")}{" "}
         </a>
       </div>
     </div>

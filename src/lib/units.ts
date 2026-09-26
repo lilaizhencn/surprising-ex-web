@@ -1,3 +1,4 @@
+import { t } from "../i18n"
 export type UnitScale = string | number
 
 export function isPositiveDecimal(value: string): boolean {
@@ -20,11 +21,11 @@ export function decimalToUnits(value: string, scale: UnitScale): string {
   const numerator = decimal.coefficient * scaleValue
   const divisor = ten(decimal.fractionDigits)
   if (numerator % divisor !== 0n) {
-    throw new Error("数量超过资产精度，未提交。")
+    throw new Error(t("Quantity exceeds asset precision."))
   }
   const units = numerator / divisor
   if (units <= 0n || units > 9223372036854775807n) {
-    throw new Error("数量超出可提交的整数范围，未提交。")
+    throw new Error(t("Quantity exceeds the allowed integer range."))
   }
   return units.toString()
 }
@@ -40,11 +41,11 @@ export function decimalToStepUnits(
   const numerator = decimal.coefficient * asset
   const divisor = ten(decimal.fractionDigits) * unit
   if (numerator % divisor !== 0n) {
-    throw new Error("数量不符合交易对的最小步长，未提交。")
+    throw new Error(t("Quantity does not match the minimum step."))
   }
   const steps = numerator / divisor
   if (steps <= 0n || steps > 9223372036854775807n) {
-    throw new Error("数量超出可提交的整数范围，未提交。")
+    throw new Error(t("Quantity exceeds the allowed integer range."))
   }
   return steps.toString()
 }
@@ -56,7 +57,7 @@ export function decimalProductExceedsUnits(
   scale: UnitScale | undefined,
 ): boolean {
   if (availableUnits === undefined || scale === undefined) {
-    throw new Error("余额单位或资产精度尚未加载，未提交。")
+    throw new Error(t("Balance units or asset precision are unavailable."))
   }
   const leftDecimal = parseDecimal(left)
   const rightDecimal = parseDecimal(right)
@@ -108,7 +109,7 @@ export function stepUnitsToDecimal(
 function parseDecimal(value: string): Decimal {
   const normalized = value.trim()
   if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
-    throw new Error("请输入有效的十进制数量。")
+    throw new Error(t("Enter a valid decimal quantity."))
   }
   const [integerPart, fractionPart = ""] = normalized.split(".")
   const digits = `${integerPart || "0"}${fractionPart}`.replace(/^0+(?=\d)/, "")
@@ -118,30 +119,30 @@ function parseDecimal(value: string): Decimal {
 function scaleToBigInt(scale: UnitScale): bigint {
   const normalized = typeof scale === "number" ? integerNumber(scale) : scale.trim()
   if (!/^\d+$/.test(normalized) || normalized === "0") {
-    throw new Error("资产精度规格无效，未提交。")
+    throw new Error(t("Invalid asset precision."))
   }
   return BigInt(normalized)
 }
 
 function integerToBigInt(value: string | number): bigint {
   const normalized = typeof value === "number" ? integerNumber(value) : value.trim()
-  if (!/^\d+$/.test(normalized)) throw new Error("余额单位无效。")
+  if (!/^\d+$/.test(normalized)) throw new Error(t("Invalid balance units."))
   return BigInt(normalized)
 }
 
 function integerNumber(value: number): string {
   if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
-    throw new Error("整数单位无效。")
+    throw new Error(t("Invalid integer units."))
   }
   if (!Number.isSafeInteger(value)) {
-    throw new Error("整数单位必须以字符串传输。")
+    throw new Error(t("Integer units must be transmitted as strings."))
   }
   return String(value)
 }
 
 function integerNumberAllowNegative(value: number): string {
   if (!Number.isFinite(value) || !Number.isInteger(value) || !Number.isSafeInteger(value)) {
-    throw new Error("整数单位无效。")
+    throw new Error(t("Invalid integer units."))
   }
   return String(value)
 }

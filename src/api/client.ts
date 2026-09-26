@@ -1,5 +1,6 @@
 import ky, { type Options } from "ky"
 import type { z } from "zod"
+import { t } from "../i18n"
 import { config } from "../lib/config"
 import { loadSession, saveSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
@@ -90,7 +91,7 @@ export async function request<T>(
   const result = schema.safeParse(payload)
   if (!result.success) {
     throw new ApiError(
-      "接口响应格式与当前前端契约不一致。",
+      t("API response does not match the expected format."),
       response.status,
       result.error.flatten(),
     )
@@ -201,7 +202,7 @@ export function quoteUnsafeJsonIntegers(raw: string): string {
 
 function readableMessage(payload: unknown, status: number): string {
   if (typeof payload === "string" && payload.trimStart().startsWith("<")) {
-    return "接口返回了 HTML，请检查 API 地址、SPA 代理或 Gateway 路由。"
+    return t("API returned HTML. Check the API address and gateway route.")
   }
   if (isRecord(payload)) {
     for (const key of ["detail", "message", "error", "errorMessage"]) {
@@ -209,7 +210,7 @@ function readableMessage(payload: unknown, status: number): string {
       if (typeof value === "string" && value.trim()) return value
     }
   }
-  return `请求失败（HTTP ${status}）。`
+  return `${t("Request failed")} (HTTP ${status}).`
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

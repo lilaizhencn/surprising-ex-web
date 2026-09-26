@@ -27,6 +27,7 @@ import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
+import { t } from "../../i18n"
 import { loadSession, useSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
@@ -139,14 +140,15 @@ export function OrdersPage() {
       <div className="account-content">
         <div className="page-heading">
           <div>
-            <h1>Transaction History</h1>
-            <p>Review orders, fills, ledger entries and internal transfers.</p>
+            <h1>{t("Transaction History")}</h1>
+            <p>{t("Review orders, fills, ledger entries and internal transfers.")}</p>
           </div>
         </div>
         <Panel>
           <StateView kind="error" message="Sign in to view orders and fills." />
           <a className="route-link" href="/auth/login">
-            Go to login
+            {" "}
+            {t("Go to login")}{" "}
           </a>
         </Panel>
       </div>
@@ -155,15 +157,15 @@ export function OrdersPage() {
     <div className="account-content">
       <div className="page-heading">
         <div>
-          <h1>Transaction History</h1>
-          <p>Live order state is read from the product-specific trading gateway.</p>
+          <h1>{t("Transaction History")}</h1>
+          <p>{t("Live order state is read from the product-specific trading gateway.")}</p>
         </div>
         <Button
           tone="outline"
           disabled={displayRows.length === 0}
           onClick={() => downloadCsv(displayRows, tab)}
         >
-          <Download size={16} /> Export
+          <Download size={16} /> {t("Export")}{" "}
         </Button>
       </div>
       {actionMessage ? (
@@ -183,18 +185,19 @@ export function OrdersPage() {
                   { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
                   productLine,
                 ),
-              "批量撤单请求已发送。",
+              t("Batch cancellation requested."),
             )
           }}
         >
-          Cancel all open
+          {" "}
+          {t("Cancel all open")}{" "}
         </Button>
         <div className="inline-form">
           <input
             value={countdown}
             onChange={(event) => setCountdown(event.target.value)}
             inputMode="numeric"
-            aria-label="Cancel all after milliseconds"
+            aria-label={t("Cancel all after milliseconds")}
           />
           <Button
             tone="outline"
@@ -208,11 +211,12 @@ export function OrdersPage() {
                     { userId: session.user.userId, symbol: symbol || null, countdownMs },
                     productLine,
                   ),
-                `自动撤单计时已设置为 ${countdownMs}ms。`,
+                `${t("Cancel timer set (ms)")}: ${countdownMs}`,
               )
             }}
           >
-            Set cancel timer
+            {" "}
+            {t("Set cancel timer")}{" "}
           </Button>
         </div>
         <Button
@@ -226,11 +230,12 @@ export function OrdersPage() {
                   { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
                   productLine,
                 ),
-              "算法单批量撤销请求已发送。",
+              t("Algo order batch cancellation requested."),
             )
           }}
         >
-          Cancel open algo
+          {" "}
+          {t("Cancel open algo")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -243,26 +248,27 @@ export function OrdersPage() {
                   { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
                   productLine,
                 ),
-              "条件单批量撤销请求已发送。",
+              t("Trigger order batch cancellation requested."),
             )
           }}
         >
-          Cancel open triggers
+          {" "}
+          {t("Cancel open triggers")}{" "}
         </Button>
       </div>
       <div className="history-toolbar">
-        <SearchField value={search} onChange={setSearch} placeholder="Search symbol or ID" />
+        <SearchField value={search} onChange={setSearch} placeholder={t("Search symbol or ID")} />
         <DropdownSelect
           value={productLine}
           onChange={(event) => setProductLine(event.target.value as ProductLine)}
-          aria-label="Product line"
+          aria-label={t("Product line")}
         >
-          <option value={PRODUCT_LINES.spot}>Spot</option>
-          <option value={PRODUCT_LINES.usdMPerpetual}>USD-M perpetual</option>
-          <option value={PRODUCT_LINES.coinMPerpetual}>Coin-M perpetual</option>
-          <option value={PRODUCT_LINES.usdMDelivery}>USD-M delivery</option>
-          <option value={PRODUCT_LINES.coinMDelivery}>Coin-M delivery</option>
-          <option value={PRODUCT_LINES.option}>Options</option>
+          <option value={PRODUCT_LINES.spot}>{t("Spot")}</option>
+          <option value={PRODUCT_LINES.usdMPerpetual}>{t("USD-M perpetual")}</option>
+          <option value={PRODUCT_LINES.coinMPerpetual}>{t("Coin-M perpetual")}</option>
+          <option value={PRODUCT_LINES.usdMDelivery}>{t("USD-M delivery")}</option>
+          <option value={PRODUCT_LINES.coinMDelivery}>{t("Coin-M delivery")}</option>
+          <option value={PRODUCT_LINES.option}>{t("Options")}</option>
         </DropdownSelect>
         <input
           value={symbol}
@@ -279,30 +285,30 @@ export function OrdersPage() {
           }
         />
         <Button tone="outline" onClick={load}>
-          <RefreshCw size={16} /> Refresh
+          <RefreshCw size={16} /> {t("Refresh")}{" "}
         </Button>
         <DropdownSelect
           value={status}
           onChange={(event) => setStatus(event.target.value)}
-          aria-label="Order status"
+          aria-label={t("Order status")}
         >
-          <option value="ALL">All statuses</option>
-          <option value="NEW">New</option>
-          <option value="PARTIALLY_FILLED">Partially filled</option>
-          <option value="FILLED">Filled</option>
-          <option value="CANCELED">Canceled</option>
+          <option value="ALL">{t("All statuses")}</option>
+          <option value="NEW">{t("New")}</option>
+          <option value="PARTIALLY_FILLED">{t("Partially filled")}</option>
+          <option value="FILLED">{t("Filled")}</option>
+          <option value="CANCELED">{t("Canceled")}</option>
         </DropdownSelect>
         <input
           type="date"
           value={from}
           onChange={(event) => setFrom(event.target.value)}
-          aria-label="From date"
+          aria-label={t("From date")}
         />
         <input
           type="date"
           value={to}
           onChange={(event) => setTo(event.target.value)}
-          aria-label="To date"
+          aria-label={t("To date")}
         />
       </div>
       <div className="segment-control history-tabs">
@@ -311,63 +317,72 @@ export function OrdersPage() {
           className={tab === "open" ? "active" : ""}
           onClick={() => setTab("open")}
         >
-          Open orders
+          {" "}
+          {t("Open orders")}{" "}
         </button>
         <button
           type="button"
           className={tab === "history" ? "active" : ""}
           onClick={() => setTab("history")}
         >
-          Order history
+          {" "}
+          {t("Order history")}{" "}
         </button>
         <button
           type="button"
           className={tab === "fills" ? "active" : ""}
           onClick={() => setTab("fills")}
         >
-          Fills
+          {" "}
+          {t("Fills")}{" "}
         </button>
         <button
           type="button"
           className={tab === "ledger" ? "active" : ""}
           onClick={() => setTab("ledger")}
         >
-          Account ledger
+          {" "}
+          {t("Account ledger")}{" "}
         </button>
         <button
           type="button"
           className={tab === "product-ledger" ? "active" : ""}
           onClick={() => setTab("product-ledger")}
         >
-          Product ledger
+          {" "}
+          {t("Product ledger")}{" "}
         </button>
         <button
           type="button"
           className={tab === "transfers" ? "active" : ""}
           onClick={() => setTab("transfers")}
         >
-          Transfers
+          {" "}
+          {t("Transfers")}{" "}
         </button>
         <button
           type="button"
           className={tab === "algo" ? "active" : ""}
           onClick={() => setTab("algo")}
         >
-          Algo orders
+          {" "}
+          {t("Algo orders")}{" "}
         </button>
         <button
           type="button"
           className={tab === "triggers" ? "active" : ""}
           onClick={() => setTab("triggers")}
         >
-          Conditional orders
+          {" "}
+          {t("Conditional orders")}{" "}
         </button>
         <button
           type="button"
           className={tab === "advanced" ? "active" : ""}
           onClick={() => setTab("advanced")}
         >
-          Advanced actions
+          {" "}
+          {t("Advanced actions")}{" "}
         </button>
       </div>
       <Panel>
@@ -457,10 +472,10 @@ function TriggerTable({
         <thead>
           <tr>
             <th>ID</th>
-            <th>Symbol</th>
-            <th>Trigger</th>
-            <th>Side</th>
-            <th>Status</th>
+            <th>{t("Symbol")}</th>
+            <th>{t("Trigger")}</th>
+            <th>{t("Side")}</th>
+            <th>{t("Status")}</th>
             <th />
           </tr>
         </thead>
@@ -483,12 +498,13 @@ function TriggerTable({
                       text(row, "triggerOrderId"),
                       productLine,
                     ).then(
-                      () => onDone("条件单撤销请求已发送。"),
+                      () => onDone(t("Trigger order cancellation requested.")),
                       (reason: unknown) => onDone(readError(reason)),
                     )
                   }}
                 >
-                  Cancel
+                  {" "}
+                  {t("Cancel")}{" "}
                 </Button>
               </td>
             </tr>
@@ -535,7 +551,7 @@ function AdvancedTradingActions({
   })
   const run = async (operation: () => Promise<unknown>, success: string) => {
     if (!symbol.trim()) {
-      onDone("请输入 symbol 后再执行高级交易操作。")
+      onDone(t("Enter a symbol before performing advanced trading actions."))
       return
     }
     setBusy(true)
@@ -550,42 +566,42 @@ function AdvancedTradingActions({
   }
   return (
     <div className="advanced-trading-actions">
-      <p className="muted">这些操作直接调用交易服务，所有数量和价格均使用后端整数单位。</p>
+      <p className="muted">{t("These actions use integer price ticks and quantity steps.")}</p>
       <div className="grid-2">
-        <Field label="Symbol">
-          <input value={symbol} readOnly aria-label="Advanced symbol" />
+        <Field label={t("Symbol")}>
+          <input value={symbol} readOnly aria-label={t("Advanced symbol")} />
         </Field>
-        <Field label="Side">
+        <Field label={t("Side")}>
           <DropdownSelect
             value={side}
             onChange={(event) => setSide(event.target.value === "SELL" ? "SELL" : "BUY")}
           >
-            <option value="BUY">BUY</option>
-            <option value="SELL">SELL</option>
+            <option value="BUY">{t("BUY")}</option>
+            <option value="SELL">{t("SELL")}</option>
           </DropdownSelect>
         </Field>
-        <Field label="Price ticks (integer)">
+        <Field label={t("Price ticks (integer)")}>
           <input
             value={priceTicks}
             onChange={(event) => setPriceTicks(event.target.value)}
             inputMode="numeric"
           />
         </Field>
-        <Field label="Quantity steps (integer)">
+        <Field label={t("Quantity steps (integer)")}>
           <input
             value={quantitySteps}
             onChange={(event) => setQuantitySteps(event.target.value)}
             inputMode="numeric"
           />
         </Field>
-        <Field label="Order ID for amend (integer)">
+        <Field label={t("Order ID for amend (integer)")}>
           <input
             value={orderId}
             onChange={(event) => setOrderId(event.target.value)}
             inputMode="numeric"
           />
         </Field>
-        <Field label="Order IDs for batch cancel (integers)">
+        <Field label={t("Order IDs for batch cancel (integers)")}>
           <input
             value={batchOrderIds}
             onChange={(event) => setBatchOrderIds(event.target.value)}
@@ -598,9 +614,12 @@ function AdvancedTradingActions({
         <Button
           tone="outline"
           loading={busy}
-          onClick={() => void run(() => testOrder(baseOrder(), productLine), "测试单校验通过。")}
+          onClick={() =>
+            void run(() => testOrder(baseOrder(), productLine), t("Test order validation passed."))
+          }
         >
-          Test order
+          {" "}
+          {t("Test order")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -608,11 +627,12 @@ function AdvancedTradingActions({
           onClick={() =>
             void run(
               () => placeBatchOrders({ orders: [baseOrder()] }, productLine),
-              "批量下单请求已发送。",
+              t("Batch order submitted."),
             )
           }
         >
-          Place batch order
+          {" "}
+          {t("Place batch order")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -629,11 +649,12 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "改单请求已发送。",
+              t("Order amendment submitted."),
             )
           }
         >
-          Amend order
+          {" "}
+          {t("Amend order")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -654,11 +675,12 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "批量改单请求已发送。",
+              t("Batch order amendment submitted."),
             )
           }
         >
-          Amend batch
+          {" "}
+          {t("Amend batch")}{" "}
         </Button>
         <Button
           tone="negative"
@@ -680,11 +702,12 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "批量撤单请求已发送。",
+              t("Batch cancellation requested."),
             )
           }
         >
-          Cancel batch
+          {" "}
+          {t("Cancel batch")}{" "}
         </Button>
         <Button
           tone="negative"
@@ -702,15 +725,16 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "平仓请求已发送。",
+              t("Position close requested."),
             )
           }
         >
-          Close position
+          {" "}
+          {t("Close position")}{" "}
         </Button>
       </div>
       <div className="grid-2">
-        <Field label="Algo type">
+        <Field label={t("Algo type")}>
           <DropdownSelect
             value={algoType}
             onChange={(event) => setAlgoType(event.target.value === "ICEBERG" ? "ICEBERG" : "TWAP")}
@@ -719,7 +743,7 @@ function AdvancedTradingActions({
             <option value="ICEBERG">ICEBERG</option>
           </DropdownSelect>
         </Field>
-        <Field label="Trigger price ticks">
+        <Field label={t("Trigger price ticks")}>
           <input
             value={triggerPriceTicks}
             onChange={(event) => setTriggerPriceTicks(event.target.value)}
@@ -747,11 +771,12 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "算法单请求已发送。",
+              t("Algo order submitted."),
             )
           }
         >
-          Place algo order
+          {" "}
+          {t("Place algo order")}{" "}
         </Button>
         <Button
           tone="outline"
@@ -775,11 +800,12 @@ function AdvancedTradingActions({
                   },
                   productLine,
                 ),
-              "批量条件单请求已发送。",
+              t("Batch trigger orders submitted."),
             )
           }
         >
-          Place trigger batch
+          {" "}
+          {t("Place trigger batch")}{" "}
         </Button>
       </div>
     </div>
@@ -806,10 +832,10 @@ function AlgoTable({
         <thead>
           <tr>
             <th>ID</th>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th>Side</th>
-            <th>Status</th>
+            <th>{t("Symbol")}</th>
+            <th>{t("Type")}</th>
+            <th>{t("Side")}</th>
+            <th>{t("Status")}</th>
             <th />
           </tr>
         </thead>
@@ -858,13 +884,14 @@ function AlgoRow({
             setLoading(true)
             void cancelAlgoOrder({ userId: session.user.userId, algoOrderId: id }, productLine)
               .then(
-                () => onDone("算法单撤销请求已发送。"),
+                () => onDone(t("Algo order cancellation requested.")),
                 (reason: unknown) => onDone(readError(reason)),
               )
               .finally(() => setLoading(false))
           }}
         >
-          Cancel
+          {" "}
+          {t("Cancel")}{" "}
         </Button>
       </td>
     </tr>
@@ -930,13 +957,13 @@ function OrderTable({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Side / Type</th>
-            <th>Price</th>
-            <th>Quantity</th>
-            <th>Filled</th>
-            <th>Status</th>
-            <th>Time</th>
+            <th>{t("Symbol")}</th>
+            <th>{t("Side / Type")}</th>
+            <th>{t("Price")}</th>
+            <th>{t("Quantity")}</th>
+            <th>{t("Filled")}</th>
+            <th>{t("Status")}</th>
+            <th>{t("Time")}</th>
             {canCancel ? <th /> : null}
           </tr>
         </thead>
@@ -990,13 +1017,13 @@ function OrderRow({
               setBusy(true)
               void cancelOrder(text(row, "symbol"), orderId, productLine)
                 .then(
-                  () => onDone("订单撤单请求已发送。"),
+                  () => onDone(t("Order cancellation requested.")),
                   (reason: unknown) => onDone(readError(reason)),
                 )
                 .finally(() => setBusy(false))
             }}
           >
-            <XCircle size={14} /> Cancel
+            <XCircle size={14} /> {t("Cancel")}{" "}
           </Button>
         </td>
       ) : null}
@@ -1008,7 +1035,9 @@ function text(row: RecordRow | null | undefined, key: string): string {
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "订单服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Order service unavailable. Please retry later.")
 }
 
 function dateValue(value: string): number | undefined {

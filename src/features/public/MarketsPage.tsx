@@ -7,6 +7,7 @@ import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { eventPrice } from "../../hooks/useRealtimeAssets"
+import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import type { Subscription } from "../../realtime"
@@ -101,11 +102,11 @@ export function MarketsPage() {
             )
           })
           .catch((reason: unknown) =>
-            setError(reason instanceof Error ? reason.message : "行情精度不可用"),
+            setError(reason instanceof Error ? reason.message : t("Market precision unavailable")),
           )
       })
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "行情服务暂不可用"),
+        setError(reason instanceof Error ? reason.message : t("Market data unavailable")),
       )
   }, [loadMarkets])
   const source = (
@@ -163,15 +164,17 @@ export function MarketsPage() {
     <div className="container section markets-page">
       <div className="page-heading">
         <div>
-          <h1>Market Center</h1>
-          <p>Explore real-time prices, charts, and market data.</p>
+          <h1>{t("Market Center")}</h1>
+          <p>{t("Explore real-time prices, charts, and market data.")}</p>
         </div>
         <span className={`live-indicator ${status.className}`}>
           <span /> {status.label}
         </span>
       </div>
       {config.demoDataEnabled && markets.length === 0 ? (
-        <div className="demo-banner">演示数据：API 不可用时仅在本地开发环境显示。</div>
+        <div className="demo-banner">
+          {t("Demo data: shown only in local development when the API is unavailable.")}
+        </div>
       ) : null}
       <div className="market-toolbar">
         <div className="market-tabs">
@@ -180,40 +183,44 @@ export function MarketsPage() {
             className={scope === "all" ? "active" : ""}
             onClick={() => setScope("all")}
           >
-            All Markets
+            {" "}
+            {t("All Markets")}{" "}
           </button>
           <button
             type="button"
             className={scope === "favorites" ? "active" : ""}
             onClick={() => setScope("favorites")}
           >
-            ☆ Favorites
+            {" "}
+            {t("☆ Favorites")}{" "}
           </button>
           <button
             type="button"
             className={scope === "perpetual" ? "active" : ""}
             onClick={() => setScope("perpetual")}
           >
-            Perpetual
+            {" "}
+            {t("Perpetual")}{" "}
           </button>
         </div>
         <div className="cluster">
-          <SearchField value={query} onChange={setQuery} placeholder="Search coin..." />
+          <SearchField value={query} onChange={setQuery} placeholder={t("Search coin...")} />
           <Button tone="outline" onClick={() => setShowFilters((value) => !value)}>
-            <Filter size={16} /> Filters
+            <Filter size={16} /> {t("Filters")}{" "}
           </Button>
         </div>
       </div>
       {showFilters ? (
         <div className="market-filter-panel">
           <div>
-            Minimum absolute 24h change
+            {" "}
+            {t("Minimum absolute 24h change")}{" "}
             <DropdownSelect
-              aria-label="Minimum absolute 24h change"
+              aria-label={t("Minimum absolute 24h change")}
               value={minimumChange}
               onChange={(event) => setMinimumChange(event.target.value)}
             >
-              <option value="0">Any</option>
+              <option value="0">{t("Any")}</option>
               <option value="1">1%</option>
               <option value="5">5%</option>
               <option value="10">10%</option>

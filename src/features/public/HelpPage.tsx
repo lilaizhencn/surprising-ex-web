@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { loadHelpArticles } from "../../api/endpoints"
 import type { ApiHelpArticle } from "../../api/types"
 import { Button, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 
 const categories = ["", "SECURITY", "TRADING", "FUNDING", "DERIVATIVES", "SUPPORT"] as const
 
@@ -22,7 +23,7 @@ export function HelpPage() {
         setError("")
       })
       .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "帮助内容暂不可用。"),
+        setError(reason instanceof Error ? reason.message : t("Help content unavailable.")),
       )
       .finally(() => setLoading(false))
   }, [category, query, reloadKey])
@@ -31,8 +32,8 @@ export function HelpPage() {
     <div className="container section help-page">
       <div className="page-heading">
         <div>
-          <h1>Help Center</h1>
-          <p>Clear guidance for account access, trading, funding and risk controls.</p>
+          <h1>{t("Help Center")}</h1>
+          <p>{t("Clear guidance for account access, trading, funding and risk controls.")}</p>
         </div>
         <BookOpen size={28} color="var(--color-primary)" />
       </div>
@@ -42,8 +43,8 @@ export function HelpPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search help articles"
-            aria-label="Search help articles"
+            placeholder={t("Search help articles")}
+            aria-label={t("Search help articles")}
           />
         </div>
         <div className="segment-control">
@@ -75,8 +76,10 @@ export function HelpPage() {
         <div className="help-layout">
           <Panel>
             <div className="panel-heading">
-              <h2>Articles</h2>
-              <span className="muted">{articles.length} results</span>
+              <h2>{t("Articles")}</h2>
+              <span className="muted">
+                {articles.length} {t("results")}
+              </span>
             </div>
             {articles.length === 0 ? (
               <StateView kind="empty" message="No help articles match this search." />
@@ -105,7 +108,9 @@ export function HelpPage() {
                     {openId === article.articleId ? (
                       <div className="help-article-body">
                         <p>{article.body}</p>
-                        <small>Updated {article.updatedAt.slice(0, 10)}</small>
+                        <small>
+                          {t("Updated")} {article.updatedAt.slice(0, 10)}
+                        </small>
                       </div>
                     ) : null}
                   </article>
@@ -114,7 +119,7 @@ export function HelpPage() {
             )}
           </Panel>
           <Panel>
-            <h2>Start here</h2>
+            <h2>{t("Start here")}</h2>
             <div className="help-featured">
               {featured.map((article) => (
                 <Button
@@ -127,8 +132,10 @@ export function HelpPage() {
               ))}
             </div>
             <p className="muted">
-              For account-specific issues, include the request ID and time when contacting support.
-              Never share credentials or secrets.
+              {" "}
+              {t(
+                "For account-specific issues, include the request ID and time when contacting support. Never share credentials or secrets.",
+              )}{" "}
             </p>
           </Panel>
         </div>

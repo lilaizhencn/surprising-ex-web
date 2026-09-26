@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { loadMarkets, loadUsdValuation } from "../api/endpoints"
 import { mapBalance, mapMarket } from "../api/mappers"
 import { type ApiMarket, type AuthSession, BalanceSchema } from "../api/types"
+import { t } from "../i18n"
 import { decimalToStepUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../lib/units"
 import {
   accountEquity,
@@ -90,7 +91,7 @@ export function useRealtimeAssets(
         if (!closed) setMarkets(rows)
       })
       .catch(() => {
-        if (!closed) setError("合约参数未同步 / Instruments unavailable")
+        if (!closed) setError(t("Instruments unavailable"))
       })
     void loadUsdValuation("1", "USDT")
       .then((value) => {
@@ -98,7 +99,7 @@ export function useRealtimeAssets(
         if (!closed) setFx(Number.isFinite(rate) && rate > 0 ? rate : null)
       })
       .catch(() => {
-        if (!closed) setError("USD 汇率未同步 / FX unavailable")
+        if (!closed) setError(t("FX unavailable"))
       })
     return () => {
       closed = true

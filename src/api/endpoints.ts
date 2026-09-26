@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { t } from "../i18n"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
 import { request, requestBlob } from "./client"
@@ -430,7 +431,7 @@ export function createTransfer(
   totpCode = "",
 ): Promise<ApiProductTransferResponse> {
   const session = loadSession()
-  if (!session) return Promise.reject(new Error("请先登录后再进行资金划转。"))
+  if (!session) return Promise.reject(new Error(t("Please sign in before transferring funds.")))
   return request("/api/v1/gateway/account/transfers", ProductTransferResponseSchema, {
     method: "POST",
     idempotencyKey,
@@ -875,7 +876,7 @@ export async function loadMyTrades(
 
 export function cancelOrder(_symbol: string, orderId: string, productLine: ProductLine) {
   const session = loadSession()
-  if (!session) return Promise.reject(new Error("请先登录后再撤销订单。"))
+  if (!session) return Promise.reject(new Error(t("Please sign in before canceling orders.")))
   return request(`/api/v1/gateway/trading/cancel`, GenericObjectSchema, {
     method: "POST",
     productLine,

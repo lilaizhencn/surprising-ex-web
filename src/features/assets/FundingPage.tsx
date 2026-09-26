@@ -16,6 +16,7 @@ import {
 } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
@@ -111,13 +112,13 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   const submit = async () => {
     if (!session) {
       setState("error")
-      setMessage("请先登录后再进行资金操作。")
+      setMessage(t("Please sign in before funding operations."))
       return
     }
     if (mode === "deposit") {
       if (!network) {
         setState("error")
-        setMessage("请选择充值网络。")
+        setMessage(t("Select a deposit network."))
         return
       }
       setState("loading")
@@ -125,7 +126,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         const response = await createDepositAddress(network)
         setDepositAddress(response)
         setState("success")
-        setMessage("充值地址已由托管钱包服务返回，请核对网络后使用。")
+        setMessage(t("Deposit address received. Verify the network before using it."))
       } catch (reason: unknown) {
         setState("error")
         setMessage(readError(reason))
@@ -135,12 +136,12 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     if (mode === "withdraw") {
       if (!network || !address.trim() || !isPositiveDecimal(amount)) {
         setState("error")
-        setMessage("请完整填写网络、地址和有效数量。")
+        setMessage(t("Enter a network, address and valid amount."))
         return
       }
       if (!emailCode.trim() || !totpCode.trim()) {
         setState("error")
-        setMessage("提现需要邮箱验证码和 TOTP 验证码。")
+        setMessage(t("Withdrawals require email and authenticator codes."))
         return
       }
       setState("loading")
@@ -159,8 +160,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         setState(accepted ? "success" : "error")
         setMessage(
           accepted
-            ? `提现请求已受理，状态：${response.status}。最终到账以资金服务状态为准。`
-            : `资金服务返回非成功状态：${response.status}，未确认到账。`,
+            ? `${t("Withdrawal request accepted")}: ${response.status}`
+            : `${t("Withdrawal not confirmed")}: ${response.status}`,
         )
         setAddress("")
         setAmount("")
@@ -174,14 +175,18 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     }
     if (!isPositiveDecimal(amount) || source === target) {
       setState("error")
-      setMessage(source === target ? "来源和目标账户不能相同。" : "请输入有效划转数量。")
+      setMessage(
+        source === target
+          ? t("Source and destination accounts must differ.")
+          : t("Enter a valid transfer amount."),
+      )
       return
     }
     setState("loading")
     try {
       const key = `transfer-${crypto.randomUUID()}`
       const scale = assetScales[asset]
-      if (!scale) throw new Error("该资产的精度规格尚未加载，未提交划转。")
+      if (!scale) throw new Error(t("Asset precision is unavailable. Transfer not submitted."))
       const response = await createTransfer(
         source,
         target,
@@ -195,8 +200,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       setState(accepted ? "success" : "error")
       setMessage(
         accepted
-          ? `划转请求已受理，状态：${response.status}。最终余额以账户服务为准。`
-          : `账户服务返回非成功状态：${response.status}，未确认余额已变更。`,
+          ? `${t("Transfer request accepted")}: ${response.status}`
+          : `${t("Transfer not confirmed")}: ${response.status}`,
       )
       setAmount("")
     } catch (reason: unknown) {
@@ -209,7 +214,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     return (
       <FundingLayout
         title={titleFor(mode)}
-        description="Sign in to access custody and account funding services."
+        description={t("Sign in to access custody and account funding services.")}
       >
         <Panel>
           <StateView
@@ -217,7 +222,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
             message="Sign in to continue. Funding operations never use demo success states."
           />
           <a className="route-link" href="/auth/login">
-            Go to login
+            {" "}
+            {t("Go to login")}{" "}
           </a>
         </Panel>
       </FundingLayout>
@@ -226,22 +232,22 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   if (mode === "deposit")
     return (
       <FundingLayout
-        title="Deposit Crypto"
-        description="Receive digital assets through a network returned by the custody service."
+        title={t("Deposit Crypto")}
+        description={t("Receive digital assets through a network returned by the custody service.")}
       >
         <Panel>
-          <h2>1. Select asset & network</h2>
+          <h2>{t("1. Select asset & network")}</h2>
           <div className="grid-2">
-            <Field label="Asset">
+            <Field label={t("Asset")}>
               <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
                 <option>BTC</option>
                 <option>ETH</option>
                 <option>USDT</option>
               </DropdownSelect>
             </Field>
-            <Field label="Network">
+            <Field label={t("Network")}>
               <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
-                <option value="">Select network</option>
+                <option value="">{t("Select network")}</option>
                 {chains.map((chain) => (
                   <option key={chainName(chain)} value={chainName(chain)}>
                     {chainName(chain)}
@@ -252,14 +258,15 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           </div>
         </Panel>
         <Panel>
-          <h2>2. Deposit details</h2>
+          <h2>{t("2. Deposit details")}</h2>
           {depositAddress ? (
             <div className="deposit-address">
               {depositQr ? (
                 <img className="qr-code" src={depositQr} alt="Deposit address QR code" />
               ) : (
                 <div className="qr-placeholder" role="status">
-                  Generating QR code…
+                  {" "}
+                  {t("Generating QR code…")}{" "}
                 </div>
               )}
               <div className="address-value">
@@ -271,7 +278,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label="Copy deposit address"
+                  aria-label={t("Copy deposit address")}
                   onClick={() =>
                     void copyText(
                       text(depositAddress, "address") || text(depositAddress, "depositAddress"),
@@ -281,7 +288,8 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
                   <Copy size={16} />
                 </button>
                 <small>
-                  Network: {network} · Memo/Tag:{" "}
+                  {" "}
+                  {t("Network:")} {network} {t("· Memo/Tag:")}{" "}
                   {text(depositAddress, "memo") || text(depositAddress, "tag") || "Not required"}
                 </small>
               </div>
@@ -290,13 +298,13 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
             <StateView kind="empty" message="Select a network, then load a custody address." />
           )}
           <div className="notice">
-            <Info size={18} /> Only send {asset} through the selected network. Network mismatches
-            can permanently lose funds.
+            <Info size={18} /> {t("Only send")} {asset}{" "}
+            {t("through the selected network. Network mismatches can permanently lose funds.")}{" "}
           </div>
         </Panel>
-        <RecordPanel title="Deposit history" records={records} />
+        <RecordPanel title={t("Deposit history")} records={records} />
         <ActionSummary
-          title="Deposit status"
+          title={t("Deposit status")}
           message={message}
           state={state}
           onSubmit={submit}
@@ -308,22 +316,22 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   if (mode === "withdraw")
     return (
       <FundingLayout
-        title="Withdraw Crypto"
-        description="Submit a verified withdrawal request to the custody service."
+        title={t("Withdraw Crypto")}
+        description={t("Submit a verified withdrawal request to the custody service.")}
       >
         <Panel>
-          <h2>1. Transfer details</h2>
+          <h2>{t("1. Transfer details")}</h2>
           <div className="grid-2">
-            <Field label="Asset">
+            <Field label={t("Asset")}>
               <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
                 <option>BTC</option>
                 <option>ETH</option>
                 <option>USDT</option>
               </DropdownSelect>
             </Field>
-            <Field label="Network">
+            <Field label={t("Network")}>
               <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
-                <option value="">Select network</option>
+                <option value="">{t("Select network")}</option>
                 {chains.map((chain) => (
                   <option key={chainName(chain)} value={chainName(chain)}>
                     {chainName(chain)}
@@ -332,20 +340,21 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               </DropdownSelect>
             </Field>
           </div>
-          <Field label="Recipient address">
+          <Field label={t("Recipient address")}>
             <input
               value={address}
               onChange={(event) => setAddress(event.target.value)}
-              placeholder="Enter or paste wallet address"
-              aria-label="Recipient wallet address"
+              placeholder={t("Enter or paste wallet address")}
+              aria-label={t("Recipient wallet address")}
             />
           </Field>
         </Panel>
         <Panel>
           <div className="row-between">
-            <h2>2. Withdrawal amount</h2>
+            <h2>{t("2. Withdrawal amount")}</h2>
             <span className="muted">
-              Available: {available || "—"} {asset}
+              {" "}
+              {t("Available:")} {available || "—"} {asset}
             </span>
           </div>
           <div className="number-input">
@@ -354,25 +363,26 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               onChange={(event) => setAmount(event.target.value)}
               placeholder="0.00"
               inputMode="decimal"
-              aria-label="Withdrawal amount"
+              aria-label={t("Withdrawal amount")}
             />
             <span>{asset}</span>
           </div>
           <p className="muted">
-            Fees, minimums, limits, KYC and risk approval are enforced by the backend.
+            {" "}
+            {t("Fees, minimums, limits, KYC and risk approval are enforced by the backend.")}{" "}
           </p>
         </Panel>
         <Panel>
-          <h2>3. Security verification</h2>
+          <h2>{t("3. Security verification")}</h2>
           <div className="grid-2">
-            <Field label="Email code">
+            <Field label={t("Email code")}>
               <input
                 value={emailCode}
                 onChange={(event) => setEmailCode(event.target.value)}
                 inputMode="numeric"
               />
             </Field>
-            <Field label="Authenticator code">
+            <Field label={t("Authenticator code")}>
               <input
                 value={totpCode}
                 onChange={(event) => setTotpCode(event.target.value)}
@@ -386,14 +396,15 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
               loading={challengeLoading}
               onClick={() => void sendChallenge("WITHDRAWAL")}
             >
-              Send email code
+              {" "}
+              {t("Send email code")}{" "}
             </Button>
             {challengeMessage ? <small>{challengeMessage}</small> : null}
           </div>
         </Panel>
-        <RecordPanel title="Withdrawal history" records={records} />
+        <RecordPanel title={t("Withdrawal history")} records={records} />
         <ActionSummary
-          title="Summary"
+          title={t("Summary")}
           message={message}
           state={state}
           onSubmit={submit}
@@ -404,32 +415,32 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
 
   return (
     <FundingLayout
-      title="Internal Transfer"
-      description="Move funds between product accounts with an idempotent request."
+      title={t("Internal Transfer")}
+      description={t("Move funds between product accounts with an idempotent request.")}
     >
       <Panel>
-        <h2>Transfer accounts</h2>
+        <h2>{t("Transfer accounts")}</h2>
         <div className="grid-2">
-          <Field label="From">
+          <Field label={t("From")}>
             <DropdownSelect value={source} onChange={(event) => setSource(event.target.value)}>
-              <option>FUNDING</option>
-              <option>SPOT</option>
-              <option>USDT_PERPETUAL</option>
-              <option>COIN_PERPETUAL</option>
-              <option>USDT_DELIVERY</option>
-              <option>COIN_DELIVERY</option>
-              <option>OPTION</option>
+              <option>{t("FUNDING")}</option>
+              <option>{t("SPOT")}</option>
+              <option>{t("USDT_PERPETUAL")}</option>
+              <option>{t("COIN_PERPETUAL")}</option>
+              <option>{t("USDT_DELIVERY")}</option>
+              <option>{t("COIN_DELIVERY")}</option>
+              <option>{t("OPTION")}</option>
             </DropdownSelect>
           </Field>
-          <Field label="To">
+          <Field label={t("To")}>
             <DropdownSelect value={target} onChange={(event) => setTarget(event.target.value)}>
-              <option>SPOT</option>
-              <option>FUNDING</option>
-              <option>USDT_PERPETUAL</option>
-              <option>COIN_PERPETUAL</option>
-              <option>USDT_DELIVERY</option>
-              <option>COIN_DELIVERY</option>
-              <option>OPTION</option>
+              <option>{t("SPOT")}</option>
+              <option>{t("FUNDING")}</option>
+              <option>{t("USDT_PERPETUAL")}</option>
+              <option>{t("COIN_PERPETUAL")}</option>
+              <option>{t("USDT_DELIVERY")}</option>
+              <option>{t("COIN_DELIVERY")}</option>
+              <option>{t("OPTION")}</option>
             </DropdownSelect>
           </Field>
         </div>
@@ -442,7 +453,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
             setTarget(current)
           }}
         >
-          <ArrowDownUp size={18} /> Swap accounts
+          <ArrowDownUp size={18} /> {t("Swap accounts")}{" "}
         </button>
         <Field label={`Amount (${asset})`}>
           <div className="number-input">
@@ -458,17 +469,19 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
         </Field>
       </Panel>
       <Panel>
-        <h2>Security verification</h2>
-        <p className="muted">Large transfers may require an email code and authenticator code.</p>
+        <h2>{t("Security verification")}</h2>
+        <p className="muted">
+          {t("Large transfers may require an email code and authenticator code.")}
+        </p>
         <div className="grid-2">
-          <Field label="Email code">
+          <Field label={t("Email code")}>
             <input
               value={emailCode}
               onChange={(event) => setEmailCode(event.target.value)}
               inputMode="numeric"
             />
           </Field>
-          <Field label="Authenticator code">
+          <Field label={t("Authenticator code")}>
             <input
               value={totpCode}
               onChange={(event) => setTotpCode(event.target.value)}
@@ -482,19 +495,20 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
             loading={challengeLoading}
             onClick={() => void sendChallenge("LARGE_TRANSFER")}
           >
-            Send email code
+            {" "}
+            {t("Send email code")}{" "}
           </Button>
           {challengeMessage ? <small>{challengeMessage}</small> : null}
         </div>
       </Panel>
       <ActionSummary
-        title="Transfer status"
+        title={t("Transfer status")}
         message={message}
         state={state}
         onSubmit={submit}
         action="Confirm transfer"
       />
-      <RecordPanel title="Transfer history" records={transferRecords} />
+      <RecordPanel title={t("Transfer history")} records={transferRecords} />
     </FundingLayout>
   )
 
@@ -502,7 +516,9 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     setChallengeLoading(true)
     setChallengeMessage("")
     return issueSecurityChallenge(sceneCode)
-      .then(() => setChallengeMessage("验证码已发送，请在有效期内完成验证。"))
+      .then(() =>
+        setChallengeMessage(t("Verification code sent. Complete verification before it expires.")),
+      )
       .catch((reason: unknown) => setChallengeMessage(readError(reason)))
       .finally(() => setChallengeLoading(false))
   }
@@ -530,12 +546,12 @@ function FundingLayout({
         <div className="stack">{children}</div>
         <Panel className="security-tips">
           <h2>
-            <ShieldCheck size={20} /> Security tips
+            <ShieldCheck size={20} /> {t("Security tips")}{" "}
           </h2>
           <ul>
-            <li>Verify the recipient and network before confirming.</li>
-            <li>High-risk operations require backend security checks.</li>
-            <li>Unknown results must be confirmed before retrying.</li>
+            <li>{t("Verify the recipient and network before confirming.")}</li>
+            <li>{t("High-risk operations require backend security checks.")}</li>
+            <li>{t("Unknown results must be confirmed before retrying.")}</li>
           </ul>
         </Panel>
       </div>
@@ -554,7 +570,7 @@ function RecordPanel({
     <Panel>
       <div className="panel-heading">
         <h2>{title}</h2>
-        <span className="muted">Backend records</span>
+        <span className="muted">{t("Backend records")}</span>
       </div>
       {records.length === 0 ? (
         <StateView kind="empty" message="No records returned by the custody service." />
@@ -564,10 +580,10 @@ function RecordPanel({
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Asset</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Created</th>
+                <th>{t("Asset")}</th>
+                <th>{t("Amount")}</th>
+                <th>{t("Status")}</th>
+                <th>{t("Created")}</th>
               </tr>
             </thead>
             <tbody>
@@ -614,7 +630,7 @@ function ActionSummary({
           {message}
         </p>
       ) : (
-        <p className="muted">No request submitted.</p>
+        <p className="muted">{t("No request submitted.")}</p>
       )}
       <Button loading={state === "loading"} onClick={() => void onSubmit()}>
         {action}
@@ -638,7 +654,9 @@ function text(record: RecordRow | null | undefined, key: string): string {
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "资金服务暂不可用，请稍后重试。"
+  return reason instanceof Error
+    ? reason.message
+    : t("Funding service unavailable. Please retry later.")
 }
 
 function valueAt(record: RecordRow | null | undefined, key: string): unknown {

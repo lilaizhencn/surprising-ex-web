@@ -1,5 +1,6 @@
 import { Check, Copy, LoaderCircle, Search, Star, TriangleAlert } from "lucide-react"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
+import { t } from "../../i18n"
 
 const priceFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
 const dollarPriceFormatter = new Intl.NumberFormat("en-US", {
@@ -36,7 +37,7 @@ export function IconButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { readonly label: string }) {
   return (
-    <button type="button" className="icon-button" aria-label={label} title={label} {...props}>
+    <button type="button" className="icon-button" aria-label={t(label)} title={t(label)} {...props}>
       {children}
     </button>
   )
@@ -62,21 +63,21 @@ export function Field({
   hint,
   children,
 }: {
-  readonly label: string
+  readonly label: ReactNode
   readonly error?: string
   readonly hint?: string
   readonly children: ReactNode
 }) {
   return (
     <div className="field">
-      <span className="field-label">{label}</span>
+      <span className="field-label">{typeof label === "string" ? t(label) : label}</span>
       {children}
       {error ? (
         <span className="field-error" role="alert">
           {error}
         </span>
       ) : hint ? (
-        <span className="field-hint">{hint}</span>
+        <span className="field-hint">{t(hint)}</span>
       ) : null}
     </div>
   )
@@ -163,7 +164,7 @@ export function Sparkline({
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       role="img"
-      aria-label="Price trend"
+      aria-label={t("Price trend")}
     >
       <polyline points={points} fill="none" vectorEffect="non-scaling-stroke" />
     </svg>
@@ -190,10 +191,11 @@ export function StateView({
   return (
     <div className="state-view">
       <TriangleAlert size={22} aria-hidden="true" />
-      <p>{message}</p>
+      <p>{t(message)}</p>
       {retry ? (
         <Button tone="outline" onClick={retry}>
-          Retry
+          {" "}
+          {t("Retry")}{" "}
         </Button>
       ) : null}
     </div>
@@ -205,7 +207,7 @@ export function CopyButton({ value }: { readonly value: string }) {
     await navigator.clipboard.writeText(value)
   }
   return (
-    <IconButton label="Copy" onClick={() => void copy()}>
+    <IconButton label={t("Copy")} onClick={() => void copy()}>
       <Copy size={16} />
     </IconButton>
   )
@@ -227,7 +229,7 @@ export function FavoriteButton({
 
 export function SuccessMark() {
   return (
-    <span className="success-mark" role="img" aria-label="Success">
+    <span className="success-mark" role="img" aria-label={t("Success")}>
       <Check size={16} />
     </span>
   )

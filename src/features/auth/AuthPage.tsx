@@ -1,7 +1,9 @@
 import { ArrowRight, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { authApi } from "../../api/endpoints"
+import { LanguagePicker } from "../../components/layout/LanguagePicker"
 import { Button, Field } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
 
 type AuthMode = "login" | "register" | "forgot" | "reset" | "verify"
@@ -65,6 +67,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             : "Verify your email"
   return (
     <div className="auth-page">
+      <div className="auth-language">
+        <LanguagePicker />
+      </div>
       <div className="auth-art" aria-hidden="true">
         <div className="art-band art-blue" />
         <div className="art-band art-red" />
@@ -74,31 +79,35 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           <span className="brand-mark">S</span>Surprising EX
         </a>
         <p className="auth-kicker">
-          {mode === "login" ? "Sign in to your account" : "Account access"}
+          {mode === "login" ? t("Sign in to your account") : t("Account access")}
         </p>
-        <h1>{title}</h1>
+        <h1>{t(title)}</h1>
         <p className="auth-lead">
           {mode === "verify"
-            ? "Enter the six-digit code sent to your registered email."
-            : "Use your registered email or phone. Security checks are handled by the exchange backend."}
+            ? t("Enter the six-digit code sent to your registered email.")
+            : t(
+                "Use your registered email or phone. Security checks are handled by the exchange backend.",
+              )}
         </p>
         <div className="auth-form">
           {mode === "register" ? (
             <fieldset className="segment-control">
-              <legend className="sr-only">Registration contact method</legend>
+              <legend className="sr-only">{t("Registration contact method")}</legend>
               <button
                 type="button"
                 className={contactMode === "email" ? "active" : ""}
                 onClick={() => setContactMode("email")}
               >
-                Email
+                {" "}
+                {t("Email")}{" "}
               </button>
               <button
                 type="button"
                 className={contactMode === "phone" ? "active" : ""}
                 onClick={() => setContactMode("phone")}
               >
-                Phone
+                {" "}
+                {t("Phone")}{" "}
               </button>
             </fieldset>
           ) : null}
@@ -106,8 +115,8 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             label={
               mode === "register" || mode === "forgot" || mode === "reset" || mode === "verify"
                 ? mode === "register" && contactMode === "phone"
-                  ? "Phone"
-                  : "Email"
+                  ? t("Phone")
+                  : t("Email")
                 : "Email or Phone"
             }
           >
@@ -121,42 +130,42 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                     ? "+65 8123 4567"
                     : "name@example.com"
               }
-              aria-label="Email or phone"
+              aria-label={t("Email or phone")}
               autoComplete="username"
             />
           </Field>
           {mode === "reset" || mode === "verify" ? (
-            <Field label="Verification code">
+            <Field label={t("Verification code")}>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 inputMode="numeric"
-                placeholder="Enter code"
-                aria-label="Verification code"
+                placeholder={t("Enter code")}
+                aria-label={t("Verification code")}
               />
             </Field>
           ) : null}
           {mode === "login" ? (
-            <Field label="Authenticator code (if enabled)">
+            <Field label={t("Authenticator code (if enabled)")}>
               <input
                 value={totpCode}
                 onChange={(event) => setTotpCode(event.target.value)}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="6-digit code"
-                aria-label="Authenticator code"
+                placeholder={t("6-digit code")}
+                aria-label={t("Authenticator code")}
               />
             </Field>
           ) : null}
           {mode !== "forgot" && mode !== "verify" ? (
-            <Field label="Password">
+            <Field label={t("Password")}>
               <div className="password-input">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                  aria-label="Password"
+                  placeholder={t("Enter your password")}
+                  aria-label={t("Password")}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                 />
                 <button
@@ -178,7 +187,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             {mode === "login"
               ? "Log In"
               : mode === "register"
-                ? "Create Account"
+                ? t("Create Account")
                 : mode === "forgot"
                   ? "Send Recovery"
                   : mode === "reset"
@@ -204,20 +213,22 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                   .finally(() => setLoading(false))
               }}
             >
-              Resend code
+              {" "}
+              {t("Resend code")}{" "}
             </Button>
           ) : null}
         </div>
         <div className="auth-links">
           {mode === "login" ? (
             <>
-              <a href="/auth/reset-password">Forgot password?</a>
+              <a href="/auth/reset-password">{t("Forgot password?")}</a>
               <span>
-                Don't have an account? <a href="/auth/register">Create Account</a>
+                {" "}
+                {t("Don't have an account?")} <a href="/auth/register">{t("Create Account")}</a>
               </span>
             </>
           ) : (
-            <a href="/auth/login">Back to login</a>
+            <a href="/auth/login">{t("Back to login")}</a>
           )}
         </div>
       </main>
