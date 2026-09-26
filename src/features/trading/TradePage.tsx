@@ -440,7 +440,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }
 
   const resyncOrderBook = useCallback(() => {
-    if (!current || bookResyncingRef.current) return
+    if (!current || !assetScales[current.quoteAsset] || bookResyncingRef.current) return
     bookResyncingRef.current = true
     const generation = marketGeneration.current
     void loadOrderBook(current.symbol, view.line, bookDepth)
@@ -586,7 +586,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             .slice(-120)
         })
       }
-      if (revision === streamRevision.current && bookResult.status === "fulfilled") {
+      if (
+        revision === streamRevision.current &&
+        bookResult.status === "fulfilled" &&
+        nextScales[current.quoteAsset]
+      ) {
         setBook(normalizeOrderBook(bookResult.value, current, nextScales))
         bookSequenceRef.current = orderBookSequence(bookResult.value)
       } else if (revision === streamRevision.current) {
@@ -709,7 +713,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [current?.symbol, view.line])
 
   useEffect(() => {
-    if (!current) return
+    if (!current || !assetScales[current.quoteAsset]) return
     const applyEvent = (event: WsEnvelope) => {
       if (
         event.op !== "event" ||
@@ -1943,11 +1947,12 @@ function normalizeOrderBook(
   assetScales: Readonly<Record<string, string>>,
 ): ApiOrderBook {
   const priceScale = assetScales[market.quoteAsset]
+  if (!priceScale) throw new Error(`Missing price scale for ${market.quoteAsset}`)
   const quantitySpec = marketQuantitySpec(market, assetScales)
   const normalizeLevel = (level: ApiOrderBookLevel): ApiOrderBookLevel => {
     if (Array.isArray(level) || !market.priceTickUnits || !market.quantityStepUnits) return level
     return {
-      priceTicks: stepUnitsToDecimal(level.priceTicks, market.priceTickUnits, priceScale ?? "1"),
+      priceTicks: stepUnitsToDecimal(level.priceTicks, market.priceTickUnits, priceScale),
       quantitySteps: stepUnitsToDecimal(
         level.quantitySteps,
         quantitySpec.unitSize,
@@ -2017,16 +2022,14 @@ function normalizeTrade(
   market: Market,
   assetScales: Readonly<Record<string, string>>,
 ): Record<string, unknown> {
+  const priceScale = assetScales[market.quoteAsset]
+  if (!priceScale) throw new Error(`Missing price scale for ${market.quoteAsset}`)
   const value = (key: string): unknown => trade[key]
   const price =
     value("price") ??
     value("lastPrice") ??
     (value("priceTicks") !== undefined && market.priceTickUnits
-      ? stepUnitsToDecimal(
-          String(value("priceTicks")),
-          market.priceTickUnits,
-          assetScales[market.quoteAsset] ?? "1",
-        )
+      ? stepUnitsToDecimal(String(value("priceTicks")), market.priceTickUnits, priceScale)
       : undefined)
   const quantitySpec = marketQuantitySpec(market, assetScales)
   const quantity =
@@ -2060,15 +2063,10 @@ function marketPriceFromRecord(
     valueAt(row, "lastPriceTicks") ??
     valueAt(row, "markPriceTicks") ??
     valueAt(row, "indexPriceTicks")
-  if (ticks === undefined || !market.priceTickUnits) return null
+  const priceScale = assetScales[market.quoteAsset]
+  if (ticks === undefined || !market.priceTickUnits || !priceScale) return null
   try {
-    const converted = Number(
-      stepUnitsToDecimal(
-        String(ticks),
-        market.priceTickUnits,
-        assetScales[market.quoteAsset] ?? "1",
-      ),
-    )
+    const converted = Number(stepUnitsToDecimal(String(ticks), market.priceTickUnits, priceScale))
     return Number.isFinite(converted) && converted > 0 ? converted : null
   } catch {
     return null
