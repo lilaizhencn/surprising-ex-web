@@ -2052,6 +2052,14 @@ export function OrderBook({
   const asks = withTotals(
     aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask"),
   ).reverse()
+  // Both sides use the same visible quantity scale; totals remain separate text values.
+  const maxQuantity = Math.max(
+    0,
+    ...[...bids, ...asks].map(({ level }) => {
+      const quantity = Number(Array.isArray(level) ? level[1] : level.quantitySteps)
+      return Number.isFinite(quantity) ? quantity : 0
+    }),
+  )
   useLayoutEffect(() => {
     const askSide = askSideRef.current
     if (askSide) askSide.scrollTop = askSide.scrollHeight
@@ -2109,6 +2117,7 @@ export function OrderBook({
                   key={`ask-${levelPrice(level)}`}
                   level={level}
                   total={total}
+                  maxQuantity={maxQuantity}
                   tone="negative"
                   dollar={dollar}
                 />
@@ -2146,6 +2155,7 @@ export function OrderBook({
                   key={`bid-${levelPrice(level)}`}
                   level={level}
                   total={total}
+                  maxQuantity={maxQuantity}
                   tone="positive"
                   dollar={dollar}
                 />
@@ -2255,18 +2265,30 @@ function mergeOrderBookLevels(
 function LevelRow({
   level,
   total,
+  maxQuantity,
   tone,
   dollar,
 }: {
   readonly level: Level
   readonly total: string
+  readonly maxQuantity: number
   readonly tone: "positive" | "negative"
   readonly dollar: boolean
 }) {
   const price = Array.isArray(level) ? String(level[0]) : String(level.priceTicks)
   const amount = Array.isArray(level) ? String(level[1]) : String(level.quantitySteps)
+  const quantity = Number(amount)
+  const fill =
+    maxQuantity > 0 && Number.isFinite(quantity)
+      ? Math.max(0, Math.min(1, quantity / maxQuantity))
+      : 0
   return (
-    <>
+    <div className="order-book-row">
+      <span
+        className={`order-book-depth-fill ${tone}`}
+        aria-hidden="true"
+        style={{ transform: `scaleX(${fill})` }}
+      />
       <strong className={`${tone} mono`}>{displayPrice(price, dollar)}</strong>
       <span className="mono" title={amount}>
         {amount}
@@ -2274,7 +2296,7 @@ function LevelRow({
       <span className="mono" title={total}>
         {total}
       </span>
-    </>
+    </div>
   )
 }
 

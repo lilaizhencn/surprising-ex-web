@@ -5,6 +5,8 @@ import {
   HistogramSeries,
   type IChartApi,
   type ISeriesApi,
+  TickMarkType,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts"
 import { useEffect, useRef, useState } from "react"
@@ -121,6 +123,7 @@ export function PriceChart({
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null)
   const lastPeriod = useRef<string | null>(null)
   const lastBar = useRef<{ first: number; last: number; count: number } | null>(null)
+  const [hoveredTime, setHoveredTime] = useState<number | null>(null)
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1_000)
@@ -128,6 +131,8 @@ export function PriceChart({
   }, [])
   const valid = prepareChartCandles(candles, period, now)
   const latest = valid.at(-1)
+  const hovered = valid.find((bar) => Math.floor(Date.parse(bar.time) / 1000) === hoveredTime)
+  const displayed = hovered ?? latest
   const formatPrice = (price: number) => (dollar ? dollarPrice : otherPrice).format(price)
 
   useEffect(() => {
@@ -161,7 +166,25 @@ export function PriceChart({
       },
       grid: { vertLines: { color: initial.grid }, horzLines: { color: initial.grid } },
       rightPriceScale: { borderColor: initial.border },
+      localization: {
+        timeFormatter: (time: Time) =>
+          typeof time === "number" ? candleTime.format(time * 1000) : String(time),
+      },
       timeScale: {
+        tickMarkFormatter: (time: Time, type: TickMarkType) => {
+          if (typeof time !== "number") return null
+          const date = new Date(time * 1000)
+          if (type === TickMarkType.Year) return String(date.getFullYear())
+          if (type === TickMarkType.Month)
+            return date.toLocaleDateString(undefined, { month: "short" })
+          if (type === TickMarkType.DayOfMonth)
+            return date.toLocaleDateString(undefined, { month: "2-digit", day: "2-digit" })
+          return date.toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })
+        },
         borderColor: initial.border,
         timeVisible: true,
         secondsVisible: false,
@@ -190,6 +213,9 @@ export function PriceChart({
       visible: true,
       borderVisible: true,
       scaleMargins: { top: 0.22, bottom: 0.02 },
+    })
+    chart.subscribeCrosshairMove((event) => {
+      setHoveredTime(typeof event.time === "number" ? event.time : null)
     })
     chartRef.current = chart
     candleRef.current = price
@@ -310,32 +336,32 @@ export function PriceChart({
             {period} {t("Candles")}
           </strong>
           <span>
-            {latest
-              ? `${t("Latest")} ${candleTime.format(Date.parse(latest.time))}`
+            {displayed
+              ? `${hovered ? t("Selected") : t("Latest")} ${candleTime.format(Date.parse(displayed.time))}`
               : t("Waiting for trades")}
           </span>
         </div>
-        {latest ? (
+        {displayed ? (
           <div className="chart-ohlc">
             <span>
               {" "}
-              {t("Open")} <b>{formatPrice(latest.open)}</b>
+              {t("Open")} <b>{formatPrice(displayed.open)}</b>
             </span>
             <span>
               {" "}
-              {t("High")} <b>{formatPrice(latest.high)}</b>
+              {t("High")} <b>{formatPrice(displayed.high)}</b>
             </span>
             <span>
               {" "}
-              {t("Low")} <b>{formatPrice(latest.low)}</b>
+              {t("Low")} <b>{formatPrice(displayed.low)}</b>
             </span>
             <span>
               {" "}
-              {t("Close")} <b>{formatPrice(latest.close)}</b>
+              {t("Close")} <b>{formatPrice(displayed.close)}</b>
             </span>
             <span>
               {" "}
-              {t("Volume")} <b>{otherPrice.format(latest.volume)}</b>
+              {t("Volume")} <b>{otherPrice.format(displayed.volume)}</b>
             </span>
           </div>
         ) : null}
@@ -350,7 +376,7 @@ export function PriceChart({
         {" "}
         {t("Volume (")}
         {volumeUnit}
-        {t(")")} <b>{latest ? otherPrice.format(latest.volume) : "—"}</b>
+        {t(")")} <b>{displayed ? otherPrice.format(displayed.volume) : "—"}</b>
       </div>
       {(unavailable || (!demo && valid.length === 0)) && (
         <div className="chart-empty">{t("Waiting for live candles and volume")}</div>

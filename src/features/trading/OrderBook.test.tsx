@@ -61,3 +61,37 @@ it("accumulates from the best price before reversing asks and uses exact decimal
   expect(html.indexOf('title="0.000003"')).toBeLessThan(html.indexOf('title="0.000001"'))
   expect(html).not.toContain("0.30000000000000004")
 })
+
+it("scales row backgrounds by individual quantity on a shared bid/ask scale", () => {
+  const render = (asks: readonly [string, string][]) =>
+    renderToStaticMarkup(
+      createElement(OrderBook, {
+        book: { bids: [["100", "2"]], asks },
+        latestTrade: null,
+        depth: 50,
+        precision: 1,
+        priceStep: 0.01,
+        dollar: true,
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        onDepthChange: () => {},
+        onPrecisionChange: () => {},
+      }),
+    )
+  const html = render([
+    ["101", "1"],
+    ["102", "4"],
+  ])
+  expect(html.match(/class="order-book-row"/g)).toHaveLength(3)
+  expect(html).toContain(
+    'class="order-book-depth-fill negative" aria-hidden="true" style="transform:scaleX(0.25)"',
+  )
+  expect(html).toContain(
+    'class="order-book-depth-fill negative" aria-hidden="true" style="transform:scaleX(1)"',
+  )
+  expect(html).toContain(
+    'class="order-book-depth-fill positive" aria-hidden="true" style="transform:scaleX(0.5)"',
+  )
+  expect(render([["101", "2"]])).toContain("transform:scaleX(1)")
+  expect(render([["101", "0"]])).not.toContain("scaleX(NaN)")
+})
