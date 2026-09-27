@@ -82,6 +82,7 @@ export function useRealtimeFeed(
   useEffect(() => {
     let closed = false
     let flush: ReturnType<typeof setTimeout> | undefined
+    let receivedAt: string | null = null
     const current: Partial<Record<ProductLine, PrivateView>> = {}
     let tape: WsEnvelope[] = []
     let executions: WsEnvelope[] = []
@@ -95,9 +96,10 @@ export function useRealtimeFeed(
         flush = undefined
         setViews({ ...current })
         setOwner(identity)
+        setLastEventAt(receivedAt)
         setEvents([...executions, ...latest.current.values(), ...tape])
         setRevision((n) => n + 1)
-      }, 50)
+      }, 100)
     }
     const publicManager = new RealtimeConnections(
       config.wsBaseUrlForProductLine,
@@ -130,7 +132,7 @@ export function useRealtimeFeed(
         latest.current.set(key, event)
         if (event.channel === "trades" || event.channel === "depth")
           tape = [event, ...tape].slice(0, 256)
-        setLastEventAt(new Date().toISOString())
+        receivedAt = new Date().toISOString()
         publish()
       },
       (products, live) => {

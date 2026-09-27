@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client"
 import { App } from "./app/App"
 import "./styles/global.css"
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_RENDER_DEBUG === "true") {
   void import("react-grab")
   void import("react-scan")
 }

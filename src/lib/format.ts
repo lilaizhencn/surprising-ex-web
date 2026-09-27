@@ -1,3 +1,6 @@
+// Bounded display-only cache: fixed and variable precision, 0–20 decimal places.
+const priceFormatters = new Map<number, Intl.NumberFormat>()
+
 const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 })
 
 export function formatNumber(value: number | null, maximumFractionDigits = 2): string {
@@ -21,10 +24,16 @@ export function formatPrice(value: number | null, precision?: number): string {
   let digits = precision === undefined ? visibleDigits : Math.max(0, Math.min(20, precision))
   if (magnitude > 0 && magnitude < 0.5 * 10 ** -digits) digits = visibleDigits
   if (digits > 20) return value.toExponential(3)
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: precision === undefined ? 0 : digits,
-    maximumFractionDigits: digits,
-  }).format(value)
+  const key = digits * 2 + (precision === undefined ? 0 : 1)
+  let formatter = priceFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: precision === undefined ? 0 : digits,
+      maximumFractionDigits: digits,
+    })
+    priceFormatters.set(key, formatter)
+  }
+  return formatter.format(value)
 }
 
 export function formatUsd(value: number | null): string {

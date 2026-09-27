@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest"
 import { formatNumber, formatPercent, formatPrice, priceDecimalsForStep } from "./format"
 
 describe("instrument price precision", () => {
+  it("keeps fixed and adaptive precision independent when reusing formatters", () => {
+    expect(formatPrice(12.3, 2)).toBe("12.30")
+    expect(formatPrice(12.3)).toBe("12.3")
+    expect(formatPrice(0.0000123, 8)).toBe("0.00001230")
+    expect(formatPrice(12.3, 2)).toBe("12.30")
+  })
+
   it("keeps familiar high prices and preserves cheap coin ticks", () => {
     expect(formatPrice(84312.3, priceDecimalsForStep(0.1))).toBe("84,312.30")
     expect(formatPrice(0.00000427, priceDecimalsForStep(0.00000001))).toBe("0.00000427")
