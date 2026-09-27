@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { loadDayWindow } from "../../api/endpoints"
 import { type ApiCandle, CandleSchema } from "../../api/types"
 import type { RealtimeState } from "../../hooks/useRealtime"
@@ -63,10 +63,16 @@ export function useDayStats(
   connection: RealtimeState,
 ) {
   const key = `${productLine}:${symbol ?? ""}`
-  const [window, setWindow] = useState<{ key: string; ready: boolean; rows: readonly ApiCandle[] }>(
-    { key: "", ready: false, rows: [] },
-  )
-  const [now, setNow] = useState(Date.now)
+  // This hook owns one bounded minute window. React receives only its current summary.
+  const window = useRef<{ key: string; ready: boolean; rows: readonly ApiCandle[] }>({
+    key: "",
+    ready: false,
+    rows: [],
+  })
+  const [summary, setSummary] = useState<{
+    key: string
+    value: ReturnType<typeof summarizeDayWindow>
+  }>({ key: "", value: null })
   const [recovery, setRecovery] = useState(0)
   const latestMinute = useRef<WsEnvelope | undefined>(undefined)
   const wasLive = useRef(false)
@@ -80,22 +86,27 @@ export function useDayStats(
   }, [connection])
   useEffect(() => {
     let cancelled = false
-    setWindow({ key, ready: false, rows: [] })
+    const controller = new AbortController()
+    window.current = { key, ready: false, rows: [] }
+    setSummary({ key, value: null })
     if (symbol)
-      void loadDayWindow(symbol, productLine)
+      void loadDayWindow(symbol, productLine, controller.signal)
         .then((history) => {
           if (cancelled) return
-          setWindow((live) => ({
+          const live = window.current
+          window.current = {
             key,
             ready: true,
             rows: mergeDayWindow(history, live.key === key ? live.rows : [], Date.now()),
-          }))
+          }
+          setSummary({ key, value: summarizeDayWindow(window.current.rows, Date.now()) })
         })
         .catch(() => {
           // Do not label a few live minutes as a complete day when initialization fails.
         })
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [symbol, productLine, key, recovery])
   useEffect(() => {
@@ -114,19 +125,25 @@ export function useDayStats(
       return parsed.success ? [parsed.data] : []
     })
     if (updates.length === 0) return
-    setWindow((previous) => ({
+    const previous = window.current
+    window.current = {
       key,
       ready: previous.key === key && previous.ready,
       rows: mergeDayWindow(previous.key === key ? previous.rows : [], updates, Date.now()),
-    }))
+    }
   }, [events, symbol, productLine, key])
   useEffect(() => {
-    // Expire old extremes even if the market has no new trades; no network polling.
-    const timer = setInterval(() => setNow(Date.now()), 1000)
+    // Publish slower-changing statistics once per second; expire old buckets even without trades.
+    const timer = setInterval(() => {
+      const current = window.current
+      const now = Date.now()
+      current.rows = mergeDayWindow(current.rows, [], now)
+      setSummary({
+        key: current.key,
+        value: current.ready ? summarizeDayWindow(current.rows, now) : null,
+      })
+    }, 1000)
     return () => clearInterval(timer)
   }, [])
-  return useMemo(
-    () => (window.key === key && window.ready ? summarizeDayWindow(window.rows, now) : null),
-    [window, key, now],
-  )
+  return summary.key === key ? summary.value : null
 }

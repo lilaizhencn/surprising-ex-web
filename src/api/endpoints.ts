@@ -35,6 +35,7 @@ import {
   KycProfileSchema,
   LoginHistoryPageSchema,
   MarketListSchema,
+  MarketSchema,
   OptionQuoteSchema,
   OrderBookSchema,
   OrderListSchema,
@@ -144,13 +145,21 @@ export async function loadRuntimeProducts(): Promise<readonly ProductLine[]> {
   return result.productLines
 }
 
-export async function loadMarkets(productLine?: ProductLine): Promise<readonly ApiMarket[]> {
+export function loadMarket(symbol: string, productLine: ProductLine): Promise<ApiMarket> {
+  const query = new URLSearchParams({ symbol, productLine })
+  return request(`/api/v1/gateway/instrument/latest?${query}`, MarketSchema, { productLine })
+}
+
+export async function loadMarkets(
+  productLine?: ProductLine,
+  signal?: AbortSignal,
+): Promise<readonly ApiMarket[]> {
   const query = new URLSearchParams({ status: "TRADING" })
   if (productLine) query.set("productLine", productLine)
   const response = await request(
     `/api/v1/gateway/instrument/list?${query.toString()}`,
     MarketListSchema,
-    productLine ? { productLine } : {},
+    { ...(productLine ? { productLine } : {}), ...(signal ? { signal } : {}) },
   )
   return response.instruments ?? response.items ?? []
 }
@@ -227,7 +236,11 @@ export async function loadCandles(
 }
 
 /** Fixed minute-resolution rolling-day history, independent of the chart selection. */
-export async function loadDayWindow(symbol: string, productLine: ProductLine) {
+export async function loadDayWindow(
+  symbol: string,
+  productLine: ProductLine,
+  signal?: AbortSignal,
+) {
   const now = Date.now()
   const start = Math.floor(now / 60_000) * 60_000 - 86_400_000
   const query = new URLSearchParams({
@@ -240,7 +253,7 @@ export async function loadDayWindow(symbol: string, productLine: ProductLine) {
   const response = await request(
     `/api/v1/gateway/candlestick/candles?${query.toString()}`,
     CandleListSchema,
-    { productLine, retry: 0 },
+    { productLine, retry: 0, ...(signal ? { signal } : {}) },
   )
   return response.candles ?? response.items ?? []
 }

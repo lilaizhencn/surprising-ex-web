@@ -49,6 +49,8 @@ export function useRealtime(
 export function useRealtimeFeed(
   session: AuthSession | null,
   subscriptions: readonly Subscription[],
+  publishInterval = 100,
+  retainTrades = true,
 ) {
   const [products, setProducts] = useState<readonly ProductLine[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +88,7 @@ export function useRealtimeFeed(
     const current: Partial<Record<ProductLine, PrivateView>> = {}
     let tape: WsEnvelope[] = []
     let executions: WsEnvelope[] = []
+    let privateDirty = true
     const publicLive = new Map<ProductLine, boolean>()
     // Only the feed owns recovery-in-progress; it ends at the replacement WS snapshot.
     const awaitingDepthSnapshot = new Set<string>()
@@ -94,12 +97,15 @@ export function useRealtimeFeed(
       if (closed || flush) return
       flush = setTimeout(() => {
         flush = undefined
-        setViews({ ...current })
+        if (privateDirty) {
+          setViews({ ...current })
+          setRevision((n) => n + 1)
+          privateDirty = false
+        }
         setOwner(identity)
         setLastEventAt(receivedAt)
         setEvents([...executions, ...latest.current.values(), ...tape])
-        setRevision((n) => n + 1)
-      }, 100)
+      }, publishInterval)
     }
     const publicManager = new RealtimeConnections(
       config.wsBaseUrlForProductLine,
@@ -130,7 +136,7 @@ export function useRealtimeFeed(
         }
         if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)
-        if (event.channel === "trades" || event.channel === "depth")
+        if ((retainTrades && event.channel === "trades") || event.channel === "depth")
           tape = [event, ...tape].slice(0, 256)
         receivedAt = new Date().toISOString()
         publish()
@@ -172,7 +178,10 @@ export function useRealtimeFeed(
               if (closed || String(event.userId) !== userId || !event.productLine) return
               if (event.op === "snapshot" || PRIVATE_CHANNELS.has(event.channel ?? "")) {
                 current[event.productLine] ??= new PrivateView()
-                if (current[event.productLine]?.apply(event)) publish()
+                if (current[event.productLine]?.apply(event)) {
+                  privateDirty = true
+                  publish()
+                }
               }
               if (event.op === "event" && event.channel === "executionReports") {
                 const next = unwrapEvent(event)
@@ -182,6 +191,7 @@ export function useRealtimeFeed(
             },
             (products, live) => {
               if (closed) return
+              privateDirty = true
               for (const p of products) {
                 if (live) current[p] = new PrivateView()
                 else if (current[p]) current[p].status = "STALE"
@@ -213,7 +223,7 @@ export function useRealtimeFeed(
       publicManager.close()
       privateManager?.close()
     }
-  }, [accessToken, userId, identity])
+  }, [accessToken, userId, identity, publishInterval, retainTrades])
   return {
     products,
     error,
