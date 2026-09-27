@@ -37,6 +37,8 @@
   "Recent trades": "最新成交",
   "Waiting for recent trades.": "等待最新成交。",
   "Precision": "精度",
+  "Price step": "价格档距",
+  "Quantity step": "数量步长",
   "Depth": "档位",
   "Last trade": "最新成交",
   "Price tick": "价格步长",

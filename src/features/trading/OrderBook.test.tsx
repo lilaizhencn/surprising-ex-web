@@ -121,3 +121,32 @@ it("preserves adjacent sub-cent and sub-nanocent price levels", () => {
   expect(html).toContain("0.000000000122")
   expect(html).toContain("0.000000000124")
 })
+
+it("aggregates only price and preserves fractional base quantities", () => {
+  const html = renderToStaticMarkup(
+    createElement(OrderBook, {
+      book: {
+        bids: [
+          ["100.11", "0.01"],
+          ["100.12", "0.02"],
+        ],
+        asks: [],
+      },
+      latestTrade: null,
+      depth: 50,
+      precision: 1,
+      priceStep: 0.1,
+      quantityStep: "0.01",
+      dollar: true,
+      baseAsset: "BTC",
+      quoteAsset: "USDT",
+      onDepthChange: () => {},
+      onPrecisionChange: () => {},
+    }),
+  )
+  expect(html).toContain("100.10")
+  expect(html).toContain('title="0.03"')
+  expect(html).toContain("Price step")
+  expect(html).toContain("Quantity step")
+  expect(html).toContain("0.01")
+})

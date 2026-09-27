@@ -36,3 +36,13 @@ describe("market quantity", () => {
     expect(stepUnitsToDecimal("1", spec.unitSize, spec.scale)).toBe("0.00000001")
   })
 })
+
+it("keeps a 0.01 BTC contract quantity independent of a 0.1 USDT price step", () => {
+  const spec = marketQuantitySpec(
+    { ...market, contractMultiplierPpm: 10000, priceTickUnits: "10000000" },
+    { BTC: "100000000", USDT: "100000000" },
+  )
+  expect(stepUnitsToDecimal("2", spec.unitSize, spec.scale)).toBe("0.02")
+  expect(decimalToStepUnits("0.03", spec.unitSize, spec.scale)).toBe("3")
+  expect(() => decimalToStepUnits("0.001", spec.unitSize, spec.scale)).toThrow()
+})

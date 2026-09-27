@@ -331,6 +331,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ? (balances.find((row) => row.asset.toUpperCase() === asset.toUpperCase()) ?? null)
       : null
   }, [balances, current, side, view.line])
+  const quantityStep = useMemo(() => {
+    if (!current) return null
+    try {
+      const spec = marketQuantitySpec(current, assetScales)
+      return stepUnitsToDecimal("1", spec.unitSize, spec.scale)
+    } catch {
+      return null
+    }
+  }, [current, assetScales])
   const triggerSupported = view.line !== PRODUCT_LINES.spot
   const activeTriggerPosition = useMemo(
     () =>
@@ -1669,6 +1678,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               latestTrade={recentTrades[0] ?? null}
               depth={bookDepth}
               precision={bookPrecision}
+              quantityStep={quantityStep}
               priceStep={
                 current?.priceTickUnits && assetScales[current.quoteAsset]
                   ? Number(current.priceTickUnits) / Number(assetScales[current.quoteAsset])
@@ -2049,6 +2059,7 @@ export function OrderBook({
   precision,
   priceStep,
   pricePrecision = priceDecimalsForStep(priceStep),
+  quantityStep = null,
   baseAsset,
   quoteAsset,
   dollar,
@@ -2061,6 +2072,7 @@ export function OrderBook({
   readonly precision: 1 | 10 | 100
   readonly priceStep: number
   readonly pricePrecision?: number
+  readonly quantityStep?: string | null
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly dollar: boolean
@@ -2100,7 +2112,7 @@ export function OrderBook({
         <h2>{t("Order book")}</h2>
         <div className="book-depth-control">
           {" "}
-          {t("Precision")}{" "}
+          {t("Price step")}{" "}
           <DropdownSelect
             aria-label={t("Order book price precision")}
             value={precision}
@@ -2126,6 +2138,14 @@ export function OrderBook({
           </DropdownSelect>
         </div>
       </div>
+      {quantityStep && (
+        <div className="book-step-note">
+          {t("Quantity step")}:{" "}
+          <span className="mono">
+            {quantityStep} {baseAsset}
+          </span>
+        </div>
+      )}
       <div className="order-book-sides">
         <section className="order-book-side" aria-label={t("Asks, high to low")}>
           <div className="order-book-columns">
