@@ -1,0 +1,159 @@
+{
+  "downloadedAt": "2026-09-27",
+  "assets": {
+    "BTC": {
+      "file": "btc.png",
+      "website": "https://bitcoin.org/en/",
+      "source": "https://bitcoin.org/img/icons/logo_ios.png?1790370652",
+      "sha256": "70a39ca6f8a889fa58da5c6c2489a18552d91e3e16b90be73442c947bd48c043",
+      "bytes": 3132
+    },
+    "ETH": {
+      "file": "eth.ico",
+      "website": "https://ethereum.org",
+      "source": "https://ethereum.org/favicon.ico?favicon.068yxcduz8mu_.ico",
+      "sha256": "33efa13b5686c3280a56b44f2118052e4f4cc6d5d60e0a50f1225781b97d8b65",
+      "bytes": 21325
+    },
+    "SOL": {
+      "file": "sol.svg",
+      "website": "https://solana.com",
+      "source": "https://solana.com (embedded favicon SVG)",
+      "sha256": "ae7a77f9b893d6f64ba226554a9bef54a3cb2b67832c541ad75b6ba148dd2b00",
+      "bytes": 1121
+    },
+    "XRP": {
+      "file": "xrp.svg",
+      "website": "https://github.com/xrpsymbol/xrpsymbol.github.io",
+      "source": "https://raw.githubusercontent.com/xrpsymbol/xrpsymbol.github.io/a4fc10e86f17f154b84366a4174f6447f36700ea/xrp-symbol/symbol/xrp-symbol-black.svg",
+      "sha256": "7e134a91334bd554a21371f2891f40a9efce84a05f06920e8f79454db00fb53e",
+      "bytes": 763
+    },
+    "DOGE": {
+      "file": "doge.png",
+      "website": "https://dogecoin.com",
+      "source": "https://dogecoin.com/apple-touch-icon.png",
+      "sha256": "753604ba2b74d0402896d3f335e288f1a3fd18d3211d0a4beea52cb8a570afb3",
+      "bytes": 24212
+    },
+    "ADA": {
+      "file": "ada.ico",
+      "website": "https://cardano.org",
+      "source": "https://cardano.org/img/favicon.ico",
+      "sha256": "7b827c1ba6c7d5b84571c9bcd3f0d837500f99697f09835f91a1af9487f0492d",
+      "bytes": 15406
+    },
+    "BNB": {
+      "file": "bnb.svg",
+      "website": "https://www.bnbchain.org/en/brand-guidelines",
+      "source": "https://www.bnbchain.org/images/brand-guidelines/svg/BNB%20Chain_Symbol_Yellow.svg",
+      "sha256": "b8ff1ce0b5af2e2d9bcf5ec89fedd5224079f4f7267e306e23e8d691024f5eff",
+      "bytes": 1070
+    },
+    "AVAX": {
+      "file": "avax.svg",
+      "website": "https://www.avalanche.com/",
+      "source": "https://www.avalanche.com/favicon-light.svg",
+      "sha256": "8843998a7b91875f3dc6027bd1383ccf97c3d1534d2f3e56d363706039146882",
+      "bytes": 1016
+    },
+    "LINK": {
+      "file": "link.png",
+      "website": "https://chain.link",
+      "source": "https://cdn.prod.website-files.com/5f6b7190899f41fb70882d08/66570856a4d306e3381b870f_webclip.png",
+      "sha256": "d70698787bb6817ec492f86c3ea0f2a895217b1005e3de41dd3dbad5803aba6b",
+      "bytes": 3066
+    },
+    "DOT": {
+      "file": "dot.svg",
+      "website": "https://polkadot.com",
+      "source": "https://polkadot.com/favicon-light.svg",
+      "sha256": "8f08cfe31221ea2cacb9f7a015d5a08945c90fc2c1c708bf39011f045568b4d9",
+      "bytes": 1804
+    },
+    "LTC": {
+      "file": "ltc.svg",
+      "website": "https://litecoin.org",
+      "source": "https://litecoin.org/assets/ltc-DIEMRQHk.svg",
+      "sha256": "9af8334893afd38d21e666f67097cfb156eec29a02bbea4d252970abfec26693",
+      "bytes": 1307
+    },
+    "UNI": {
+      "file": "uni.png",
+      "website": "https://app.uniswap.org/",
+      "source": "https://cdn.app.uniswap.org/images/192x192_App_Icon.png",
+      "sha256": "f2cac096ed0052736cbad1e4f4758d454ed52524ab94e42e76046b93380f738b",
+      "bytes": 50878
+    },
+    "AAVE": {
+      "file": "aave.png",
+      "website": "https://aave.com",
+      "source": "https://aave.com/favicon.png",
+      "sha256": "90de03c5c3b31e92aefa1478eb5929a6e0afc8138560ab3d037596da6d65fa4e",
+      "bytes": 27347
+    },
+    "NEAR": {
+      "file": "near.png",
+      "website": "https://www.near.org/",
+      "source": "https://www.near.org/favicon.ico",
+      "sha256": "06615024f8e7c5e9681af2f0ed8b664915b60239aad49e025f1d798fb8dead0d",
+      "bytes": 908
+    },
+    "SUI": {
+      "file": "sui.png",
+      "website": "https://www.sui.io/",
+      "source": "https://cdn.prod.website-files.com/68e8e0120513ba12c5cd12e0/6943eb0c5363694f8af7eac7_webclipsui.png",
+      "sha256": "a6e8d96739d59abfca5b4f6f400901b60fc8bed31f82798e862aff4009f72720",
+      "bytes": 4764
+    },
+    "TRX": {
+      "file": "trx.svg",
+      "website": "https://tron.network",
+      "source": "https://tron.network/favicon.svg",
+      "sha256": "8d48c2ffbd6255f5f027ee977609de5aa3c534db0a55ea03b6cd426700b86fe3",
+      "bytes": 480
+    },
+    "OP": {
+      "file": "op.png",
+      "website": "https://optimism.io/",
+      "source": "https://cdn.sanity.io/images/y6ka751a/production/b5455d6825417cb9be16dfda5471a72360102118-64x64.png?w=96&h=96&fm=png&fit=fill&auto=format",
+      "sha256": "31803ffa06da3bfbb45e807daa8da311b20bc634157458b0bd3eda2faa174d6c",
+      "bytes": 3634
+    },
+    "ETC": {
+      "file": "etc.svg",
+      "website": "https://ethereumclassic.org",
+      "source": "https://ethereumclassic.org (embedded favicon SVG)",
+      "sha256": "4b655e94e0df3e1dfac31b1e55419336e63ad594d19d320f56702635986e20fa",
+      "bytes": 264
+    },
+    "FIL": {
+      "file": "fil.ico",
+      "website": "https://www.filecoin.io/",
+      "source": "https://www.filecoin.io/favicon.ico?f6c315e33b40e98f",
+      "sha256": "fa5c4e95a42a76e40485ac793b45524f1d81e66c2d1f1481f5c50783249079d7",
+      "bytes": 15406
+    },
+    "USDC": {
+      "file": "usdc.svg",
+      "website": "https://www.circle.com/stability",
+      "source": "https://cdn.prod.website-files.com/67116d0daddc92483c812e88/676046c1318f6d1da697dfc0_19fe381361ce13f142f05c1d89f9b8ec_USDC-icon.svg",
+      "sha256": "9e509d696b8f2b57bfdb46259091748dd8872b04420de9d98788c7c355168b58",
+      "bytes": 1647
+    },
+    "USDT": {
+      "file": "usdt.svg",
+      "website": "https://tether.to/en/media/",
+      "source": "https://tether.to/images/logoCircle.svg",
+      "sha256": "7c9f13b068996186c4df0f3dcdeeeb86e11cee6d8a9e7597cec19ccee164d7c5",
+      "bytes": 1208
+    },
+    "BCH": {
+      "file": "bch.svg",
+      "website": "https://bitcoincash.org/graphics/",
+      "source": "https://raw.githubusercontent.com/zquestz/bitcoincash/971035f9b41cc450df59ff8ae04636bf49ef5e86/html/img/green/bitcoin-cash-circle.svg",
+      "sha256": "6cb15b7fcefe7e93182944b9c9b905a4be27564ecc2267f19f698784b9456987",
+      "bytes": 1232
+    }
+  }
+}

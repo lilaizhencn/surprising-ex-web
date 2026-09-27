@@ -1,6 +1,7 @@
 import { Check, Copy, LoaderCircle, Search, Star, TriangleAlert } from "lucide-react"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
 import { t } from "../../i18n"
+import { assetLogos } from "../../lib/assetLogos"
 
 import { formatPrice } from "../../lib/format"
 
@@ -102,9 +103,15 @@ export function SearchField({
 }
 
 export function AssetIcon({ asset }: { readonly asset: string }) {
+  const symbol = asset.trim().toUpperCase()
+  const logo = assetLogos[symbol]
   return (
-    <span className={`asset-icon asset-${asset.toLowerCase()}`} aria-hidden="true">
-      {asset.slice(0, 1)}
+    <span className={`asset-icon${logo ? " asset-icon-logo" : ""}`} aria-hidden="true">
+      {logo ? (
+        <img src={logo} alt="" width={30} height={30} decoding="async" />
+      ) : (
+        symbol.slice(0, 1)
+      )}
     </span>
   )
 }

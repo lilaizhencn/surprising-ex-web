@@ -73,3 +73,9 @@ MIT
 本轮验证：78 项前端测试、lint、build 通过（保留既有 info 和 bundle 大小提示）；390～1920px 七种宽度无整页溢出，1440px 以上指标用满可用宽度。Chrome 检查 20 个币对涨跌幅、菜单遮挡图表标识、搜索切币及桌面/移动端 BTC 最大杠杆 100×。仅前端数据映射与展示变更，未修改后端资金或撮合逻辑。
 
 持续行情演示使用 `npm run build` 后 `npm run preview`；开发模式 React 的渲染追踪在展开多币对列表时开销明显。`react-scan`/`react-grab` 改为显式设置 `VITE_ENABLE_RENDER_DEBUG=true` 才加载。2026-09-27 本机同样展开 20 币对的 10 秒 Chrome 采样：开发版脚本时间约 8.73 秒，批处理优化后的生产版约 1.08 秒；100ms 探针最大迟延 394ms → 15ms。该结果是本机页面响应验证，不代表后端交易吞吐基准。
+
+### 本地币种图标
+
+`AssetIcon` 通过 `src/lib/assetLogos.ts` 读取 `public/assets/coins/` 原始素材，交易页、币对选择、市场表格和资产页共用。已覆盖上线的 20 个交易币及 USDT、USDC，共 22 个图标，约 178 KiB。大小由现有布局控制，以 contain 保持比例，并提供中性背景保证深浅主题可辨。未登记的币种保留中性文字标识，不请求外站图片。
+
+素材来源页、下载 URL 和 SHA-256 见 [来源说明](public/assets/coins/SOURCES.md) 与 `sources.json`；XRP 为原始社区符号仓库，其余为项目官网或官网链接仓库。Chrome 已验证 22 个文件均可解码、20 个菜单图标全部加载且请求均同源，以及桌面/390px 手机、亮色/深色显示。79 项测试、lint 和 build 通过；未修改后端业务逻辑。
