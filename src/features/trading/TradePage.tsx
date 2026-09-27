@@ -304,6 +304,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const lastTradePrice = current
     ? marketPriceFromRecord(recentTrades[0] ?? {}, current, assetScales)
     : null
+  const tabSymbol = current?.symbol ?? selected ?? view.symbol
+  const tabPrice = current ? (marketQuotes[current.symbol] ?? current.price) : null
+  const tabTitle = `${formatPrice(tabPrice, priceDisplayPrecision(current, assetScales))} ${tabSymbol} · ${t(view.title)} | Surprising EX`
+  useEffect(() => {
+    const defaultTitle = document.title
+    return () => {
+      document.title = defaultTitle
+    }
+  }, [])
+  useEffect(() => {
+    if (document.title !== tabTitle) document.title = tabTitle
+  }, [tabTitle])
   const balance = useMemo(() => {
     const asset =
       view.line === PRODUCT_LINES.spot

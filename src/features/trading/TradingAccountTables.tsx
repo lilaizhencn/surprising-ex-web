@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { cancelOrder, loadMarket, loadOrderHistory } from "../../api/endpoints"
+import { cancelOrder, loadMarket } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
@@ -46,10 +46,13 @@ export function fillProgress(row: Row): string {
     return "—"
   }
 }
-function price(ticks: unknown, market: Market | undefined, scales: Props["assetScales"]) {
+export function price(ticks: unknown, market: Market | undefined, scales: Props["assetScales"]) {
   if (ticks == null || !market?.priceTickUnits || !scales[market.quoteAsset]) return "—"
   try {
-    return stepUnitsToDecimal(String(ticks), market.priceTickUnits, scales[market.quoteAsset] ?? "")
+    const tick = Number(market.priceTickUnits) / Number(scales[market.quoteAsset])
+    const amount = Number(ticks) * tick
+    if (!Number.isFinite(amount)) return "—"
+    return formatPrice(amount, priceDecimalsForStep(tick, market.pricePrecision))
   } catch {
     return "—"
   }
@@ -80,6 +83,24 @@ function timestamp(row: Row, key: "created" | "updated") {
       ? new Date(Number(raw))
       : new Date(String(raw))
   return Number.isFinite(date.getTime()) ? date.toLocaleString(undefined, { hour12: false }) : "—"
+}
+function filledValue(row: Row, market: Market | undefined, scales: Props["assetScales"]) {
+  if (
+    !market ||
+    !["LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine) ||
+    !market.notionalMultiplierUnits ||
+    row["executedValueTicks"] == null
+  )
+    return "—"
+  try {
+    return units(
+      (integer(row["executedValueTicks"]) * integer(market.notionalMultiplierUnits)).toString(),
+      market.settleAsset ?? market.quoteAsset,
+      scales,
+    )
+  } catch {
+    return "—"
+  }
 }
 function valueAtLimit(row: Row, market: Market | undefined, scales: Props["assetScales"]) {
   if (
@@ -137,8 +158,6 @@ export function TradingAccountTables(props: Props) {
   const [onlyCurrent, setOnlyCurrent] = useState(true)
   const [metadata, setMetadata] = useState<readonly Market[]>([])
   const [history, setHistory] = useState<readonly Row[]>([])
-  const [historyError, setHistoryError] = useState("")
-  const [historyLoading, setHistoryLoading] = useState(false)
   const symbolsKey = [
     ...new Set(
       [...positions, ...orders, ...history].map((row) => field(row, "symbol")).filter(Boolean),
@@ -163,28 +182,8 @@ export function TradingAccountTables(props: Props) {
   }, [symbolsKey, market?.symbol, productLine, onlyCurrent])
   useEffect(() => {
     setHistory([])
-    setHistoryError("")
   }, [productLine, loggedIn, market?.symbol])
   const lastOrderEvent = useRef<WsEnvelope | undefined>(undefined)
-  useEffect(() => {
-    if (!loggedIn || tab !== "history") return
-    let cancelled = false
-    setHistoryLoading(true)
-    setHistoryError("")
-    void loadOrderHistory(onlyCurrent ? (market?.symbol ?? "") : "", productLine)
-      .then((rows) => {
-        if (!cancelled) setHistory((previous) => mergeOrders(rows, previous))
-      })
-      .catch((reason) => {
-        if (!cancelled) setHistoryError(reason instanceof Error ? reason.message : String(reason))
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [tab, loggedIn, market?.symbol, productLine, onlyCurrent])
   useEffect(() => {
     const latestOrder = events.find(
       (event) => event.channel === "orders" && event.productLine === productLine,
@@ -214,7 +213,7 @@ export function TradingAccountTables(props: Props) {
             [
               ["positions", `${t("Positions")} (${positionRows.length})`],
               ["orders", `${t("Open orders")} (${orderRows.length})`],
-              ["history", t("Order history")],
+              ["history", t("Recent order updates")],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -349,7 +348,11 @@ export function TradingAccountTables(props: Props) {
         </div>
       ) : (
         <>
-          {historyError && tab === "history" && <p role="alert">{historyError}</p>}
+          {tab === "history" && (
+            <p className="account-table-empty">
+              {t("Shows up to 100 order updates received while this page is open.")}
+            </p>
+          )}
           <div className="table-wrap">
             <table className="data-table compact-trading-table">
               <thead>
@@ -361,7 +364,7 @@ export function TradingAccountTables(props: Props) {
                     "Average / Order price",
                     "Filled / Order quantity",
                     "Remaining / Progress",
-                    "Order value",
+                    "Filled / Order value",
                     "Settlement asset",
                     "Reduce only / Post only",
                     "Fee / Time in force",
@@ -386,9 +389,7 @@ export function TradingAccountTables(props: Props) {
               </tbody>
             </table>
             {!(tab === "orders" ? orderRows : history.filter(filter)).length && (
-              <p className="account-table-empty">
-                {t(historyLoading && tab === "history" ? "Loading..." : "No orders.")}
-              </p>
+              <p className="account-table-empty">{t("No orders.")}</p>
             )}
           </div>
         </>
@@ -445,7 +446,10 @@ function TradingOrderRow({
         {quantity(row["remainingQuantitySteps"], market, scales)}
         <small>{fillProgress(row)}</small>
       </td>
-      <td>{valueAtLimit(row, market, scales)}</td>
+      <td>
+        {filledValue(row, market, scales)}
+        <small>{valueAtLimit(row, market, scales)}</small>
+      </td>
       <td>{market?.settleAsset ?? market?.quoteAsset ?? "—"}</td>
       <td>
         {t(row["reduceOnly"] ? "Yes" : "No")}
