@@ -84,6 +84,6 @@ it("bounds day statistics after a long session instead of retaining every histor
   )
   const retained = mergeDayWindow([], history, now)
   expect(retained).toHaveLength(1441)
-  expect(mergeDayWindow(retained, [retained.at(-1)!], now)).toHaveLength(1441)
+  expect(mergeDayWindow(retained, retained.slice(-1), now)).toHaveLength(1441)
   expect(mergeDayWindow(retained, [], now + 2 * 86_400_000)).toHaveLength(0)
 })

@@ -148,6 +148,8 @@ export function PriceChart({
         border: read("--color-border"),
         up: read("--color-positive"),
         down: read("--color-negative"),
+        wickUp: read("--color-chart-wick-up"),
+        wickDown: read("--color-chart-wick-down"),
       }
     }
     const initial = colors()
@@ -188,7 +190,7 @@ export function PriceChart({
         borderColor: initial.border,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 8,
+        barSpacing: 10,
         shiftVisibleRangeOnNewBar: true,
       },
       crosshair: { vertLine: { color: initial.ink }, horzLine: { color: initial.ink } },
@@ -199,8 +201,8 @@ export function PriceChart({
       borderVisible: true,
       borderUpColor: initial.up,
       borderDownColor: initial.down,
-      wickUpColor: initial.up,
-      wickDownColor: initial.down,
+      wickUpColor: initial.wickUp,
+      wickDownColor: initial.wickDown,
     })
     chart.addPane()
     const volume = chart.addSeries(
@@ -210,7 +212,8 @@ export function PriceChart({
     )
     chart.panes()[0]?.setStretchFactor(0.76)
     chart.panes()[1]?.setStretchFactor(0.24)
-    price.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.08 } })
+    // Keep genuine highs/lows while reducing vertical stretch in sparse local markets.
+    price.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 } })
     volume.priceScale().applyOptions({
       visible: true,
       borderVisible: true,
@@ -240,8 +243,8 @@ export function PriceChart({
         downColor: next.down,
         borderUpColor: next.up,
         borderDownColor: next.down,
-        wickUpColor: next.up,
-        wickDownColor: next.down,
+        wickUpColor: next.wickUp,
+        wickDownColor: next.wickDown,
       })
     }
     const themeObserver = new MutationObserver(applyTheme)
@@ -347,7 +350,7 @@ export function PriceChart({
     }
     if (bars.length > 0 && (lastPeriod.current !== period || !previous)) {
       price.priceScale().applyOptions({ autoScale: true })
-      chart.timeScale().applyOptions({ barSpacing: 8, rightOffset: 2 })
+      chart.timeScale().applyOptions({ barSpacing: 10, rightOffset: 2 })
       chart.timeScale().scrollToPosition(2, false)
       lastPeriod.current = period
     }

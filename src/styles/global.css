@@ -1467,6 +1467,8 @@ button:disabled {
 .price-chart {
   position: relative;
   display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-2);
   height: 360px;
@@ -1551,6 +1553,7 @@ button:disabled {
   height: 100%;
 }
 .chart-canvas {
+  min-width: 0;
   min-height: 0;
   width: 100%;
 }

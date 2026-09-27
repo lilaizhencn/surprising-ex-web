@@ -12,6 +12,8 @@
   --color-primary-strong: #0052ff;
   --color-positive: #006d3f;
   --color-negative: #9e0d22;
+  --color-chart-wick-up: rgba(0, 109, 63, 0.62);
+  --color-chart-wick-down: rgba(158, 13, 34, 0.62);
   --color-warning: #9a5b00;
   --color-login-blue: #0052ff;
   --color-auth-canvas: #000000;
@@ -93,5 +95,7 @@
   --color-primary-strong: #5d82ff;
   --color-positive: #55df9a;
   --color-negative: #ff7d86;
+  --color-chart-wick-up: rgba(85, 223, 154, 0.62);
+  --color-chart-wick-down: rgba(255, 125, 134, 0.62);
   --color-warning: #f6bd63;
 }
