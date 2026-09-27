@@ -79,6 +79,40 @@ describe("realtime connection lifecycle", () => {
     vi.advanceTimersByTime(60000)
     expect(Socket.instances).toHaveLength(2)
   })
+  it("resubscribes only the requested depth without disturbing trades or another product", () => {
+    const manager = new RealtimeConnections((p) => `ws://fixture/${p}`, null, vi.fn(), vi.fn())
+    const depth: Subscription = {
+      productLine: "LINEAR_PERPETUAL",
+      channel: "depth",
+      symbol: "BTC-USDT-SWAP",
+    }
+    manager.update([
+      depth,
+      { ...depth, channel: "trades" },
+      { ...depth, productLine: "INVERSE_PERPETUAL" },
+    ])
+    for (const ws of Socket.instances) ws.open()
+    const target = Socket.instances.find((ws) => ws.url.endsWith("/LINEAR_PERPETUAL"))
+    const other = Socket.instances.find((ws) => ws.url.endsWith("/INVERSE_PERPETUAL"))
+    if (!target || !other) throw new Error("Expected isolated sockets")
+    target.sent = []
+    other.sent = []
+    manager.resubscribe(depth)
+    expect(target.sent).toEqual([
+      expect.objectContaining({ ...depth, op: "unsubscribe" }),
+      expect.objectContaining({ ...depth, op: "subscribe" }),
+    ])
+    expect(other.sent).toEqual([])
+    manager.resubscribe({ ...depth, symbol: "ETH-USDT-SWAP" })
+    expect(target.sent).toHaveLength(2)
+    target.close()
+    manager.resubscribe(depth)
+    vi.advanceTimersByTime(1000)
+    const replacement = Socket.instances.at(-1)
+    replacement?.open()
+    expect(replacement?.sent.filter((c) => c["op"] === "subscribe")).toHaveLength(2)
+    manager.close()
+  })
   it("isolates endpoints and splits large public plans below the server limit", () => {
     const manager = new RealtimeConnections((p) => `ws://fixture/${p}`, null, vi.fn(), vi.fn())
     const plan: Subscription[] = Array.from({ length: 401 }, (_, n) => ({

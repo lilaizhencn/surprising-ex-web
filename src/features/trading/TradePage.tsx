@@ -26,7 +26,6 @@ import {
   loadOpenOrders,
   loadOpenTriggerOrders,
   loadOptionQuote,
-  loadOrderBook,
   loadPositions,
   loadRecentTrades,
   placeBatchTriggerOrders,
@@ -488,26 +487,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }
 
   const resyncOrderBook = useCallback(() => {
-    if (!current || !assetScales[current.quoteAsset] || bookResyncingRef.current) return
+    if (!current || bookResyncingRef.current) return
     bookResyncingRef.current = true
-    const generation = marketGeneration.current
-    void loadOrderBook(current.symbol, view.line, 50)
-      .then((nextBook) => {
-        if (generation !== marketGeneration.current) return
-        const nextSequence = orderBookSequence(nextBook)
-        const currentSequence = bookSequenceRef.current
-        if (nextSequence && currentSequence && compareSequences(nextSequence, currentSequence) < 0)
-          return
-        setBook(normalizeOrderBook(nextBook, current, assetScales))
-        bookSequenceRef.current = nextSequence
-      })
-      .catch((reason: unknown) => {
-        if (generation === marketGeneration.current) setError(readError(reason))
-      })
-      .finally(() => {
-        bookResyncingRef.current = false
-      })
-  }, [assetScales, current, view.line])
+    // WS depth uses the log position; REST order books use the command sequence.
+    // Recover from the same WS source so the next DELTA has the correct baseline.
+    realtime.refreshDepth(view.line, current.symbol)
+  }, [current, realtime.refreshDepth, view.line])
 
   useEffect(() => {
     setBook(null)
@@ -752,19 +737,21 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     if (!current || !assetScales[current.quoteAsset]) return
     const applyEvent = (event: WsEnvelope) => {
+      const channel = text(event, "channel")
+      const data = record(valueAt(event, "data"))
+      const recoverySnapshot =
+        channel === "depth" && data?.["updateType"] === "SNAPSHOT" && bookResyncingRef.current
       if (
         event.op !== "event" ||
         event.productLine !== view.line ||
         !event.id ||
-        processedEvents.current.has(event.id)
+        (processedEvents.current.has(event.id) && !recoverySnapshot)
       )
         return
       processedEvents.current.add(event.id)
       if (processedEvents.current.size > 20000)
         processedEvents.current = new Set([...processedEvents.current].slice(-10000))
       const eventSymbol = text(event, "symbol")
-      const channel = text(event, "channel")
-      const data = record(valueAt(event, "data"))
       if (!data) return
       if (eventSymbol && eventSymbol !== current.symbol) {
         if (channel === "trades") {
@@ -814,6 +801,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           const currentSequence = bookSequenceRef.current
           if (!nextSequence) return
           if (orderBook.data.updateType === "DELTA") {
+            if (bookResyncingRef.current) return
             if (currentSequence && compareSequences(nextSequence, currentSequence) <= 0) return
             const previousSequence = orderBook.data.previousSequence
             if (
@@ -835,7 +823,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             bookSequenceRef.current = nextSequence
             return
           }
-          if (!currentSequence || compareSequences(nextSequence, currentSequence) > 0) {
+          if (
+            recoverySnapshot ||
+            !currentSequence ||
+            compareSequences(nextSequence, currentSequence) > 0
+          ) {
+            bookResyncingRef.current = false
             bookSequenceRef.current = nextSequence
             setBook(normalizeOrderBook(orderBook.data, current, assetScales))
           }

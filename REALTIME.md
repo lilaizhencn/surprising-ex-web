@@ -20,9 +20,9 @@ Markets show spot instruments. Trading subscriptions are scoped by product, symb
 
 Snapshot fences preserve newer updates and terminal tombstones. Periodic snapshots heal dropped packets. Non-ready or expired snapshots are not displayed as a current asset valuation. Private-state events do not trigger REST account queries. Explicit ledger and algo-order queries remain separate.
 
-订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。`depth` 首条是买卖各最多 50 档的 SNAPSHOT（空盘口也覆盖），后续 DELTA 按价格档位写入绝对数量，数量为零删除。逐条校验 previousSequence 与本地 sequence；断档才通过 REST 重建 50 档基线，正常运行不轮询全量。渲染批处理保留全部增量，不能合并成最后一条；退订重连重新接收首条快照。盘口为空仍保留固定高度、表头和中间最新成交价，不显示空数据提示。
+订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。`depth` 首条是买卖各最多 50 档的 SNAPSHOT（空盘口也覆盖），后续 DELTA 按价格档位写入绝对数量，数量为零删除。逐条校验 previousSequence 与本地 sequence；断档时只对当前产品/币对的 depth 执行 WebSocket 退订再订阅，等待新的 50 档 SNAPSHOT；等待期间丢弃无法接续的 DELTA，正常运行不轮询全量。渲染批处理保留全部增量，不能合并成最后一条；退订重连重新接收首条快照。盘口为空仍保留固定高度、表头和中间最新成交价，不显示空数据提示。
 
-Open orders, active triggers and nonzero positions are materialized directly. Zero balances remain explicit. Depth frames replace both sides, including empty sides. Late HTTP market responses cannot overwrite newer streamed data.
+Open orders, active triggers and nonzero positions are materialized directly. Zero balances remain explicit. Depth snapshots replace both sides, including empty sides; deltas update individual price levels. A sequence gap resubscribes only the affected depth channel and waits for a new WebSocket snapshot. REST command sequences are never mixed with depth log-position sequences.
 
 ## 权益 / Equity
 
@@ -41,3 +41,20 @@ The trading risk panel identifies the selected symbol and position side. Positio
 验证：`bun run test`、`bun run lint`、`bun run typecheck`、`bun run build`。前端测试模拟协议，不能替代部署环境中 Core → Router → WS 的完整联调。
 
 Validation: unit tests, type checking and production build. Protocol fixtures do not replace deployment integration testing.
+
+## 盘口断档恢复修复（2026-09-27）
+
+`TradePage.resyncOrderBook` 改为调用 `useRealtimeFeed.refreshDepth`，再由
+`RealtimeConnections.resubscribe` 只退订/重订阅目标盘口，保留成交等其他频道。
+feed 清除该盘口旧事件缓存，并等待 SNAPSHOT；页面允许恢复快照覆盖同版本的已处理事件，
+避免相同序号的快照被去重过滤。恢复状态只由本次连接的 feed 和当前页面持有，收到快照后结束。
+旧实现把 REST 命令序号（实测约 441 万）与 WS 日志位置（约 44.98 亿）比较，导致恢复快照被拒绝。
+
+验证：63 项前端测试通过，`npm run lint`、`npm run build`、`git diff --check` 通过。
+新增连接测试覆盖目标盘口独立重订阅、产品线隔离、不存在的订阅和断线重连。
+真实 Chrome 故意丢失盘口增量：修复前连续 15 次采样只有 1 个盘口状态，并请求 12 次 REST 盘口；
+修复后桌面 15 次、手机 14 次不同盘口状态，均观察到 depth 退订/重订阅及新 SNAPSHOT，
+REST 盘口请求为 0，K 线初始化仍为 1 次，无 JS 异常；手机 390/390 无横向溢出。
+证据保留在本地运行目录 `verification/depth-recovery/`（JSON、截图、故障注入脚本）。
+测试浏览器已退出，页面和做市服务保留运行。在线故障注入覆盖 U 本位永续 BTC；
+本次只改前端恢复链路，没有修改下单、资金记账或 Java 服务，因此未重跑后端资金及全产品交易测试。

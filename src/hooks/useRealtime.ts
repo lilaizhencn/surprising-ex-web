@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
@@ -63,6 +63,10 @@ export function useRealtimeFeed(
   desired.current = subscriptions
   const key = subscriptions.map(subscriptionKey).sort().join("|")
   const latest = useRef(new Map<string, WsEnvelope>())
+  const recoverDepth = useRef<(subscription: Subscription) => void>(() => {})
+  const refreshDepth = useCallback((productLine: ProductLine, symbol: string) => {
+    recoverDepth.current({ channel: "depth", productLine, symbol })
+  }, [])
   const accessToken = session?.accessToken ?? null
   const userId = session ? String(session.user.userId) : null
   const identity = `${userId ?? ""}:${accessToken ?? ""}`
@@ -81,6 +85,8 @@ export function useRealtimeFeed(
     let tape: WsEnvelope[] = []
     let executions: WsEnvelope[] = []
     const publicLive = new Map<ProductLine, boolean>()
+    // Only the feed owns recovery-in-progress; it ends at the replacement WS snapshot.
+    const awaitingDepthSnapshot = new Set<string>()
     latest.current.clear()
     const publish = () => {
       if (closed || flush) return
@@ -99,6 +105,11 @@ export function useRealtimeFeed(
         if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
         const event = unwrapEvent(raw)
         const key = [raw.productLine, raw.channel, raw.symbol ?? "*", raw.period ?? ""].join(":")
+        if (awaitingDepthSnapshot.has(key)) {
+          if ((event.data as { updateType?: string } | undefined)?.updateType !== "SNAPSHOT") return
+          awaitingDepthSnapshot.delete(key)
+          latest.current.delete(key)
+        }
         if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)
         if (event.channel === "trades" || event.channel === "depth")
@@ -118,6 +129,20 @@ export function useRealtimeFeed(
         publish()
       },
     )
+    recoverDepth.current = (subscription) => {
+      const key = subscriptionKey(subscription)
+      awaitingDepthSnapshot.add(key)
+      latest.current.delete(key)
+      tape = tape.filter(
+        (event) =>
+          !(
+            event.productLine === subscription.productLine &&
+            event.channel === "depth" &&
+            event.symbol === subscription.symbol
+          ),
+      )
+      publicManager.resubscribe(subscription)
+    }
     publicConnections.current = publicManager
     publicManager.update(desired.current)
     const privateManager =
@@ -166,6 +191,7 @@ export function useRealtimeFeed(
       closed = true
       clearTimeout(flush)
       clearInterval(freshness)
+      recoverDepth.current = () => {}
       publicManager.close()
       privateManager?.close()
     }
@@ -179,5 +205,6 @@ export function useRealtimeFeed(
     views: owner === identity ? views : EMPTY_VIEWS,
     revision,
     refresh: () => privateConnections.current?.refresh(),
+    refreshDepth,
   }
 }

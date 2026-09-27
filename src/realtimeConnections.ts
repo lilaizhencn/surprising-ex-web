@@ -44,6 +44,9 @@ export class RealtimeConnections {
   refresh() {
     for (const c of this.connections.values()) c.refresh()
   }
+  resubscribe(subscription: Subscription) {
+    for (const c of this.connections.values()) c.resubscribe(subscription)
+  }
   close() {
     for (const c of this.connections.values()) c.close()
     this.connections.clear()
@@ -132,6 +135,19 @@ class Connection {
     for (const [id, s] of this.desired)
       if (!this.installed.has(id)) socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
     this.installed = new Map(this.desired)
+  }
+  resubscribe(subscription: Subscription) {
+    const id = subscriptionKey(subscription)
+    const socket = this.socket
+    if (
+      !this.desired.has(id) ||
+      !this.installed.has(id) ||
+      socket?.readyState !== WebSocket.OPEN ||
+      !this.authenticated
+    )
+      return
+    socket.send(JSON.stringify({ op: "unsubscribe", id, ...subscription }))
+    socket.send(JSON.stringify({ op: "subscribe", id, ...subscription }))
   }
   refresh() {
     const socket = this.socket
