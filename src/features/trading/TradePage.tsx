@@ -47,6 +47,7 @@ import type {
 import {
   BalanceSchema,
   CandleSchema,
+  FundingRateSchema,
   OrderBookSchema,
   OrderSchema,
   TriggerOrderSchema,
@@ -67,7 +68,7 @@ import { useRealtime } from "../../hooks/useRealtime"
 import { t } from "../../i18n"
 import { config, storageKeys } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
-import { formatPercent } from "../../lib/format"
+import { formatPercent, formatPrice, priceDecimalsForStep } from "../../lib/format"
 import {
   addDecimalQuantities,
   decimalProductExceedsUnits,
@@ -212,9 +213,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [balances, setBalances] = useState<readonly ApiBalance[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [marketQuotes, setMarketQuotes] = useState<Readonly<Record<string, number>>>({})
-  const [pairChanges, setPairChanges] = useState<Readonly<Record<string, number>>>({})
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
   const [funding, setFunding] = useState<ApiFundingRate | null>(null)
+  const priceEventVersions = useRef({ mark: 0, index: 0, funding: 0 })
   const [markPrice, setMarkPrice] = useState<Record<string, unknown> | null>(null)
   const [indexPrice, setIndexPrice] = useState<Record<string, unknown> | null>(null)
   const [fundingPayments, setFundingPayments] = useState<readonly ApiFundingPayment[]>([])
@@ -233,7 +234,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [accountTab, setAccountTab] = useState<
     "positions" | "triggers" | "fundingMarket" | "fundingPayments" | "settings"
   >("positions")
-  const [dayCandles, setDayCandles] = useState<readonly Candle[]>([])
   const [price, setPrice] = useState("")
   const [triggerPrice, setTriggerPrice] = useState("")
   const [protectionMode, setProtectionMode] = useState<"SINGLE" | "OCO">("SINGLE")
@@ -289,8 +289,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     )
   }, [availableMarkets, selected])
   const dayStats = useMemo(() => {
+    // Only reuse history that can cover the day at hourly-or-finer resolution.
+    // A short intraday chart is not a valid source for a 24-hour statistic.
+    const duration = periodMillisecondsForChart(period)
+    if (duration * 120 < 86_400_000 || duration > 3_600_000) return null
     const cutoff = Date.now() - 24 * 60 * 60 * 1000
-    const rows = dayCandles.filter((candle) => Date.parse(candle.time) >= cutoff)
+    const rows = candles.filter((candle) => Date.parse(candle.time) >= cutoff)
     if (rows.length === 0) return null
     const first = rows[0]
     const last = rows[rows.length - 1]
@@ -302,7 +306,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       close: last.close,
       change: first.open > 0 ? ((last.close - first.open) / first.open) * 100 : null,
     }
-  }, [dayCandles])
+  }, [candles, period])
   const lastTradePrice = current
     ? marketPriceFromRecord(recentTrades[0] ?? {}, current, assetScales)
     : null
@@ -342,7 +346,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
-  const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period)
+  const realtime = useRealtime(
+    session,
+    current?.symbol ?? view.symbol,
+    view.line,
+    period,
+    pairOpen
+      ? markets.map((market) => ({
+          channel: "trades",
+          symbol: market.symbol,
+          productLine: view.line,
+        }))
+      : [],
+  )
   const privateViewReady = useRef(false)
   privateViewReady.current = realtime.views[view.line]?.ready() ?? false
 
@@ -550,36 +566,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       })
     }
     void refreshPairQuotes()
-    const timer = window.setInterval(() => void refreshPairQuotes(), 10_000)
     return () => {
       cancelled = true
-      window.clearInterval(timer)
     }
   }, [pairOpen, markets, assetScales, updateMarketQuote, view.line])
-  useEffect(() => {
-    if (markets.length === 0 || view.line !== PRODUCT_LINES.usdMPerpetual) return
-    let cancelled = false
-    void Promise.allSettled(
-      markets.map((market) => loadCandles(market.symbol, "1h", view.line)),
-    ).then((results) => {
-      if (cancelled) return
-      const changes: Record<string, number> = {}
-      results.forEach((result, index) => {
-        const symbol = markets[index]?.symbol
-        if (!symbol || result.status !== "fulfilled") return
-        const rows = result.value
-          .map(mapCandle)
-          .filter((candle) => Date.parse(candle.time) >= Date.now() - 86_400_000)
-        const open = rows[0]?.open
-        const close = rows.at(-1)?.close
-        if (open && close) changes[symbol] = ((close - open) / open) * 100
-      })
-      setPairChanges(changes)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [markets, view.line])
   useEffect(() => {
     if (!current || price) return
     const quote = marketQuotes[current.symbol] ?? current.price
@@ -587,8 +577,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const priceTick = Number(current.priceTickUnits)
     if (!quote || !Number.isFinite(quoteScale) || quoteScale <= 0 || !priceTick) return
     const step = priceTick / quoteScale
-    const decimals = Math.max(2, (String(step).split(".")[1] ?? "").length)
-    setPrice((Math.round(quote / step) * step).toFixed(Math.min(decimals, 10)))
+    const ticks = Math.round(quote / step)
+    if (!Number.isSafeInteger(ticks) || ticks <= 0) return
+    setPrice(
+      stepUnitsToDecimal(
+        String(ticks),
+        current.priceTickUnits ?? "",
+        assetScales[current.quoteAsset] ?? "",
+      ),
+    )
   }, [assetScales, current, marketQuotes, price])
   useEffect(() => {
     if (!current) return
@@ -597,7 +594,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setOptionQuote(null)
     setTriggerOrders([])
     const generation = ++marketGeneration.current
-    let retryTimer: ReturnType<typeof setTimeout> | undefined
     const loadHistory = () => {
       void loadCandles(current.symbol, period, view.line)
         .then((rows) => {
@@ -615,7 +611,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           })
         })
         .catch(() => {
-          if (generation === marketGeneration.current) retryTimer = setTimeout(loadHistory, 3_000)
+          if (generation === marketGeneration.current)
+            setError(t("Candlestick history unavailable"))
         })
     }
     loadHistory()
@@ -631,7 +628,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     })
     return () => {
       marketGeneration.current++
-      clearTimeout(retryTimer)
     }
   }, [current?.symbol, period, updateMarketQuote, view.line])
 
@@ -643,6 +639,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     void loadRecentTrades(current.symbol, view.line)
       .then((history) => {
         if (cancelled) return
+        if (latestTradeRef.current?.symbol !== current.symbol) {
+          updateMarketQuote(
+            current.symbol,
+            marketPriceFromRecord(history[0] ?? {}, current, assetScales),
+          )
+        }
         setRecentTrades((live) => {
           const byId = new Map<string, Record<string, unknown>>()
           for (const trade of [...history, ...live])
@@ -659,23 +661,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.symbol, view.line])
-
-  useEffect(() => {
-    if (!current) return
-    let cancelled = false
-    setDayCandles([])
-    void loadCandles(current.symbol, "1h", view.line)
-      .then((rows) => {
-        if (!cancelled) setDayCandles(rows.map(mapCandle))
-      })
-      .catch(() => {
-        if (!cancelled) setDayCandles([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [current?.symbol, view.line, assetScales])
+  }, [current?.symbol, assetScales, updateMarketQuote, view.line])
 
   useEffect(() => {
     if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
@@ -687,14 +673,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setFundingMarketError("")
       return
     }
+    let cancelled = false
+    const fundingVersion = priceEventVersions.current.funding
+    setFunding(null)
     setFundingMarketError("")
     void loadFundingRate(current.symbol, view.line)
-      .then((value) => setFunding(value))
-      .catch(() => setFunding(null))
+      .then((value) => {
+        if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(value)
+      })
+      .catch(() => {
+        if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(null)
+      })
     void Promise.allSettled([
       loadFundingRateHistory(current.symbol, view.line),
       loadFundingSettlement(current.symbol, view.line),
     ]).then(([historyResult, settlementResult]) => {
+      if (cancelled) return
       setFundingHistory(historyResult.status === "fulfilled" ? historyResult.value : [])
       setFundingSettlement(settlementResult.status === "fulfilled" ? settlementResult.value : null)
       if (historyResult.status === "rejected" && settlementResult.status === "rejected") {
@@ -704,13 +698,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setFundingPaymentsError("")
     if (session) {
       void loadFundingPayments(session.user.userId, current.symbol, view.line)
-        .then((rows) => setFundingPayments(rows))
+        .then((rows) => {
+          if (!cancelled) setFundingPayments(rows)
+        })
         .catch((reason: unknown) => {
+          if (cancelled) return
           setFundingPayments([])
           setFundingPaymentsError(readError(reason))
         })
     } else {
       setFundingPayments([])
+    }
+    return () => {
+      cancelled = true
     }
   }, [current?.symbol, session, view.line])
 
@@ -721,24 +721,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       return
     }
     let cancelled = false
-    let inFlight = false
-    const refreshPrices = async () => {
-      if (inFlight) return
-      inFlight = true
-      const [markResult, indexResult] = await Promise.allSettled([
-        loadMarkPrice(current.symbol, view.line),
-        loadIndexPrice(current.symbol, view.line),
-      ])
-      inFlight = false
+    const versions = { ...priceEventVersions.current }
+    setMarkPrice(null)
+    setIndexPrice(null)
+    void Promise.allSettled([
+      loadMarkPrice(current.symbol, view.line),
+      loadIndexPrice(current.symbol, view.line),
+    ]).then(([markResult, indexResult]) => {
       if (cancelled) return
-      setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
-      setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
-    }
-    void refreshPrices()
-    const timer = window.setInterval(() => void refreshPrices(), 1_000)
+      // A slow initial snapshot must not replace a newer WebSocket price.
+      if (priceEventVersions.current.mark === versions.mark)
+        setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
+      if (priceEventVersions.current.index === versions.index)
+        setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
+    })
     return () => {
       cancelled = true
-      window.clearInterval(timer)
     }
   }, [current?.symbol, view.line])
 
@@ -756,10 +754,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (processedEvents.current.size > 20000)
         processedEvents.current = new Set([...processedEvents.current].slice(-10000))
       const eventSymbol = text(event, "symbol")
-      if (eventSymbol && eventSymbol !== current.symbol) return
       const channel = text(event, "channel")
       const data = record(valueAt(event, "data"))
       if (!data) return
+      if (eventSymbol && eventSymbol !== current.symbol) {
+        if (channel === "trades") {
+          const market = markets.find((candidate) => candidate.symbol === eventSymbol)
+          if (market)
+            updateMarketQuote(eventSymbol, marketPriceFromRecord(data, market, assetScales))
+        }
+        return
+      }
       if (channel === "candles") {
         const candle = CandleSchema.safeParse(data)
         if (!candle.success) return
@@ -863,23 +868,39 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               quantity,
             ),
           )
-          setDayCandles((rows) =>
-            applyTradeToCandles(rows, tradeTime, 3_600_000, tradePrice, quantity),
-          )
+        }
+        return
+      }
+      if (channel === "funding") {
+        const rate = FundingRateSchema.safeParse(data)
+        if (rate.success) {
+          priceEventVersions.current.funding++
+          setFunding(rate.data)
         }
         return
       }
       if (channel === "mark") {
+        priceEventVersions.current.mark++
         setMarkPrice(data)
         return
       }
       if (channel === "index") {
+        priceEventVersions.current.index++
         setIndexPrice(data)
         return
       }
     }
     for (const event of [...realtime.events].reverse()) applyEvent(event)
-  }, [assetScales, current, period, realtime.events, resyncOrderBook, updateMarketQuote, view.line])
+  }, [
+    assetScales,
+    current,
+    markets,
+    period,
+    realtime.events,
+    resyncOrderBook,
+    updateMarketQuote,
+    view.line,
+  ])
 
   const submit = async () => {
     if (!session) {
@@ -1262,16 +1283,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                             <Price
                               value={marketQuotes[market.symbol] ?? market.price}
                               dollar={isDollarQuote(market.quoteAsset)}
+                              pricePrecision={priceDisplayPrecision(market, assetScales)}
                             />
                           </strong>
                           <small
                             className={
-                              (pairChanges[market.symbol] ?? market.change24h ?? 0) >= 0
-                                ? "positive mono"
-                                : "negative mono"
+                              (market.change24h ?? 0) >= 0 ? "positive mono" : "negative mono"
                             }
                           >
-                            {formatPercent(pairChanges[market.symbol] ?? market.change24h)}
+                            {formatPercent(market.change24h)}
                           </small>
                         </span>
                       </div>
@@ -1303,6 +1323,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   null
                 }
                 dollar={isDollarQuote(current?.quoteAsset)}
+                pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
             </strong>
           </div>
@@ -1324,6 +1345,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Price
                 value={displayedDayStats?.open ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
+                pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
             </strong>
           </div>
@@ -1333,6 +1355,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Price
                 value={displayedDayStats?.high ?? current?.high24h ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
+                pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
             </strong>
           </div>
@@ -1342,6 +1365,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Price
                 value={displayedDayStats?.low ?? current?.low24h ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
+                pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
             </strong>
           </div>
@@ -1351,6 +1375,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Price
                 value={displayedDayStats?.close ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
+                pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
             </strong>
           </div>
@@ -1362,6 +1387,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <Price
                     value={numberValue(markPrice, "markPrice")}
                     dollar={isDollarQuote(current?.quoteAsset)}
+                    pricePrecision={priceDisplayPrecision(current, assetScales)}
                   />
                 </strong>
               </div>
@@ -1371,6 +1397,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <Price
                     value={numberValue(indexPrice, "indexPrice")}
                     dollar={isDollarQuote(current?.quoteAsset)}
+                    pricePrecision={priceDisplayPrecision(current, assetScales)}
                   />
                 </strong>
               </div>
@@ -1412,7 +1439,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             key={`${view.line}:${current?.symbol ?? view.symbol}`}
             candles={candles}
             period={period}
-            dollar={isDollarQuote(current?.quoteAsset)}
+            priceStep={
+              Number(current?.priceTickUnits ?? 0) /
+              Number(assetScales[current?.quoteAsset ?? ""] ?? 1)
+            }
+            pricePrecision={priceDisplayPrecision(current, assetScales)}
             volumeUnit={current?.baseAsset ?? ""}
             demo={demo}
             unavailable={!demo && candles.length === 0}
@@ -1644,6 +1675,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   : 0
               }
               dollar={isDollarQuote(current?.quoteAsset)}
+              pricePrecision={priceDisplayPrecision(current, assetScales)}
               baseAsset={current?.baseAsset ?? "—"}
               quoteAsset={current?.quoteAsset ?? "—"}
               onDepthChange={setBookDepth}
@@ -1680,7 +1712,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                           text(trade, "side") === "SELL" ? "negative mono" : "positive mono"
                         }
                       >
-                        {displayPrice(text(trade, "price"), isDollarQuote(current?.quoteAsset))}
+                        {displayPrice(
+                          text(trade, "price"),
+                          isDollarQuote(current?.quoteAsset),
+                          priceDisplayPrecision(current, assetScales),
+                        )}
                       </span>
                       <span className="mono">
                         {formatTradeQuantity(tradeDisplayQuantity(trade, current, assetScales))}
@@ -2012,6 +2048,7 @@ export function OrderBook({
   depth,
   precision,
   priceStep,
+  pricePrecision = priceDecimalsForStep(priceStep),
   baseAsset,
   quoteAsset,
   dollar,
@@ -2023,6 +2060,7 @@ export function OrderBook({
   readonly depth: 10 | 20 | 50
   readonly precision: 1 | 10 | 100
   readonly priceStep: number
+  readonly pricePrecision?: number
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly dollar: boolean
@@ -2070,7 +2108,9 @@ export function OrderBook({
           >
             {([1, 10, 100] as const).map((multiple) => (
               <option key={multiple} value={multiple}>
-                {priceStep > 0 ? (priceStep * multiple).toFixed(8).replace(/\.?0+$/, "") : "—"}
+                {priceStep > 0
+                  ? formatPrice(priceStep * multiple, priceDecimalsForStep(priceStep * multiple))
+                  : "—"}
               </option>
             ))}
           </DropdownSelect>{" "}
@@ -2112,6 +2152,7 @@ export function OrderBook({
                   maxQuantity={maxQuantity}
                   tone="negative"
                   dollar={dollar}
+                  pricePrecision={pricePrecision}
                 />
               ))}
             </div>
@@ -2122,7 +2163,7 @@ export function OrderBook({
           <strong
             className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
           >
-            {displayPrice(text(latestTrade, "price"), dollar)}
+            {displayPrice(text(latestTrade, "price"), dollar, pricePrecision)}
           </strong>
         </div>
         <section className="order-book-side" aria-label={t("Bids, high to low")}>
@@ -2150,6 +2191,7 @@ export function OrderBook({
                   maxQuantity={maxQuantity}
                   tone="positive"
                   dollar={dollar}
+                  pricePrecision={pricePrecision}
                 />
               ))}
             </div>
@@ -2178,7 +2220,7 @@ function aggregateBookLevels(
       side === "bid"
         ? Math.floor((price + priceStep * 1e-9) / priceStep)
         : Math.ceil((price - priceStep * 1e-9) / priceStep)
-    const key = String(Number((bucket * priceStep).toFixed(10)))
+    const key = String(Number((bucket * priceStep).toFixed(priceDecimalsForStep(priceStep))))
     buckets.set(key, addDecimalQuantities(buckets.get(key) ?? "0", quantity))
   }
   return [...buckets].map(([price, quantity]) => [price, String(quantity)] as Level)
@@ -2260,11 +2302,13 @@ function LevelRow({
   maxQuantity,
   tone,
   dollar,
+  pricePrecision,
 }: {
   readonly level: Level
   readonly total: string
   readonly maxQuantity: number
   readonly tone: "positive" | "negative"
+  readonly pricePrecision: number
   readonly dollar: boolean
 }) {
   const price = Array.isArray(level) ? String(level[0]) : String(level.priceTicks)
@@ -2281,7 +2325,7 @@ function LevelRow({
         aria-hidden="true"
         style={{ transform: `scaleX(${fill})` }}
       />
-      <strong className={`${tone} mono`}>{displayPrice(price, dollar)}</strong>
+      <strong className={`${tone} mono`}>{displayPrice(price, dollar, pricePrecision)}</strong>
       <span className="mono" title={amount}>
         {amount}
       </span>
@@ -2697,16 +2741,14 @@ function isDollarQuote(asset: string | null | undefined): boolean {
   return asset === "USD" || asset === "USDT" || asset === "USDC"
 }
 
-const dollarDisplayFormatter = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
 const tradeQuantityFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
 
-function displayPrice(value: string, dollar: boolean): string {
+function displayPrice(value: string, dollar: boolean, precision?: number): string {
   if (!value) return "—"
   const numeric = Number(value)
-  return dollar && Number.isFinite(numeric) ? dollarDisplayFormatter.format(numeric) : value
+  return Number.isFinite(numeric)
+    ? formatPrice(numeric, precision ?? (dollar && numeric >= 1 ? 2 : undefined))
+    : "—"
 }
 function formatTradeQuantity(value: string): string {
   const quantity = Number(value)
@@ -3016,4 +3058,16 @@ function compareSequences(left: string, right: string): number {
   } catch {
     return left.localeCompare(right)
   }
+}
+
+function priceDisplayPrecision(
+  market: Market | null | undefined,
+  scales: Readonly<Record<string, string>>,
+): number {
+  if (!market) return 2
+  const step =
+    market.priceTickUnits && scales[market.quoteAsset]
+      ? Number(stepUnitsToDecimal("1", market.priceTickUnits, scales[market.quoteAsset] ?? "1"))
+      : 0
+  return priceDecimalsForStep(step, market.pricePrecision)
 }

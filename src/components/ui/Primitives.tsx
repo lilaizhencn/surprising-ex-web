@@ -2,11 +2,7 @@ import { Check, Copy, LoaderCircle, Search, Star, TriangleAlert } from "lucide-r
 import type { ButtonHTMLAttributes, ReactNode } from "react"
 import { t } from "../../i18n"
 
-const priceFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
-const dollarPriceFormatter = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
+import { formatPrice } from "../../lib/format"
 
 type ButtonTone = "primary" | "outline" | "ghost" | "positive" | "negative"
 
@@ -127,16 +123,18 @@ export function Price({
   value,
   prefix = "",
   dollar = false,
+  pricePrecision,
 }: {
   readonly value: number | null
   readonly prefix?: string
   readonly dollar?: boolean
+  readonly pricePrecision?: number
 }) {
   return (
     <span className="mono">
       {value === null || value <= 0
         ? "—"
-        : `${prefix}${(dollar ? dollarPriceFormatter : priceFormatter).format(value)}`}
+        : `${prefix}${formatPrice(value, pricePrecision ?? (dollar && value >= 1 ? 2 : undefined))}`}
     </span>
   )
 }

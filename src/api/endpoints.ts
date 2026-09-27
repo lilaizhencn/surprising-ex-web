@@ -221,7 +221,7 @@ export async function loadCandles(
   const response = await request(
     `/api/v1/gateway/candlestick/candles?${query.toString()}`,
     CandleListSchema,
-    productLine ? { productLine } : {},
+    { ...(productLine ? { productLine } : {}), retry: 0 },
   )
   return response.candles ?? response.items ?? []
 }

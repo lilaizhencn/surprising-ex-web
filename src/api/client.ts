@@ -26,6 +26,7 @@ export type RequestOptions = {
   readonly productLine?: ProductLine
   readonly idempotencyKey?: string
   readonly signal?: AbortSignal
+  readonly retry?: number
 }
 
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
@@ -50,7 +51,7 @@ export async function request<T>(
     method,
     headers,
     timeout: 10_000,
-    retry: method === "GET" ? { limit: 1, methods: ["get"] } : { limit: 0 },
+    retry: method === "GET" ? { limit: options.retry ?? 1, methods: ["get"] } : { limit: 0 },
     throwHttpErrors: false,
   }
   if (options.body !== undefined) {

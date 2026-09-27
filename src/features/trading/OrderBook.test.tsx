@@ -95,3 +95,29 @@ it("scales row backgrounds by individual quantity on a shared bid/ask scale", ()
   expect(render([["101", "2"]])).toContain("transform:scaleX(1)")
   expect(render([["101", "0"]])).not.toContain("scaleX(NaN)")
 })
+
+it("preserves adjacent sub-cent and sub-nanocent price levels", () => {
+  const html = renderToStaticMarkup(
+    createElement(OrderBook, {
+      book: {
+        bids: [
+          ["0.000000000123", "1"],
+          ["0.000000000122", "2"],
+        ],
+        asks: [["0.000000000124", "1"]],
+      },
+      latestTrade: { price: "0.000000000123", side: "BUY" },
+      depth: 50,
+      precision: 1,
+      priceStep: 1e-12,
+      dollar: true,
+      baseAsset: "TINY",
+      quoteAsset: "USDT",
+      onDepthChange: () => {},
+      onPrecisionChange: () => {},
+    }),
+  )
+  expect(html).toContain("0.000000000123")
+  expect(html).toContain("0.000000000122")
+  expect(html).toContain("0.000000000124")
+})

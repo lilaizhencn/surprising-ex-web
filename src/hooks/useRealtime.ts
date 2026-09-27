@@ -27,6 +27,7 @@ export function useRealtime(
   symbol: string,
   productLine: ProductLine,
   period: string,
+  additionalSubscriptions: readonly Subscription[] = [],
 ) {
   const plan: Subscription[] = symbol
     ? [
@@ -42,7 +43,7 @@ export function useRealtime(
         ...(channel === "candles" ? { period } : {}),
       }))
     : []
-  return useRealtimeFeed(session, plan)
+  return useRealtimeFeed(session, [...plan, ...additionalSubscriptions])
 }
 
 export function useRealtimeFeed(

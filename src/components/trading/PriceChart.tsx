@@ -11,12 +11,9 @@ import {
 } from "lightweight-charts"
 import { useEffect, useRef, useState } from "react"
 import { t } from "../../i18n"
+import { formatPrice as displayPrice } from "../../lib/format"
 import type { Candle } from "../../types/domain"
 
-const dollarPrice = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
 const otherPrice = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
 const candleTime = new Intl.DateTimeFormat(undefined, {
   month: "2-digit",
@@ -106,14 +103,16 @@ export function prepareChartCandles(
 export function PriceChart({
   candles,
   period,
-  dollar,
+  pricePrecision,
+  priceStep,
   volumeUnit,
   demo,
   unavailable,
 }: {
   readonly candles: readonly Candle[]
   readonly period: string
-  readonly dollar: boolean
+  readonly pricePrecision: number
+  readonly priceStep: number
   readonly volumeUnit: string
   readonly demo: boolean
   readonly unavailable: boolean
@@ -134,7 +133,7 @@ export function PriceChart({
   const latest = valid.at(-1)
   const hovered = valid.find((bar) => Math.floor(Date.parse(bar.time) / 1000) === hoveredTime)
   const displayed = hovered ?? latest
-  const formatPrice = (price: number) => (dollar ? dollarPrice : otherPrice).format(price)
+  const formatPrice = (price: number) => displayPrice(price, pricePrecision)
 
   useEffect(() => {
     const element = containerRef.current
@@ -274,8 +273,8 @@ export function PriceChart({
     price.applyOptions({
       priceFormat: {
         type: "price",
-        precision: dollar ? 2 : 8,
-        minMove: dollar ? 0.01 : 0.00000001,
+        precision: pricePrecision,
+        minMove: priceStep > 0 ? priceStep : 10 ** -pricePrecision,
       },
     })
     const volumePrecision = Math.max(
@@ -353,7 +352,7 @@ export function PriceChart({
       lastPeriod.current = period
     }
     lastBar.current = bars.length > 0 ? { first, last, count: bars.length } : null
-  }, [valid, dollar, period])
+  }, [valid, pricePrecision, priceStep, period])
 
   return (
     <div className="price-chart">
