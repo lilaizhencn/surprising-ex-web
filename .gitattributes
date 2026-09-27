@@ -1,0 +1,2 @@
+# Keep downloaded SVG bytes intact so provenance hashes survive checkout.
+public/assets/coins/*.svg -text
