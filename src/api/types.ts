@@ -79,6 +79,11 @@ export const MarketSchema = z
     volume24hUnits: SafeIntegerWireSchema.optional(),
     high24h: NumericSchema.optional(),
     low24h: NumericSchema.optional(),
+    notionalMultiplierUnits: SafeIntegerWireSchema.optional(),
+    minQuantitySteps: SafeIntegerWireSchema.optional(),
+    maxQuantitySteps: SafeIntegerWireSchema.optional(),
+    maxPositionNotionalUnits: SafeIntegerWireSchema.optional(),
+    userOpenInterestLimitFloorUnits: SafeIntegerWireSchema.optional(),
     priceTickUnits: SafeIntegerWireSchema.optional(),
     quantityStepUnits: SafeIntegerWireSchema.optional(),
     pricePrecision: z.number().optional(),
@@ -139,6 +144,7 @@ export const CandleSchema = z
     lowPrice: NumericSchema,
     closePrice: NumericSchema,
     baseVolume: NumericSchema.optional(),
+    quoteVolume: NumericSchema.optional(),
   })
   .passthrough()
 

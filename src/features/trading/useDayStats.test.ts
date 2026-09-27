@@ -19,6 +19,7 @@ function candle(
     lowPrice: low,
     closePrice: close,
     baseVolume: volume,
+    quoteVolume: volume * 100,
     lastSequence: String(sequence),
   }
 }
@@ -34,6 +35,7 @@ it("calculates the day independently of chart periods and retains the current mi
     low: 90,
     close: 112,
     volume: 4,
+    quoteVolume: 400,
     change: 12,
   })
 })
@@ -48,6 +50,7 @@ it("expires old extrema and volume when the minute rolls even without a trade", 
     low: 95,
     close: 105,
     volume: 2,
+    quoteVolume: 200,
     change: 5,
   })
   expect(summarizeDayWindow(rows, now + 86_460_000)).toBeNull()
@@ -62,6 +65,7 @@ it("replaces absolute minute volume and ignores stale history after newer live d
     low: 99,
     close: 103,
     volume: 5,
+    quoteVolume: 500,
   })
 })
 it("excludes expired and future buckets and sorts unordered snapshots", () => {

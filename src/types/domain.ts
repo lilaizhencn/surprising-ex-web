@@ -22,6 +22,11 @@ export type Market = {
   readonly low24h: number | null
   readonly pricePrecision: number
   readonly quantityPrecision: number
+  readonly notionalMultiplierUnits?: string | undefined
+  readonly minQuantitySteps?: string | undefined
+  readonly maxQuantitySteps?: string | undefined
+  readonly maxPositionNotionalUnits?: string | undefined
+  readonly userOpenInterestLimitFloorUnits?: string | undefined
   readonly priceTickUnits?: string | undefined
   readonly quantityStepUnits?: string | undefined
   readonly maxLeverage: number | null

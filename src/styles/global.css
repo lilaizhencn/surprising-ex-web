@@ -1677,7 +1677,7 @@ button:disabled {
   border-bottom: 1px solid var(--color-border);
 }
 .ticket-tabs button {
-  height: calc(var(--trade-heading-height) - var(--space-1) - 1px);
+  height: 48px;
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
@@ -2486,7 +2486,7 @@ button:disabled {
   font-size: 12px;
 }
 .trade-pair-popover {
-  position: absolute;
+  position: fixed;
   top: calc(100% + 12px);
   left: 0;
   z-index: 30;
@@ -2749,7 +2749,7 @@ button:disabled {
   color: var(--color-primary);
 }
 .trade-contract-popover {
-  position: absolute;
+  position: fixed;
   z-index: 31;
   top: calc(100% + 12px);
   left: 0;
@@ -3072,4 +3072,235 @@ body,
   color: var(--color-ink-muted);
   font-size: var(--font-body-small);
   margin-top: var(--space-2);
+}
+
+/* One ticker row at every width; narrow screens can scroll it horizontally. */
+.trade-shell {
+  --trade-heading-height: 58px;
+}
+.trade-market-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: clamp(6px, 0.55vw, 12px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 7px 12px;
+}
+.trade-market-header > div,
+.trade-market-header > div:first-child,
+.trade-market-header > div:nth-child(2),
+.trade-market-header > div:nth-child(3),
+.trade-market-header .funding-summary {
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+.trade-market-header > div:first-child {
+  padding-right: 4px;
+}
+.trade-market-header .trade-pair-trigger {
+  font-size: clamp(11px, 0.85vw, 14px);
+}
+.trade-market-header small {
+  font-size: clamp(9px, 0.62vw, 11px);
+}
+.trade-market-header > div > strong {
+  font-size: clamp(10px, 0.7vw, 12px);
+}
+.trade-market-header > div:nth-child(2) > strong {
+  font-size: clamp(13px, 1vw, 17px);
+}
+.trade-ticket {
+  gap: clamp(12px, 1.2vw, 20px);
+  padding-inline: clamp(12px, 1.15vw, 20px);
+}
+.ticket-tabs button {
+  white-space: nowrap;
+  padding-inline: 4px;
+  font-size: clamp(12px, 0.85vw, 14px);
+}
+.ticket-contract-settings button,
+.ticket-contract-settings .dropdown-select {
+  min-width: 0;
+  font-size: clamp(12px, 0.85vw, 14px);
+}
+.ticket-order-actions button {
+  white-space: nowrap;
+  font-size: clamp(12px, 0.85vw, 14px);
+  padding-inline: 4px;
+}
+.ticket-sign-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-positive);
+  color: var(--color-surface);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.index-price-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.index-info-trigger {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+.index-price-popover {
+  position: fixed;
+  inset: 90px 20px auto auto;
+  margin: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 13px;
+  white-space: normal;
+  box-shadow: 0 12px 40px #0003;
+}
+.index-price-popover-heading,
+.leverage-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.index-price-popover-heading h3,
+.leverage-dialog-heading h2 {
+  margin: 0;
+}
+.index-price-popover-heading button,
+.leverage-dialog-heading button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 4px;
+  cursor: pointer;
+}
+.index-price-popover p,
+.index-price-popover li {
+  line-height: 1.7;
+}
+.index-price-popover ol {
+  padding-left: 20px;
+}
+.index-price-formula {
+  padding: 10px;
+  background: var(--color-surface-muted);
+  border-radius: 6px;
+}
+.index-price-components {
+  overflow-x: auto;
+}
+.index-price-components table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.index-price-components th,
+.index-price-components td {
+  text-align: left;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+}
+.ticket-contract-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+.ticket-contract-settings > button {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.ticket-order-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.leverage-dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+.leverage-dialog::backdrop {
+  background: #0008;
+}
+.leverage-dialog label {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+.leverage-dialog input {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 20px;
+}
+.leverage-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.leverage-presets button,
+.leverage-dialog-actions button {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.leverage-presets .active {
+  color: var(--color-on-accent);
+  background: var(--color-primary);
+}
+.leverage-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+.leverage-dialog-actions button:last-child {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+.leverage-dialog .muted {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ticket-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 6px;
+  font-size: clamp(12px, 0.8vw, 13px);
+}
+.ticket-summary > span {
+  white-space: nowrap;
 }

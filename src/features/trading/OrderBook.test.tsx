@@ -136,7 +136,6 @@ it("aggregates only price and preserves fractional base quantities", () => {
       depth: 50,
       precision: 1,
       priceStep: 0.1,
-      quantityStep: "0.01",
       dollar: true,
       baseAsset: "BTC",
       quoteAsset: "USDT",
@@ -147,6 +146,5 @@ it("aggregates only price and preserves fractional base quantities", () => {
   expect(html).toContain("100.10")
   expect(html).toContain('title="0.03"')
   expect(html).toContain("Price step")
-  expect(html).toContain("Quantity step")
-  expect(html).toContain("0.01")
+  expect(html).not.toContain("Quantity step")
 })

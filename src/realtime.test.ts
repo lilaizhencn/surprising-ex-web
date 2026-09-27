@@ -196,3 +196,20 @@ it("closing a position does not double-count realized PnL", () => {
   )
   expect(accountEquity(view, markets, "LINEAR_PERPETUAL").balances[0]?.["equityUnits"]).toBe("1500")
 })
+
+it("accepts an authoritative depth snapshot after the Core sequence restarts", () => {
+  const old = {
+    op: "event",
+    channel: "depth",
+    version: "0000000009000000000:0000000000",
+    data: { updateType: "DELTA" },
+  }
+  const fresh = {
+    op: "event",
+    channel: "depth",
+    version: "0000000000000000001:0000000000",
+    data: { updateType: "SNAPSHOT" },
+  }
+  expect(newerPublicEvent(fresh, old)).toBe(true)
+  expect(newerPublicEvent({ ...fresh, data: { updateType: "DELTA" } }, old)).toBe(false)
+})

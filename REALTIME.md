@@ -77,3 +77,10 @@ pong 可维持无成交市场的连接。页面重新可见或 pageshow 时立�
 2026-09-27：71 项测试、lint、build 通过；新增半开无 close、安静市场 pong、模拟五分钟后台恢复、
 连接握手不完成四项回归。Chrome 模拟时间跳变及 visibilitychange 后重新订阅，并收到 mark/index/funding；
 390px 移动布局无横向溢出，无页面 JS 错误。该阶段 Core 正在重放，未据此宣称成交已恢复。
+
+### 2026-09-27 交易页恢复和统计
+
+- `useRealtime` 为新的 depth `SNAPSHOT` 建立新的页面事件 ID，清除该币对旧增量；`newerPublicEvent` 与 `TradePage` 接受重新建立基线的快照，即使核心重置后序号小于旧连接。普通 `DELTA` 仍检查版本和 `previousSequence`，断档请求 WebSocket 最新快照。
+- 衍生品订阅 `openInterest`，由网关读取当前产品线权威账户 OI 快照，按单边持仓口径推送。`READY` 才显示，`UNAVAILABLE` 或断连不显示旧值为零。
+- 24 小时成交量、成交额由 `useDayStats` 的独立 1 分钟滚动窗口计算，与图表选择的 15m/1h 等周期无关。成交额累加实际 `quoteVolume`，不以最新价格乘成交量替代。
+- 盘口价格聚合只调整价格桶，不改变合约数量步长；数量按合约乘数显示，不另加 Quantity step 文案。

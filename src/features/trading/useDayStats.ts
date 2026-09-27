@@ -49,6 +49,9 @@ export function summarizeDayWindow(rows: readonly ApiCandle[], now: number) {
     high: Math.max(...window.map((row) => Number(row.highPrice))),
     low: Math.min(...window.map((row) => Number(row.lowPrice))),
     volume: window.reduce((sum, row) => sum + Number(row.baseVolume ?? 0), 0),
+    quoteVolume: window.every((row) => row.quoteVolume !== undefined)
+      ? window.reduce((sum, row) => sum + Number(row.quoteVolume), 0)
+      : null,
     change: open > 0 ? ((close - open) / open) * 100 : null,
   }
 }

@@ -34,7 +34,7 @@ export function useRealtime(
         "trades",
         "depth",
         "candles",
-        ...(productLine === "SPOT" ? [] : ["index", "mark"]),
+        ...(productLine === "SPOT" ? [] : ["index", "mark", "openInterest"]),
         ...(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"].includes(productLine) ? ["funding"] : []),
       ].map((channel) => ({
         channel,
@@ -63,6 +63,7 @@ export function useRealtimeFeed(
   desired.current = subscriptions
   const key = subscriptions.map(subscriptionKey).sort().join("|")
   const latest = useRef(new Map<string, WsEnvelope>())
+  const depthSnapshotSerial = useRef(0)
   const recoverDepth = useRef<(subscription: Subscription) => void>(() => {})
   const refreshDepth = useCallback((productLine: ProductLine, symbol: string) => {
     recoverDepth.current({ channel: "depth", productLine, symbol })
@@ -103,12 +104,27 @@ export function useRealtimeFeed(
       null,
       (raw) => {
         if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
-        const event = unwrapEvent(raw)
+        let event = unwrapEvent(raw)
         const key = [raw.productLine, raw.channel, raw.symbol ?? "*", raw.period ?? ""].join(":")
         if (awaitingDepthSnapshot.has(key)) {
           if ((event.data as { updateType?: string } | undefined)?.updateType !== "SNAPSHOT") return
           awaitingDepthSnapshot.delete(key)
           latest.current.delete(key)
+        }
+        if (
+          event.channel === "depth" &&
+          (event.data as { updateType?: string })?.updateType === "SNAPSHOT"
+        ) {
+          // Discard the old connection's deltas; the fresh snapshot is authoritative.
+          tape = tape.filter(
+            (row) =>
+              !(
+                row.channel === "depth" &&
+                row.productLine === event.productLine &&
+                row.symbol === event.symbol
+              ),
+          )
+          event = { ...event, id: `${event.id}:snapshot:${++depthSnapshotSerial.current}` }
         }
         if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)

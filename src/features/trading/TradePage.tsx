@@ -16,6 +16,7 @@ import {
   loadAssetScales,
   loadBalances,
   loadCandles,
+  loadEffectiveTradingFee,
   loadFundingPayments,
   loadFundingRate,
   loadFundingRateHistory,
@@ -88,8 +89,11 @@ import {
   PRODUCT_LINES,
   type ProductLine,
 } from "../../types/domain"
+import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
+import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
+import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
 import {
   closeSideForPosition,
   selectTriggerPosition,
@@ -191,11 +195,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [pairOpen, setPairOpen] = useState(false)
   const [contractInfoOpen, setContractInfoOpen] = useState(false)
   const pairPickerRef = useRef<HTMLDivElement>(null)
+  const positionPairPopover = useCallback((element: HTMLDivElement | null) => {
+    const anchor = pairPickerRef.current?.getBoundingClientRect()
+    if (!element || !anchor) return
+    element.style.left = `${Math.max(16, Math.min(anchor.left, window.innerWidth - element.offsetWidth - 16))}px`
+    element.style.top = `${anchor.bottom + 12}px`
+  }, [])
   const [marketSideTab, setMarketSideTab] = useState<"book" | "trades">("book")
   const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
   const [book, setBook] = useState<ApiOrderBook | null>(null)
   const [bookDepth, setBookDepth] = useState<10 | 20 | 50>(50)
-  const [bookPrecision, setBookPrecision] = useState<1 | 10 | 100>(1)
+  const [ticketAction, setTicketAction] = useState<"OPEN" | "CLOSE">("OPEN")
+  const [leverageSetting, setLeverageSetting] = useState<LeverageSettings | null>(null)
+  const [userFees, setUserFees] = useState<Record<string, unknown> | null>(null)
+  const [bookPrecision, setBookPrecision] = useState<number>(1)
   const bookSequenceRef = useRef<string | null>(null)
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
@@ -269,20 +282,26 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           : left.symbol.localeCompare(right.symbol),
     )
   useEffect(() => {
-    if (!pairOpen) return
+    if (!pairOpen && !contractInfoOpen) return
+    const closePopovers = () => {
+      setPairOpen(false)
+      setContractInfoOpen(false)
+    }
     const closeOutside = (event: PointerEvent) => {
-      if (!pairPickerRef.current?.contains(event.target as Node)) setPairOpen(false)
+      if (!pairPickerRef.current?.contains(event.target as Node)) closePopovers()
     }
     const closeEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPairOpen(false)
+      if (event.key === "Escape") closePopovers()
     }
+    window.addEventListener("resize", closePopovers)
     document.addEventListener("pointerdown", closeOutside)
     document.addEventListener("keydown", closeEscape)
     return () => {
+      window.removeEventListener("resize", closePopovers)
       document.removeEventListener("pointerdown", closeOutside)
       document.removeEventListener("keydown", closeEscape)
     }
-  }, [pairOpen])
+  }, [pairOpen, contractInfoOpen])
   const current = useMemo(() => {
     return (
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null
@@ -302,15 +321,41 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ? (balances.find((row) => row.asset.toUpperCase() === asset.toUpperCase()) ?? null)
       : null
   }, [balances, current, side, view.line])
-  const quantityStep = useMemo(() => {
-    if (!current) return null
-    try {
-      const spec = marketQuantitySpec(current, assetScales)
-      return stepUnitsToDecimal("1", spec.unitSize, spec.scale)
-    } catch {
-      return null
+  useEffect(() => {
+    let cancelled = false
+    setUserFees(null)
+    if (session?.user.userId && current?.symbol)
+      void loadEffectiveTradingFee(session.user.userId, current.symbol, view.line)
+        .then((value) => {
+          if (!cancelled) setUserFees(value)
+        })
+        .catch(() => {})
+    return () => {
+      cancelled = true
     }
-  }, [current, assetScales])
+  }, [session?.user.userId, current?.symbol, view.line])
+  const handleLeverageChange = useCallback((setting: LeverageSettings | null) => {
+    setLeverageSetting(setting)
+    if (setting) setOrderSettings((previous) => ({ ...previous, marginMode: setting.marginMode }))
+  }, [])
+  const openingCapacity = (direction: OrderSide) => {
+    if (!current || !leverageSetting || !userFees) return ""
+    const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
+    return (
+      linearOpeningCapacity({
+        market: current,
+        scales: assetScales,
+        availableUnits: balance?.availableUnits,
+        referencePrice:
+          orderType === "LIMIT" && !useBbo ? price : level ? String(levelPrice(level)) : "",
+        marginRatePpm: leverageSetting.initialMarginRatePpm,
+        feeRatePpm: numberValue(userFees, "takerFeeRatePpm") ?? undefined,
+        positions,
+        orders: openOrders,
+        side: direction,
+      }) ?? ""
+    )
+  }
   const triggerSupported = view.line !== PRODUCT_LINES.spot
   const activeTriggerPosition = useMemo(
     () =>
@@ -342,6 +387,30 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       : []),
   ])
   const displayedDayStats = useDayStats(current?.symbol, view.line, realtime.events, realtime.state)
+  const openInterestQuantity = useMemo(() => {
+    if (!current || realtime.state !== "live") return ""
+    const event = realtime.events.find(
+      (row) =>
+        row.channel === "openInterest" &&
+        row.symbol === current.symbol &&
+        row.productLine === view.line,
+    )
+    const data = event?.data as Record<string, unknown> | undefined
+    const receivedAt = Date.parse(event?.eventTime ?? "")
+    if (
+      data?.["status"] !== "READY" ||
+      !Number.isFinite(receivedAt) ||
+      Date.now() - receivedAt > 5000
+    )
+      return ""
+    try {
+      const spec = marketQuantitySpec(current, assetScales)
+      return stepUnitsToDecimal(String(data["openInterestSteps"]), spec.unitSize, spec.scale)
+    } catch {
+      return ""
+    }
+  }, [current, view.line, realtime.events, realtime.state, assetScales])
+
   const privateViewReady = useRef(false)
   privateViewReady.current = realtime.views[view.line]?.ready() ?? false
 
@@ -374,6 +443,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   useEffect(() => {
     const account = realtime.views[view.line]
+    if (account?.ready())
+      setOrderSettings((previous) => ({
+        ...previous,
+        positionMode: account.positionMode === "HEDGE" ? "HEDGE" : "ONE_WAY",
+        positionSide:
+          account.positionMode === "HEDGE"
+            ? previous.positionSide === "NET"
+              ? "LONG"
+              : previous.positionSide
+            : "NET",
+      }))
     if (!session || !account?.ready()) return
     const parsedBalances = account.rows("balance").map((row) => BalanceSchema.safeParse(row))
     const parsedOrders = account
@@ -714,13 +794,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const applyEvent = (event: WsEnvelope) => {
       const channel = text(event, "channel")
       const data = record(valueAt(event, "data"))
-      const recoverySnapshot =
-        channel === "depth" && data?.["updateType"] === "SNAPSHOT" && bookResyncingRef.current
       if (
         event.op !== "event" ||
         event.productLine !== view.line ||
         !event.id ||
-        (processedEvents.current.has(event.id) && !recoverySnapshot)
+        processedEvents.current.has(event.id)
       )
         return
       processedEvents.current.add(event.id)
@@ -799,7 +877,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             return
           }
           if (
-            recoverySnapshot ||
+            orderBook.data.updateType === "SNAPSHOT" ||
             !currentSequence ||
             compareSequences(nextSequence, currentSequence) > 0
           ) {
@@ -879,7 +957,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     view.line,
   ])
 
-  const submit = async () => {
+  const submit = async (requestedSide: OrderSide = side) => {
+    const side = requestedSide
     if (!session) {
       setSubmitState("error")
       setSubmitMessage(t("Please sign in before placing an order."))
@@ -920,6 +999,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setSubmitMessage(t("Trigger orders require a valid trigger price."))
       return
     }
+    if (view.line !== PRODUCT_LINES.spot && orderType !== "STOP" && !leverageSetting) {
+      setSubmitState("error")
+      setSubmitMessage(t("Wait for account leverage settings before submitting."))
+      return
+    }
     let quantitySteps: string
     let priceTicks: string | 0
     try {
@@ -942,6 +1026,25 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }
       const quantitySpec = marketQuantitySpec(current, assetScales)
       quantitySteps = decimalToStepUnits(quantity, quantitySpec.unitSize, quantitySpec.scale)
+      if (view.line !== PRODUCT_LINES.spot && orderType !== "STOP" && ticketAction === "CLOSE") {
+        const position = selectTriggerPosition(
+          positions,
+          current.symbol,
+          orderSettings.marginMode,
+          orderSettings.positionMode,
+          orderPositionSide(orderSettings.positionMode, "CLOSE", side),
+        )
+        if (
+          !position ||
+          closeSideForPosition(position) !== side ||
+          BigInt(quantitySteps) >
+            (signedPositionSteps(position) < 0n
+              ? -signedPositionSteps(position)
+              : signedPositionSteps(position))
+        )
+          throw new Error(t("Close quantity exceeds the selected position."))
+      }
+
       if (orderType === "STOP" && activeTriggerPosition) {
         const positionCapacity = signedPositionSteps(activeTriggerPosition)
         const absoluteCapacity = positionCapacity < 0n ? -positionCapacity : positionCapacity
@@ -1086,8 +1189,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             priceTicks,
             quantitySteps,
             marginMode: orderSettings.marginMode,
-            positionSide: orderSettings.positionSide,
-            reduceOnly: false,
+            positionSide:
+              view.line === PRODUCT_LINES.spot
+                ? "NET"
+                : orderPositionSide(orderSettings.positionMode, ticketAction, side),
+            reduceOnly: view.line !== PRODUCT_LINES.spot && ticketAction === "CLOSE",
             postOnly: false,
           },
           view.line,
@@ -1154,6 +1260,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </h1>
               {contractInfoOpen && current ? (
                 <div
+                  ref={positionPairPopover}
                   className="trade-contract-popover"
                   role="dialog"
                   aria-label={t("Contract information")}
@@ -1199,7 +1306,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </div>
               ) : null}
               {pairOpen ? (
-                <div className="trade-pair-popover">
+                <div className="trade-pair-popover" ref={positionPairPopover}>
                   <SearchField
                     value={pairSearch}
                     onChange={setPairSearch}
@@ -1365,13 +1472,47 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </strong>
               </div>
               <div>
-                <small>{t("Index price")}</small>
+                <div className="index-price-label">
+                  <small>{t("Index price")}</small>
+                  <IndexPriceDetails
+                    index={indexPrice}
+                    precision={priceDisplayPrecision(current, assetScales)}
+                  />
+                </div>
                 <strong className="mono">
                   <Price
                     value={numberValue(indexPrice, "indexPrice")}
                     dollar={isDollarQuote(current?.quoteAsset)}
                     pricePrecision={priceDisplayPrecision(current, assetScales)}
                   />
+                </strong>
+              </div>
+              <div>
+                <small>
+                  {t("24h Volume")} ({current?.baseAsset})
+                </small>
+                <strong className="mono" title={String(displayedDayStats?.volume ?? "")}>
+                  {formatTradeQuantity(displayedDayStats ? String(displayedDayStats.volume) : "")}
+                </strong>
+              </div>
+              <div>
+                <small>
+                  {t("24h Turnover")} ({current?.quoteAsset})
+                </small>
+                <strong className="mono" title={String(displayedDayStats?.quoteVolume ?? "")}>
+                  {formatTradeQuantity(
+                    displayedDayStats?.quoteVolume == null
+                      ? ""
+                      : displayedDayStats.quoteVolume.toFixed(2),
+                  )}
+                </strong>
+              </div>
+              <div>
+                <small>
+                  {t("Open interest")} ({current?.baseAsset})
+                </small>
+                <strong className="mono" title={openInterestQuantity}>
+                  {formatTradeQuantity(openInterestQuantity)}
                 </strong>
               </div>
               <div className="funding-summary">
@@ -1483,6 +1624,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <div className="trade-account-body" role="tabpanel">
               {accountTab === "settings" ? (
                 <TradingAccountControls
+                  marginMode={orderSettings.marginMode}
                   userId={session?.user.userId}
                   symbol={current?.symbol ?? view.symbol}
                   productLine={view.line}
@@ -1642,7 +1784,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               latestTrade={recentTrades[0] ?? null}
               depth={bookDepth}
               precision={bookPrecision}
-              quantityStep={quantityStep}
               priceStep={
                 current?.priceTickUnits && assetScales[current.quoteAsset]
                   ? Number(current.priceTickUnits) / Number(assetScales[current.quoteAsset])
@@ -1705,23 +1846,44 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         </aside>
         <aside className="trade-ticket">
           <div className="ticket-tabs">
-            <button
-              type="button"
-              className={side === "BUY" ? "buy active" : "buy"}
-              onClick={() => setSide("BUY")}
-            >
-              {" "}
-              {t("Buy")}{" "}
-            </button>
-            <button
-              type="button"
-              className={side === "SELL" ? "sell active" : "sell"}
-              onClick={() => setSide("SELL")}
-            >
-              {" "}
-              {t("Sell")}{" "}
-            </button>
+            {(view.line === PRODUCT_LINES.spot
+              ? (["BUY", "SELL"] as const)
+              : (["OPEN", "CLOSE"] as const)
+            ).map((action) => (
+              <button
+                type="button"
+                key={action}
+                className={
+                  (action === "BUY" || action === "OPEN" ? "buy" : "sell") +
+                  (action === side || action === ticketAction ? " active" : "")
+                }
+                onClick={() => {
+                  if (action === "BUY" || action === "SELL") setSide(action)
+                  else setTicketAction(action)
+                }}
+              >
+                {t(
+                  action === "BUY"
+                    ? "Buy"
+                    : action === "SELL"
+                      ? "Sell"
+                      : action === "OPEN"
+                        ? "Open position"
+                        : "Close position",
+                )}
+              </button>
+            ))}
           </div>
+          {view.line !== PRODUCT_LINES.spot && current && (
+            <TradingTicketControls
+              key={`${view.line}:${current.symbol}:${session?.user.userId ?? "guest"}`}
+              userId={session?.user.userId}
+              symbol={current.symbol}
+              productLine={view.line}
+              marginMode={orderSettings.marginMode}
+              onChange={handleLeverageChange}
+            />
+          )}
           <div className="order-type-tabs">
             {(triggerSupported
               ? (["LIMIT", "MARKET", "STOP"] as const)
@@ -1975,7 +2137,33 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 : t("Login required")}
             </span>
             <span>{t("Est. fee")}</span>
-            <span className="mono">{estimatedFee(current, price, quantity)}</span>
+            <span className="mono">
+              {estimatedFee(current, price, quantity, numberValue(userFees, "takerFeeRatePpm"))}
+            </span>
+            {view.line !== PRODUCT_LINES.spot && (
+              <>
+                <span
+                  title={t(
+                    "Estimate based on available margin, leverage, fees and position limits; final admission is checked by the matching service.",
+                  )}
+                >
+                  {t("Est. max long")}
+                </span>
+                <span className="mono">
+                  {formatTradeQuantity(openingCapacity("BUY"))} {current?.baseAsset}
+                </span>
+                <span>{t("Est. max short")}</span>
+                <span className="mono">
+                  {formatTradeQuantity(openingCapacity("SELL"))} {current?.baseAsset}
+                </span>
+              </>
+            )}
+            <span>{t("Maker / Taker fee")}</span>
+            <span className="mono">
+              {userFees
+                ? `${Number(((numberValue(userFees, "makerFeeRatePpm") ?? 0) / 10000).toFixed(4))}% / ${Number(((numberValue(userFees, "takerFeeRatePpm") ?? 0) / 10000).toFixed(4))}%`
+                : "—"}
+            </span>
           </div>
           {submitMessage ? (
             <p
@@ -1985,17 +2173,44 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               {submitMessage}
             </p>
           ) : null}
-          <Button
-            tone={side === "BUY" ? "positive" : "negative"}
-            loading={submitState === "loading"}
-            onClick={() => void submit()}
-          >
-            {session && orderType === "STOP"
-              ? `${protectionMode === "OCO" ? t("Set TP/SL pair") : triggerType === "STOP_LOSS" ? t("Set stop loss") : t("Set take profit")}（${side === "SELL" ? t("Sell to close") : t("Buy to close")}）`
-              : session
-                ? `${side === "BUY" ? t("Buy") : t("Sell")} ${current?.baseAsset ?? t("Asset")}`
-                : t("Log in to trade")}
-          </Button>
+          {!session ? (
+            <a className="ticket-sign-in" href="/auth/login">
+              {t("Log in to trade")}
+            </a>
+          ) : view.line !== PRODUCT_LINES.spot && orderType !== "STOP" ? (
+            <div className="ticket-order-actions">
+              <Button
+                tone="positive"
+                loading={submitState === "loading"}
+                onClick={() => void submit("BUY")}
+              >
+                {session
+                  ? t(ticketAction === "OPEN" ? "Open long" : "Close short")
+                  : t("Log in to trade")}
+              </Button>
+              <Button
+                tone="negative"
+                loading={submitState === "loading"}
+                onClick={() => void submit("SELL")}
+              >
+                {session
+                  ? t(ticketAction === "OPEN" ? "Open short" : "Close long")
+                  : t("Log in to trade")}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              tone={side === "BUY" ? "positive" : "negative"}
+              loading={submitState === "loading"}
+              onClick={() => void submit()}
+            >
+              {session && orderType === "STOP"
+                ? `${protectionMode === "OCO" ? t("Set TP/SL pair") : triggerType === "STOP_LOSS" ? t("Set stop loss") : t("Set take profit")}（${side === "SELL" ? t("Sell to close") : t("Buy to close")}）`
+                : session
+                  ? `${side === "BUY" ? t("Buy") : t("Sell")} ${current?.baseAsset ?? t("Asset")}`
+                  : t("Log in to trade")}
+            </Button>
+          )}
           <a className="route-link ticket-login" href="/auth/login">
             {session ? t("Manage orders") : t("Create an account")}
           </a>
@@ -2023,7 +2238,6 @@ export function OrderBook({
   precision,
   priceStep,
   pricePrecision = priceDecimalsForStep(priceStep),
-  quantityStep = null,
   baseAsset,
   quoteAsset,
   dollar,
@@ -2033,15 +2247,14 @@ export function OrderBook({
   readonly book: ApiOrderBook | null
   readonly latestTrade: Readonly<Record<string, unknown>> | null
   readonly depth: 10 | 20 | 50
-  readonly precision: 1 | 10 | 100
+  readonly precision: number
   readonly priceStep: number
   readonly pricePrecision?: number
-  readonly quantityStep?: string | null
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly dollar: boolean
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
-  readonly onPrecisionChange: (precision: 1 | 10 | 100) => void
+  readonly onPrecisionChange: (precision: number) => void
 }) {
   const askSideRef = useRef<HTMLDivElement>(null)
   const withTotals = (levels: Level[]) => {
@@ -2080,9 +2293,9 @@ export function OrderBook({
           <DropdownSelect
             aria-label={t("Order book price precision")}
             value={precision}
-            onChange={(event) => onPrecisionChange(Number(event.target.value) as 1 | 10 | 100)}
+            onChange={(event) => onPrecisionChange(Number(event.target.value))}
           >
-            {([1, 10, 100] as const).map((multiple) => (
+            {([1, 10, 100, 500, 1000, 10000, 100000] as const).map((multiple) => (
               <option key={multiple} value={multiple}>
                 {priceStep > 0
                   ? formatPrice(priceStep * multiple, priceDecimalsForStep(priceStep * multiple))
@@ -2102,14 +2315,6 @@ export function OrderBook({
           </DropdownSelect>
         </div>
       </div>
-      {quantityStep && (
-        <div className="book-step-note">
-          {t("Quantity step")}:{" "}
-          <span className="mono">
-            {quantityStep} {baseAsset}
-          </span>
-        </div>
-      )}
       <div className="order-book-sides">
         <section className="order-book-side" aria-label={t("Asks, high to low")}>
           <div className="order-book-columns">
@@ -2830,12 +3035,16 @@ function formatPositionPnl(
   }
 }
 
-function estimatedFee(market: Market | null, price: string, quantity: string): string {
-  const rate = market?.takerFeeRatePpm
+function estimatedFee(
+  market: Market | null,
+  price: string,
+  quantity: string,
+  rate: number | null,
+): string {
   const priceValue = Number(price)
   const quantityValue = Number(quantity)
   if (
-    rate === undefined ||
+    rate === null ||
     !Number.isFinite(priceValue) ||
     !Number.isFinite(quantityValue) ||
     priceValue <= 0 ||

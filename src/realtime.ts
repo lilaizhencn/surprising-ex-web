@@ -151,6 +151,8 @@ export function unwrapEvent(event: WsEnvelope): WsEnvelope {
   }
 }
 export function newerPublicEvent(event: WsEnvelope, previous?: WsEnvelope): boolean {
+  // A newly subscribed book establishes a new baseline, even after a local Core reset.
+  if (event.channel === "depth" && record(event.data)["updateType"] === "SNAPSHOT") return true
   if (!previous) return true
   if (
     ["depth", "bookTicker", "trades"].includes(event.channel ?? "") &&

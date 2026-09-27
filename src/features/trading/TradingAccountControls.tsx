@@ -1,13 +1,8 @@
 import { RefreshCw, Settings2, ShieldAlert } from "lucide-react"
 import { useEffect, useState } from "react"
-import {
-  adjustPositionMargin,
-  loadLeverageSetting,
-  updateLeverageSetting,
-  updatePositionMode,
-} from "../../api/endpoints"
+import { adjustPositionMargin, updatePositionMode } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { Button, Field, Panel } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { decimalToUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
 import { integer, type PrivateView } from "../../realtime"
@@ -24,6 +19,7 @@ export type TradingOrderSettings = Readonly<{
 }>
 
 type Props = Readonly<{
+  readonly marginMode: MarginMode
   readonly userId: string | number | undefined
   readonly symbol: string
   readonly productLine: ProductLine
@@ -40,6 +36,7 @@ type Props = Readonly<{
 }>
 
 export function TradingAccountControls({
+  marginMode,
   userId,
   symbol,
   productLine,
@@ -54,12 +51,8 @@ export function TradingAccountControls({
   quantityScale,
   onSettingsChange,
 }: Props) {
-  const [marginMode, setMarginMode] = useState<MarginMode>("CROSS")
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY")
   const [positionSide, setPositionSide] = useState<PositionSide>("NET")
-  const [leverage, setLeverage] = useState("1")
-  const [maxLeverage, setMaxLeverage] = useState("1")
-  const [refresh, setRefresh] = useState(0)
   const positionRisk = (accountView?.rows("risk") ?? [])
     .filter((row) => text(row, "symbol") === symbol)
     .filter((row) =>
@@ -96,7 +89,6 @@ export function TradingAccountControls({
     ? { marginUnits: selectedPosition?.["positionMarginUnits"] ?? "0" }
     : null
   const [marginAmount, setMarginAmount] = useState("")
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
   const snapshotMode = accountView?.positionMode
@@ -118,89 +110,13 @@ export function TradingAccountControls({
     onSettingsChange({ marginMode, positionMode, positionSide })
   }, [marginMode, positionMode, positionSide, onSettingsChange])
 
-  useEffect(() => {
-    if (!userId || productLine === "SPOT") return
-    let cancelled = false
-    void refresh
-    setLoading(true)
-    setMessage("")
-    void loadLeverageSetting(userId, symbol, productLine, marginMode)
-      .then((leverageResult) => {
-        if (cancelled) return
-        const nextMarginMode = marginValue(leverageResult) ?? marginMode
-        const nextLeverage = ppmToLeverage(leverageResult)
-        setMarginMode(nextMarginMode)
-        setLeverage(nextLeverage)
-        setMaxLeverage(ppmToLeverage(leverageResult, "maxLeveragePpm"))
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setMessage(readError(reason))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [marginMode, productLine, refresh, symbol, userId])
-
-  const saveLeverage = async () => {
-    if (!userId || !Number.isFinite(Number(leverage)) || Number(leverage) <= 0) {
-      setMessage(t("Please enter valid leverage."))
-      return
-    }
-    setSaving(true)
-    setMessage("")
-    try {
-      await updateLeverageSetting(
-        userId,
-        symbol,
-        productLine,
-        marginMode,
-        Math.round(Number(leverage) * 1_000_000),
-        "web trading settings",
-      )
-      setMessage(t("Leverage submitted. Confirm the result in your account snapshot."))
-    } catch (reason: unknown) {
-      setMessage(readError(reason))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const saveMarginMode = async (next: MarginMode) => {
-    setMarginMode(next)
-    onSettingsChange({ marginMode: next, positionMode, positionSide })
-    if (!userId) return
-    setSaving(true)
-    setMessage("")
-    try {
-      await updateLeverageSetting(
-        userId,
-        symbol,
-        productLine,
-        next,
-        Math.round(Number(leverage) * 1_000_000),
-        "web margin mode",
-      )
-      setMessage(t("Margin mode submitted."))
-    } catch (reason: unknown) {
-      setMessage(readError(reason))
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const savePositionMode = async (next: PositionMode) => {
     if (!userId) return
-    const nextSide: PositionSide = next === "HEDGE" ? "LONG" : "NET"
-    setPositionMode(next)
-    setPositionSide(nextSide)
-    onSettingsChange({ marginMode, positionMode: next, positionSide: nextSide })
     setSaving(true)
     setMessage("")
     try {
       await updatePositionMode(userId, productLine, next, `position-mode-${crypto.randomUUID()}`)
+      onRefresh()
       setMessage(
         t("Position mode submitted. Switching requires no conflicting positions or orders."),
       )
@@ -257,26 +173,13 @@ export function TradingAccountControls({
           tone="ghost"
           onClick={() => {
             onRefresh()
-            setRefresh((n) => n + 1)
           }}
           aria-label={t("Refresh settings")}
         >
           <RefreshCw size={15} /> {t("Refresh")}{" "}
         </Button>
       </div>
-      {loading ? <StateView kind="loading" message="Loading account settings and risk…" /> : null}
       <div className="trading-settings-grid">
-        <Field label={t("Margin mode")}>
-          <DropdownSelect
-            value={marginMode}
-            onChange={(event) =>
-              void saveMarginMode(event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS")
-            }
-          >
-            <option value="CROSS">{t("Cross")}</option>
-            <option value="ISOLATED">{t("Isolated")}</option>
-          </DropdownSelect>
-        </Field>
         <Field label={t("Position mode")}>
           <DropdownSelect
             value={positionMode}
@@ -303,20 +206,6 @@ export function TradingAccountControls({
             </DropdownSelect>
           </Field>
         ) : null}
-        <Field label={`Leverage (max ${maxLeverage}x)`}>
-          <div className="inline-field">
-            <input
-              value={leverage}
-              onChange={(event) => setLeverage(event.target.value)}
-              inputMode="decimal"
-              aria-label={t("Leverage")}
-            />
-            <Button tone="outline" loading={saving} onClick={() => void saveLeverage()}>
-              {" "}
-              {t("Save")}{" "}
-            </Button>
-          </div>
-        </Field>
         <Field label={`Position margin (${settleAsset})`}>
           <div className="inline-field">
             <input
@@ -435,14 +324,6 @@ function RiskValue({ label, value }: { readonly label: string; readonly value: s
   )
 }
 
-function marginValue(value: Record<string, unknown>): MarginMode | null {
-  return text(value, "marginMode") === "ISOLATED"
-    ? "ISOLATED"
-    : text(value, "marginMode") === "CROSS"
-      ? "CROSS"
-      : null
-}
-
 function positionSideValue(value: Record<string, unknown> | undefined): PositionSide {
   return text(value, "positionSide") === "SHORT" ? "SHORT" : "LONG"
 }
@@ -462,11 +343,6 @@ function preferredHedgeSide(
   }
   if (sides.size === 1) return [...sides][0] ?? "LONG"
   return "LONG"
-}
-
-function ppmToLeverage(value: Record<string, unknown>, key = "leveragePpm"): string {
-  const ppm = numeric(value, key)
-  return ppm === null ? "1" : (ppm / 1_000_000).toFixed(2).replace(/\.00$/, "")
 }
 
 function ppmToPercent(value: Record<string, unknown> | null, key: string): string {
