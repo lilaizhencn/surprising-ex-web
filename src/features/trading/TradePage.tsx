@@ -206,10 +206,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [leverageSetting, setLeverageSetting] = useState<LeverageSettings | null>(null)
   const [userFees, setUserFees] = useState<Record<string, unknown> | null>(null)
   const [bookPrecision, setBookPrecision] = useState<number>(1)
-  const bookSequenceRef = useRef<string | null>(null)
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
-  const bookResyncingRef = useRef(false)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
   const latestTradeRef = useRef<{
     symbol: string
@@ -521,17 +519,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setQuantity(Number.isFinite(quantityValue) && quantityValue > 0 ? String(quantityValue) : "")
   }
 
-  const resyncOrderBook = useCallback(() => {
-    if (!current || bookResyncingRef.current) return
-    bookResyncingRef.current = true
-    // WS depth uses the log position; REST order books use the command sequence.
-    // Recover from the same WS source so the next DELTA has the correct baseline.
-    realtime.refreshDepth(view.line, current.symbol)
-  }, [current, realtime.refreshDepth, view.line])
-
   useEffect(() => {
     setBook(null)
-    bookSequenceRef.current = null
     processedEvents.current.clear()
   }, [current?.symbol, view.line])
 
@@ -831,41 +820,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (channel === "depth") {
         const orderBook = OrderBookSchema.safeParse(data)
         if (orderBook.success) {
-          const nextSequence = orderBookSequence(orderBook.data)
-          const currentSequence = bookSequenceRef.current
-          if (!nextSequence) return
-          if (orderBook.data.updateType === "DELTA") {
-            if (bookResyncingRef.current) return
-            if (currentSequence && compareSequences(nextSequence, currentSequence) <= 0) return
-            const previousSequence = orderBook.data.previousSequence
-            if (
-              !currentSequence ||
-              previousSequence == null ||
-              compareSequences(String(previousSequence), currentSequence) !== 0
-            ) {
-              resyncOrderBook()
-              return
-            }
-            setBook((previousBook) =>
-              previousBook
-                ? mergeOrderBook(
-                    previousBook,
-                    normalizeOrderBook(orderBook.data, current, assetScales),
-                  )
-                : null,
-            )
-            bookSequenceRef.current = nextSequence
-            return
-          }
-          if (
-            orderBook.data.updateType === "SNAPSHOT" ||
-            !currentSequence ||
-            compareSequences(nextSequence, currentSequence) > 0
-          ) {
-            bookResyncingRef.current = false
-            bookSequenceRef.current = nextSequence
-            setBook(normalizeOrderBook(orderBook.data, current, assetScales))
-          }
+          setBook(normalizeOrderBook(orderBook.data, current, assetScales))
         }
         return
       }
@@ -931,16 +886,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     processedEvents.current = new Set(
       realtime.events.flatMap((event) => (event.id ? [event.id] : [])),
     )
-  }, [
-    assetScales,
-    current,
-    markets,
-    period,
-    realtime.events,
-    resyncOrderBook,
-    updateMarketQuote,
-    view.line,
-  ])
+  }, [assetScales, current, markets, period, realtime.events, updateMarketQuote, view.line])
 
   const submit = async (requestedSide: OrderSide = side) => {
     const side = requestedSide
@@ -2355,32 +2301,6 @@ function normalizeOrderBook(
   }
 }
 
-function mergeOrderBook(base: ApiOrderBook, update: ApiOrderBook): ApiOrderBook {
-  return {
-    ...update,
-    bids: mergeOrderBookLevels(base.bids ?? [], update.bids ?? []),
-    asks: mergeOrderBookLevels(base.asks ?? [], update.asks ?? []),
-  }
-}
-
-function mergeOrderBookLevels(
-  base: readonly ApiOrderBookLevel[],
-  updates: readonly ApiOrderBookLevel[],
-): readonly ApiOrderBookLevel[] {
-  if (updates.some(Array.isArray)) return updates
-  const levels = new Map<string, ApiOrderBookLevel>()
-  for (const level of base) {
-    if (!Array.isArray(level)) levels.set(String(level.priceTicks), level)
-  }
-  for (const level of updates) {
-    if (Array.isArray(level)) continue
-    const price = String(level.priceTicks)
-    if (String(level.quantitySteps) === "0") levels.delete(price)
-    else levels.set(price, level)
-  }
-  return [...levels.values()]
-}
-
 function LevelRow({
   level,
   total,
@@ -3011,21 +2931,6 @@ function readFavorites(): readonly string[] {
     return Array.isArray(parsed) && parsed.every((value) => typeof value === "string") ? parsed : []
   } catch {
     return []
-  }
-}
-
-function orderBookSequence(book: ApiOrderBook): string | null {
-  const sequence = book.sequence ?? book.lastUpdateId
-  return sequence === undefined ? null : String(sequence)
-}
-
-function compareSequences(left: string, right: string): number {
-  try {
-    const leftValue = BigInt(left)
-    const rightValue = BigInt(right)
-    return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0
-  } catch {
-    return left.localeCompare(right)
   }
 }
 

@@ -20,7 +20,7 @@ Markets show spot instruments. Trading subscriptions are scoped by product, symb
 
 Snapshot fences preserve newer updates and terminal tombstones. Periodic snapshots heal dropped packets. Non-ready or expired snapshots are not displayed as a current asset valuation. Private-state events do not trigger REST account queries. Explicit ledger and algo-order queries remain separate.
 
-订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。`depth` 首条是买卖各最多 50 档的 SNAPSHOT（空盘口也覆盖），后续 DELTA 按价格档位写入绝对数量，数量为零删除。逐条校验 previousSequence 与本地 sequence；断档时只对当前产品/币对的 depth 执行 WebSocket 退订再订阅，等待新的 50 档 SNAPSHOT；等待期间丢弃无法接续的 DELTA，正常运行不轮询全量。渲染批处理保留全部增量，不能合并成最后一条；退订重连重新接收首条快照。盘口为空仍保留固定高度、表头和中间最新成交价，不显示空数据提示。
+订单 `OPEN` 映射为 ACCEPTED/PARTIALLY_FILLED，其他终态移除；触发单只保留 PENDING/TRIGGERING；持仓数量为零移除；零余额保留。`depth` 首条是买卖各最多 50 档的 SNAPSHOT（空盘口也覆盖），后续 DELTA 按价格档位写入绝对数量，数量为零删除。逐条校验 previousSequence 与本地 sequence；断档时只对当前产品/币对的 depth 执行 WebSocket 退订再订阅，等待新的 50 档 SNAPSHOT；等待期间丢弃无法接续的 DELTA，正常运行不轮询全量。接收回调通过 `applyDepthEvent` 逐条合并增量，`useRealtimeFeed` 的 latest Map 每个盘口只保存一个最新完整视图（每侧最多 50 档）。盘口不进入成交事件队列；React 可以跳过中间渲染，直接替换为最新完整视图。退订重连重新接收首条快照。盘口为空仍保留固定高度、表头和中间最新成交价，不显示空数据提示。
 
 Open orders, active triggers and nonzero positions are materialized directly. Zero balances remain explicit. Depth snapshots replace both sides, including empty sides; deltas update individual price levels. A sequence gap resubscribes only the affected depth channel and waits for a new WebSocket snapshot. REST command sequences are never mixed with depth log-position sequences.
 
@@ -123,3 +123,25 @@ pong 可维持无成交市场的连接。页面重新可见或 pageshow 时立�
 交易页浏览器标签标题显示当前币对最新价格、产品线和品牌，价格复用现有成交/行情状态，不增加 REST
 请求或 WebSocket 订阅。使用合约价格精度，切换币对后更新，离开交易页恢复原始标题。
 “最近订单动态”明确只展示本页收到的最近 100 条订单状态，不冒充完整历史订单查询。
+
+
+## 屏幕休眠后成交恢复、盘口冻结（2026-09-27）
+
+根因复现：旧版盘口 SNAPSHOT / DELTA 和成交共用最多 256 条的渲染事件队列。收到恢复快照后，
+如果渲染暂停而消息持续到达，快照会被挤掉；连接层认为已经收到快照，不再重试，页面却一直等待基线。
+真实行情测试暂停渲染发布 40 秒，期间收到超过 300 笔成交及 80 余条盘口消息；旧版恢复后连续 12 次
+采样盘口不变，新版同样测试 12 次均持续变化。
+
+修复边界：`src/realtimeDepth.ts` 在 WS 接收回调中以整数 ticks / steps 处理数量覆盖、零数量删除及
+连续序号校验。状态仍由现有 latest Map 持有，没有额外历史容器；`TradePage` 只负责最新完整视图的
+精度转换和渲染。网络仍推送增量，合并后的 SNAPSHOT 仅是浏览器内部呈现形式，不改服务器协议，
+也不新增 REST 盘口轮询。断档继续重订阅当前盘口，快照丢失继续沿用连接层 3 秒重试。
+
+验证：90 项前端测试通过，包含一万条增量不渲染时仍保留最终完整盘口、空快照、删除/新增档位、
+超大整数序号、断档、新快照序号回退、跨产品线拒绝及每侧 50 档上限。lint 无 error/warning，
+保留既有 info；生产构建通过（既有 bundle 大小提示）。本轮只改前端，不重启后端、不清空交易数据；
+不把一分钟级浏览器恢复验证当作长时间内存压力测试。
+
+生产构建追加验证：Chrome 页面生命周期完全冻结 50 秒后激活，10 次盘口采样均不同、标签价格继续
+变化；390px 移动端切换 DOGE 后盘口继续变化，无脚本异常。证据保留在本机
+`~/.local/share/surprising-ex/perpetual-pmm-20/verification/wake-depth-20260927/`。

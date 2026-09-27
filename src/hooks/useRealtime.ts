@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { loadRealtimeState, loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
@@ -13,6 +13,7 @@ import {
   type WsEnvelope,
 } from "../realtime"
 import { RealtimeConnections } from "../realtimeConnections"
+import { applyDepthEvent } from "../realtimeDepth"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
@@ -65,11 +66,7 @@ export function useRealtimeFeed(
   desired.current = subscriptions
   const key = subscriptions.map(subscriptionKey).sort().join("|")
   const latest = useRef(new Map<string, WsEnvelope>())
-  const depthSnapshotSerial = useRef(0)
-  const recoverDepth = useRef<(subscription: Subscription) => void>(() => {})
-  const refreshDepth = useCallback((productLine: ProductLine, symbol: string) => {
-    recoverDepth.current({ channel: "depth", productLine, symbol })
-  }, [])
+  const depthViewSerial = useRef(0)
   const accessToken = session?.accessToken ?? null
   const userId = session ? String(session.user.userId) : null
   const identity = `${userId ?? ""}:${accessToken ?? ""}`
@@ -119,25 +116,24 @@ export function useRealtimeFeed(
           awaitingDepthSnapshot.delete(key)
           latest.current.delete(key)
         }
-        if (
-          event.channel === "depth" &&
-          (event.data as { updateType?: string })?.updateType === "SNAPSHOT"
-        ) {
-          // Discard the old connection's deltas; the fresh snapshot is authoritative.
-          tape = tape.filter(
-            (row) =>
-              !(
-                row.channel === "depth" &&
-                row.productLine === event.productLine &&
-                row.symbol === event.symbol
-              ),
-          )
-          event = { ...event, id: `${event.id}:snapshot:${++depthSnapshotSerial.current}` }
-        }
-        if (!newerPublicEvent(event, latest.current.get(key))) return
+        if (event.channel === "depth") {
+          if (!raw.symbol) return
+          const previous = latest.current.get(key)
+          const book = applyDepthEvent(event, previous)
+          if (!book) {
+            recoverDepth({
+              productLine: raw.productLine,
+              channel: "depth",
+              symbol: raw.symbol,
+            })
+            return
+          }
+          if (book === previous) return
+          // Snapshot IDs must remain distinct even if Core restarts at a lower sequence.
+          event = { ...book, id: `${book.id}:book:${++depthViewSerial.current}` }
+        } else if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)
-        if ((retainTrades && event.channel === "trades") || event.channel === "depth")
-          tape = [event, ...tape].slice(0, 256)
+        if (retainTrades && event.channel === "trades") tape = [event, ...tape].slice(0, 256)
         receivedAt = new Date().toISOString()
         publish()
       },
@@ -153,18 +149,10 @@ export function useRealtimeFeed(
         publish()
       },
     )
-    recoverDepth.current = (subscription) => {
+    const recoverDepth = (subscription: Subscription) => {
       const key = subscriptionKey(subscription)
       awaitingDepthSnapshot.add(key)
       latest.current.delete(key)
-      tape = tape.filter(
-        (event) =>
-          !(
-            event.productLine === subscription.productLine &&
-            event.channel === "depth" &&
-            event.symbol === subscription.symbol
-          ),
-      )
       publicManager.resubscribe(subscription)
     }
     publicConnections.current = publicManager
@@ -240,7 +228,6 @@ export function useRealtimeFeed(
       closed = true
       clearTimeout(flush)
       clearInterval(freshness)
-      recoverDepth.current = () => {}
       publicManager.close()
       privateManager?.close()
     }
@@ -254,6 +241,5 @@ export function useRealtimeFeed(
     views: owner === identity ? views : EMPTY_VIEWS,
     revision,
     refresh: () => privateConnections.current?.refresh(),
-    refreshDepth,
   }
 }
