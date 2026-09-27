@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Market } from "../../types/domain"
 import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
 import { parseSetting } from "./TradingTicketControls"
+
 const market: Market = {
   symbol: "BTC-USDT-SWAP",
   baseAsset: "BTC",

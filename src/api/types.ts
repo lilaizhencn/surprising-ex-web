@@ -88,7 +88,7 @@ export const MarketSchema = z
     quantityStepUnits: SafeIntegerWireSchema.optional(),
     pricePrecision: z.number().optional(),
     quantityPrecision: z.number().optional(),
-    maxLeverage: z.number().optional(),
+    maxLeveragePpm: SafeIntegerWireSchema.optional(),
     fundingRate: NumericSchema.optional(),
     nextFundingTime: z.string().optional(),
     instrumentType: z.string().optional(),

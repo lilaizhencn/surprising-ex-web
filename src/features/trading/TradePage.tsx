@@ -64,7 +64,7 @@ import {
   SearchField,
   StateView,
 } from "../../components/ui/Primitives"
-import { useRealtime } from "../../hooks/useRealtime"
+import { type RealtimeState, useRealtime } from "../../hooks/useRealtime"
 import { t } from "../../i18n"
 import { config, storageKeys } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
@@ -379,11 +379,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       period: "1m",
     },
     ...(pairOpen
-      ? markets.map((market) => ({
-          channel: "trades",
-          symbol: market.symbol,
-          productLine: view.line,
-        }))
+      ? markets.flatMap((market) => [
+          { channel: "trades", symbol: market.symbol, productLine: view.line },
+          { channel: "candles", symbol: market.symbol, productLine: view.line, period: "1m" },
+        ])
       : []),
   ])
   const displayedDayStats = useDayStats(current?.symbol, view.line, realtime.events, realtime.state)
@@ -1370,13 +1369,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                               pricePrecision={priceDisplayPrecision(market, assetScales)}
                             />
                           </strong>
-                          <small
-                            className={
-                              (market.change24h ?? 0) >= 0 ? "positive mono" : "negative mono"
-                            }
-                          >
-                            {formatPercent(market.change24h)}
-                          </small>
+                          <PairDayChange
+                            symbol={market.symbol}
+                            productLine={view.line}
+                            events={realtime.events}
+                            connection={realtime.state}
+                            selectedSymbol={current?.symbol}
+                            selectedChange={displayedDayStats?.change ?? null}
+                          />
                         </span>
                       </div>
                     ))}
@@ -3263,4 +3263,35 @@ function priceDisplayPrecision(
       ? Number(stepUnitsToDecimal("1", market.priceTickUnits, scales[market.quoteAsset] ?? "1"))
       : 0
   return priceDecimalsForStep(step, market.pricePrecision)
+}
+
+/** Pair statistics are initialized only while the selector is visible. */
+function PairDayChange({
+  symbol,
+  productLine,
+  events,
+  connection,
+  selectedSymbol,
+  selectedChange,
+}: {
+  readonly symbol: string
+  readonly productLine: ProductLine
+  readonly events: readonly WsEnvelope[]
+  readonly connection: RealtimeState
+  readonly selectedSymbol: string | undefined
+  readonly selectedChange: number | null
+}) {
+  // The selected market already owns a day window; do not fetch it a second time.
+  const stats = useDayStats(
+    symbol === selectedSymbol ? undefined : symbol,
+    productLine,
+    events,
+    connection,
+  )
+  const change = symbol === selectedSymbol ? selectedChange : (stats?.change ?? null)
+  return (
+    <small className={change === null ? "mono" : change >= 0 ? "positive mono" : "negative mono"}>
+      {formatPercent(change)}
+    </small>
+  )
 }

@@ -25,7 +25,7 @@ export function mapMarket(raw: ApiMarket): Market {
     userOpenInterestLimitFloorUnits: raw.userOpenInterestLimitFloorUnits,
     priceTickUnits: integerScale(raw.priceTickUnits),
     quantityStepUnits: integerScale(raw.quantityStepUnits),
-    maxLeverage: raw.maxLeverage ?? null,
+    maxLeverage: positiveScaled(raw.maxLeveragePpm, 1_000_000),
     instrumentType: raw.instrumentType,
     contractValueAsset: raw.contractValueAsset,
     contractMultiplierPpm: numeric(raw.contractMultiplierPpm) ?? undefined,

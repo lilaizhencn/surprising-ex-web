@@ -2653,6 +2653,8 @@ button:disabled {
   }
 }
 .trade-main .price-chart {
+  /* Keep chart attribution and canvas layers below market-header popovers. */
+  isolation: isolate;
   height: 470px;
 }
 .trade-market-side .order-book-sides {
@@ -3074,7 +3076,7 @@ body,
   margin-top: var(--space-2);
 }
 
-/* One ticker row at every width; narrow screens can scroll it horizontally. */
+/* Spread spare ticker width between metrics; narrow screens retain a scrollable row. */
 .trade-shell {
   --trade-heading-height: 58px;
 }
@@ -3082,6 +3084,7 @@ body,
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
+  justify-content: space-between;
   gap: clamp(6px, 0.55vw, 12px);
   overflow-x: auto;
   scrollbar-width: thin;

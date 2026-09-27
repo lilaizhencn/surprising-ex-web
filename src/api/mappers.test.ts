@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { mapBalance, mapCandle, mapMarket } from "./mappers"
+import { MarketSchema } from "./types"
 
 describe("candle mapper", () => {
   it("keeps OHLC and actual base volume for the chart", () => {
@@ -17,6 +18,15 @@ describe("candle mapper", () => {
 })
 
 describe("market mapper", () => {
+  it("converts the instrument's maximum leverage from wire ppm into multiples", () => {
+    for (const maxLeveragePpm of [50000000, "50000000", "125000000"]) {
+      const raw = MarketSchema.parse({ symbol: "BTC-USDT-SWAP", maxLeveragePpm })
+      expect(mapMarket(raw).maxLeverage).toBe(Number(maxLeveragePpm) / 1_000_000)
+    }
+    expect(mapMarket({ symbol: "BTC-USDT-SWAP" }).maxLeverage).toBeNull()
+    expect(mapMarket({ symbol: "BTC-USDT-SWAP", maxLeveragePpm: "0" }).maxLeverage).toBeNull()
+  })
+
   it("normalizes integer prices using backend scale metadata", () => {
     const market = mapMarket({
       symbol: "BTCUSDT",
