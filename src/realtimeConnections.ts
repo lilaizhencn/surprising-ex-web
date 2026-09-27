@@ -4,12 +4,19 @@ import type { ProductLine } from "./types/domain"
 /** Connections are grouped by endpoint and kept below the server's 200-subscription limit. */
 export class RealtimeConnections {
   private readonly connections = new Map<string, Connection>()
+  private readonly resume = () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return
+    for (const connection of this.connections.values()) connection.checkLiveness()
+  }
   constructor(
     private readonly endpoint: (product: ProductLine) => string,
     private readonly token: string | null,
     private readonly message: (event: WsEnvelope) => void,
     private readonly connectionState: (products: readonly ProductLine[], live: boolean) => void,
-  ) {}
+  ) {
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.resume)
+    if (typeof window !== "undefined") window.addEventListener("pageshow", this.resume)
+  }
   update(subscriptions: readonly Subscription[]) {
     const groups = new Map<string, Subscription[]>()
     for (const s of subscriptions) {
@@ -48,6 +55,9 @@ export class RealtimeConnections {
     for (const c of this.connections.values()) c.resubscribe(subscription)
   }
   close() {
+    if (typeof document !== "undefined")
+      document.removeEventListener("visibilitychange", this.resume)
+    if (typeof window !== "undefined") window.removeEventListener("pageshow", this.resume)
     for (const c of this.connections.values()) c.close()
     this.connections.clear()
   }
@@ -62,6 +72,7 @@ class Connection {
   private reconnect: ReturnType<typeof setTimeout> | undefined
   private heartbeat: ReturnType<typeof setInterval> | undefined
   private attempt = 0
+  private lastReceivedAt = 0
   constructor(
     private readonly url: string,
     private readonly token: string | null,
@@ -80,27 +91,27 @@ class Connection {
     if (this.closed) return
     const socket = new WebSocket(this.url)
     this.socket = socket
+    this.lastReceivedAt = Date.now()
+    this.heartbeat = setInterval(() => this.checkLiveness(), 20000)
     this.authenticated = !this.token
     this.installed.clear()
     this.state(this.products(), false)
     socket.onopen = () => {
       if (this.closed || this.socket !== socket) return
       this.attempt = 0
+      this.lastReceivedAt = Date.now()
       if (this.token)
         socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: this.token }))
       else {
         this.state(this.products(), true)
         this.reconcile()
       }
-      this.heartbeat = setInterval(() => {
-        if (socket.readyState === WebSocket.OPEN)
-          socket.send(JSON.stringify({ op: "ping", id: "heartbeat" }))
-      }, 20000)
     }
     socket.onmessage = (message) => {
       if (this.closed || this.socket !== socket) return
       try {
         const event = parseRealtimeJson(String(message.data))
+        this.lastReceivedAt = Date.now()
         if (event.op === "authenticated") {
           this.authenticated = true
           this.state(this.products(), true)
@@ -112,20 +123,34 @@ class Connection {
         this.state(this.products(), false)
       }
     }
-    socket.onerror = () => socket.close()
-    socket.onclose = () => {
-      clearInterval(this.heartbeat)
-      if (this.closed || this.socket !== socket) return
-      this.socket = null
-      this.state(this.products(), false)
-      this.reconnect = setTimeout(
-        () => {
-          this.reconnect = undefined
-          this.connect()
-        },
-        Math.min(1000 * 2 ** this.attempt++, 15000),
-      )
+    socket.onerror = () => this.disconnect(socket)
+    socket.onclose = () => this.disconnect(socket)
+  }
+  checkLiveness() {
+    const socket = this.socket
+    if (this.closed || !socket) return
+    // Wall-clock time catches a suspended tab as soon as timers/visibility resume.
+    if (Date.now() - this.lastReceivedAt >= 45000) {
+      this.disconnect(socket)
+      return
     }
+    if (socket.readyState === WebSocket.OPEN)
+      socket.send(JSON.stringify({ op: "ping", id: "heartbeat" }))
+  }
+  private disconnect(socket: WebSocket) {
+    if (this.closed || this.socket !== socket) return
+    clearInterval(this.heartbeat)
+    this.socket = null
+    this.state(this.products(), false)
+    // A half-open socket may never deliver close; retire it before scheduling reconnect.
+    socket.close()
+    this.reconnect = setTimeout(
+      () => {
+        this.reconnect = undefined
+        this.connect()
+      },
+      Math.min(1000 * 2 ** this.attempt++, 15000),
+    )
   }
   private reconcile() {
     const socket = this.socket

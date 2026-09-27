@@ -113,6 +113,65 @@ describe("realtime connection lifecycle", () => {
     expect(replacement?.sent.filter((c) => c["op"] === "subscribe")).toHaveLength(2)
     manager.close()
   })
+  it("replaces a silent socket even when close never arrives and restores subscriptions", () => {
+    const state = vi.fn()
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), state)
+    const depth: Subscription = {
+      productLine: "LINEAR_PERPETUAL",
+      channel: "depth",
+      symbol: "BTC-USDT-SWAP",
+    }
+    manager.update([depth])
+    const stale = socket()
+    stale.open()
+    stale.close = vi.fn() // TCP half-open: browser cannot complete the close handshake.
+    vi.advanceTimersByTime(60000)
+    expect(stale.close).toHaveBeenCalledOnce()
+    expect(state).toHaveBeenLastCalledWith(["LINEAR_PERPETUAL"], false)
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    expect(socket(1).sent).toContainEqual(expect.objectContaining({ op: "subscribe", ...depth }))
+    stale.onclose?.() // Late callback must not cancel the new socket heartbeat.
+    vi.advanceTimersByTime(20000)
+    expect(socket(1).sent.at(-1)).toMatchObject({ op: "ping" })
+    manager.close()
+  })
+  it("keeps quiet markets connected while pong replies arrive", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    manager.update([order])
+    socket().open()
+    for (let i = 0; i < 10; i++) {
+      vi.advanceTimersByTime(20000)
+      socket().receive({ op: "pong" })
+    }
+    expect(Socket.instances).toHaveLength(1)
+    manager.close()
+  })
+  it("checks elapsed time on page wake and cleans up the visibility listener", () => {
+    const page = new EventTarget()
+    Object.defineProperty(page, "visibilityState", { value: "visible" })
+    vi.stubGlobal("document", page)
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    manager.update([order])
+    socket().open()
+    vi.setSystemTime(Date.now() + 300000) // JS timers were suspended for five minutes.
+    page.dispatchEvent(new Event("visibilitychange"))
+    expect(socket().readyState).toBe(3)
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    manager.close()
+    page.dispatchEvent(new Event("visibilitychange"))
+    vi.advanceTimersByTime(60000)
+    expect(Socket.instances).toHaveLength(2)
+  })
+  it("times out a connection that never opens", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    manager.update([order])
+    vi.advanceTimersByTime(61000)
+    expect(Socket.instances).toHaveLength(2)
+    expect(socket().readyState).toBe(3)
+    manager.close()
+  })
   it("isolates endpoints and splits large public plans below the server limit", () => {
     const manager = new RealtimeConnections((p) => `ws://fixture/${p}`, null, vi.fn(), vi.fn())
     const plan: Subscription[] = Array.from({ length: 401 }, (_, n) => ({
