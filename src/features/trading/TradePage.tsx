@@ -11,10 +11,8 @@ import {
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
-  cancelOrder,
   cancelTriggerOrder,
   loadAssetScales,
-  loadBalances,
   loadCandles,
   loadEffectiveTradingFee,
   loadFundingPayments,
@@ -25,10 +23,7 @@ import {
   loadMarket,
   loadMarkets,
   loadMarkPrice,
-  loadOpenOrders,
-  loadOpenTriggerOrders,
   loadOptionQuote,
-  loadPositions,
   loadRecentTrades,
   placeBatchTriggerOrders,
   placeOrder,
@@ -94,6 +89,7 @@ import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
+import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
 import {
   closeSideForPosition,
@@ -266,7 +262,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [quantity, setQuantity] = useState("")
   const [percentage, setPercentage] = useState(0)
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle")
-  const [submitMessage, setSubmitMessage] = useState("")
+  const [notice, setNotice] = useState<{ id: number; message: string } | null>(null)
+  const notify = useCallback((message: string) => {
+    setNotice((previous) => (message ? { id: (previous?.id ?? 0) + 1, message } : null))
+  }, [])
+  const clearNotice = useCallback(() => setNotice(null), [])
+  const selectBookPrice = useCallback((value: string) => {
+    if (!isPositiveDecimal(value)) return
+    setBboEnabled(false)
+    setOrderType("LIMIT")
+    setPrice(value)
+  }, [])
   const demo = config.demoDataEnabled && !marketsRequestFinished
   const availableMarkets = markets.length > 0 ? markets : demo ? demoMarkets : []
   useEffect(() => {
@@ -392,35 +398,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     }
   }, [current, view.line, realtime.events, realtime.state, assetScales])
 
-  const privateViewReady = useRef(false)
-  privateViewReady.current = realtime.views[view.line]?.ready() ?? false
-
   useEffect(() => {
     setBalances([])
     setPositions([])
     setOpenOrders([])
     setTriggerOrders([])
-    if (!session || !current) return
-    let cancelled = false
-    void Promise.allSettled([
-      loadBalances(view.line),
-      loadPositions(session.user.userId, view.line),
-      loadOpenOrders(current.symbol, view.line),
-      loadOpenTriggerOrders(session.user.userId, current.symbol, view.line),
-    ]).then(([balanceResult, positionResult, orderResult, triggerResult]) => {
-      if (cancelled || privateViewReady.current) return
-      if (balanceResult.status === "fulfilled") setBalances(balanceResult.value)
-      if (positionResult.status === "fulfilled")
-        setPositions(
-          positionResult.value.filter((position) => Number(position["signedQuantitySteps"]) !== 0),
-        )
-      if (orderResult.status === "fulfilled") setOpenOrders(orderResult.value)
-      if (triggerResult.status === "fulfilled") setTriggerOrders(triggerResult.value)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [session?.user.userId, current?.symbol, view.line])
+  }, [session?.user.userId, view.line])
 
   useEffect(() => {
     const account = realtime.views[view.line]
@@ -439,7 +422,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const parsedBalances = account.rows("balance").map((row) => BalanceSchema.safeParse(row))
     const parsedOrders = account
       .rows("order")
-      .filter((row) => row["status"] === "OPEN" && row["symbol"] === current?.symbol)
+      .filter((row) => row["status"] === "OPEN")
       .map((row) =>
         OrderSchema.safeParse({
           ...row,
@@ -951,27 +934,27 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const side = requestedSide
     if (!session) {
       setSubmitState("error")
-      setSubmitMessage(t("Please sign in before placing an order."))
+      notify(t("Please sign in before placing an order."))
       return
     }
     if (!current || !isPositiveDecimal(quantity)) {
       setSubmitState("error")
-      setSubmitMessage(t("Please enter a valid quantity."))
+      notify(t("Please enter a valid quantity."))
       return
     }
     if (orderType === "STOP" && !triggerSupported) {
       setSubmitState("error")
-      setSubmitMessage(t("Spot positions do not support TP/SL. Use a limit or market order."))
+      notify(t("Spot positions do not support TP/SL. Use a limit or market order."))
       return
     }
     if (orderType === "STOP" && !triggerCloseSide) {
       setSubmitState("error")
-      setSubmitMessage(t("Open a position in this pair before setting TP/SL."))
+      notify(t("Open a position in this pair before setting TP/SL."))
       return
     }
     if (orderType === "STOP" && triggerCloseSide !== side) {
       setSubmitState("error")
-      setSubmitMessage(
+      notify(
         triggerCloseSide === "SELL"
           ? t("Select Sell to close your long position before setting TP/SL.")
           : t("Select Buy to close your short position before setting TP/SL."),
@@ -981,17 +964,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const executionType = orderType === "STOP" ? triggerExecutionType : orderType
     if (executionType !== "MARKET" && !useBbo && !isPositiveDecimal(price)) {
       setSubmitState("error")
-      setSubmitMessage(t("Limit orders require a valid price."))
+      notify(t("Limit orders require a valid price."))
       return
     }
     if (orderType === "STOP" && !isPositiveDecimal(triggerPrice)) {
       setSubmitState("error")
-      setSubmitMessage(t("Trigger orders require a valid trigger price."))
+      notify(t("Trigger orders require a valid trigger price."))
       return
     }
     if (view.line !== PRODUCT_LINES.spot && orderType !== "STOP" && !leverageSetting) {
       setSubmitState("error")
-      setSubmitMessage(t("Wait for account leverage settings before submitting."))
+      notify(t("Wait for account leverage settings before submitting."))
       return
     }
     let quantitySteps: string
@@ -1084,7 +1067,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }
     } catch (reason: unknown) {
       setSubmitState("error")
-      setSubmitMessage(reason instanceof Error ? reason.message : t("Invalid quantity precision."))
+      notify(reason instanceof Error ? reason.message : t("Invalid quantity precision."))
       return
     }
     setSubmitState("loading")
@@ -1154,17 +1137,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           )
           if (response["completed"] !== 2 || response["failed"] !== 0)
             throw new Error(t("OCO pair was not accepted."))
-          setSubmitMessage(t("Take-profit and stop-loss accepted together."))
+          notify(t("Take-profit and stop-loss accepted together."))
         } else {
           const response = await placeTriggerOrder(leg, view.line)
           if (response.status !== "PENDING" && response.status !== "TRIGGERING") {
             setSubmitState("error")
-            setSubmitMessage(
+            notify(
               response.rejectReason ?? `${t("Trigger order not accepted")}: ${response.status}`,
             )
             return
           }
-          setSubmitMessage(`${t("Trigger order accepted")}: ${response.status}`)
+          notify(`${t("Trigger order accepted")}: ${response.status}`)
         }
       } else {
         const response = await placeOrder(
@@ -1190,7 +1173,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         )
         if (response.status === "REJECTED") {
           setSubmitState("error")
-          setSubmitMessage(response.rejectReason ?? t("Order rejected."))
+          notify(response.rejectReason ?? t("Order rejected."))
           return
         }
         if (
@@ -1200,10 +1183,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           response.status !== "FILLED"
         ) {
           setSubmitState("error")
-          setSubmitMessage(`${t("Order not accepted")}: ${response.status}`)
+          notify(`${t("Order not accepted")}: ${response.status}`)
           return
         }
-        setSubmitMessage(`${t("Order accepted")}: ${response.status}`)
+        notify(`${t("Order accepted")}: ${response.status}`)
       }
       setSubmitState("success")
       setQuantity("")
@@ -1213,7 +1196,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       refresh()
     } catch (reason: unknown) {
       setSubmitState("error")
-      setSubmitMessage(reason instanceof ApiError ? reason.message : readError(reason))
+      notify(reason instanceof ApiError ? reason.message : readError(reason))
     }
   }
   const refresh = () => {
@@ -1222,6 +1205,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   return (
     <div className="trade-page">
+      {notice && (
+        <TradeToast
+          key={notice.id}
+          message={notice.message}
+          error={submitState === "error"}
+          onClose={clearNotice}
+        />
+      )}
       <div className="trade-shell">
         <header className="trade-market-header">
           <div>
@@ -1594,69 +1585,21 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               ) : null}
               {accountTab === "positions" ? (
                 <Panel dense>
-                  <div className="panel-heading">
-                    <h2>
-                      {view.line === PRODUCT_LINES.spot
-                        ? "Account order state"
-                        : t("Positions & order state")}
-                    </h2>
-                    <Badge tone="info">{t("Backend")}</Badge>
-                  </div>
-                  {positions.length > 0 ? (
-                    <div className="table-wrap">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>{t("Symbol")}</th>
-                            <th>{t("Side")}</th>
-                            <th>{t("Quantity")}</th>
-                            <th>{t("Entry")}</th>
-                            <th>{t("Realized PnL")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {positions.map((position, index) => (
-                            <tr key={text(position, "positionId") || String(index)}>
-                              <td>{text(position, "symbol") || "—"}</td>
-                              <td>
-                                {text(position, "positionSide") || text(position, "side") || "—"}
-                              </td>
-                              <td className="mono">
-                                {formatPositionQuantity(position, current, assetScales)}
-                              </td>
-                              <td className="mono">
-                                {formatPositionEntry(position, current, assetScales)}
-                              </td>
-                              <td className="mono">
-                                {formatPositionPnl(position, current, assetScales)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <StateView
-                      kind="empty"
-                      message={
-                        session && view.line !== PRODUCT_LINES.spot
-                          ? "No open positions returned."
-                          : view.line === PRODUCT_LINES.spot
-                            ? "Log in to view your open orders and account state."
-                            : "Positions are available for derivative product lines after login."
-                      }
-                    />
-                  )}
-                  {openOrders.length > 0 ? (
-                    <OpenOrders
-                      rows={openOrders}
-                      productLine={view.line}
-                      onDone={(value) => {
-                        setSubmitMessage(value)
-                        refresh()
-                      }}
-                    />
-                  ) : null}
+                  <TradingAccountTables
+                    market={current}
+                    productLine={view.line}
+                    assetScales={assetScales}
+                    positions={positions}
+                    orders={openOrders}
+                    triggers={triggerOrders}
+                    account={realtime.views[view.line]}
+                    events={realtime.events}
+                    loggedIn={!!session}
+                    onNotice={(message, failed) => {
+                      setSubmitState(failed ? "error" : "success")
+                      notify(message)
+                    }}
+                  />
                 </Panel>
               ) : null}
               {accountTab === "triggers" && view.line !== PRODUCT_LINES.spot ? (
@@ -1668,7 +1611,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     market={current}
                     assetScales={assetScales}
                     onDone={(value) => {
-                      setSubmitMessage(value)
+                      notify(value)
                       refresh()
                     }}
                   />
@@ -1733,6 +1676,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               pricePrecision={priceDisplayPrecision(current, assetScales)}
               baseAsset={current?.baseAsset ?? "—"}
               quoteAsset={current?.quoteAsset ?? "—"}
+              onPriceSelect={selectBookPrice}
               onDepthChange={setBookDepth}
               onPrecisionChange={setBookPrecision}
             />
@@ -2105,14 +2049,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 : "—"}
             </span>
           </div>
-          {submitMessage ? (
-            <p
-              className={`form-message ${submitState === "success" ? "positive" : "negative"}`}
-              role="status"
-            >
-              {submitMessage}
-            </p>
-          ) : null}
           {!session ? (
             <a className="ticket-sign-in" href="/auth/login">
               {t("Log in to trade")}
@@ -2183,6 +2119,7 @@ export function OrderBook({
   dollar,
   onDepthChange,
   onPrecisionChange,
+  onPriceSelect,
 }: {
   readonly book: ApiOrderBook | null
   readonly latestTrade: Readonly<Record<string, unknown>> | null
@@ -2193,6 +2130,7 @@ export function OrderBook({
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly dollar: boolean
+  readonly onPriceSelect?: (price: string) => void
   readonly onDepthChange: (depth: 10 | 20 | 50) => void
   readonly onPrecisionChange: (precision: number) => void
 }) {
@@ -2282,6 +2220,7 @@ export function OrderBook({
                   tone="negative"
                   dollar={dollar}
                   pricePrecision={pricePrecision}
+                  onPriceSelect={onPriceSelect}
                 />
               ))}
             </div>
@@ -2289,11 +2228,15 @@ export function OrderBook({
         </section>
         <div className="order-book-last-trade" aria-live="polite">
           <span>{t("Last trade")}</span>
-          <strong
-            className={text(latestTrade, "side") === "SELL" ? "negative mono" : "positive mono"}
+          <button
+            type="button"
+            className={`book-price-button ${text(latestTrade, "side") === "SELL" ? "negative" : "positive"} mono`}
+            disabled={!isPositiveDecimal(text(latestTrade, "price"))}
+            onClick={() => onPriceSelect?.(text(latestTrade, "price"))}
+            aria-label={t("Use last trade price")}
           >
             {displayPrice(text(latestTrade, "price"), dollar, pricePrecision)}
-          </strong>
+          </button>
         </div>
         <section className="order-book-side" aria-label={t("Bids, high to low")}>
           <div className="order-book-columns">
@@ -2321,6 +2264,7 @@ export function OrderBook({
                   tone="positive"
                   dollar={dollar}
                   pricePrecision={pricePrecision}
+                  onPriceSelect={onPriceSelect}
                 />
               ))}
             </div>
@@ -2432,11 +2376,13 @@ function LevelRow({
   tone,
   dollar,
   pricePrecision,
+  onPriceSelect,
 }: {
   readonly level: Level
   readonly total: string
   readonly maxQuantity: number
   readonly tone: "positive" | "negative"
+  readonly onPriceSelect?: ((price: string) => void) | undefined
   readonly pricePrecision: number
   readonly dollar: boolean
 }) {
@@ -2454,7 +2400,14 @@ function LevelRow({
         aria-hidden="true"
         style={{ transform: `scaleX(${fill})` }}
       />
-      <strong className={`${tone} mono`}>{displayPrice(price, dollar, pricePrecision)}</strong>
+      <button
+        type="button"
+        className={`book-price-button ${tone} mono`}
+        onClick={() => onPriceSelect?.(price)}
+        aria-label={`${t("Use price")} ${price}`}
+      >
+        {displayPrice(price, dollar, pricePrecision)}
+      </button>
       <span className="mono" title={amount}>
         {amount}
       </span>
@@ -2523,41 +2476,6 @@ function marketPriceFromRecord(
   } catch {
     return null
   }
-}
-
-function OpenOrders({
-  rows,
-  productLine,
-  onDone,
-}: {
-  readonly rows: readonly ApiOrder[]
-  readonly productLine: ProductLine
-  readonly onDone: (message: string) => void
-}) {
-  return (
-    <div className="table-wrap">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>{t("Open order")}</th>
-            <th>{t("Side")}</th>
-            <th>{t("Status")}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <OpenOrderRow
-              key={String(row.orderId ?? index)}
-              row={row}
-              productLine={productLine}
-              onDone={onDone}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
 }
 
 function TriggerOrders({
@@ -2746,45 +2664,6 @@ function formatTriggerOrderQuantity(
   }
 }
 
-function OpenOrderRow({
-  row,
-  productLine,
-  onDone,
-}: {
-  readonly row: ApiOrder
-  readonly productLine: ProductLine
-  readonly onDone: (message: string) => void
-}) {
-  const [loading, setLoading] = useState(false)
-  const id = row.orderId === undefined ? "" : String(row.orderId)
-  return (
-    <tr>
-      <td className="mono">{id || "—"}</td>
-      <td>{row.side || "—"}</td>
-      <td>{row.status || "—"}</td>
-      <td>
-        <Button
-          tone="negative"
-          loading={loading}
-          disabled={!id || !row.symbol}
-          onClick={() => {
-            if (!id || !row.symbol || !window.confirm("Cancel this order?")) return
-            setLoading(true)
-            void cancelOrder(row.symbol, id, productLine)
-              .then(
-                () => onDone(t("Cancellation requested.")),
-                (reason: unknown) => onDone(readError(reason)),
-              )
-              .finally(() => setLoading(false))
-          }}
-        >
-          <XCircle size={14} /> {t("Cancel")}{" "}
-        </Button>
-      </td>
-    </tr>
-  )
-}
-
 function OptionDetails({
   market,
   quote,
@@ -2918,61 +2797,6 @@ function balanceAmount(
   const scale = assetScales[balance.asset]
   if (balance.availableUnits === undefined || scale === undefined) return null
   return unitsToDecimal(balance.availableUnits, scale)
-}
-
-function formatPositionQuantity(
-  position: Record<string, unknown>,
-  market: Market | null,
-  assetScales: Readonly<Record<string, string>>,
-): string {
-  const signedSteps = text(position, "signedQuantitySteps")
-  if (!signedSteps) return text(position, "quantity") || text(position, "quantitySteps") || "—"
-  if (!market) {
-    return `steps ${signedSteps}`
-  }
-  try {
-    const negative = signedSteps.startsWith("-")
-    const magnitude = negative ? signedSteps.slice(1) : signedSteps
-    const spec = marketQuantitySpec(market, assetScales)
-    const amount = stepUnitsToDecimal(magnitude, spec.unitSize, spec.scale)
-    return `${negative ? "-" : "+"}${amount} ${market?.baseAsset ?? ""}`
-  } catch {
-    return `steps ${signedSteps}`
-  }
-}
-
-function formatPositionEntry(
-  position: Record<string, unknown>,
-  market: Market | null,
-  assetScales: Readonly<Record<string, string>>,
-): string {
-  const ticks = text(position, "entryPriceTicks")
-  if (!ticks) return text(position, "entryPrice") || "—"
-  const priceTickUnits = market?.priceTickUnits
-  const priceScale = market === null ? undefined : assetScales[market.quoteAsset]
-  if (priceTickUnits === undefined || priceScale === undefined) return `ticks ${ticks}`
-  try {
-    return `${stepUnitsToDecimal(ticks, priceTickUnits, priceScale)} ${market?.quoteAsset ?? ""}`
-  } catch {
-    return `ticks ${ticks}`
-  }
-}
-
-function formatPositionPnl(
-  position: Record<string, unknown>,
-  market: Market | null,
-  assetScales: Readonly<Record<string, string>>,
-): string {
-  const units = text(position, "realizedPnlUnits")
-  if (!units) return text(position, "realizedPnl") || "—"
-  const settleAsset = market?.settleAsset ?? market?.quoteAsset
-  const scale = settleAsset === undefined ? undefined : assetScales[settleAsset]
-  if (settleAsset === undefined || scale === undefined) return `units ${units}`
-  try {
-    return `${signedUnitsToDecimal(units, scale)} ${settleAsset}`
-  } catch {
-    return `units ${units}`
-  }
 }
 
 function estimatedFee(
@@ -3317,5 +3141,31 @@ function PairMarketValues({
         {formatPercent(change)}
       </small>
     </span>
+  )
+}
+
+function TradeToast({
+  message,
+  error,
+  onClose,
+}: {
+  readonly message: string
+  readonly error: boolean
+  readonly onClose: () => void
+}) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+  return (
+    <div
+      className={`trade-toast ${error ? "trade-toast-error" : "trade-toast-success"}`}
+      role={error ? "alert" : "status"}
+    >
+      <span>{message}</span>
+      <button type="button" onClick={onClose} aria-label={t("Close")}>
+        ×
+      </button>
+    </div>
   )
 }

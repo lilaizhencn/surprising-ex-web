@@ -145,6 +145,14 @@ export async function loadRuntimeProducts(): Promise<readonly ProductLine[]> {
   return result.productLines
 }
 
+/** Same UserReadView contract as the private WebSocket snapshot. */
+export function loadRealtimeState(productLine: ProductLine) {
+  return request(`/api/v1/realtime/${productLine}/state`, GenericObjectSchema, {
+    productLine,
+    retry: 0,
+  })
+}
+
 export function loadMarket(symbol: string, productLine: ProductLine): Promise<ApiMarket> {
   const query = new URLSearchParams({ symbol, productLine })
   return request(`/api/v1/gateway/instrument/latest?${query}`, MarketSchema, { productLine })

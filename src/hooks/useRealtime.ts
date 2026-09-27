@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { loadRuntimeProducts } from "../api/endpoints"
+import { loadRealtimeState, loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
 import {
@@ -87,7 +87,7 @@ export function useRealtimeFeed(
     let receivedAt: string | null = null
     const current: Partial<Record<ProductLine, PrivateView>> = {}
     let tape: WsEnvelope[] = []
-    let executions: WsEnvelope[] = []
+    let privateEvents: WsEnvelope[] = []
     let privateDirty = true
     const publicLive = new Map<ProductLine, boolean>()
     // Only the feed owns recovery-in-progress; it ends at the replacement WS snapshot.
@@ -104,7 +104,7 @@ export function useRealtimeFeed(
         }
         setOwner(identity)
         setLastEventAt(receivedAt)
-        setEvents([...executions, ...latest.current.values(), ...tape])
+        setEvents([...privateEvents, ...latest.current.values(), ...tape])
       }, publishInterval)
     }
     const publicManager = new RealtimeConnections(
@@ -183,9 +183,15 @@ export function useRealtimeFeed(
                   publish()
                 }
               }
-              if (event.op === "event" && event.channel === "executionReports") {
+              if (
+                event.op === "event" &&
+                ["executionReports", "orders"].includes(event.channel ?? "")
+              ) {
                 const next = unwrapEvent(event)
-                executions = [next, ...executions.filter((e) => e.id !== next.id)].slice(0, 80)
+                privateEvents = [next, ...privateEvents.filter((e) => e.id !== next.id)].slice(
+                  0,
+                  80,
+                )
                 publish()
               }
             },
@@ -207,6 +213,21 @@ export function useRealtimeFeed(
         setProducts(enabled)
         setError(null)
         privateManager?.update(privateSubscriptions(enabled))
+        if (privateManager)
+          for (const productLine of enabled) {
+            void loadRealtimeState(productLine)
+              .then((snapshot) => {
+                if (closed || snapshot["status"] !== "READY") return
+                current[productLine] ??= new PrivateView()
+                if (current[productLine]?.apply({ op: "snapshot", productLine, data: snapshot })) {
+                  privateDirty = true
+                  publish()
+                }
+              })
+              .catch(() => {
+                /* The subscribed WS snapshot remains responsible for recovery. */
+              })
+          }
       })
       .catch((reason: unknown) => {
         if (closed) return

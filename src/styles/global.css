@@ -3310,3 +3310,145 @@ body,
 .ticket-summary > span {
   white-space: nowrap;
 }
+
+/* Trading actions and account rows share the compact market typography. */
+.book-price-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+.book-price-button:hover {
+  text-decoration: underline;
+}
+.book-price-button:disabled {
+  cursor: default;
+}
+.trade-toast {
+  position: fixed;
+  z-index: 2000;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: min(540px, 90vw);
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 8px 32px #0005;
+  border: 1px solid #2ca77a;
+  animation: trade-toast-life 3s ease both;
+}
+.trade-toast-error {
+  border-color: #ec6471;
+}
+.trade-toast button {
+  border: 0;
+  color: inherit;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+@keyframes trade-toast-life {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.trade-account-tables {
+  min-width: 0;
+}
+.account-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 10px;
+  font-size: 11px;
+}
+.account-table-toolbar [role="tablist"] {
+  display: flex;
+  gap: 14px;
+}
+.account-table-toolbar button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: inherit;
+  padding: 6px 0;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.account-table-toolbar button[aria-selected="true"] {
+  border-bottom-color: #23ad83;
+}
+.account-table-toolbar label {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+}
+.compact-trading-table {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.compact-trading-table th,
+.compact-trading-table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.compact-trading-table th {
+  font-size: 10px;
+  font-weight: 500;
+}
+.compact-trading-table small {
+  display: block;
+  font-size: 10px;
+  opacity: 0.68;
+  margin-top: 4px;
+}
+.compact-trading-table b {
+  font-weight: 500;
+}
+.compact-cancel {
+  background: transparent;
+  border: 1px solid #8794a344;
+  color: inherit;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.account-table-empty {
+  text-align: center;
+  padding: 22px 8px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+@media (max-width: 600px) {
+  .account-table-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.book-price-button.positive {
+  color: var(--color-positive);
+}
+.book-price-button.negative {
+  color: var(--color-negative);
+}

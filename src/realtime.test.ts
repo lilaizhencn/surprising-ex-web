@@ -213,3 +213,41 @@ it("accepts an authoritative depth snapshot after the Core sequence restarts", (
   expect(newerPublicEvent(fresh, old)).toBe(true)
   expect(newerPublicEvent({ ...fresh, data: { updateType: "DELTA" } }, old)).toBe(false)
 })
+
+it("uses identical complete account fields for REST snapshots and WS updates", () => {
+  const first = new PrivateView(),
+    second = new PrivateView()
+  const order = {
+    orderId: "9007199254740993",
+    symbol: "BTC-USDT-SWAP",
+    status: "OPEN",
+    executedQuantitySteps: "2",
+    remainingQuantitySteps: "8",
+    cumulativeFeeUnits: "530",
+    createdAtEpochMillis: "1790000000000",
+    updatedAtEpochMillis: "1790000000500",
+  }
+  const position = {
+    symbol: "BTC-USDT-SWAP",
+    positionSide: "NET",
+    signedQuantitySteps: "2",
+    marginAsset: "USDT",
+    positionMarginUnits: "800000",
+    entryValueTicks: "10000",
+  }
+  const leverage = { symbol: "BTC-USDT-SWAP", marginMode: "CROSS", leveragePpm: "3000000" }
+  first.apply(
+    snapshot(3, {
+      account: { balances: [], positions: [position], leverages: [leverage] },
+      openOrders: [order],
+    }),
+  )
+  second.apply(snapshot(1))
+  second.apply(event("orders", 2, order))
+  second.apply(event("positions", 2, { positions: [position] }))
+  second.apply(event("accountState", 2, { leverages: [leverage] }))
+  for (const kind of ["order", "position", "leverage"])
+    expect(second.rows(kind)).toEqual(first.rows(kind))
+  second.apply(snapshot(1))
+  expect(second.rows("order")[0]?.["cumulativeFeeUnits"]).toBe("530")
+})

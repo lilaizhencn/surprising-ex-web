@@ -73,6 +73,8 @@ export class PrivateView {
       const account = record(data["account"])
       put("metadata", { positionMode: account["positionMode"] })
       for (const v of rows(account["balances"])) put(`balance:${v["asset"]}`, v)
+      for (const v of rows(account["leverages"]))
+        put(`leverage:${v["symbol"]}:${v["marginMode"]}`, v)
       for (const v of rows(account["positions"])) put(`position:${positionKey(v)}`, v)
       for (const v of rows(data["openOrders"])) put(`order:${v["orderId"]}`, v)
       for (const v of rows(data["triggerOrders"])) put(`trigger:${v["triggerOrderId"]}`, v)
@@ -94,6 +96,8 @@ export class PrivateView {
         if (data["entityId"] === "user" && value["positionMode"] !== undefined)
           put("metadata", { positionMode: value["positionMode"] })
         for (const row of rows(value["balances"])) put(`balance:${row["asset"]}`, row)
+        for (const row of rows(value["leverages"]))
+          put(`leverage:${row["symbol"]}:${row["marginMode"]}`, row)
         break
       case "positions":
         for (const row of rows(value["positions"])) {
