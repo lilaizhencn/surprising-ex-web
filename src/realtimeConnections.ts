@@ -73,6 +73,9 @@ class Connection {
   private heartbeat: ReturnType<typeof setInterval> | undefined
   private attempt = 0
   private lastReceivedAt = 0
+  private lastPingAt = 0
+  // Per active depth subscription only: a recovery deadline, not a book or event history.
+  private readonly depthProgress = new Map<string, { at: number; awaitingSnapshot: boolean }>()
   constructor(
     private readonly url: string,
     private readonly token: string | null,
@@ -92,7 +95,9 @@ class Connection {
     const socket = new WebSocket(this.url)
     this.socket = socket
     this.lastReceivedAt = Date.now()
-    this.heartbeat = setInterval(() => this.checkLiveness(), 20000)
+    this.lastPingAt = Date.now()
+    this.depthProgress.clear()
+    this.heartbeat = setInterval(() => this.checkLiveness(), 1000)
     this.authenticated = !this.token
     this.installed.clear()
     this.state(this.products(), false)
@@ -112,6 +117,20 @@ class Connection {
       try {
         const event = parseRealtimeJson(String(message.data))
         this.lastReceivedAt = Date.now()
+        if (event.op === "event" && event.channel === "depth" && event.productLine) {
+          const key = subscriptionKey({
+            channel: "depth",
+            productLine: event.productLine,
+            ...(event.symbol ? { symbol: event.symbol } : {}),
+          })
+          const progress = this.depthProgress.get(key)
+          const outer = event.data as { value?: unknown; updateType?: string } | undefined
+          const data = (outer?.value ?? outer) as { updateType?: string } | undefined
+          if (progress && (!progress.awaitingSnapshot || data?.updateType === "SNAPSHOT")) {
+            progress.at = Date.now()
+            progress.awaitingSnapshot = false
+          }
+        }
         if (event.op === "authenticated") {
           this.authenticated = true
           this.state(this.products(), true)
@@ -134,8 +153,19 @@ class Connection {
       this.disconnect(socket)
       return
     }
-    if (socket.readyState === WebSocket.OPEN)
+    if (socket.readyState !== WebSocket.OPEN) return
+    const now = Date.now()
+    if (this.authenticated) {
+      for (const [key, progress] of this.depthProgress) {
+        const deadline = progress.awaitingSnapshot ? 3000 : 10000
+        const subscription = this.desired.get(key)
+        if (subscription && now - progress.at >= deadline) this.resubscribe(subscription)
+      }
+    }
+    if (now - this.lastPingAt >= 20000) {
       socket.send(JSON.stringify({ op: "ping", id: "heartbeat" }))
+      this.lastPingAt = now
+    }
   }
   private disconnect(socket: WebSocket) {
     if (this.closed || this.socket !== socket) return
@@ -156,9 +186,16 @@ class Connection {
     const socket = this.socket
     if (socket?.readyState !== WebSocket.OPEN || !this.authenticated) return
     for (const [id, s] of this.installed)
-      if (!this.desired.has(id)) socket.send(JSON.stringify({ op: "unsubscribe", id, ...s }))
+      if (!this.desired.has(id)) {
+        socket.send(JSON.stringify({ op: "unsubscribe", id, ...s }))
+        this.depthProgress.delete(id)
+      }
     for (const [id, s] of this.desired)
-      if (!this.installed.has(id)) socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
+      if (!this.installed.has(id)) {
+        socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
+        if (s.channel === "depth")
+          this.depthProgress.set(id, { at: Date.now(), awaitingSnapshot: true })
+      }
     this.installed = new Map(this.desired)
   }
   resubscribe(subscription: Subscription) {
@@ -173,6 +210,8 @@ class Connection {
       return
     socket.send(JSON.stringify({ op: "unsubscribe", id, ...subscription }))
     socket.send(JSON.stringify({ op: "subscribe", id, ...subscription }))
+    if (subscription.channel === "depth")
+      this.depthProgress.set(id, { at: Date.now(), awaitingSnapshot: true })
   }
   refresh() {
     const socket = this.socket

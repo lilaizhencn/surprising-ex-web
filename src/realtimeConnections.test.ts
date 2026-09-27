@@ -133,7 +133,61 @@ describe("realtime connection lifecycle", () => {
     expect(socket(1).sent).toContainEqual(expect.objectContaining({ op: "subscribe", ...depth }))
     stale.onclose?.() // Late callback must not cancel the new socket heartbeat.
     vi.advanceTimersByTime(20000)
-    expect(socket(1).sent.at(-1)).toMatchObject({ op: "ping" })
+    expect(socket(1).sent).toContainEqual(expect.objectContaining({ op: "ping" }))
+    manager.close()
+  })
+  it("recovers a missing depth snapshot even while trades and deltas keep the socket alive", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    const depth: Subscription = {
+      productLine: "LINEAR_PERPETUAL",
+      channel: "depth",
+      symbol: "BTC-USDT-SWAP",
+    }
+    manager.update([depth, { ...depth, channel: "trades" }])
+    const ws = socket()
+    ws.open()
+    for (let i = 0; i < 6; i++) {
+      ws.receive({ op: "event", ...depth, data: { value: { updateType: "DELTA" } } })
+      ws.receive({ op: "event", ...depth, channel: "trades", data: {} })
+      vi.advanceTimersByTime(1000)
+    }
+    expect(
+      ws.sent.filter((event) => event["op"] === "subscribe" && event["channel"] === "depth"),
+    ).toHaveLength(3)
+    expect(
+      ws.sent.filter((event) => event["op"] === "subscribe" && event["channel"] === "trades"),
+    ).toHaveLength(1)
+    ws.receive({ op: "event", ...depth, data: { value: { updateType: "SNAPSHOT" } } })
+    for (let i = 0; i < 12; i++) {
+      vi.advanceTimersByTime(1000)
+      ws.receive({ op: "event", ...depth, data: { value: { updateType: "DELTA" } } })
+    }
+    expect(
+      ws.sent.filter((event) => event["op"] === "subscribe" && event["channel"] === "depth"),
+    ).toHaveLength(3)
+    manager.update([{ ...depth, channel: "trades" }])
+    const sent = ws.sent.length
+    vi.advanceTimersByTime(15000)
+    expect(ws.sent.slice(sent).every((event) => event["op"] === "ping")).toBe(true)
+    manager.close()
+  })
+  it("refreshes a stalled depth channel independently of pong and trade traffic", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    const depth: Subscription = {
+      productLine: "LINEAR_PERPETUAL",
+      channel: "depth",
+      symbol: "BTC-USDT-SWAP",
+    }
+    manager.update([depth])
+    const ws = socket()
+    ws.open()
+    ws.receive({ op: "event", ...depth, data: { value: { updateType: "SNAPSHOT" } } })
+    for (let i = 0; i < 10; i++) {
+      ws.receive({ op: "pong" })
+      vi.advanceTimersByTime(1000)
+    }
+    expect(ws.sent.slice(-2).map((event) => event["op"])).toEqual(["unsubscribe", "subscribe"])
+    expect(Socket.instances).toHaveLength(1)
     manager.close()
   })
   it("keeps quiet markets connected while pong replies arrive", () => {
