@@ -96,6 +96,7 @@ import {
   signedPositionSteps,
   triggerConditionText,
 } from "./triggerOrder"
+import { useDayStats } from "./useDayStats"
 
 const views = [
   {
@@ -287,38 +288,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null
     )
   }, [availableMarkets, selected])
-  const dayStats = useMemo(() => {
-    // Only reuse history that can cover the day at hourly-or-finer resolution.
-    // A short intraday chart is not a valid source for a 24-hour statistic.
-    const duration = periodMillisecondsForChart(period)
-    if (duration * 120 < 86_400_000 || duration > 3_600_000) return null
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000
-    const rows = candles.filter((candle) => Date.parse(candle.time) >= cutoff)
-    if (rows.length === 0) return null
-    const first = rows[0]
-    const last = rows[rows.length - 1]
-    if (!first || !last) return null
-    return {
-      open: first.open,
-      high: Math.max(...rows.map((row) => row.high)),
-      low: Math.min(...rows.map((row) => row.low)),
-      close: last.close,
-      change: first.open > 0 ? ((last.close - first.open) / first.open) * 100 : null,
-    }
-  }, [candles, period])
   const lastTradePrice = current
     ? marketPriceFromRecord(recentTrades[0] ?? {}, current, assetScales)
     : null
-  const displayedDayStats =
-    dayStats && lastTradePrice && lastTradePrice > 0
-      ? {
-          ...dayStats,
-          high: Math.max(dayStats.high, lastTradePrice),
-          low: Math.min(dayStats.low, lastTradePrice),
-          close: lastTradePrice,
-          change: ((lastTradePrice - dayStats.open) / dayStats.open) * 100,
-        }
-      : dayStats
   const balance = useMemo(() => {
     const asset =
       view.line === PRODUCT_LINES.spot
@@ -354,19 +326,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
-  const realtime = useRealtime(
-    session,
-    current?.symbol ?? view.symbol,
-    view.line,
-    period,
-    pairOpen
+  const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period, [
+    {
+      channel: "candles",
+      symbol: current?.symbol ?? view.symbol,
+      productLine: view.line,
+      period: "1m",
+    },
+    ...(pairOpen
       ? markets.map((market) => ({
           channel: "trades",
           symbol: market.symbol,
           productLine: view.line,
         }))
-      : [],
-  )
+      : []),
+  ])
+  const displayedDayStats = useDayStats(current?.symbol, view.line, realtime.events, realtime.state)
   const privateViewReady = useRef(false)
   privateViewReady.current = realtime.views[view.line]?.ready() ?? false
 
@@ -1332,13 +1307,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           <div>
             <small>{t("24h Change")}</small>
             <strong
-              className={
-                (displayedDayStats?.change ?? current?.change24h ?? 0) >= 0
-                  ? "positive mono"
-                  : "negative mono"
-              }
+              className={(displayedDayStats?.change ?? 0) >= 0 ? "positive mono" : "negative mono"}
             >
-              {formatPercent(displayedDayStats?.change ?? current?.change24h ?? null)}
+              {formatPercent(displayedDayStats?.change ?? null)}
             </strong>
           </div>
           <div>
@@ -1355,7 +1326,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <small>{t("24h High")}</small>
             <strong className="mono">
               <Price
-                value={displayedDayStats?.high ?? current?.high24h ?? null}
+                value={displayedDayStats?.high ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
                 pricePrecision={priceDisplayPrecision(current, assetScales)}
               />
@@ -1365,7 +1336,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <small>{t("24h Low")}</small>
             <strong className="mono">
               <Price
-                value={displayedDayStats?.low ?? current?.low24h ?? null}
+                value={displayedDayStats?.low ?? null}
                 dollar={isDollarQuote(current?.quoteAsset)}
                 pricePrecision={priceDisplayPrecision(current, assetScales)}
               />

@@ -226,6 +226,25 @@ export async function loadCandles(
   return response.candles ?? response.items ?? []
 }
 
+/** Fixed minute-resolution rolling-day history, independent of the chart selection. */
+export async function loadDayWindow(symbol: string, productLine: ProductLine) {
+  const now = Date.now()
+  const start = Math.floor(now / 60_000) * 60_000 - 86_400_000
+  const query = new URLSearchParams({
+    symbol,
+    period: "1m",
+    limit: "1441",
+    startTime: new Date(start).toISOString(),
+    endTime: new Date(now).toISOString(),
+  })
+  const response = await request(
+    `/api/v1/gateway/candlestick/candles?${query.toString()}`,
+    CandleListSchema,
+    { productLine, retry: 0 },
+  )
+  return response.candles ?? response.items ?? []
+}
+
 export async function loadRecentTrades(symbol: string, productLine: ProductLine, limit = 50) {
   const query = new URLSearchParams({ symbol, limit: String(limit) })
   const response = await request(
