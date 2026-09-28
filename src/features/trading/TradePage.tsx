@@ -1542,7 +1542,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 />
               ) : null}
               {accountTab === "positions" ? (
-                <Panel dense>
+                <Panel dense className="trade-orders-panel">
                   <TradingAccountTables
                     market={current}
                     productLine={view.line}

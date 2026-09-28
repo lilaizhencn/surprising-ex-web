@@ -3367,6 +3367,9 @@ body,
     opacity: 0;
   }
 }
+.trade-account-body > .trade-orders-panel {
+  padding-top: 0;
+}
 .trade-account-tables {
   min-width: 0;
 }
@@ -3375,7 +3378,7 @@ body,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 0 10px;
+  padding: 2px 0 4px;
   font-size: 11px;
 }
 .account-table-toolbar [role="tablist"] {
