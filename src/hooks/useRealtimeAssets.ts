@@ -12,7 +12,7 @@ import {
   type Subscription,
   type WsEnvelope,
 } from "../realtime"
-import type { Balance, ProductLine } from "../types/domain"
+import type { Balance, Market, ProductLine } from "../types/domain"
 import { useRealtimeFeed } from "./useRealtime"
 
 const accountTypes: Record<ProductLine, string> = {
@@ -53,6 +53,26 @@ export function eventPrice(
   if (data["priceTicks"] !== undefined) return fromTicks(data["priceTicks"])
   const price = Number(data["price"])
   return Number.isFinite(price) && price > 0 ? price : null
+}
+
+export function marketWithLivePrice(
+  market: Market,
+  event: WsEnvelope | undefined,
+  scales: Readonly<Record<string, string>>,
+): Market {
+  const price = eventPrice(event, market, scales)
+  if (price === null) return market
+  const openingPrice =
+    market.price !== null && market.change24h !== null && market.change24h > -100
+      ? market.price / (1 + market.change24h / 100)
+      : null
+  return {
+    ...market,
+    price,
+    change24h: openingPrice ? ((price - openingPrice) / openingPrice) * 100 : market.change24h,
+    high24h: Math.max(market.high24h ?? price, price),
+    low24h: Math.min(market.low24h ?? price, price),
+  }
 }
 
 function markTicks(

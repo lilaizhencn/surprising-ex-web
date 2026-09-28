@@ -14,7 +14,6 @@ import {
   closePosition,
   loadAccountLedger,
   loadAssetScales,
-  loadMarket,
   loadMarkets,
   loadMyTrades,
   loadOpenAlgoOrders,
@@ -72,13 +71,6 @@ export function OrdersPage() {
   } | null>(null)
   const isAssetTab = tab === "ledger" || tab === "product-ledger" || tab === "transfers"
   const filterValue = isAssetTab ? assetFilter : instrumentId
-  const loadMarketOptions = () => {
-    if (marketOptions?.line === productLine) return
-    void loadMarkets(productLine).then(
-      (items) => setMarketOptions({ line: productLine, items }),
-      (reason: unknown) => setError(readError(reason)),
-    )
-  }
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("ALL")
   const [from, setFrom] = useState("")
@@ -165,34 +157,29 @@ export function OrdersPage() {
       ),
     [liveRows, search, status, filterValue, isAssetTab, markets, productLine],
   )
-  const displayIds = [...new Set(liveRows.map((row) => text(row, "instrumentId")).filter(Boolean))]
-    .sort()
-    .join(",")
   useEffect(() => {
-    let active = true
-    const ids = displayIds ? displayIds.split(",") : []
-    void Promise.all(
-      ids.map(async (id) => {
-        const market = await loadMarket(id, productLine)
-        return [`${productLine}:${id}`, mapMarket(market)] as const
-      }),
-    ).then(
-      (entries) => {
-        if (active) setMarkets(Object.fromEntries(entries))
+    const controller = new AbortController()
+    void loadMarkets(productLine, controller.signal).then(
+      (rows) => {
+        if (controller.signal.aborted) return
+        setMarketOptions({ line: productLine, items: rows })
+        setMarkets(
+          Object.fromEntries(
+            rows.map((row) => [`${productLine}:${row.instrumentId}`, mapMarket(row)]),
+          ),
+        )
       },
       (reason: unknown) => {
-        if (active) setError(readError(reason))
+        if (!controller.signal.aborted) setError(readError(reason))
       },
     )
-    return () => {
-      active = false
-    }
-  }, [displayIds, productLine])
+    return () => controller.abort()
+  }, [productLine])
   const displayRows = filtered.map((row) => {
     const market = markets[`${productLine}:${text(row, "instrumentId")}`]
     return {
       ...row,
-      symbol: market?.symbol ?? "—",
+      symbol: market?.symbol ?? text(row, "instrumentId") ?? "—",
       displayPrice:
         row["orderType"] === "MARKET" ? t("Market") : price(row["priceTicks"], market, assetScales),
       displayQuantity: quantity(row["quantitySteps"], market, assetScales),
@@ -368,7 +355,7 @@ export function OrdersPage() {
             aria-label={t("Asset filter")}
           />
         ) : (
-          <div onFocusCapture={loadMarketOptions}>
+          <div>
             <DropdownSelect
               value={instrumentId}
               onChange={(event) => setInstrumentId(event.target.value)}

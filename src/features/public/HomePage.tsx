@@ -11,7 +11,7 @@ import {
   StateView,
 } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
-import { eventPrice } from "../../hooks/useRealtimeAssets"
+import { marketWithLivePrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets, demoTrend } from "../../lib/demo"
@@ -26,7 +26,7 @@ export function HomePage() {
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    void loadMarkets(PRODUCT_LINES.usdMPerpetual)
+    void loadMarkets(PRODUCT_LINES.usdMPerpetual, undefined, true, true)
       .then((rows) =>
         setMarkets(
           rows
@@ -43,21 +43,6 @@ export function HomePage() {
       .then(setAssetScales)
       .catch(() => {})
   }, [])
-  const realtime = useRealtimeFeed(
-    null,
-    markets.flatMap((market) => [
-      {
-        channel: "trades",
-        productLine: PRODUCT_LINES.usdMPerpetual,
-        instrumentId: market.instrumentId,
-      },
-      {
-        channel: "mark",
-        productLine: PRODUCT_LINES.usdMPerpetual,
-        instrumentId: market.instrumentId,
-      },
-    ]),
-  )
   const source =
     markets.length > 0
       ? markets
@@ -69,18 +54,7 @@ export function HomePage() {
             maxLeverage: 125,
           }))
         : []
-  const liveMarkets = source.map((market) => {
-    const event =
-      realtime.events.find(
-        (row) => row.channel === "trades" && row.instrumentId === market.instrumentId,
-      ) ??
-      realtime.events.find(
-        (row) => row.channel === "mark" && row.instrumentId === market.instrumentId,
-      )
-    const price = eventPrice(event, market, assetScales)
-    return price === null ? market : { ...market, price }
-  })
-  const displayed = liveMarkets
+  const featured = source
     .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
     .sort((left, right) => {
       const leftRank = featuredSymbols.indexOf(left.symbol)
@@ -91,6 +65,20 @@ export function HomePage() {
       )
     })
     .slice(0, 3)
+  const realtime = useRealtimeFeed(
+    null,
+    featured.map((market) => ({
+      channel: "trades",
+      productLine: PRODUCT_LINES.usdMPerpetual,
+      instrumentId: market.instrumentId,
+    })),
+  )
+  const displayed = featured.map((market) => {
+    const event = realtime.events.find(
+      (row) => row.channel === "trades" && row.instrumentId === market.instrumentId,
+    )
+    return marketWithLivePrice(market, event, assetScales)
+  })
   return (
     <div className="home-page">
       <section className="hero container">
@@ -171,7 +159,9 @@ export function HomePage() {
                   </span>
                 </div>
                 <Price value={market.price} prefix="$" />
-                {markets.length === 0 && config.demoDataEnabled ? (
+                {market.trend && market.trend.length > 1 ? (
+                  <Sparkline values={market.trend} positive={(market.change24h ?? 0) >= 0} />
+                ) : markets.length === 0 && config.demoDataEnabled ? (
                   <Sparkline values={demoTrend} positive={(market.change24h ?? 0) >= 0} />
                 ) : (
                   <span className="subtle trend-unavailable">{t("Trend unavailable")}</span>

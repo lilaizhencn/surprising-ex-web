@@ -19,8 +19,10 @@ export type Market = {
   readonly price: number | null
   readonly change24h: number | null
   readonly volume24h: number | null
+  readonly quoteVolume24h?: number | null
   readonly high24h: number | null
   readonly low24h: number | null
+  readonly trend?: readonly number[]
   readonly pricePrecision: number
   readonly quantityPrecision: number
   readonly notionalMultiplierUnits?: string | undefined

@@ -19,9 +19,7 @@ import {
   loadFundingRate,
   loadFundingRateHistory,
   loadFundingSettlement,
-  loadIndexPrice,
   loadMarkets,
-  loadMarkPrice,
   loadOptionQuote,
   loadRecentTrades,
   placeBatchTriggerOrders,
@@ -97,7 +95,6 @@ import {
   signedPositionSteps,
   triggerConditionText,
 } from "./triggerOrder"
-import { useDayStats } from "./useDayStats"
 
 const views = [
   {
@@ -223,7 +220,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [marketQuotes, setMarketQuotes] = useState<Readonly<Record<string, number>>>({})
   const [positions, setPositions] = useState<readonly Record<string, unknown>[]>([])
   const [funding, setFunding] = useState<ApiFundingRate | null>(null)
-  const priceEventVersions = useRef({ mark: 0, index: 0, funding: 0 })
+  const fundingEventVersion = useRef(0)
   const [markPrice, setMarkPrice] = useState<Record<string, unknown> | null>(null)
   const [indexPrice, setIndexPrice] = useState<Record<string, unknown> | null>(null)
   const [fundingPayments, setFundingPayments] = useState<readonly ApiFundingPayment[]>([])
@@ -377,29 +374,36 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
-  const realtime = useRealtime(session, current?.instrumentId ?? "", view.line, period, [
-    {
-      channel: "candles",
-      instrumentId: current?.instrumentId ?? "",
-      productLine: view.line,
-      period: "1m",
-    },
-  ])
+  const realtime = useRealtime(session, current?.instrumentId ?? "", view.line, period)
   const pairFeed = useRealtimeFeed(
     null,
-    markets.flatMap((market) => [
-      { channel: "trades", instrumentId: market.instrumentId, productLine: view.line },
-      { channel: "mark", instrumentId: market.instrumentId, productLine: view.line },
-    ]),
+    markets.map((market) => ({
+      channel: "trades",
+      instrumentId: market.instrumentId,
+      productLine: view.line,
+    })),
     1000,
     false,
   )
-  const displayedDayStats = useDayStats(
-    current?.instrumentId,
-    view.line,
-    realtime.events,
-    realtime.state,
-  )
+  const displayedDayStats = useMemo(() => {
+    if (!current) return null
+    const close = marketQuotes[current.instrumentId] ?? current.price
+    const initialClose = current.price
+    const change = current.change24h
+    const open =
+      initialClose !== null && change !== null && change > -100
+        ? initialClose / (1 + change / 100)
+        : null
+    return {
+      open,
+      close,
+      high: close === null ? current.high24h : Math.max(current.high24h ?? close, close),
+      low: close === null ? current.low24h : Math.min(current.low24h ?? close, close),
+      volume: current.volume24h,
+      quoteVolume: current.quoteVolume24h,
+      change: open && close ? ((close - open) / open) * 100 : change,
+    }
+  }, [current, marketQuotes])
   const openInterestQuantity = useMemo(() => {
     if (!current || realtime.state !== "live") return ""
     const event = realtime.events.find(
@@ -559,7 +563,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setError(null)
     setMarkets([])
     setSelected("")
-    void loadMarkets(view.line, controller.signal)
+    void loadMarkets(view.line, controller.signal, true)
       .then((rows) => {
         if (controller.signal.aborted) return
         const productMarkets = rows
@@ -700,17 +704,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       return
     }
     let cancelled = false
-    const fundingVersion = priceEventVersions.current.funding
+    const fundingVersion = fundingEventVersion.current
     setFunding(null)
     setFundingHistory([])
     setFundingSettlement(null)
     setFundingMarketError("")
     void loadFundingRate(current.instrumentId, view.line)
       .then((value) => {
-        if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(value)
+        if (!cancelled && fundingEventVersion.current === fundingVersion) setFunding(value)
       })
       .catch(() => {
-        if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(null)
+        if (!cancelled && fundingEventVersion.current === fundingVersion) setFunding(null)
       })
     void loadFundingRateHistory(current.instrumentId, view.line)
       .then((history) => {
@@ -757,30 +761,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [current?.instrumentId, session, view.line])
 
   useEffect(() => {
-    if (!current || view.line === PRODUCT_LINES.spot) {
-      setMarkPrice(null)
-      setIndexPrice(null)
-      return
-    }
-    let cancelled = false
-    const versions = { ...priceEventVersions.current }
+    if (!current) return
     setMarkPrice(null)
     setIndexPrice(null)
-    void Promise.allSettled([
-      loadMarkPrice(current.instrumentId, view.line),
-      loadIndexPrice(current.instrumentId, view.line),
-    ]).then(([markResult, indexResult]) => {
-      if (cancelled) return
-      // A slow initial snapshot must not replace a newer WebSocket price.
-      if (priceEventVersions.current.mark === versions.mark)
-        setMarkPrice(markResult.status === "fulfilled" ? markResult.value : null)
-      if (priceEventVersions.current.index === versions.index)
-        setIndexPrice(indexResult.status === "fulfilled" ? indexResult.value : null)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [current?.instrumentId, view.line])
+  }, [current?.instrumentId])
 
   useEffect(() => {
     if (!current || !assetScales[current.quoteAsset]) return
@@ -889,18 +873,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (channel === "funding") {
         const rate = FundingRateSchema.safeParse(data)
         if (rate.success) {
-          priceEventVersions.current.funding++
+          fundingEventVersion.current++
           setFunding(rate.data)
         }
         return
       }
       if (channel === "mark") {
-        priceEventVersions.current.mark++
         setMarkPrice(data)
         return
       }
       if (channel === "index") {
-        priceEventVersions.current.index++
         setIndexPrice(data)
         return
       }
@@ -1572,6 +1554,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <Panel dense className="trade-orders-panel">
                   <TradingAccountTables
                     market={current}
+                    markets={markets}
                     productLine={view.line}
                     assetScales={assetScales}
                     positions={positions}

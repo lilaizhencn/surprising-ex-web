@@ -200,33 +200,36 @@ export function useRealtimeFeed(
           )
         : null
     privateConnections.current = privateManager
-    void loadRuntimeProducts()
-      .then((enabled) => {
-        if (closed) return
-        setProducts(enabled)
-        setError(null)
-        privateManager?.update(privateSubscriptions(enabled))
-        if (privateManager)
-          for (const productLine of enabled) {
-            void loadRealtimeState(productLine)
-              .then((snapshot) => {
-                if (closed || snapshot["status"] !== "READY") return
-                current[productLine] ??= new PrivateView()
-                if (current[productLine]?.apply({ op: "snapshot", productLine, data: snapshot })) {
-                  privateDirty = true
-                  publish()
-                }
-              })
-              .catch(() => {
-                /* The subscribed WS snapshot remains responsible for recovery. */
-              })
-          }
-      })
-      .catch((reason: unknown) => {
-        if (closed) return
-        setError(reason instanceof Error ? reason.message : "Account availability unavailable")
-        setState("degraded")
-      })
+    if (privateManager)
+      void loadRuntimeProducts()
+        .then((enabled) => {
+          if (closed) return
+          setProducts(enabled)
+          setError(null)
+          privateManager?.update(privateSubscriptions(enabled))
+          if (privateManager)
+            for (const productLine of enabled) {
+              void loadRealtimeState(productLine)
+                .then((snapshot) => {
+                  if (closed || snapshot["status"] !== "READY") return
+                  current[productLine] ??= new PrivateView()
+                  if (
+                    current[productLine]?.apply({ op: "snapshot", productLine, data: snapshot })
+                  ) {
+                    privateDirty = true
+                    publish()
+                  }
+                })
+                .catch(() => {
+                  /* The subscribed WS snapshot remains responsible for recovery. */
+                })
+            }
+        })
+        .catch((reason: unknown) => {
+          if (closed) return
+          setError(reason instanceof Error ? reason.message : "Account availability unavailable")
+          setState("degraded")
+        })
     publish()
     const freshness = setInterval(publish, 1000)
     return () => {

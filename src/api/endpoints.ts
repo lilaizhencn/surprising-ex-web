@@ -207,9 +207,13 @@ export function loadMarket(instrumentId: string, productLine: ProductLine): Prom
 export async function loadMarkets(
   productLine?: ProductLine,
   signal?: AbortSignal,
+  includeMarketSummary = false,
+  includeTrend = false,
 ): Promise<readonly ApiMarket[]> {
   const query = new URLSearchParams({ status: "TRADING" })
   if (productLine) query.set("productLine", productLine)
+  if (includeMarketSummary) query.set("includeMarketSummary", "true")
+  if (includeTrend) query.set("includeTrend", "true")
   const response = await request(
     `/api/v1/gateway/instrument/list?${query.toString()}`,
     MarketListSchema,

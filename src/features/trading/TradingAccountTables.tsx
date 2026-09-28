@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { cancelOrder, loadMarket } from "../../api/endpoints"
-import { mapMarket } from "../../api/mappers"
+import { cancelOrder } from "../../api/endpoints"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
@@ -11,6 +10,7 @@ import { marketQuantitySpec } from "./marketQuantity"
 
 type Props = {
   readonly market: Market | null
+  readonly markets: readonly Market[]
   readonly productLine: ProductLine
   readonly assetScales: Readonly<Record<string, string>>
   readonly positions: readonly Row[]
@@ -145,6 +145,7 @@ function mergeOrders(history: readonly Row[], updates: readonly Row[]) {
 export function TradingAccountTables(props: Props) {
   const {
     market,
+    markets,
     productLine,
     assetScales,
     positions,
@@ -156,36 +157,7 @@ export function TradingAccountTables(props: Props) {
   } = props
   const [tab, setTab] = useState<"positions" | "orders" | "history">("orders")
   const [onlyCurrent, setOnlyCurrent] = useState(true)
-  const [metadata, setMetadata] = useState<readonly Market[]>([])
   const [history, setHistory] = useState<readonly Row[]>([])
-  const symbolsKey = [
-    ...new Set(
-      [...positions, ...orders, ...history]
-        .map((row) => field(row, "instrumentId"))
-        .filter(Boolean),
-    ),
-  ]
-    .sort()
-    .join("|")
-  useEffect(() => {
-    let cancelled = false
-    const symbols = symbolsKey
-      .split("|")
-      .filter((instrumentId) => instrumentId && instrumentId !== market?.instrumentId)
-    if (!onlyCurrent)
-      void Promise.all(
-        symbols.map((instrumentId) => loadMarket(instrumentId, productLine).then(mapMarket)),
-      )
-        .then((rows) => {
-          if (!cancelled) setMetadata(rows)
-        })
-        .catch(() => {
-          if (!cancelled) setMetadata([])
-        })
-    return () => {
-      cancelled = true
-    }
-  }, [symbolsKey, market?.instrumentId, productLine, onlyCurrent])
   useEffect(() => {
     setHistory([])
   }, [productLine, loggedIn, market?.instrumentId])
@@ -212,7 +184,7 @@ export function TradingAccountTables(props: Props) {
   const marketFor = (instrumentId: string) =>
     market?.instrumentId === instrumentId
       ? market
-      : metadata.find((row) => row.instrumentId === instrumentId)
+      : markets.find((row) => row.instrumentId === instrumentId)
   return (
     <section className="trade-account-tables">
       <div className="account-table-toolbar">

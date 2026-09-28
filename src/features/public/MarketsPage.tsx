@@ -1,12 +1,12 @@
 import { Filter } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { loadAssetScales, loadCandles, loadMarkets, loadMarkPrice } from "../../api/endpoints"
-import { mapCandle, mapMarket } from "../../api/mappers"
+import { loadAssetScales, loadMarkets } from "../../api/endpoints"
+import { mapMarket } from "../../api/mappers"
 import { MarketTable } from "../../components/market/MarketTable"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
-import { eventPrice } from "../../hooks/useRealtimeAssets"
+import { marketWithLivePrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
@@ -46,77 +46,33 @@ export function MarketsPage() {
   const [minimumChange, setMinimumChange] = useState("0")
   const [error, setError] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
-  const plan: Subscription[] = markets.flatMap((market) => [
-    {
-      channel: "trades",
-      productLine: PRODUCT_LINES.usdMPerpetual,
-      instrumentId: market.instrumentId,
-    },
-    {
-      channel: "mark",
-      productLine: PRODUCT_LINES.usdMPerpetual,
-      instrumentId: market.instrumentId,
-    },
-  ])
+  const plan: Subscription[] = markets.map((market) => ({
+    channel: "trades",
+    productLine: PRODUCT_LINES.usdMPerpetual,
+    instrumentId: market.instrumentId,
+  }))
   const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
-    void loadMarkets(PRODUCT_LINES.usdMPerpetual)
+    const controller = new AbortController()
+    void loadMarkets(PRODUCT_LINES.usdMPerpetual, controller.signal, true, true)
       .then((rows) => {
+        if (controller.signal.aborted) return
         const mapped = rows
           .map(mapMarket)
           .filter(
             (m) => m.productLine === PRODUCT_LINES.usdMPerpetual && primaryPairs.has(m.symbol),
           )
         setMarkets(mapped)
-        void loadAssetScales()
-          .then(async (scales) => {
-            setAssetScales(scales)
-            const quotes = await Promise.all(
-              mapped.map(async (market) => {
-                const [mark, candleRows] = await Promise.allSettled([
-                  loadMarkPrice(market.instrumentId, PRODUCT_LINES.usdMPerpetual),
-                  loadCandles(market.instrumentId, "1h", PRODUCT_LINES.usdMPerpetual),
-                ])
-                return {
-                  instrumentId: market.instrumentId,
-                  mark: mark.status === "fulfilled" ? mark.value : null,
-                  candles: candleRows.status === "fulfilled" ? candleRows.value : [],
-                }
-              }),
-            )
-            setMarkets((current) =>
-              current.map((market) => {
-                const quote = quotes.find((row) => row.instrumentId === market.instrumentId)
-                if (!quote) return market
-                const price = quote.mark ? positiveNumberValue(quote.mark, "markPrice") : null
-                const candles = quote.candles
-                  .map(mapCandle)
-                  .filter((row) => Date.parse(row.time) >= Date.now() - 86400000)
-                const first = candles[0]
-                const last = candles.at(-1)
-                const open = first?.open ?? null
-                const close = last?.close ?? null
-                return {
-                  ...market,
-                  price: price ?? close ?? market.price,
-                  change24h: open && close ? ((close - open) / open) * 100 : null,
-                  high24h: candles.length ? Math.max(...candles.map((row) => row.high)) : null,
-                  low24h: candles.length ? Math.min(...candles.map((row) => row.low)) : null,
-                  volume24h: candles.length
-                    ? candles.reduce((sum, row) => sum + row.volume, 0)
-                    : null,
-                }
-              }),
-            )
-          })
-          .catch((reason: unknown) =>
-            setError(reason instanceof Error ? reason.message : t("Market precision unavailable")),
-          )
       })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : t("Market data unavailable")),
-      )
-  }, [loadMarkets])
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted)
+          setError(reason instanceof Error ? reason.message : t("Market data unavailable"))
+      })
+    void loadAssetScales()
+      .then(setAssetScales)
+      .catch(() => {})
+    return () => controller.abort()
+  }, [])
   const source = (
     markets.length > 0
       ? markets
@@ -129,21 +85,13 @@ export function MarketsPage() {
           }))
         : []
   ).map((m) => {
-    const event =
-      realtime.events.find(
-        (e) =>
-          e.productLine === PRODUCT_LINES.usdMPerpetual &&
-          e.instrumentId === m.instrumentId &&
-          e.channel === "trades",
-      ) ??
-      realtime.events.find(
-        (e) =>
-          e.productLine === PRODUCT_LINES.usdMPerpetual &&
-          e.instrumentId === m.instrumentId &&
-          e.channel === "mark",
-      )
-    const price = eventPrice(event, m, assetScales)
-    return price === null ? m : { ...m, price }
+    const event = realtime.events.find(
+      (e) =>
+        e.productLine === PRODUCT_LINES.usdMPerpetual &&
+        e.instrumentId === m.instrumentId &&
+        e.channel === "trades",
+    )
+    return marketWithLivePrice(m, event, assetScales)
   })
   const filtered = useMemo(
     () =>
@@ -158,7 +106,7 @@ export function MarketsPage() {
     [minimumChange, query, scope, source],
   )
   const hasLiveQuotes =
-    markets.length > 0 && markets.some((market) => market.price !== null && market.price > 0)
+    markets.length > 0 && source.some((market) => market.price !== null && market.price > 0)
   const status = hasLiveQuotes
     ? { label: "Live data", className: "" }
     : markets.length > 0
@@ -261,15 +209,4 @@ export function MarketsPage() {
       )}
     </div>
   )
-}
-
-function numberValue(row: Readonly<Record<string, unknown>>, key: string): number | null {
-  const value = row[key]
-  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function positiveNumberValue(row: Readonly<Record<string, unknown>>, key: string): number | null {
-  const result = numberValue(row, key)
-  return result !== null && result > 0 ? result : null
 }

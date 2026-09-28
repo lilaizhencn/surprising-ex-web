@@ -109,7 +109,10 @@ export function MarketTable({
                   />
                 </td>
                 <td>
-                  <a className="market-name" href={`/trade/${routeProduct(market.productLine)}`}>
+                  <a
+                    className="market-name"
+                    href={`/trade/${routeProduct(market.productLine)}?instrumentId=${encodeURIComponent(market.instrumentId)}`}
+                  >
                     <AssetIcon asset={market.baseAsset} />
                     <strong>{market.symbol}</strong>
                     <span className="muted">{market.baseAsset}</span>
@@ -149,10 +152,12 @@ export function MarketTable({
                     : `${formatNumber(market.high24h)} / ${formatNumber(market.low24h)}`}
                 </td>
                 <td className="number mono">
-                  {quoteUnavailable ? "—" : formatUsd(market.volume24h)}
+                  {quoteUnavailable ? "—" : formatUsd(market.quoteVolume24h ?? null)}
                 </td>
                 <td className="number">
-                  {demo ? (
+                  {market.trend && market.trend.length > 1 ? (
+                    <Sparkline values={market.trend} positive={positive} />
+                  ) : demo ? (
                     <Sparkline
                       values={positive ? [3, 4, 5, 4, 6, 7] : [7, 6, 6, 5, 4, 3]}
                       positive={positive}
