@@ -54,7 +54,7 @@ bun run build
 
 ## 部署配置
 
-Cloudflare Workers 配置位于 [`wrangler.jsonc`](wrangler.jsonc)，构建输出为 `dist`，深层路由使用 SPA fallback。不要提交 `.env`、Token 或其他敏感信息。
+Cloudflare Workers 配置位于 [`wrangler.jsonc`](wrangler.jsonc)，构建输出为 `dist`，深层路由使用 SPA fallback。生产 REST 和 WebSocket 地址由已跟踪的 `.env.production` 提供，分别连接 `https://ex-api.tokdou.com` 和 `wss://ex-api.tokdou.com/ws/v1`。静态资源托管不会把 `/api` 或 `/ws` 自动代理到 API 服务；部署后应检查浏览器请求的主机名仍为 `ex-api.tokdou.com`。`.env.production` 只放公开端点，Token 和其他敏感信息不得提交。
 
 ## 许可证
 
