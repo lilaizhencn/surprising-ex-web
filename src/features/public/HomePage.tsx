@@ -18,6 +18,8 @@ import { demoMarkets, demoTrend } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
 import { type Market, PRODUCT_LINES } from "../../types/domain"
 
+const featuredSymbols = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]
+
 export function HomePage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
@@ -80,6 +82,14 @@ export function HomePage() {
   })
   const displayed = liveMarkets
     .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((left, right) => {
+      const leftRank = featuredSymbols.indexOf(left.symbol)
+      const rightRank = featuredSymbols.indexOf(right.symbol)
+      return (
+        (leftRank < 0 ? featuredSymbols.length : leftRank) -
+        (rightRank < 0 ? featuredSymbols.length : rightRank)
+      )
+    })
     .slice(0, 3)
   return (
     <div className="home-page">
