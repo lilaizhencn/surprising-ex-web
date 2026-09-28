@@ -696,19 +696,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
       setFunding(null)
-      setFundingPayments([])
-      setFundingPaymentsError("")
-      setFundingHistory([])
-      setFundingSettlement(null)
-      setFundingMarketError("")
       return
     }
     let cancelled = false
     const fundingVersion = fundingEventVersion.current
     setFunding(null)
-    setFundingHistory([])
-    setFundingSettlement(null)
-    setFundingMarketError("")
     void loadFundingRate(current.instrumentId, view.line)
       .then((value) => {
         if (!cancelled && fundingEventVersion.current === fundingVersion) setFunding(value)
@@ -716,6 +708,23 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .catch(() => {
         if (!cancelled && fundingEventVersion.current === fundingVersion) setFunding(null)
       })
+    return () => {
+      cancelled = true
+    }
+  }, [current?.instrumentId, view.line])
+
+  useEffect(() => {
+    setFundingHistory([])
+    setFundingSettlement(null)
+    setFundingMarketError("")
+    if (
+      !current ||
+      accountTab !== "fundingMarket" ||
+      view.line === PRODUCT_LINES.spot ||
+      view.line === PRODUCT_LINES.option
+    )
+      return
+    let cancelled = false
     void loadFundingRateHistory(current.instrumentId, view.line)
       .then((history) => {
         if (cancelled) return
@@ -741,24 +750,36 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setFundingSettlement(null)
         setFundingMarketError(readError(reason))
       })
-    setFundingPaymentsError("")
-    if (session) {
-      void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
-        .then((rows) => {
-          if (!cancelled) setFundingPayments(rows)
-        })
-        .catch((reason: unknown) => {
-          if (cancelled) return
-          setFundingPayments([])
-          setFundingPaymentsError(readError(reason))
-        })
-    } else {
-      setFundingPayments([])
-    }
     return () => {
       cancelled = true
     }
-  }, [current?.instrumentId, session, view.line])
+  }, [accountTab, current?.instrumentId, view.line])
+
+  useEffect(() => {
+    setFundingPayments([])
+    setFundingPaymentsError("")
+    if (
+      !current ||
+      !session ||
+      accountTab !== "fundingPayments" ||
+      view.line === PRODUCT_LINES.spot ||
+      view.line === PRODUCT_LINES.option
+    )
+      return
+    let cancelled = false
+    void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
+      .then((rows) => {
+        if (!cancelled) setFundingPayments(rows)
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return
+        setFundingPayments([])
+        setFundingPaymentsError(readError(reason))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [accountTab, current?.instrumentId, session?.user.userId, view.line])
 
   useEffect(() => {
     if (!current) return

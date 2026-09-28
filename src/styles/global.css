@@ -466,8 +466,14 @@ button:disabled {
   display: block;
   width: 100px;
   height: 34px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border-soft);
+  background: transparent;
+  border: 0;
+}
+.markets-table .trend-column {
+  text-align: center;
+}
+.markets-table .trend-column .sparkline {
+  margin-inline: auto;
 }
 .sparkline polyline {
   stroke-width: 2;

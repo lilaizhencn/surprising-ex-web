@@ -13,31 +13,6 @@ import { demoMarkets } from "../../lib/demo"
 import type { Subscription } from "../../realtime"
 import { type Market, PRODUCT_LINES } from "../../types/domain"
 
-const primaryPairs = new Set(
-  [
-    "BTC",
-    "ETH",
-    "SOL",
-    "BNB",
-    "XRP",
-    "DOGE",
-    "ADA",
-    "TRX",
-    "LINK",
-    "AVAX",
-    "SUI",
-    "BCH",
-    "LTC",
-    "DOT",
-    "UNI",
-    "NEAR",
-    "ETC",
-    "APT",
-    "FIL",
-    "HBAR",
-  ].map((asset) => `${asset}-USDT`),
-)
-
 export function MarketsPage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
@@ -59,9 +34,7 @@ export function MarketsPage() {
         if (controller.signal.aborted) return
         const mapped = rows
           .map(mapMarket)
-          .filter(
-            (m) => m.productLine === PRODUCT_LINES.usdMPerpetual && primaryPairs.has(m.symbol),
-          )
+          .filter((m) => m.productLine === PRODUCT_LINES.usdMPerpetual)
         setMarkets(mapped)
       })
       .catch((reason: unknown) => {

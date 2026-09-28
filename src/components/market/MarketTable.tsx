@@ -82,7 +82,7 @@ export function MarketTable({
                 {t("24h vol")}{" "}
               </button>
             </th>
-            <th className="number">{t("Trend")}</th>
+            <th className="trend-column">{t("Trend")}</th>
             <th>{t("Action")}</th>
           </tr>
         </thead>
@@ -154,7 +154,7 @@ export function MarketTable({
                 <td className="number mono">
                   {quoteUnavailable ? "—" : formatUsd(market.quoteVolume24h ?? null)}
                 </td>
-                <td className="number">
+                <td className="trend-column">
                   {market.trend && market.trend.length > 1 ? (
                     <Sparkline values={market.trend} positive={positive} />
                   ) : demo ? (
