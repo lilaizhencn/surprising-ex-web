@@ -126,9 +126,7 @@ export function LoginVerificationDialog({
         ))}
         {error || expired ? (
           <p role="alert">
-            {expired
-              ? t("Verification expired or too many attempts. Please start again.")
-              : error}
+            {expired ? t("Verification expired or too many attempts. Please start again.") : error}
           </p>
         ) : null}
         <Button type="submit" loading={loading} disabled={expired}>
