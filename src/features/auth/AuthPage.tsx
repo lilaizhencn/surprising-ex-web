@@ -2,10 +2,11 @@ import { ArrowRight, Eye, EyeOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import { authApi } from "../../api/endpoints"
-import { LanguagePicker } from "../../components/layout/LanguagePicker"
+import { type LoginChallenge, LoginChallengeSchema } from "../../api/types"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
+import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
 
 type AuthMode = "login" | "register" | "forgot" | "reset" | "verify"
 
@@ -13,7 +14,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
-  const [totpCode, setTotpCode] = useState("")
+  const [challenge, setChallenge] = useState<LoginChallenge | null>(null)
   const [contactMode, setContactMode] = useState<"email" | "phone">("email")
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState("")
@@ -38,7 +39,13 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     setLoading(true)
     try {
       if (mode === "login") {
-        const session = await authApi.login(identifier, password, totpCode.trim() || undefined)
+        const session = await authApi.login(identifier, password)
+        setPassword("")
+        if ("requiresVerification" in session && session.requiresVerification) {
+          setChallenge(LoginChallengeSchema.parse(session))
+          return
+        }
+        if (!("accessToken" in session)) return
         saveSession(session)
         window.location.href = session.requiresEmailVerification ? "/auth/verify-email" : "/assets"
       } else if (mode === "register") {
@@ -60,7 +67,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       if (mode === "login" && reason instanceof ApiError && reason.status === 401) {
         setCredentialsRejected(true)
       } else {
-        setMessage(reason instanceof Error ? reason.message : "Request failed. Please try again.")
+        setMessage(verificationMessage(reason))
       }
     } finally {
       setLoading(false)
@@ -78,6 +85,20 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             : "Verify your email"
   return (
     <div className="auth-page">
+      {challenge ? (
+        <LoginVerificationDialog
+          key={challenge.challengeToken}
+          challenge={challenge}
+          onCancel={() => setChallenge(null)}
+          onVerify={async (codes) => {
+            const session = await authApi.verifyLogin(codes)
+            saveSession(session)
+            window.location.href = session.requiresEmailVerification
+              ? "/auth/verify-email"
+              : "/assets"
+          }}
+        />
+      ) : null}
       <dialog
         ref={loginErrorDialog}
         className="auth-error-dialog"
@@ -89,9 +110,6 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <p id="login-error-description">{t("Incorrect username or password.")}</p>
         <Button onClick={() => setCredentialsRejected(false)}>{t("Confirm")}</Button>
       </dialog>
-      <div className="auth-language">
-        <LanguagePicker />
-      </div>
       <div className="auth-art" aria-hidden="true">
         <div className="art-band art-blue" />
         <div className="art-band art-red" />
@@ -155,18 +173,6 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 inputMode="numeric"
                 placeholder={t("Enter code")}
                 aria-label={t("Verification code")}
-              />
-            </Field>
-          ) : null}
-          {mode === "login" ? (
-            <Field label={t("Authenticator code (if enabled)")}>
-              <input
-                value={totpCode}
-                onChange={(event) => setTotpCode(event.target.value)}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder={t("6-digit code")}
-                aria-label={t("Authenticator code")}
               />
             </Field>
           ) : null}
@@ -234,7 +240,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <div className="auth-links">
           {mode === "login" ? (
             <>
-              <a href="/auth/reset-password">{t("Forgot password?")}</a>
+              <a href="/auth/forgot-password">{t("Forgot password?")}</a>
               <span>
                 {" "}
                 {t("Don't have an account?")} <a href="/auth/register">{t("Create Account")}</a>

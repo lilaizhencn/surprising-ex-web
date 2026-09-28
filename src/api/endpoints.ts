@@ -33,6 +33,7 @@ import {
   HelpArticleListSchema,
   JwtPrincipalSchema,
   KycProfileSchema,
+  LoginChallengeSchema,
   LoginHistoryPageSchema,
   MarketListSchema,
   MarketSchema,
@@ -87,10 +88,51 @@ const ObjectOrArraySchema = z.union([
 ])
 
 export const authApi = {
-  login: (identifier: string, password: string, totpCode?: string) =>
-    request<AuthSession>("/api/v1/auth/login", AuthSessionSchema, {
+  login: (identifier: string, password: string) =>
+    request("/api/v1/auth/login", z.union([LoginChallengeSchema, AuthSessionSchema]), {
       method: "POST",
-      body: { identifier, password, ...(totpCode ? { totpCode } : {}) },
+      body: { identifier, password },
+    }),
+  verifyLogin: (codes: import("./types").LoginVerificationCodes) =>
+    request("/api/v1/auth/login/verify", AuthSessionSchema, { method: "POST", body: codes }),
+  loginMethods: () =>
+    request(
+      "/api/v1/security/login-verification",
+      z.array(
+        z.object({
+          type: z.enum(["EMAIL", "PHONE", "TOTP"]),
+          bound: z.boolean(),
+          enabled: z.boolean(),
+          destination: z.string().nullable(),
+        }),
+      ),
+    ),
+  bindLoginMethod: (
+    method: "EMAIL" | "PHONE" | "TOTP",
+    currentPassword: string,
+    destination: string,
+    enabled: boolean,
+  ) =>
+    request(
+      `/api/v1/security/login-verification/${method}/bind`,
+      z.object({
+        challenge: LoginChallengeSchema,
+        secret: z.string().nullable(),
+        provisioningUri: z.string().nullable(),
+      }),
+      {
+        method: "POST",
+        body: { currentPassword, destination, enabled },
+      },
+    ),
+  confirmLoginMethod: (
+    method: "EMAIL" | "PHONE" | "TOTP",
+    codes: import("./types").LoginVerificationCodes,
+    currentPassword: string,
+  ) =>
+    request(`/api/v1/security/login-verification/${method}/confirm`, z.unknown(), {
+      method: "POST",
+      body: { codes, currentPassword },
     }),
   logout: (refreshToken: string) =>
     request("/api/v1/auth/logout", z.unknown(), {
@@ -319,24 +361,6 @@ export function loadSecurityScenes() {
 
 export function loadMfaStatus() {
   return request("/api/v1/security/mfa", GenericObjectSchema)
-}
-
-export function enrollMfa() {
-  return request("/api/v1/security/mfa/enroll", GenericObjectSchema, { method: "POST" })
-}
-
-export function confirmMfa(totpCode: string) {
-  return request("/api/v1/security/mfa/confirm", GenericObjectSchema, {
-    method: "POST",
-    body: { totpCode },
-  })
-}
-
-export function disableMfa(totpCode: string) {
-  return request("/api/v1/security/mfa/disable", GenericObjectSchema, {
-    method: "POST",
-    body: { totpCode },
-  })
 }
 
 export function changePassword(

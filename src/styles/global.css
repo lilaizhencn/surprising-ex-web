@@ -3491,3 +3491,18 @@ body,
   background: currentColor;
   mask: url("/favicon.svg") center / contain no-repeat;
 }
+
+.login-verification-dialog form {
+  display: grid;
+  gap: 16px;
+}
+.login-verification-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.authenticator-enrollment {
+  text-align: center;
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+}

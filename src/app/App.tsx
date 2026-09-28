@@ -15,7 +15,12 @@ import { t, useLocale } from "../i18n"
 export function App() {
   useLocale()
   const path = window.location.pathname
-  if (path.startsWith("/auth/")) return <AuthPage mode={authMode(path)} />
+  if (path.startsWith("/auth/"))
+    return (
+      <AppShell>
+        <AuthPage mode={authMode(path)} />
+      </AppShell>
+    )
   if (path === "/")
     return (
       <AppShell showFooter>

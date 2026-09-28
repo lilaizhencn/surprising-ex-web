@@ -1,20 +1,9 @@
-import {
-  CheckCircle2,
-  KeyRound,
-  LockKeyhole,
-  MonitorSmartphone,
-  ShieldCheck,
-  Smartphone,
-  Trash2,
-} from "lucide-react"
+import { KeyRound, LockKeyhole, MonitorSmartphone, ShieldCheck, Trash2 } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import {
   changePassword,
-  confirmMfa,
   createApiKey,
-  disableMfa,
-  enrollMfa,
   issueSecurityChallenge,
   loadApiKeys,
   loadLoginHistory,
@@ -31,6 +20,7 @@ import type { ApiLoginHistoryEntry, ApiUserSession } from "../../api/types"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
+import { LoginVerificationSettings } from "./LoginVerificationSettings"
 
 type RecordRow = Readonly<Record<string, unknown>>
 
@@ -44,7 +34,6 @@ export function SecurityPage() {
   const [message, setMessage] = useState("")
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [showMfa, setShowMfa] = useState(false)
   const [showKeyForm, setShowKeyForm] = useState(false)
 
   const refresh = () => {
@@ -119,45 +108,14 @@ export function SecurityPage() {
             action="Change password"
             onClick={() => setShowPassword(true)}
           />
-          <SecurityCard
-            icon={<Smartphone />}
-            title={t("Authenticator App (2FA)")}
-            text={
-              mfa
-                ? mfaEnabled
-                  ? "Authenticator is enabled for high-risk operations."
-                  : "Authenticator is not enabled."
-                : "Loading MFA status..."
-            }
-            action={mfaEnabled ? "Disable 2FA" : "Enable 2FA"}
-            onClick={() => setShowMfa(true)}
-          />
-          <SecurityCard
-            icon={<CheckCircle2 />}
-            title={t("Email Verification")}
-            text="Email verification and security challenges are controlled by the backend."
-            action="Review scenes"
-            onClick={() =>
-              document.getElementById("security-scenes")?.scrollIntoView({ behavior: "smooth" })
-            }
-          />
         </div>
       </section>
+      <LoginVerificationSettings onChange={refresh} />
       {showPassword ? (
         <PasswordPanel
           onDone={(value) => {
             setMessage(value)
             setShowPassword(false)
-          }}
-        />
-      ) : null}
-      {showMfa ? (
-        <MfaPanel
-          enabled={mfaEnabled}
-          onDone={(value) => {
-            setMessage(value)
-            setShowMfa(false)
-            refresh()
           }}
         />
       ) : null}
@@ -526,72 +484,6 @@ function PasswordPanel({ onDone }: { readonly onDone: (message: string) => void 
         {" "}
         {t("Confirm password change")}{" "}
       </Button>
-    </Panel>
-  )
-}
-
-function MfaPanel({
-  enabled,
-  onDone,
-}: {
-  readonly enabled: boolean
-  readonly onDone: (message: string) => void
-}) {
-  const [code, setCode] = useState("")
-  const [secret, setSecret] = useState("")
-  const [loading, setLoading] = useState(false)
-  return (
-    <Panel className="security-action-panel">
-      <h2>{enabled ? "Disable authenticator" : "Enable authenticator"}</h2>
-      {!enabled && secret ? (
-        <p className="notice">
-          {" "}
-          {t("Scan or save this backend-issued secret:")} <strong className="mono">{secret}</strong>
-        </p>
-      ) : null}
-      <Field label={t("Authenticator code")}>
-        <input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" />
-      </Field>
-      <Button
-        loading={loading}
-        onClick={() => {
-          if (!code) {
-            onDone(t("Enter your authenticator code."))
-            return
-          }
-          setLoading(true)
-          const operation = enabled ? disableMfa(code) : confirmMfa(code)
-          void operation
-            .then(
-              () => onDone(enabled ? t("2FA disabled.") : t("2FA enabled.")),
-              (reason: unknown) => onDone(readError(reason)),
-            )
-            .finally(() => setLoading(false))
-        }}
-      >
-        {enabled ? "Disable 2FA" : "Confirm 2FA"}
-      </Button>
-      {!enabled && !secret ? (
-        <Button
-          tone="ghost"
-          onClick={() => {
-            setLoading(true)
-            void enrollMfa().then(
-              (result) => {
-                setSecret(text(result, "secret") || text(result, "totpSecret"))
-                setLoading(false)
-              },
-              (reason: unknown) => {
-                onDone(readError(reason))
-                setLoading(false)
-              },
-            )
-          }}
-        >
-          {" "}
-          {t("Issue enrollment secret")}{" "}
-        </Button>
-      ) : null}
     </Panel>
   )
 }

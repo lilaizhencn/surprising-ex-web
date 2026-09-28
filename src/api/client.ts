@@ -66,7 +66,7 @@ export async function request<T>(
     response.status === 401 &&
     allowRefresh &&
     session?.refreshToken &&
-    !path.includes("/auth/refresh")
+    !path.includes("/auth/")
   ) {
     try {
       const refreshed = await request<AuthSession>(
@@ -117,7 +117,7 @@ export async function requestBlob(path: string, options: BinaryRequestOptions = 
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
   const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
-  if (response.status === 401 && session?.refreshToken && !path.includes("/auth/refresh")) {
+  if (response.status === 401 && session?.refreshToken && !path.includes("/auth/")) {
     try {
       const refreshed = await request<AuthSession>(
         "/api/v1/auth/refresh",

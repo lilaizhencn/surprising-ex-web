@@ -589,3 +589,21 @@ export type ApiAccountLedgerEntry = z.infer<typeof AccountLedgerEntrySchema>
 export type ApiProductTransferRecord = z.infer<typeof ProductTransferRecordSchema>
 export type ApiProductTransferResponse = z.infer<typeof ProductTransferResponseSchema>
 export type ApiWithdrawalSubmission = z.infer<typeof WithdrawalSubmissionSchema>
+
+export const LoginChallengeSchema = z.object({
+  requiresVerification: z.literal(true),
+  challengeToken: z.string(),
+  expiresAt: z.string(),
+  methods: z
+    .array(
+      z.object({ type: z.enum(["EMAIL", "PHONE", "TOTP"]), destination: z.string().nullable() }),
+    )
+    .min(1),
+})
+export type LoginChallenge = z.infer<typeof LoginChallengeSchema>
+export type LoginVerificationCodes = {
+  challengeToken: string
+  emailCode?: string | undefined
+  phoneCode?: string | undefined
+  totpCode?: string | undefined
+}
