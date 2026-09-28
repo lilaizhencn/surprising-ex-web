@@ -1,5 +1,6 @@
 import { ArrowRight, Eye, EyeOff } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { ApiError } from "../../api/client"
 import { authApi } from "../../api/endpoints"
 import { LanguagePicker } from "../../components/layout/LanguagePicker"
 import { Button, Field } from "../../components/ui/Primitives"
@@ -17,6 +18,12 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [credentialsRejected, setCredentialsRejected] = useState(false)
+  const loginErrorDialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    if (credentialsRejected) loginErrorDialog.current?.showModal()
+    else loginErrorDialog.current?.close()
+  }, [credentialsRejected])
   const submit = async () => {
     setMessage("")
     const passwordRequired = mode === "login" || mode === "register" || mode === "reset"
@@ -50,7 +57,11 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         window.location.href = "/assets"
       }
     } catch (reason: unknown) {
-      setMessage(reason instanceof Error ? reason.message : "Request failed. Please try again.")
+      if (mode === "login" && reason instanceof ApiError && reason.status === 401) {
+        setCredentialsRejected(true)
+      } else {
+        setMessage(reason instanceof Error ? reason.message : "Request failed. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -67,6 +78,17 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             : "Verify your email"
   return (
     <div className="auth-page">
+      <dialog
+        ref={loginErrorDialog}
+        className="auth-error-dialog"
+        aria-labelledby="login-error-title"
+        aria-describedby="login-error-description"
+        onClose={() => setCredentialsRejected(false)}
+      >
+        <h2 id="login-error-title">{t("Sign-in failed")}</h2>
+        <p id="login-error-description">{t("Incorrect username or password.")}</p>
+        <Button onClick={() => setCredentialsRejected(false)}>{t("Confirm")}</Button>
+      </dialog>
       <div className="auth-language">
         <LanguagePicker />
       </div>
@@ -75,20 +97,11 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <div className="art-band art-red" />
       </div>
       <main className="auth-card">
-        <a className="auth-brand" href="/">
-          <span className="brand-mark">S</span>Surprising EX
+        <a className="auth-brand auth-platform-logo" href="/" aria-label="Surprising EX">
+          <span className="auth-logo-mark" aria-hidden="true" />
+          <span className="sr-only">Surprising EX</span>
         </a>
-        <p className="auth-kicker">
-          {mode === "login" ? t("Sign in to your account") : t("Account access")}
-        </p>
-        <h1>{t(title)}</h1>
-        <p className="auth-lead">
-          {mode === "verify"
-            ? t("Enter the six-digit code sent to your registered email.")
-            : t(
-                "Use your registered email or phone. Security checks are handled by the exchange backend.",
-              )}
-        </p>
+        <h1 className="sr-only">{t(title)}</h1>
         <div className="auth-form">
           {mode === "register" ? (
             <fieldset className="segment-control">
@@ -117,7 +130,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 ? mode === "register" && contactMode === "phone"
                   ? t("Phone")
                   : t("Email")
-                : "Email or Phone"
+                : t("Email or phone")
             }
           >
             <input
@@ -125,7 +138,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               onChange={(event) => setIdentifier(event.target.value)}
               placeholder={
                 mode === "login"
-                  ? "Enter your email or phone"
+                  ? t("Enter your email or phone")
                   : mode === "register" && contactMode === "phone"
                     ? "+65 8123 4567"
                     : "name@example.com"
@@ -180,12 +193,12 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           ) : null}
           {message ? (
             <p className="form-message" role="alert">
-              {message}
+              {t(message)}
             </p>
           ) : null}
           <Button loading={loading} onClick={() => void submit()}>
             {mode === "login"
-              ? "Log In"
+              ? t("Log In")
               : mode === "register"
                 ? t("Create Account")
                 : mode === "forgot"
