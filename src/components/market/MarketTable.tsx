@@ -165,7 +165,7 @@ export function MarketTable({
                   <Button
                     tone="primary"
                     onClick={() => {
-                      window.location.href = `/trade/${routeProduct(market.productLine)}`
+                      window.location.href = `/trade/${routeProduct(market.productLine)}?instrumentId=${encodeURIComponent(market.instrumentId)}`
                     }}
                   >
                     {" "}

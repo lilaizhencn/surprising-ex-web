@@ -14,7 +14,6 @@ import {
   cancelTriggerOrder,
   loadAssetScales,
   loadCandles,
-  loadDefaultMarket,
   loadEffectiveTradingFee,
   loadFundingPayments,
   loadFundingRate,
@@ -60,7 +59,8 @@ import {
   SearchField,
   StateView,
 } from "../../components/ui/Primitives"
-import { type RealtimeState, useRealtime, useRealtimeFeed } from "../../hooks/useRealtime"
+import { useRealtime, useRealtimeFeed } from "../../hooks/useRealtime"
+import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config, storageKeys } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
@@ -385,6 +385,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       period: "1m",
     },
   ])
+  const pairFeed = useRealtimeFeed(
+    null,
+    markets.flatMap((market) => [
+      { channel: "trades", instrumentId: market.instrumentId, productLine: view.line },
+      { channel: "mark", instrumentId: market.instrumentId, productLine: view.line },
+    ]),
+    1000,
+    false,
+  )
   const displayedDayStats = useDayStats(
     current?.instrumentId,
     view.line,
@@ -487,6 +496,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const selectPair = useCallback((instrumentId: string) => {
     setSelected(instrumentId)
     setPairOpen(false)
+    const url = new URL(window.location.href)
+    url.searchParams.set("instrumentId", instrumentId)
+    window.history.replaceState(null, "", url)
   }, [])
 
   useEffect(() => {
@@ -542,57 +554,38 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [favorites])
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     setMarketsRequestFinished(false)
     setError(null)
     setMarkets([])
     setSelected("")
-    void loadDefaultMarket(view.line)
-      .then((row) => {
-        if (cancelled) return
-        setSelected(String(row.instrumentId))
-        const rows = [row]
+    void loadMarkets(view.line, controller.signal)
+      .then((rows) => {
+        if (controller.signal.aborted) return
         const productMarkets = rows
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
-        setMarkets((previous) =>
-          previous.length
-            ? previous.map((market) =>
-                market.instrumentId === row.instrumentId ? (productMarkets[0] ?? market) : market,
-              )
-            : productMarkets,
+        const requested = new URLSearchParams(window.location.search).get("instrumentId")
+        setSelected(
+          productMarkets.find((market) => market.instrumentId === requested)?.instrumentId ??
+            productMarkets[0]?.instrumentId ??
+            "",
         )
+        setMarkets(productMarkets)
         setMarketsRequestFinished(true)
         if (rows.length > 0 && productMarkets.length === 0) {
           setError(`${t("No tradable contracts returned for")} ${t(view.title)}.`)
         }
       })
       .catch((reason: unknown) => {
-        if (cancelled) return
+        if (controller.signal.aborted) return
         setMarketsRequestFinished(true)
         setError(readError(reason))
       })
     return () => {
-      cancelled = true
-    }
-  }, [view.line])
-  useEffect(() => {
-    if (!pairOpen) return
-    let cancelled = false
-    const controller = new AbortController()
-    void loadMarkets(view.line, controller.signal)
-      .then((rows) => {
-        if (!cancelled)
-          setMarkets(rows.map(mapMarket).filter((market) => market.productLine === view.line))
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(readError(reason))
-      })
-    return () => {
-      cancelled = true
       controller.abort()
     }
-  }, [pairOpen, view.line])
+  }, [view.line])
   useEffect(() => {
     if (!current || price) return
     const quote = marketQuotes[current.instrumentId] ?? current.price
@@ -709,6 +702,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     let cancelled = false
     const fundingVersion = priceEventVersions.current.funding
     setFunding(null)
+    setFundingHistory([])
+    setFundingSettlement(null)
     setFundingMarketError("")
     void loadFundingRate(current.instrumentId, view.line)
       .then((value) => {
@@ -717,17 +712,31 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .catch(() => {
         if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(null)
       })
-    void Promise.allSettled([
-      loadFundingRateHistory(current.instrumentId, view.line),
-      loadFundingSettlement(current.instrumentId, view.line),
-    ]).then(([historyResult, settlementResult]) => {
-      if (cancelled) return
-      setFundingHistory(historyResult.status === "fulfilled" ? historyResult.value : [])
-      setFundingSettlement(settlementResult.status === "fulfilled" ? settlementResult.value : null)
-      if (historyResult.status === "rejected" && settlementResult.status === "rejected") {
-        setFundingMarketError(readError(historyResult.reason))
-      }
-    })
+    void loadFundingRateHistory(current.instrumentId, view.line)
+      .then((history) => {
+        if (cancelled) return
+        setFundingHistory(history)
+        if (history.length === 0) {
+          setFundingSettlement(null)
+          return
+        }
+        void loadFundingSettlement(current.instrumentId, view.line)
+          .then((settlement) => {
+            if (!cancelled) setFundingSettlement(settlement)
+          })
+          .catch((reason: unknown) => {
+            if (cancelled) return
+            setFundingSettlement(null)
+            if (!(reason instanceof ApiError && reason.status === 404))
+              setFundingMarketError(readError(reason))
+          })
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return
+        setFundingHistory([])
+        setFundingSettlement(null)
+        setFundingMarketError(readError(reason))
+      })
     setFundingPaymentsError("")
     if (session) {
       void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
@@ -1287,6 +1296,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <PairMarketList
                     markets={markets}
                     productLine={view.line}
+                    events={pairFeed.events}
+                    quotes={marketQuotes}
                     selectedSymbol={current?.instrumentId}
                     search={pairSearch}
                     favoritesOnly={pairTab === "favorites"}
@@ -2969,6 +2980,8 @@ function priceDisplayPrecision(
 const PairMarketList = memo(function PairMarketList({
   markets,
   productLine,
+  events,
+  quotes,
   selectedSymbol,
   search,
   favoritesOnly,
@@ -2979,6 +2992,8 @@ const PairMarketList = memo(function PairMarketList({
 }: {
   readonly markets: readonly Market[]
   readonly productLine: ProductLine
+  readonly events: readonly WsEnvelope[]
+  readonly quotes: Readonly<Record<string, number>>
   readonly selectedSymbol: string | undefined
   readonly search: string
   readonly favoritesOnly: boolean
@@ -2987,15 +3002,6 @@ const PairMarketList = memo(function PairMarketList({
   readonly onSelect: (instrumentId: string) => void
   readonly onFavorite: (instrumentId: string) => void
 }) {
-  const feed = useRealtimeFeed(
-    null,
-    markets.flatMap((market) => [
-      { channel: "trades", instrumentId: market.instrumentId, productLine },
-      { channel: "candles", instrumentId: market.instrumentId, productLine, period: "1m" },
-    ]),
-    1000,
-    false,
-  )
   const visible = (market: Market) =>
     market.symbol.toLowerCase().includes(search.toLowerCase()) &&
     (!favoritesOnly || favorites.includes(`${productLine}:${market.instrumentId}`))
@@ -3040,9 +3046,8 @@ const PairMarketList = memo(function PairMarketList({
             </button>
             <PairMarketValues
               market={market}
-              productLine={productLine}
-              events={feed.events}
-              connection={feed.state}
+              events={events}
+              quote={quotes[market.instrumentId]}
               assetScales={assetScales}
             />
           </div>
@@ -3059,24 +3064,20 @@ const PairMarketList = memo(function PairMarketList({
 
 function PairMarketValues({
   market,
-  productLine,
   events,
-  connection,
+  quote,
   assetScales,
 }: {
   readonly market: Market
-  readonly productLine: ProductLine
   readonly events: readonly WsEnvelope[]
-  readonly connection: RealtimeState
+  readonly quote: number | undefined
   readonly assetScales: Readonly<Record<string, string>>
 }) {
-  const stats = useDayStats(market.instrumentId, productLine, events, connection)
-  const trade = events.find(
-    (event) => event.channel === "trades" && event.instrumentId === market.instrumentId,
-  )
-  const price =
-    marketPriceFromRecord(record(trade?.data) ?? {}, market, assetScales) ?? stats?.close ?? null
-  const change = stats?.open && price ? ((price - stats.open) / stats.open) * 100 : null
+  const event =
+    events.find((row) => row.channel === "trades" && row.instrumentId === market.instrumentId) ??
+    events.find((row) => row.channel === "mark" && row.instrumentId === market.instrumentId)
+  const price = eventPrice(event, market, assetScales) ?? quote ?? market.price
+  const change = market.change24h
   return (
     <span className="pair-market-values">
       <strong className="mono">

@@ -1,6 +1,6 @@
 import { ArrowRight, Globe2, Search, ShieldCheck, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadMarkets } from "../../api/endpoints"
+import { loadAssetScales, loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import {
   AssetIcon,
@@ -10,6 +10,8 @@ import {
   Sparkline,
   StateView,
 } from "../../components/ui/Primitives"
+import { useRealtimeFeed } from "../../hooks/useRealtime"
+import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets, demoTrend } from "../../lib/demo"
@@ -18,6 +20,7 @@ import { type Market, PRODUCT_LINES } from "../../types/domain"
 
 export function HomePage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -33,6 +36,26 @@ export function HomePage() {
         setError(reason instanceof Error ? reason.message : t("Market data unavailable")),
       )
   }, [])
+  useEffect(() => {
+    void loadAssetScales()
+      .then(setAssetScales)
+      .catch(() => {})
+  }, [])
+  const realtime = useRealtimeFeed(
+    null,
+    markets.flatMap((market) => [
+      {
+        channel: "trades",
+        productLine: PRODUCT_LINES.usdMPerpetual,
+        instrumentId: market.instrumentId,
+      },
+      {
+        channel: "mark",
+        productLine: PRODUCT_LINES.usdMPerpetual,
+        instrumentId: market.instrumentId,
+      },
+    ]),
+  )
   const source =
     markets.length > 0
       ? markets
@@ -44,7 +67,18 @@ export function HomePage() {
             maxLeverage: 125,
           }))
         : []
-  const displayed = source
+  const liveMarkets = source.map((market) => {
+    const event =
+      realtime.events.find(
+        (row) => row.channel === "trades" && row.instrumentId === market.instrumentId,
+      ) ??
+      realtime.events.find(
+        (row) => row.channel === "mark" && row.instrumentId === market.instrumentId,
+      )
+    const price = eventPrice(event, market, assetScales)
+    return price === null ? market : { ...market, price }
+  })
+  const displayed = liveMarkets
     .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
     .slice(0, 3)
   return (
