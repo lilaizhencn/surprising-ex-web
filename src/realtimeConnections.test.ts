@@ -84,7 +84,7 @@ describe("realtime connection lifecycle", () => {
     const depth: Subscription = {
       productLine: "LINEAR_PERPETUAL",
       channel: "depth",
-      symbol: "BTC-USDT-SWAP",
+      instrumentId: "BTC-USDT",
     }
     manager.update([
       depth,
@@ -103,7 +103,7 @@ describe("realtime connection lifecycle", () => {
       expect.objectContaining({ ...depth, op: "subscribe" }),
     ])
     expect(other.sent).toEqual([])
-    manager.resubscribe({ ...depth, symbol: "ETH-USDT-SWAP" })
+    manager.resubscribe({ ...depth, instrumentId: "ETH-USDT" })
     expect(target.sent).toHaveLength(2)
     target.close()
     manager.resubscribe(depth)
@@ -119,7 +119,7 @@ describe("realtime connection lifecycle", () => {
     const depth: Subscription = {
       productLine: "LINEAR_PERPETUAL",
       channel: "depth",
-      symbol: "BTC-USDT-SWAP",
+      instrumentId: "BTC-USDT",
     }
     manager.update([depth])
     const stale = socket()
@@ -141,7 +141,7 @@ describe("realtime connection lifecycle", () => {
     const depth: Subscription = {
       productLine: "LINEAR_PERPETUAL",
       channel: "depth",
-      symbol: "BTC-USDT-SWAP",
+      instrumentId: "BTC-USDT",
     }
     manager.update([depth, { ...depth, channel: "trades" }])
     const ws = socket()
@@ -176,7 +176,7 @@ describe("realtime connection lifecycle", () => {
     const depth: Subscription = {
       productLine: "LINEAR_PERPETUAL",
       channel: "depth",
-      symbol: "BTC-USDT-SWAP",
+      instrumentId: "BTC-USDT",
     }
     manager.update([depth])
     const ws = socket()
@@ -231,9 +231,9 @@ describe("realtime connection lifecycle", () => {
     const plan: Subscription[] = Array.from({ length: 401 }, (_, n) => ({
       channel: "trades",
       productLine: "SPOT",
-      symbol: `ASSET-${n}`,
+      instrumentId: `ASSET-${n}`,
     }))
-    manager.update([...plan, { channel: "mark", productLine: "OPTION", symbol: "BTC" }])
+    manager.update([...plan, { channel: "mark", productLine: "OPTION", instrumentId: "BTC" }])
     for (const ws of Socket.instances) ws.open()
     expect(Socket.instances).toHaveLength(4)
     expect(Socket.instances.map((ws) => ws.sent.length)).toEqual([180, 180, 41, 1])

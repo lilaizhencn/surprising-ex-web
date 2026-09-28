@@ -14,13 +14,13 @@ export type LeverageSettings = Readonly<{
 
 export function TradingTicketControls({
   userId,
-  symbol,
+  instrumentId,
   productLine,
   marginMode,
   onChange,
 }: {
   readonly userId: string | number | undefined
-  readonly symbol: string
+  readonly instrumentId: string
   readonly productLine: ProductLine
   readonly marginMode: "CROSS" | "ISOLATED"
   readonly onChange: (value: LeverageSettings | null) => void
@@ -45,7 +45,7 @@ export function TradingTicketControls({
     onChange(null)
     setMessage("")
     if (userId)
-      void loadLeverageSetting(userId, symbol, productLine, mode)
+      void loadLeverageSetting(userId, instrumentId, productLine, mode)
         .then((row) => {
           if (cancelled) return
           const value = parseSetting(row)
@@ -59,7 +59,7 @@ export function TradingTicketControls({
     return () => {
       cancelled = true
     }
-  }, [userId, symbol, productLine, mode, onChange, reload])
+  }, [userId, instrumentId, productLine, mode, onChange, reload])
   const save = async () => {
     if (!userId || !setting) return
     const ppm = Number(draft) * 1_000_000
@@ -72,7 +72,7 @@ export function TradingTicketControls({
     try {
       const row = await updateLeverageSetting(
         userId,
-        symbol,
+        instrumentId,
         productLine,
         mode,
         ppm,
@@ -141,7 +141,7 @@ export function TradingTicketControls({
           </button>
         </div>
         <p>
-          {symbol} · {t(mode === "CROSS" ? "Cross" : "Isolated")}
+          {instrumentId} · {t(mode === "CROSS" ? "Cross" : "Isolated")}
         </p>
         {!setting ? (
           <div className="leverage-unavailable">

@@ -48,14 +48,14 @@ export function linearOpeningCapacity({
     const cap = (maxPosition < oiFloor ? maxPosition : oiFloor) / notional
     let used = 0n
     for (const position of positions) {
-      if (position["symbol"] !== market.symbol) continue
+      if (position["instrumentId"] !== market.instrumentId) continue
       const signed = signedPositionSteps(position)
       if (side === "BUY" && signed > 0n) used += signed
       if (side === "SELL" && signed < 0n) used -= signed
     }
     for (const order of orders) {
       if (
-        order["symbol"] !== market.symbol ||
+        order["instrumentId"] !== market.instrumentId ||
         order["side"] !== side ||
         order["reduceOnly"] === true
       )

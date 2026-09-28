@@ -57,12 +57,12 @@ export function summarizeDayWindow(rows: readonly ApiCandle[], now: number) {
 }
 
 export function useDayStats(
-  symbol: string | undefined,
+  instrumentId: string | undefined,
   productLine: ProductLine,
   events: readonly WsEnvelope[],
   connection: RealtimeState,
 ) {
-  const key = `${productLine}:${symbol ?? ""}`
+  const key = `${productLine}:${instrumentId ?? ""}`
   // This hook owns one bounded minute window. React receives only its current summary.
   const window = useRef<{ key: string; ready: boolean; rows: readonly ApiCandle[] }>({
     key: "",
@@ -89,8 +89,8 @@ export function useDayStats(
     const controller = new AbortController()
     window.current = { key, ready: false, rows: [] }
     setSummary({ key, value: null })
-    if (symbol)
-      void loadDayWindow(symbol, productLine, controller.signal)
+    if (instrumentId)
+      void loadDayWindow(instrumentId, productLine, controller.signal)
         .then((history) => {
           if (cancelled) return
           const live = window.current
@@ -108,13 +108,13 @@ export function useDayStats(
       cancelled = true
       controller.abort()
     }
-  }, [symbol, productLine, key, recovery])
+  }, [instrumentId, productLine, key, recovery])
   useEffect(() => {
     const updates = events.flatMap((event) => {
       if (
         event.op !== "event" ||
         event.productLine !== productLine ||
-        event.symbol !== symbol ||
+        event.instrumentId !== instrumentId ||
         event.channel !== "candles" ||
         event.period !== "1m"
       )
@@ -131,7 +131,7 @@ export function useDayStats(
       ready: previous.key === key && previous.ready,
       rows: mergeDayWindow(previous.key === key ? previous.rows : [], updates, Date.now()),
     }
-  }, [events, symbol, productLine, key])
+  }, [events, instrumentId, productLine, key])
   useEffect(() => {
     // Publish slower-changing statistics once per second; expire old buckets even without trades.
     const timer = setInterval(() => {

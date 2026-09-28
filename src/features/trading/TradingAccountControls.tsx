@@ -21,6 +21,7 @@ export type TradingOrderSettings = Readonly<{
 type Props = Readonly<{
   readonly marginMode: MarginMode
   readonly userId: string | number | undefined
+  readonly instrumentId: string
   readonly symbol: string
   readonly productLine: ProductLine
   readonly positions: readonly Record<string, unknown>[]
@@ -38,6 +39,7 @@ type Props = Readonly<{
 export function TradingAccountControls({
   marginMode,
   userId,
+  instrumentId,
   symbol,
   productLine,
   positions,
@@ -54,23 +56,25 @@ export function TradingAccountControls({
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY")
   const [positionSide, setPositionSide] = useState<PositionSide>("NET")
   const positionRisk = (accountView?.rows("risk") ?? [])
-    .filter((row) => text(row, "symbol") === symbol)
+    .filter((row) => text(row, "instrumentId") === instrumentId)
     .filter((row) =>
       positions.some(
         (p) =>
-          text(p, "symbol") === symbol && text(p, "positionSide") === text(row, "positionSide"),
+          text(p, "instrumentId") === instrumentId &&
+          text(p, "positionSide") === text(row, "positionSide"),
       ),
     )
     .map((row) => ({
       ...positions.find(
         (p) =>
-          text(p, "symbol") === symbol && text(p, "positionSide") === text(row, "positionSide"),
+          text(p, "instrumentId") === instrumentId &&
+          text(p, "positionSide") === text(row, "positionSide"),
       ),
       ...row,
     }))
   const selectedPosition = positions.find(
     (row) =>
-      text(row, "symbol") === symbol &&
+      text(row, "instrumentId") === instrumentId &&
       text(row, "positionSide") === positionSide &&
       text(row, "marginMode") === marginMode,
   )
@@ -100,11 +104,11 @@ export function TradingAccountControls({
     setPositionSide((side) =>
       nextMode === "HEDGE"
         ? side === "NET"
-          ? preferredHedgeSide(symbol, positions, [], side)
+          ? preferredHedgeSide(instrumentId, positions, [], side)
           : side
         : "NET",
     )
-  }, [snapshotMode, symbol, positions])
+  }, [snapshotMode, instrumentId, positions])
 
   useEffect(() => {
     onSettingsChange({ marginMode, positionMode, positionSide })
@@ -144,7 +148,7 @@ export function TradingAccountControls({
       const amountUnits = direction === "ADD" ? units : `-${units}`
       await adjustPositionMargin(
         userId,
-        symbol,
+        instrumentId,
         productLine,
         marginMode,
         positionSide,
@@ -272,9 +276,9 @@ export function TradingAccountControls({
             </thead>
             <tbody>
               {positionRisk.map((row, index) => (
-                <tr key={text(row, "positionId") || `${text(row, "symbol")}-${index}`}>
+                <tr key={text(row, "positionId") || `${text(row, "instrumentId")}-${index}`}>
                   <td>{text(row, "positionSide") || "NET"}</td>
-                  <td>{text(row, "symbol") || "—"}</td>
+                  <td>{symbol || "—"}</td>
                   <td className="mono">
                     {signedStepsValue(row, quantityStepUnits, quantityScale)}
                   </td>
@@ -329,13 +333,13 @@ function positionSideValue(value: Record<string, unknown> | undefined): Position
 }
 
 function preferredHedgeSide(
-  symbol: string,
+  instrumentId: string,
   positions: readonly Record<string, unknown>[],
   riskRows: readonly Record<string, unknown>[],
   currentSide: PositionSide,
 ): PositionSide {
   const rows = [...positions, ...riskRows]
-    .filter((row) => text(row, "symbol") === symbol)
+    .filter((row) => text(row, "instrumentId") === instrumentId)
     .filter((row) => text(row, "positionSide") === "LONG" || text(row, "positionSide") === "SHORT")
   const sides = new Set<PositionSide>(rows.map((row) => positionSideValue(row)))
   if (currentSide === "LONG" || currentSide === "SHORT") {

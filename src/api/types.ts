@@ -66,6 +66,7 @@ export const EmailVerificationChallengeSchema = z
 export const MarketSchema = z
   .object({
     symbol: z.string(),
+    instrumentId: SafeIntegerWireSchema,
     baseAsset: z.string().optional(),
     quoteAsset: z.string().optional(),
     settleAsset: z.string().optional(),
@@ -101,7 +102,18 @@ export const MarketSchema = z
     fundingIntervalHours: z.number().optional(),
     expiryTime: z.string().nullable().optional(),
     deliveryTime: z.string().nullable().optional(),
-    underlyingSymbol: z.string().nullable().optional(),
+    underlyingInstrumentId: z.string().nullable().optional(),
+    underlyingProductLine: z
+      .enum([
+        "SPOT",
+        "LINEAR_PERPETUAL",
+        "INVERSE_PERPETUAL",
+        "LINEAR_DELIVERY",
+        "INVERSE_DELIVERY",
+        "OPTION",
+      ])
+      .nullable()
+      .optional(),
     strikePriceUnits: SafeIntegerWireSchema.nullable().optional(),
     optionType: z.string().nullable().optional(),
     optionExerciseStyle: z.string().nullable().optional(),
@@ -111,8 +123,8 @@ export const MarketSchema = z
 
 export const OptionQuoteSchema = z
   .object({
-    symbol: z.string(),
-    underlyingSymbol: z.string(),
+    instrumentId: z.string(),
+    underlyingInstrumentId: z.string(),
     optionType: z.enum(["CALL", "PUT"]),
     expiryTime: z.string(),
     asOf: z.string(),
@@ -176,7 +188,7 @@ export const BalanceListSchema = z
 export const PositionSchema = z
   .object({
     userId: SafeIntegerWireSchema.optional(),
-    symbol: z.string(),
+    instrumentId: z.string(),
     instrumentChangeId: SafeIntegerWireSchema.optional(),
     marginMode: z.string().optional(),
     positionSide: z.string().optional(),
@@ -206,7 +218,7 @@ export const OrderSchema = z
   .object({
     orderId: z.union([z.string(), z.number()]).optional(),
     clientOrderId: z.string().optional(),
-    symbol: z.string().optional(),
+    instrumentId: z.string().optional(),
     side: z.string().optional(),
     type: z.string().optional(),
     orderType: z.string().optional(),
@@ -243,7 +255,7 @@ const DirectOrderSubmissionSchema = z
     orderId: z.union([z.string(), z.number()]),
     status: OrderStatusSchema,
     clientOrderId: z.string().optional(),
-    symbol: z.string().optional(),
+    instrumentId: z.string().optional(),
     rejectReason: z.string().nullable().optional(),
   })
   .passthrough()
@@ -276,7 +288,7 @@ export const TriggerOrderSchema = z
     triggerOrderId: SafeIntegerWireSchema,
     userId: SafeIntegerWireSchema.optional(),
     clientTriggerOrderId: z.string().optional(),
-    symbol: z.string(),
+    instrumentId: z.string(),
     side: z.enum(["BUY", "SELL"]),
     triggerType: z.enum(["TAKE_PROFIT", "STOP_LOSS", "TRAILING_STOP"]),
     triggerCondition: z.enum(["GREATER_OR_EQUAL", "LESS_OR_EQUAL"]).optional(),
@@ -321,7 +333,7 @@ export const OrderBookLevelSchema = z.union([
 ])
 export const OrderBookSchema = z
   .object({
-    symbol: z.string().optional(),
+    instrumentId: z.string().optional(),
     sequence: IdentifierSchema.optional(),
     previousSequence: IdentifierSchema.nullish(),
     updateType: z.enum(["SNAPSHOT", "DELTA"]).optional(),
@@ -334,7 +346,7 @@ export const OrderBookSchema = z
 
 export const FundingRateSchema = z
   .object({
-    symbol: z.string(),
+    instrumentId: z.string(),
     sequence: IdentifierSchema,
     fundingRatePpm: IdentifierSchema,
     premiumRatePpm: IdentifierSchema,
@@ -374,7 +386,7 @@ export const FundingPaymentSchema = z
     paymentId: IdentifierSchema,
     settlementId: IdentifierSchema,
     userId: IdentifierSchema,
-    symbol: z.string(),
+    instrumentId: z.string(),
     asset: z.string(),
     marginMode: z.string(),
     positionSide: z.string(),
@@ -409,7 +421,7 @@ export const AccountLedgerEntrySchema = z
     reason: z.string().nullable().optional(),
     tradeId: IdentifierSchema.nullable().optional(),
     orderId: IdentifierSchema.nullable().optional(),
-    symbol: z.string().nullable().optional(),
+    instrumentId: z.string().nullable().optional(),
     feeRatePpm: IdentifierSchema.nullable().optional(),
     createdAt: z.string(),
   })

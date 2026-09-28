@@ -103,14 +103,14 @@ export function SearchField({
 }
 
 export function AssetIcon({ asset }: { readonly asset: string }) {
-  const symbol = asset.trim().toUpperCase()
-  const logo = assetLogos[symbol]
+  const instrumentId = asset.trim().toUpperCase()
+  const logo = assetLogos[instrumentId]
   return (
     <span className={`asset-icon${logo ? " asset-icon-logo" : ""}`} aria-hidden="true">
       {logo ? (
         <img src={logo} alt="" width={30} height={30} decoding="async" />
       ) : (
-        symbol.slice(0, 1)
+        instrumentId.slice(0, 1)
       )}
     </span>
   )

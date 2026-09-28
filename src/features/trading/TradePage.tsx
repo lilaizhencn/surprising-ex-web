@@ -14,13 +14,13 @@ import {
   cancelTriggerOrder,
   loadAssetScales,
   loadCandles,
+  loadDefaultMarket,
   loadEffectiveTradingFee,
   loadFundingPayments,
   loadFundingRate,
   loadFundingRateHistory,
   loadFundingSettlement,
   loadIndexPrice,
-  loadMarket,
   loadMarkets,
   loadMarkPrice,
   loadOptionQuote,
@@ -104,37 +104,37 @@ const views = [
     key: "spot",
     line: PRODUCT_LINES.spot,
     title: "Spot Trading",
-    symbol: "BTC-USDT-SPOT",
+    instrumentId: "BTC-USDT",
   },
   {
     key: "usd-m-perpetuals",
     line: PRODUCT_LINES.usdMPerpetual,
     title: "USD-M Perpetual",
-    symbol: "BTC-USDT-SWAP",
+    instrumentId: "BTC-USDT",
   },
   {
     key: "coin-m-perpetuals",
     line: PRODUCT_LINES.coinMPerpetual,
     title: "Coin-M Perpetual",
-    symbol: "BTC-USD-PERP",
+    instrumentId: "BTC-USD",
   },
   {
     key: "delivery-futures",
     line: PRODUCT_LINES.usdMDelivery,
     title: "Delivery Futures",
-    symbol: "BTC-USDT-260925",
+    instrumentId: "BTC-USDT-260925",
   },
   {
     key: "coin-m-delivery",
     line: PRODUCT_LINES.coinMDelivery,
     title: "Coin-M Delivery",
-    symbol: "BTC-USD-260925",
+    instrumentId: "BTC-USD-260925",
   },
   {
     key: "options",
     line: PRODUCT_LINES.option,
     title: "Options Trading",
-    symbol: "BTC-USDT-260925-59000-C",
+    instrumentId: "BTC-USDT-260925-59000-C",
   },
 ] as const
 
@@ -186,7 +186,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const session = useSession()
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [candles, setCandles] = useState<readonly Candle[]>([])
-  const [selected, setSelected] = useState<string>(view.symbol)
+  const [selected, setSelected] = useState<string>("")
   const [pairSearch, setPairSearch] = useState("")
   const [pairTab, setPairTab] = useState<"all" | "favorites">("all")
   const [pairOpen, setPairOpen] = useState(false)
@@ -210,7 +210,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const marketGeneration = useRef(0)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
   const latestTradeRef = useRef<{
-    symbol: string
+    instrumentId: string
     bucket: string
     price: number
     sequence: number
@@ -296,14 +296,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [pairOpen, contractInfoOpen])
   const current = useMemo(() => {
     return (
-      availableMarkets.find((market) => market.symbol === selected) ?? availableMarkets[0] ?? null
+      availableMarkets.find((market) => market.instrumentId === selected) ??
+      availableMarkets[0] ??
+      null
     )
   }, [availableMarkets, selected])
   const lastTradePrice = current
     ? marketPriceFromRecord(recentTrades[0] ?? {}, current, assetScales)
     : null
-  const tabSymbol = current?.symbol ?? selected ?? view.symbol
-  const tabPrice = current ? (marketQuotes[current.symbol] ?? current.price) : null
+  const tabSymbol = current?.symbol ?? "—"
+  const tabPrice = current ? (marketQuotes[current.instrumentId] ?? current.price) : null
   const tabTitle = `${formatPrice(tabPrice, priceDisplayPrecision(current, assetScales))} ${tabSymbol} · ${t(view.title)} | Surprising EX`
   useEffect(() => {
     const defaultTitle = document.title
@@ -328,8 +330,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     let cancelled = false
     setUserFees(null)
-    if (session?.user.userId && current?.symbol)
-      void loadEffectiveTradingFee(session.user.userId, current.symbol, view.line)
+    if (session?.user.userId && current?.instrumentId)
+      void loadEffectiveTradingFee(session.user.userId, current.instrumentId, view.line)
         .then((value) => {
           if (!cancelled) setUserFees(value)
         })
@@ -337,7 +339,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [session?.user.userId, current?.symbol, view.line])
+  }, [session?.user.userId, current?.instrumentId, view.line])
   const handleLeverageChange = useCallback((setting: LeverageSettings | null) => {
     setLeverageSetting(setting)
     if (setting) setOrderSettings((previous) => ({ ...previous, marginMode: setting.marginMode }))
@@ -365,31 +367,36 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     () =>
       selectTriggerPosition(
         positions,
-        current?.symbol,
+        current?.instrumentId,
         orderSettings.marginMode,
         orderSettings.positionMode,
         orderSettings.positionSide,
       ),
-    [current?.symbol, orderSettings, positions],
+    [current?.instrumentId, orderSettings, positions],
   )
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
-  const realtime = useRealtime(session, current?.symbol ?? view.symbol, view.line, period, [
+  const realtime = useRealtime(session, current?.instrumentId ?? "", view.line, period, [
     {
       channel: "candles",
-      symbol: current?.symbol ?? view.symbol,
+      instrumentId: current?.instrumentId ?? "",
       productLine: view.line,
       period: "1m",
     },
   ])
-  const displayedDayStats = useDayStats(current?.symbol, view.line, realtime.events, realtime.state)
+  const displayedDayStats = useDayStats(
+    current?.instrumentId,
+    view.line,
+    realtime.events,
+    realtime.state,
+  )
   const openInterestQuantity = useMemo(() => {
     if (!current || realtime.state !== "live") return ""
     const event = realtime.events.find(
       (row) =>
         row.channel === "openInterest" &&
-        row.symbol === current.symbol &&
+        row.instrumentId === current.instrumentId &&
         row.productLine === view.line,
     )
     const data = event?.data as Record<string, unknown> | undefined
@@ -444,7 +451,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       .filter(
         (row) =>
           ["PENDING", "TRIGGERING"].includes(String(row["status"])) &&
-          row["symbol"] === current?.symbol,
+          row["instrumentId"] === current?.instrumentId,
       )
       .map((row) => TriggerOrderSchema.safeParse(row))
     if ([...parsedBalances, ...parsedOrders, ...parsedTriggers].some((result) => !result.success)) {
@@ -455,26 +462,30 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setPositions(account.rows("position").filter((row) => Number(row["signedQuantitySteps"]) !== 0))
     setOpenOrders(parsedOrders.flatMap((result) => (result.success ? [result.data] : [])))
     setTriggerOrders(parsedTriggers.flatMap((result) => (result.success ? [result.data] : [])))
-  }, [current?.symbol, realtime.views, realtime.revision, session, view.line])
+  }, [current?.instrumentId, realtime.views, realtime.revision, session, view.line])
 
-  const updateMarketQuote = useCallback((symbol: string, price: number | null) => {
+  const updateMarketQuote = useCallback((instrumentId: string, price: number | null) => {
     if (price === null || !Number.isFinite(price) || price <= 0) return
     setMarketQuotes((previous) =>
-      previous[symbol] === price ? previous : { ...previous, [symbol]: price },
+      previous[instrumentId] === price ? previous : { ...previous, [instrumentId]: price },
     )
   }, [])
   const handleSettingsChange = useCallback((settings: TradingOrderSettings) => {
     setOrderSettings(settings)
   }, [])
-  const toggleFavorite = useCallback((symbol: string) => {
-    setFavorites((currentFavorites) =>
-      currentFavorites.includes(symbol)
-        ? currentFavorites.filter((value) => value !== symbol)
-        : [...currentFavorites, symbol],
-    )
-  }, [])
-  const selectPair = useCallback((symbol: string) => {
-    setSelected(symbol)
+  const toggleFavorite = useCallback(
+    (instrumentId: string) => {
+      const favoriteKey = `${view.line}:${instrumentId}`
+      setFavorites((currentFavorites) =>
+        currentFavorites.includes(favoriteKey)
+          ? currentFavorites.filter((value) => value !== favoriteKey)
+          : [...currentFavorites, favoriteKey],
+      )
+    },
+    [view.line],
+  )
+  const selectPair = useCallback((instrumentId: string) => {
+    setSelected(instrumentId)
     setPairOpen(false)
   }, [])
 
@@ -512,7 +523,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setQuantity("")
       return
     }
-    const referencePrice = Number(price || marketQuotes[current.symbol] || current.price)
+    const referencePrice = Number(price || marketQuotes[current.instrumentId] || current.price)
     const factor = next / 100
     const quantityValue =
       side === "SELL" ? availableNumber * factor : (availableNumber / referencePrice) * factor
@@ -522,7 +533,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     setBook(null)
     processedEvents.current.clear()
-  }, [current?.symbol, view.line])
+  }, [current?.instrumentId, view.line])
 
   useEffect(() => {
     try {
@@ -535,10 +546,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setMarketsRequestFinished(false)
     setError(null)
     setMarkets([])
-    setSelected(view.symbol)
-    void loadMarket(view.symbol, view.line)
+    setSelected("")
+    void loadDefaultMarket(view.line)
       .then((row) => {
         if (cancelled) return
+        setSelected(String(row.instrumentId))
         const rows = [row]
         const productMarkets = rows
           .map(mapMarket)
@@ -546,7 +558,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setMarkets((previous) =>
           previous.length
             ? previous.map((market) =>
-                market.symbol === row.symbol ? (productMarkets[0] ?? market) : market,
+                market.instrumentId === row.instrumentId ? (productMarkets[0] ?? market) : market,
               )
             : productMarkets,
         )
@@ -583,7 +595,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [pairOpen, view.line])
   useEffect(() => {
     if (!current || price) return
-    const quote = marketQuotes[current.symbol] ?? current.price
+    const quote = marketQuotes[current.instrumentId] ?? current.price
     const quoteScale = Number(assetScales[current.quoteAsset])
     const priceTick = Number(current.priceTickUnits)
     if (!quote || !Number.isFinite(quoteScale) || quoteScale <= 0 || !priceTick) return
@@ -606,13 +618,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setTriggerOrders([])
     const generation = ++marketGeneration.current
     const loadHistory = () => {
-      void loadCandles(current.symbol, period, view.line)
+      void loadCandles(current.instrumentId, period, view.line)
         .then((rows) => {
           if (generation !== marketGeneration.current) return
           const history = rows.map(mapCandle)
           const latestCandle = history.at(-1)
-          if (latestCandle && latestTradeRef.current?.symbol !== current.symbol)
-            updateMarketQuote(current.symbol, latestCandle.close)
+          if (latestCandle && latestTradeRef.current?.instrumentId !== current.instrumentId)
+            updateMarketQuote(current.instrumentId, latestCandle.close)
           setCandles((live) => {
             const byTime = new Map(history.map((candle) => [candle.time, candle]))
             for (const candle of live) byTime.set(candle.time, candle)
@@ -628,7 +640,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     }
     loadHistory()
     if (view.line === PRODUCT_LINES.option)
-      void loadOptionQuote(current.symbol)
+      void loadOptionQuote(current.instrumentId)
         .then((quote) => {
           if (generation === marketGeneration.current) setOptionQuote(quote)
         })
@@ -636,7 +648,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       marketGeneration.current++
     }
-  }, [current?.symbol, period, updateMarketQuote, view.line])
+  }, [current?.instrumentId, period, updateMarketQuote, view.line])
 
   useEffect(() => {
     let cancelled = false
@@ -655,14 +667,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     setRecentTrades([])
     latestTradeRef.current = null
-    if (!current?.symbol || !assetScales[current.quoteAsset]) return
+    if (!current?.instrumentId || !assetScales[current.quoteAsset]) return
     let cancelled = false
-    void loadRecentTrades(current.symbol, view.line)
+    void loadRecentTrades(current.instrumentId, view.line)
       .then((history) => {
         if (cancelled) return
-        if (latestTradeRef.current?.symbol !== current.symbol) {
+        if (latestTradeRef.current?.instrumentId !== current.instrumentId) {
           updateMarketQuote(
-            current.symbol,
+            current.instrumentId,
             marketPriceFromRecord(history[0] ?? {}, current, assetScales),
           )
         }
@@ -682,7 +694,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.symbol, assetScales, updateMarketQuote, view.line])
+  }, [current?.instrumentId, assetScales, updateMarketQuote, view.line])
 
   useEffect(() => {
     if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
@@ -698,7 +710,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const fundingVersion = priceEventVersions.current.funding
     setFunding(null)
     setFundingMarketError("")
-    void loadFundingRate(current.symbol, view.line)
+    void loadFundingRate(current.instrumentId, view.line)
       .then((value) => {
         if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(value)
       })
@@ -706,8 +718,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         if (!cancelled && priceEventVersions.current.funding === fundingVersion) setFunding(null)
       })
     void Promise.allSettled([
-      loadFundingRateHistory(current.symbol, view.line),
-      loadFundingSettlement(current.symbol, view.line),
+      loadFundingRateHistory(current.instrumentId, view.line),
+      loadFundingSettlement(current.instrumentId, view.line),
     ]).then(([historyResult, settlementResult]) => {
       if (cancelled) return
       setFundingHistory(historyResult.status === "fulfilled" ? historyResult.value : [])
@@ -718,7 +730,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     })
     setFundingPaymentsError("")
     if (session) {
-      void loadFundingPayments(session.user.userId, current.symbol, view.line)
+      void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
         .then((rows) => {
           if (!cancelled) setFundingPayments(rows)
         })
@@ -733,7 +745,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.symbol, session, view.line])
+  }, [current?.instrumentId, session, view.line])
 
   useEffect(() => {
     if (!current || view.line === PRODUCT_LINES.spot) {
@@ -746,8 +758,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setMarkPrice(null)
     setIndexPrice(null)
     void Promise.allSettled([
-      loadMarkPrice(current.symbol, view.line),
-      loadIndexPrice(current.symbol, view.line),
+      loadMarkPrice(current.instrumentId, view.line),
+      loadIndexPrice(current.instrumentId, view.line),
     ]).then(([markResult, indexResult]) => {
       if (cancelled) return
       // A slow initial snapshot must not replace a newer WebSocket price.
@@ -759,7 +771,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.symbol, view.line])
+  }, [current?.instrumentId, view.line])
 
   useEffect(() => {
     if (!current || !assetScales[current.quoteAsset]) return
@@ -774,11 +786,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       )
         return
       processedEvents.current.add(event.id)
-      const eventSymbol = text(event, "symbol")
+      const eventSymbol = text(event, "instrumentId")
       if (!data) return
-      if (eventSymbol && eventSymbol !== current.symbol) {
+      if (eventSymbol && eventSymbol !== current.instrumentId) {
         if (channel === "trades") {
-          const market = markets.find((candidate) => candidate.symbol === eventSymbol)
+          const market = markets.find((candidate) => candidate.instrumentId === eventSymbol)
           if (market)
             updateMarketQuote(eventSymbol, marketPriceFromRecord(data, market, assetScales))
         }
@@ -793,12 +805,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const liveTrade = latestTradeRef.current
         const candleSequence = numberValue(candle.data, "lastSequence")
         const olderThanLiveTrade =
-          liveTrade?.symbol === current.symbol &&
+          liveTrade?.instrumentId === current.instrumentId &&
           liveTrade.bucket === next.time &&
           candleSequence !== null &&
           candleSequence < liveTrade.sequence
         if (!olderThanLiveTrade && (!liveTrade || next.time >= liveTrade.bucket))
-          updateMarketQuote(current.symbol, next.close)
+          updateMarketQuote(current.instrumentId, next.close)
         setCandles((rows) => {
           const live = rows.find((row) => row.time === next.time)
           const resolved =
@@ -832,7 +844,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             ...previous,
           ].slice(0, 50),
         )
-        updateMarketQuote(current.symbol, marketPriceFromRecord(nextTrade, current, assetScales))
+        updateMarketQuote(
+          current.instrumentId,
+          marketPriceFromRecord(nextTrade, current, assetScales),
+        )
         const tradePrice = numberValue(nextTrade, "price")
         const tradeQuantity = numberValue(nextTrade, "quantity")
         const tradeTime = Date.parse(event.eventTime ?? "")
@@ -840,7 +855,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           const tradeSequence = numberValue(data, "sequence") ?? numberValue(data, "coreSequence")
           if (tradeSequence !== null) {
             latestTradeRef.current = {
-              symbol: current.symbol,
+              instrumentId: current.instrumentId,
               bucket: new Date(
                 Math.floor(tradeTime / periodMillisecondsForChart(period)) *
                   periodMillisecondsForChart(period),
@@ -960,7 +975,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (view.line !== PRODUCT_LINES.spot && orderType !== "STOP" && ticketAction === "CLOSE") {
         const position = selectTriggerPosition(
           positions,
-          current.symbol,
+          current.instrumentId,
           orderSettings.marginMode,
           orderSettings.positionMode,
           orderPositionSide(orderSettings.positionMode, "CLOSE", side),
@@ -1001,7 +1016,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             ? undefined
             : decimalToUnits(String(balance.free), balanceScale))
         const referencePrice =
-          executionType === "MARKET" ? (marketQuotes[current.symbol] ?? current.price) : price
+          executionType === "MARKET" ? (marketQuotes[current.instrumentId] ?? current.price) : price
         if (side === "BUY" && referencePrice === null) {
           throw new Error(
             t("Market reference price is unavailable. Cannot validate available balance."),
@@ -1035,7 +1050,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const leg = {
           userId: session.user.userId,
           clientTriggerOrderId: `web-trigger-${requestId}`,
-          symbol: current.symbol,
+          instrumentId: current.instrumentId,
           side,
           triggerType,
           triggerPriceTicks: decimalToStepUnits(
@@ -1112,7 +1127,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {
             userId: session.user.userId,
             clientOrderId: `web-${crypto.randomUUID()}`,
-            symbol: current.symbol,
+            instrumentId: current.instrumentId,
             side,
             orderType,
             ...(useBbo ? { bboPriceMode } : {}),
@@ -1184,7 +1199,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   onClick={() => setPairOpen((open) => !open)}
                 >
                   {current ? <AssetIcon asset={current.baseAsset} /> : null}
-                  <span>{(current?.symbol ?? view.symbol).replace(/-SWAP$/, "")}</span>
+                  <span>{current?.symbol ?? "—"}</span>
                   <ChevronDown size={17} />
                 </button>
                 <button
@@ -1272,7 +1287,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <PairMarketList
                     markets={markets}
                     productLine={view.line}
-                    selectedSymbol={current?.symbol}
+                    selectedSymbol={current?.instrumentId}
                     search={pairSearch}
                     favoritesOnly={pairTab === "favorites"}
                     favorites={favorites}
@@ -1291,7 +1306,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 value={
                   lastTradePrice ??
                   candles.at(-1)?.close ??
-                  (current ? marketQuotes[current.symbol] : null) ??
+                  (current ? marketQuotes[current.instrumentId] : null) ??
                   current?.price ??
                   null
                 }
@@ -1439,7 +1454,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             </Button>
           </div>
           <PriceChart
-            key={`${view.line}:${current?.symbol ?? view.symbol}`}
+            key={`${view.line}:${current?.instrumentId ?? ""}`}
             candles={candles}
             period={period}
             priceStep={
@@ -1515,7 +1530,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <TradingAccountControls
                   marginMode={orderSettings.marginMode}
                   userId={session?.user.userId}
-                  symbol={current?.symbol ?? view.symbol}
+                  instrumentId={current?.instrumentId ?? ""}
+                  symbol={current?.symbol ?? ""}
                   productLine={view.line}
                   positions={positions}
                   settleAsset={current?.settleAsset ?? current?.quoteAsset ?? "USDT"}
@@ -1586,6 +1602,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   ) : null}
                   {accountTab === "fundingPayments" ? (
                     <FundingPayments
+                      symbol={current?.symbol ?? "—"}
                       rows={fundingPayments}
                       error={fundingPaymentsError}
                       assetScales={assetScales}
@@ -1718,9 +1735,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           </div>
           {view.line !== PRODUCT_LINES.spot && current && (
             <TradingTicketControls
-              key={`${view.line}:${current.symbol}:${session?.user.userId ?? "guest"}`}
+              key={`${view.line}:${current.instrumentId}:${session?.user.userId ?? "guest"}`}
               userId={session?.user.userId}
-              symbol={current.symbol}
+              instrumentId={current.instrumentId}
               productLine={view.line}
               marginMode={orderSettings.marginMode}
               onChange={handleLeverageChange}
@@ -2612,7 +2629,7 @@ function OptionDetails({
       <div className="contract-detail-grid">
         <Detail
           label={t("Underlying")}
-          value={market?.underlyingSymbol ?? market?.baseAsset ?? "—"}
+          value={market?.underlyingInstrumentId ?? market?.baseAsset ?? "—"}
         />
         <Detail label={t("Expiry")} value={formatDate(market?.expiryTime)} />
         <Detail label={t("Strike (units)")} value={market?.strikePriceUnits?.toString() ?? "—"} />
@@ -2816,10 +2833,12 @@ function formatFundingAmount(
 }
 
 function FundingPayments({
+  symbol,
   rows,
   error,
   assetScales,
 }: {
+  readonly symbol: string
   readonly rows: readonly ApiFundingPayment[]
   readonly error: string
   readonly assetScales: Readonly<Record<string, string>>
@@ -2849,7 +2868,7 @@ function FundingPayments({
             <tbody>
               {rows.map((row, index) => (
                 <tr key={String(row.paymentId) || String(index)}>
-                  <td>{row.symbol || "—"}</td>
+                  <td>{symbol}</td>
                   <td>{row.asset || "—"}</td>
                   <td className="mono">{fundingRate(row)}</td>
                   <td className="mono">{formatFundingAmount(row, assetScales)}</td>
@@ -2965,46 +2984,57 @@ const PairMarketList = memo(function PairMarketList({
   readonly favoritesOnly: boolean
   readonly favorites: readonly string[]
   readonly assetScales: Readonly<Record<string, string>>
-  readonly onSelect: (symbol: string) => void
-  readonly onFavorite: (symbol: string) => void
+  readonly onSelect: (instrumentId: string) => void
+  readonly onFavorite: (instrumentId: string) => void
 }) {
   const feed = useRealtimeFeed(
     null,
     markets.flatMap((market) => [
-      { channel: "trades", symbol: market.symbol, productLine },
-      { channel: "candles", symbol: market.symbol, productLine, period: "1m" },
+      { channel: "trades", instrumentId: market.instrumentId, productLine },
+      { channel: "candles", instrumentId: market.instrumentId, productLine, period: "1m" },
     ]),
     1000,
     false,
   )
   const visible = (market: Market) =>
     market.symbol.toLowerCase().includes(search.toLowerCase()) &&
-    (!favoritesOnly || favorites.includes(market.symbol))
+    (!favoritesOnly || favorites.includes(`${productLine}:${market.instrumentId}`))
   return (
     <div className="trade-pair-list">
       {[...markets]
         .sort((a, b) =>
-          a.symbol === selectedSymbol
+          a.instrumentId === selectedSymbol
             ? -1
-            : b.symbol === selectedSymbol
+            : b.instrumentId === selectedSymbol
               ? 1
               : a.symbol.localeCompare(b.symbol),
         )
         .map((market) => (
           <div
-            key={market.symbol}
+            key={market.instrumentId}
             style={{ display: visible(market) ? undefined : "none" }}
-            className={`pair-row ${market.symbol === selectedSymbol ? "active" : ""}`}
+            className={`pair-row ${market.instrumentId === selectedSymbol ? "active" : ""}`}
           >
             <button
               type="button"
               className="pair-favorite"
-              aria-label={`${favorites.includes(market.symbol) ? "Remove" : "Add"} ${market.symbol} favorite`}
-              onClick={() => onFavorite(market.symbol)}
+              aria-label={`${favorites.includes(`${productLine}:${market.instrumentId}`) ? "Remove" : "Add"} ${market.symbol} favorite`}
+              onClick={() => onFavorite(market.instrumentId)}
             >
-              <Star size={15} fill={favorites.includes(market.symbol) ? "currentColor" : "none"} />
+              <Star
+                size={15}
+                fill={
+                  favorites.includes(`${productLine}:${market.instrumentId}`)
+                    ? "currentColor"
+                    : "none"
+                }
+              />
             </button>
-            <button type="button" className="pair-select" onClick={() => onSelect(market.symbol)}>
+            <button
+              type="button"
+              className="pair-select"
+              onClick={() => onSelect(market.instrumentId)}
+            >
               <AssetIcon asset={market.baseAsset} />
               <span>{market.symbol}</span>
             </button>
@@ -3040,8 +3070,10 @@ function PairMarketValues({
   readonly connection: RealtimeState
   readonly assetScales: Readonly<Record<string, string>>
 }) {
-  const stats = useDayStats(market.symbol, productLine, events, connection)
-  const trade = events.find((event) => event.channel === "trades" && event.symbol === market.symbol)
+  const stats = useDayStats(market.instrumentId, productLine, events, connection)
+  const trade = events.find(
+    (event) => event.channel === "trades" && event.instrumentId === market.instrumentId,
+  )
   const price =
     marketPriceFromRecord(record(trade?.data) ?? {}, market, assetScales) ?? stats?.close ?? null
   const change = stats?.open && price ? ((price - stats.open) / stats.open) * 100 : null

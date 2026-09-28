@@ -4,8 +4,10 @@ import { PRODUCT_LINES } from "../types/domain"
 import type { ApiBalance, ApiCandle, ApiMarket } from "./types"
 
 export function mapMarket(raw: ApiMarket): Market {
-  const [baseAsset, quoteAsset] = splitSymbol(raw.symbol, raw.baseAsset, raw.quoteAsset)
+  if (!raw.baseAsset || !raw.quoteAsset) throw new Error("Instrument asset metadata is missing")
+  const { baseAsset, quoteAsset } = raw
   return {
+    instrumentId: raw.instrumentId,
     symbol: raw.symbol,
     baseAsset,
     quoteAsset,
@@ -36,7 +38,8 @@ export function mapMarket(raw: ApiMarket): Market {
     fundingIntervalHours: raw.fundingIntervalHours,
     expiryTime: raw.expiryTime,
     deliveryTime: raw.deliveryTime,
-    underlyingSymbol: raw.underlyingSymbol,
+    underlyingInstrumentId: raw.underlyingInstrumentId,
+    underlyingProductLine: raw.underlyingProductLine,
     strikePriceUnits: raw.strikePriceUnits === undefined ? undefined : String(raw.strikePriceUnits),
     optionType: raw.optionType,
     optionExerciseStyle: raw.optionExerciseStyle,
@@ -101,16 +104,6 @@ function integerScale(value: string | number | undefined): string | undefined {
   if (value === undefined) return undefined
   const normalized = String(value)
   return /^\d+$/.test(normalized) && normalized !== "0" ? normalized : undefined
-}
-
-function splitSymbol(symbol: string, base?: string, quote?: string): [string, string] {
-  if (base && quote) return [base, quote]
-  const normalized = symbol.replace("/", "_").split("_")
-  if (normalized.length === 2) return [normalized[0] ?? symbol, normalized[1] ?? ""]
-  for (const candidate of ["USDT", "USDC", "USD", "BTC"]) {
-    if (symbol.endsWith(candidate)) return [symbol.slice(0, -candidate.length), candidate]
-  }
-  return [symbol, ""]
 }
 
 function normalizeProductLine(

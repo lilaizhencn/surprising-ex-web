@@ -74,9 +74,15 @@ describe("private state recovery", () => {
     )
     expect(view.rows("balance")).toHaveLength(2)
     expect(view.rows("balance").find((b) => b["asset"] === "BTC")?.["availableUnits"]).toBe(0)
-    view.apply(event("positions", 3, { positions: [{ symbol: "BTC", signedQuantitySteps: 1 }] }))
-    view.apply(event("positions", 5, { positions: [{ symbol: "BTC", signedQuantitySteps: 0 }] }))
-    view.apply(event("positions", 4, { positions: [{ symbol: "BTC", signedQuantitySteps: 1 }] }))
+    view.apply(
+      event("positions", 3, { positions: [{ instrumentId: "BTC", signedQuantitySteps: 1 }] }),
+    )
+    view.apply(
+      event("positions", 5, { positions: [{ instrumentId: "BTC", signedQuantitySteps: 0 }] }),
+    )
+    view.apply(
+      event("positions", 4, { positions: [{ instrumentId: "BTC", signedQuantitySteps: 1 }] }),
+    )
     expect(view.rows("position")).toHaveLength(0)
     for (const status of ["TRIGGERED", "CANCELED", "EXPIRED", "TRIGGER_FAILED"]) {
       view.apply(event("triggerOrders", 6, [{ triggerOrderId: status, status: "PENDING" }]))
@@ -162,7 +168,7 @@ it("uses integer linear/inverse PnL and signed option market value", () => {
 it("closing a position does not double-count realized PnL", () => {
   const view = new PrivateView()
   const p = {
-    symbol: "BTC",
+    instrumentId: "BTC",
     marginAsset: "USDT",
     instrumentChangeId: 1,
     signedQuantitySteps: 2,
@@ -179,7 +185,7 @@ it("closing a position does not double-count realized PnL", () => {
   )
   const markets = [
     {
-      symbol: "BTC",
+      instrumentId: "BTC",
       changeId: 1,
       priceTickUnits: 1,
       notionalMultiplierUnits: 10,
@@ -219,7 +225,7 @@ it("uses identical complete account fields for REST snapshots and WS updates", (
     second = new PrivateView()
   const order = {
     orderId: "9007199254740993",
-    symbol: "BTC-USDT-SWAP",
+    instrumentId: "BTC-USDT",
     status: "OPEN",
     executedQuantitySteps: "2",
     remainingQuantitySteps: "8",
@@ -228,14 +234,14 @@ it("uses identical complete account fields for REST snapshots and WS updates", (
     updatedAtEpochMillis: "1790000000500",
   }
   const position = {
-    symbol: "BTC-USDT-SWAP",
+    instrumentId: "BTC-USDT",
     positionSide: "NET",
     signedQuantitySteps: "2",
     marginAsset: "USDT",
     positionMarginUnits: "800000",
     entryValueTicks: "10000",
   }
-  const leverage = { symbol: "BTC-USDT-SWAP", marginMode: "CROSS", leveragePpm: "3000000" }
+  const leverage = { instrumentId: "BTC-USDT", marginMode: "CROSS", leveragePpm: "3000000" }
   first.apply(
     snapshot(3, {
       account: { balances: [], positions: [position], leverages: [leverage] },

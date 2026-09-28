@@ -3,6 +3,7 @@ import type { Balance, Market } from "../types/domain"
 export const demoMarkets: readonly Market[] = [
   {
     symbol: "BTC/USDT",
+    instrumentId: "100",
     baseAsset: "BTC",
     quoteAsset: "USDT",
     productLine: "SPOT",
@@ -17,6 +18,7 @@ export const demoMarkets: readonly Market[] = [
   },
   {
     symbol: "ETH/USDT",
+    instrumentId: "100",
     baseAsset: "ETH",
     quoteAsset: "USDT",
     productLine: "SPOT",
@@ -31,6 +33,7 @@ export const demoMarkets: readonly Market[] = [
   },
   {
     symbol: "SOL/USDT",
+    instrumentId: "100",
     baseAsset: "SOL",
     quoteAsset: "USDT",
     productLine: "SPOT",
@@ -45,6 +48,7 @@ export const demoMarkets: readonly Market[] = [
   },
   {
     symbol: "XRP/USDT",
+    instrumentId: "100",
     baseAsset: "XRP",
     quoteAsset: "USDT",
     productLine: "SPOT",

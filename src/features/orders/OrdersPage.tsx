@@ -13,6 +13,9 @@ import {
   cancelTriggerOrder,
   closePosition,
   loadAccountLedger,
+  loadAssetScales,
+  loadMarket,
+  loadMarkets,
   loadMyTrades,
   loadOpenAlgoOrders,
   loadOrderHistory,
@@ -23,13 +26,23 @@ import {
   placeBatchTriggerOrders,
   testOrder,
 } from "../../api/endpoints"
+import { mapMarket } from "../../api/mappers"
 import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { t } from "../../i18n"
 import { loadSession, useSession } from "../../state/session"
-import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
+import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
+
+import {
+  fillProgress,
+  price,
+  quantity,
+  statusLabels,
+  timestamp,
+  units,
+} from "../trading/TradingAccountTables"
 
 type RecordRow =
   | ApiOrder
@@ -51,7 +64,21 @@ export function OrdersPage() {
   const session = useSession()
   const [tab, setTab] = useState<Tab>("open")
   const [productLine, setProductLine] = useState<ProductLine>(PRODUCT_LINES.spot)
-  const [symbol, setSymbol] = useState("")
+  const [instrumentId, setInstrumentId] = useState("")
+  const [assetFilter, setAssetFilter] = useState("")
+  const [marketOptions, setMarketOptions] = useState<{
+    line: ProductLine
+    items: readonly { instrumentId: string; symbol: string }[]
+  } | null>(null)
+  const isAssetTab = tab === "ledger" || tab === "product-ledger" || tab === "transfers"
+  const filterValue = isAssetTab ? assetFilter : instrumentId
+  const loadMarketOptions = () => {
+    if (marketOptions?.line === productLine) return
+    void loadMarkets(productLine).then(
+      (items) => setMarketOptions({ line: productLine, items }),
+      (reason: unknown) => setError(readError(reason)),
+    )
+  }
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("ALL")
   const [from, setFrom] = useState("")
@@ -75,19 +102,19 @@ export function OrdersPage() {
     setLoading(true)
     const task =
       tab === "history"
-        ? loadOrderHistory(symbol, productLine, dateValue(from), dateValue(to))
+        ? loadOrderHistory(instrumentId, productLine, dateValue(from), dateValue(to))
         : tab === "fills"
           ? session
-            ? loadMyTrades(session.user.userId, symbol, productLine)
+            ? loadMyTrades(session.user.userId, instrumentId, productLine)
             : Promise.resolve([])
           : tab === "ledger"
-            ? loadAccountLedger(symbol)
+            ? loadAccountLedger(assetFilter)
             : tab === "product-ledger"
-              ? loadProductLedger(productLine, symbol)
+              ? loadProductLedger(productLine, assetFilter)
               : tab === "transfers"
-                ? loadTransferHistory(productLine, symbol)
+                ? loadTransferHistory(productLine, assetFilter)
                 : tab === "algo"
-                  ? loadOpenAlgoOrders(session.user.userId, symbol, productLine)
+                  ? loadOpenAlgoOrders(session.user.userId, instrumentId, productLine)
                   : Promise.resolve([])
     void task
       .then(
@@ -110,17 +137,73 @@ export function OrdersPage() {
             ["PENDING", "TRIGGERING"].includes(String(r["status"])),
           )
         : rows
+  const [markets, setMarkets] = useState<Readonly<Record<string, Market>>>({})
+  const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
+  useEffect(() => {
+    let active = true
+    void loadAssetScales().then(
+      (value) => {
+        if (active) setAssetScales(value)
+      },
+      (reason: unknown) => {
+        if (active) setError(readError(reason))
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [])
   const filtered = useMemo(
     () =>
       liveRows.filter(
         (row) =>
-          JSON.stringify(row).toLowerCase().includes(search.toLowerCase()) &&
-          (!symbol || text(row, "symbol") === symbol) &&
+          `${JSON.stringify(row)} ${markets[`${productLine}:${text(row, "instrumentId")}`]?.symbol ?? ""}`
+            .toLowerCase()
+            .includes(search.toLowerCase()) &&
+          (!filterValue || text(row, isAssetTab ? "asset" : "instrumentId") === filterValue) &&
           (status === "ALL" || text(row, "status").toUpperCase() === status),
       ),
-    [liveRows, search, status, symbol],
+    [liveRows, search, status, filterValue, isAssetTab, markets, productLine],
   )
-  const displayRows = filtered
+  const displayIds = [...new Set(liveRows.map((row) => text(row, "instrumentId")).filter(Boolean))]
+    .sort()
+    .join(",")
+  useEffect(() => {
+    let active = true
+    const ids = displayIds ? displayIds.split(",") : []
+    void Promise.all(
+      ids.map(async (id) => {
+        const market = await loadMarket(id, productLine)
+        return [`${productLine}:${id}`, mapMarket(market)] as const
+      }),
+    ).then(
+      (entries) => {
+        if (active) setMarkets(Object.fromEntries(entries))
+      },
+      (reason: unknown) => {
+        if (active) setError(readError(reason))
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [displayIds, productLine])
+  const displayRows = filtered.map((row) => {
+    const market = markets[`${productLine}:${text(row, "instrumentId")}`]
+    return {
+      ...row,
+      symbol: market?.symbol ?? "—",
+      displayPrice:
+        row["orderType"] === "MARKET" ? t("Market") : price(row["priceTicks"], market, assetScales),
+      displayQuantity: quantity(row["quantitySteps"], market, assetScales),
+      displayFilled: quantity(row["executedQuantitySteps"], market, assetScales),
+      displayAveragePrice: price(row["averagePriceTicks"], market, assetScales),
+      displayFees: units(row["cumulativeFeeUnits"], market?.settleAsset, assetScales),
+      displayCreatedAt: timestamp(row, "created"),
+      displayUpdatedAt: timestamp(row, "updated"),
+      fillProgress: fillProgress(row),
+    }
+  })
   const snapshotPending = (tab === "open" || tab === "triggers") && !privateView?.ready()
   const runBulkAction = async (operation: () => Promise<unknown>, success: string) => {
     setLoading(true)
@@ -158,7 +241,7 @@ export function OrdersPage() {
       <div className="page-heading">
         <div>
           <h1>{t("Transaction History")}</h1>
-          <p>{t("Live order state is read from the product-specific trading gateway.")}</p>
+          <p>{t("Review orders, fills, ledger entries and internal transfers.")}</p>
         </div>
         <Button
           tone="outline"
@@ -182,7 +265,7 @@ export function OrdersPage() {
             void runBulkAction(
               () =>
                 cancelOpenOrders(
-                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
                   productLine,
                 ),
               t("Batch cancellation requested."),
@@ -208,7 +291,11 @@ export function OrdersPage() {
               void runBulkAction(
                 () =>
                   cancelAllAfter(
-                    { userId: session.user.userId, symbol: symbol || null, countdownMs },
+                    {
+                      userId: session.user.userId,
+                      instrumentId: instrumentId || null,
+                      countdownMs,
+                    },
                     productLine,
                   ),
                 `${t("Cancel timer set (ms)")}: ${countdownMs}`,
@@ -227,7 +314,7 @@ export function OrdersPage() {
             void runBulkAction(
               () =>
                 cancelOpenAlgoOrders(
-                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
                   productLine,
                 ),
               t("Algo order batch cancellation requested."),
@@ -245,7 +332,7 @@ export function OrdersPage() {
             void runBulkAction(
               () =>
                 cancelOpenTriggerOrders(
-                  { userId: session.user.userId, symbol: symbol || null, limit: 1000 },
+                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
                   productLine,
                 ),
               t("Trigger order batch cancellation requested."),
@@ -260,7 +347,10 @@ export function OrdersPage() {
         <SearchField value={search} onChange={setSearch} placeholder={t("Search symbol or ID")} />
         <DropdownSelect
           value={productLine}
-          onChange={(event) => setProductLine(event.target.value as ProductLine)}
+          onChange={(event) => {
+            setInstrumentId("")
+            setProductLine(event.target.value as ProductLine)
+          }}
           aria-label={t("Product line")}
         >
           <option value={PRODUCT_LINES.spot}>{t("Spot")}</option>
@@ -270,20 +360,29 @@ export function OrdersPage() {
           <option value={PRODUCT_LINES.coinMDelivery}>{t("Coin-M delivery")}</option>
           <option value={PRODUCT_LINES.option}>{t("Options")}</option>
         </DropdownSelect>
-        <input
-          value={symbol}
-          onChange={(event) => setSymbol(event.target.value)}
-          placeholder={
-            tab === "ledger" || tab === "product-ledger" || tab === "transfers"
-              ? "Asset (optional)"
-              : "Symbol (optional)"
-          }
-          aria-label={
-            tab === "ledger" || tab === "product-ledger" || tab === "transfers"
-              ? "Asset filter"
-              : "Symbol filter"
-          }
-        />
+        {isAssetTab ? (
+          <input
+            value={assetFilter}
+            onChange={(event) => setAssetFilter(event.target.value.toUpperCase())}
+            placeholder={t("Asset (optional)")}
+            aria-label={t("Asset filter")}
+          />
+        ) : (
+          <div onFocusCapture={loadMarketOptions}>
+            <DropdownSelect
+              value={instrumentId}
+              onChange={(event) => setInstrumentId(event.target.value)}
+              aria-label={t("Select trading pair")}
+            >
+              <option value="">{t("All pairs")}</option>
+              {(marketOptions?.line === productLine ? marketOptions.items : []).map((market) => (
+                <option key={market.instrumentId} value={market.instrumentId}>
+                  {market.symbol}
+                </option>
+              ))}
+            </DropdownSelect>
+          </div>
+        )}
         <Button tone="outline" onClick={load}>
           <RefreshCw size={16} /> {t("Refresh")}{" "}
         </Button>
@@ -390,7 +489,13 @@ export function OrdersPage() {
           <AdvancedTradingActions
             session={session}
             productLine={productLine}
-            symbol={symbol}
+            instrumentId={instrumentId}
+            symbol={
+              marketOptions?.line === productLine
+                ? (marketOptions.items.find((market) => market.instrumentId === instrumentId)
+                    ?.symbol ?? "—")
+                : "—"
+            }
             onDone={(value) => setActionMessage(value)}
           />
         ) : error ? (
@@ -518,11 +623,13 @@ function TriggerTable({
 function AdvancedTradingActions({
   session,
   productLine,
+  instrumentId,
   symbol,
   onDone,
 }: {
   readonly session: NonNullable<ReturnType<typeof loadSession>>
   readonly productLine: ProductLine
+  readonly instrumentId: string
   readonly symbol: string
   readonly onDone: (message: string) => void
 }) {
@@ -538,7 +645,7 @@ function AdvancedTradingActions({
   const baseOrder = () => ({
     userId: session.user.userId,
     clientOrderId: `web-advanced-${crypto.randomUUID()}`,
-    symbol: symbol.trim(),
+    instrumentId: instrumentId.trim(),
     side,
     orderType: "LIMIT",
     timeInForce: "GTC",
@@ -550,8 +657,8 @@ function AdvancedTradingActions({
     postOnly: false,
   })
   const run = async (operation: () => Promise<unknown>, success: string) => {
-    if (!symbol.trim()) {
-      onDone(t("Enter a symbol before performing advanced trading actions."))
+    if (!instrumentId.trim()) {
+      onDone(t("Select a trading pair before performing advanced trading actions."))
       return
     }
     setBusy(true)
@@ -569,7 +676,7 @@ function AdvancedTradingActions({
       <p className="muted">{t("These actions use integer price ticks and quantity steps.")}</p>
       <div className="grid-2">
         <Field label={t("Symbol")}>
-          <input value={symbol} readOnly aria-label={t("Advanced symbol")} />
+          <input value={symbol} readOnly aria-label={t("Symbol")} />
         </Field>
         <Field label={t("Side")}>
           <DropdownSelect
@@ -719,7 +826,7 @@ function AdvancedTradingActions({
                   {
                     userId: session.user.userId,
                     clientOrderId: `web-close-${crypto.randomUUID()}`,
-                    symbol: symbol.trim(),
+                    instrumentId: instrumentId.trim(),
                     marginMode: "CROSS",
                     positionSide: "NET",
                   },
@@ -960,10 +1067,13 @@ function OrderTable({
             <th>{t("Symbol")}</th>
             <th>{t("Side / Type")}</th>
             <th>{t("Price")}</th>
+            <th>{t("Average fill price")}</th>
             <th>{t("Quantity")}</th>
             <th>{t("Filled")}</th>
+            <th>{t("Fees")}</th>
             <th>{t("Status")}</th>
-            <th>{t("Time")}</th>
+            <th>{t("Created")}</th>
+            <th>{t("Updated")}</th>
             {canCancel ? <th /> : null}
           </tr>
         </thead>
@@ -999,13 +1109,19 @@ function OrderRow({
     <tr>
       <td>{text(row, "symbol") || "—"}</td>
       <td>
-        {text(row, "side") || "—"} / {text(row, "type") || "—"}
+        {t(text(row, "side") === "BUY" ? "Buy" : "Sell")} /{" "}
+        {t(text(row, "orderType") === "MARKET" ? "Market" : "Limit")}
       </td>
-      <td className="mono">{orderPrice(row)}</td>
-      <td className="mono">{orderQuantity(row, "quantitySteps", "origQty", "quantity")}</td>
-      <td className="mono">{orderQuantity(row, "executedQuantitySteps", "executedQty")}</td>
-      <td>{text(row, "status") || "—"}</td>
-      <td>{text(row, "time") || text(row, "updateTime") || "—"}</td>
+      <td className="mono">{text(row, "displayPrice")}</td>
+      <td className="mono">{text(row, "displayAveragePrice")}</td>
+      <td className="mono">{text(row, "displayQuantity")}</td>
+      <td className="mono">
+        {text(row, "displayFilled")} ({text(row, "fillProgress")})
+      </td>
+      <td className="mono">{text(row, "displayFees")}</td>
+      <td>{t(statusLabels[text(row, "status")] ?? text(row, "status"))}</td>
+      <td>{text(row, "displayCreatedAt")}</td>
+      <td>{text(row, "displayUpdatedAt")}</td>
       {canCancel ? (
         <td>
           <Button
@@ -1013,9 +1129,9 @@ function OrderRow({
             loading={busy}
             disabled={!orderId}
             onClick={() => {
-              if (!orderId || !window.confirm("Cancel this order?")) return
+              if (!orderId || !window.confirm(t("Cancel this order?"))) return
               setBusy(true)
-              void cancelOrder(text(row, "symbol"), orderId, productLine)
+              void cancelOrder(text(row, "instrumentId"), orderId, productLine)
                 .then(
                   () => onDone(t("Order cancellation requested.")),
                   (reason: unknown) => onDone(readError(reason)),
@@ -1044,23 +1160,6 @@ function dateValue(value: string): number | undefined {
   if (!value) return undefined
   const parsed = Date.parse(`${value}T00:00:00Z`)
   return Number.isFinite(parsed) ? parsed : undefined
-}
-
-function orderPrice(row: RecordRow): string {
-  const direct = text(row, "price")
-  if (direct) return direct
-  const ticks = text(row, "priceTicks")
-  return ticks ? `ticks ${ticks}` : "—"
-}
-
-function orderQuantity(row: RecordRow, primary: string, ...fallbacks: string[]): string {
-  const value = text(row, primary)
-  if (value) return primary.endsWith("Steps") ? `steps ${value}` : value
-  for (const key of fallbacks) {
-    const fallback = text(row, key)
-    if (fallback) return fallback
-  }
-  return "—"
 }
 
 function downloadCsv(rows: readonly RecordRow[], tab: Tab): void {

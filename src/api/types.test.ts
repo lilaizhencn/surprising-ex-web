@@ -43,7 +43,7 @@ describe("gateway financial response schemas", () => {
         paymentId: 1,
         settlementId: 2,
         userId: 42,
-        symbol: "BTCUSDT",
+        instrumentId: "BTCUSDT",
         asset: "USDT",
         marginMode: "CROSS",
         positionSide: "NET",
@@ -94,7 +94,7 @@ describe("gateway financial response schemas", () => {
         {
           triggerOrderId: 7001,
           userId: 42,
-          symbol: "BTCUSDT_PERP",
+          instrumentId: "BTCUSDT_PERP",
           side: "SELL",
           triggerType: "STOP_LOSS",
           triggerCondition: "LESS_OR_EQUAL",
@@ -117,7 +117,7 @@ describe("gateway financial response schemas", () => {
   it("accepts REST tuple and WebSocket native order-book levels", () => {
     expect(
       OrderBookSchema.safeParse({
-        symbol: "BTC-USDT",
+        instrumentId: "BTC-USDT",
         sequence: "12",
         depth: 50,
         bids: [["64000.00", "1.5"]],
@@ -126,7 +126,7 @@ describe("gateway financial response schemas", () => {
     ).toBe(true)
     expect(
       OrderBookSchema.safeParse({
-        symbol: "BTC-USDT",
+        instrumentId: "BTC-USDT",
         sequence: 13,
         previousSequence: 12,
         updateType: "SNAPSHOT",

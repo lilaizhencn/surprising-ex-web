@@ -18,7 +18,8 @@ export function applyDepthEvent(event: WsEnvelope, previous?: WsEnvelope): WsEnv
       return { ...event, data: { ...update, bids, asks } }
     }
     if (update.updateType !== "DELTA" || !previous) return null
-    if (event.productLine !== previous.productLine || event.symbol !== previous.symbol) return null
+    if (event.productLine !== previous.productLine || event.instrumentId !== previous.instrumentId)
+      return null
     const baseline = OrderBookSchema.parse(previous.data)
     const before = integer(baseline.sequence)
     if (sequence <= before) return previous

@@ -114,14 +114,18 @@ export function useRealtimeAssets(
       for (const p of realtime.views[product]?.rows("position") ?? []) {
         if (Number(p["signedQuantitySteps"]) !== 0) {
           assets.add(String(p["marginAsset"]))
-          next.push({ channel: "mark", productLine: product, symbol: String(p["symbol"]) })
+          next.push({
+            channel: "mark",
+            productLine: product,
+            instrumentId: String(p["instrumentId"]),
+          })
         }
       }
     }
     for (const m of mappedMarkets)
       if (m.productLine === "SPOT" && m.quoteAsset === "USDT" && assets.has(m.baseAsset)) {
-        next.push({ channel: "trades", productLine: "SPOT", symbol: m.symbol })
-        next.push({ channel: "bookTicker", productLine: "SPOT", symbol: m.symbol })
+        next.push({ channel: "trades", productLine: "SPOT", instrumentId: m.instrumentId })
+        next.push({ channel: "bookTicker", productLine: "SPOT", instrumentId: m.instrumentId })
       }
     setHeld(next)
   }, [realtime.views, realtime.products, mappedMarkets])
@@ -134,13 +138,17 @@ export function useRealtimeAssets(
     )) {
       const event =
         realtime.events.find(
-          (e) => e.productLine === "SPOT" && e.symbol === m.symbol && e.channel === "bookTicker",
+          (e) =>
+            e.productLine === "SPOT" &&
+            e.instrumentId === m.instrumentId &&
+            e.channel === "bookTicker",
         ) ??
         realtime.events.find(
-          (e) => e.productLine === "SPOT" && e.symbol === m.symbol && e.channel === "trades",
+          (e) =>
+            e.productLine === "SPOT" && e.instrumentId === m.instrumentId && e.channel === "trades",
         )
       const raw = markets.find(
-        (raw) => raw.symbol === m.symbol && mapMarket(raw).productLine === "SPOT",
+        (raw) => raw.instrumentId === m.instrumentId && mapMarket(raw).productLine === "SPOT",
       )
       const initialPrice =
         raw?.lastPriceTicks !== undefined
@@ -163,7 +171,10 @@ export function useRealtimeAssets(
           ...m,
           markPriceTicks: markTicks(
             realtime.events.find(
-              (e) => e.productLine === product && e.symbol === m.symbol && e.channel === "mark",
+              (e) =>
+                e.productLine === product &&
+                e.instrumentId === m.instrumentId &&
+                e.channel === "mark",
             ),
             m,
             scales,

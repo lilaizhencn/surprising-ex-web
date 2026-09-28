@@ -732,5 +732,11 @@
   "Google Authenticator": "谷歌验证器",
   "Bound": "已绑定",
   "Scan with Google Authenticator": "使用谷歌验证器扫描二维码",
-  "Verification expired or too many attempts. Please start again.": "验证已过期或尝试次数过多，请重新开始验证。"
+  "Verification expired or too many attempts. Please start again.": "验证已过期或尝试次数过多，请重新开始验证。",
+  "All pairs": "全部交易对",
+  "Asset (optional)": "币种（可选）",
+  "Asset filter": "筛选币种",
+  "Select a trading pair before performing advanced trading actions.": "请先选择交易对，再执行交易操作。",
+  "Average fill price": "成交均价",
+  "Fees": "手续费"
 }

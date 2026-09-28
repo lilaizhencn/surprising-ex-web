@@ -11,7 +11,7 @@ function event(data: ApiOrderBook): WsEnvelope {
   return {
     op: "event",
     productLine: "LINEAR_PERPETUAL",
-    symbol: "BTC-USDT-SWAP",
+    instrumentId: "BTC-USDT",
     channel: "depth",
     data,
   }

@@ -35,7 +35,7 @@ const primaryPairs = new Set(
     "APT",
     "FIL",
     "HBAR",
-  ].map((asset) => `${asset}-USDT-SWAP`),
+  ].map((asset) => `${asset}-USDT`),
 )
 
 export function MarketsPage() {
@@ -47,8 +47,16 @@ export function MarketsPage() {
   const [error, setError] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const plan: Subscription[] = markets.flatMap((market) => [
-    { channel: "trades", productLine: PRODUCT_LINES.usdMPerpetual, symbol: market.symbol },
-    { channel: "mark", productLine: PRODUCT_LINES.usdMPerpetual, symbol: market.symbol },
+    {
+      channel: "trades",
+      productLine: PRODUCT_LINES.usdMPerpetual,
+      instrumentId: market.instrumentId,
+    },
+    {
+      channel: "mark",
+      productLine: PRODUCT_LINES.usdMPerpetual,
+      instrumentId: market.instrumentId,
+    },
   ])
   const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
@@ -66,11 +74,11 @@ export function MarketsPage() {
             const quotes = await Promise.all(
               mapped.map(async (market) => {
                 const [mark, candleRows] = await Promise.allSettled([
-                  loadMarkPrice(market.symbol, PRODUCT_LINES.usdMPerpetual),
-                  loadCandles(market.symbol, "1h", PRODUCT_LINES.usdMPerpetual),
+                  loadMarkPrice(market.instrumentId, PRODUCT_LINES.usdMPerpetual),
+                  loadCandles(market.instrumentId, "1h", PRODUCT_LINES.usdMPerpetual),
                 ])
                 return {
-                  symbol: market.symbol,
+                  instrumentId: market.instrumentId,
                   mark: mark.status === "fulfilled" ? mark.value : null,
                   candles: candleRows.status === "fulfilled" ? candleRows.value : [],
                 }
@@ -78,7 +86,7 @@ export function MarketsPage() {
             )
             setMarkets((current) =>
               current.map((market) => {
-                const quote = quotes.find((row) => row.symbol === market.symbol)
+                const quote = quotes.find((row) => row.instrumentId === market.instrumentId)
                 if (!quote) return market
                 const price = quote.mark ? positiveNumberValue(quote.mark, "markPrice") : null
                 const candles = quote.candles
@@ -125,13 +133,13 @@ export function MarketsPage() {
       realtime.events.find(
         (e) =>
           e.productLine === PRODUCT_LINES.usdMPerpetual &&
-          e.symbol === m.symbol &&
+          e.instrumentId === m.instrumentId &&
           e.channel === "trades",
       ) ??
       realtime.events.find(
         (e) =>
           e.productLine === PRODUCT_LINES.usdMPerpetual &&
-          e.symbol === m.symbol &&
+          e.instrumentId === m.instrumentId &&
           e.channel === "mark",
       )
     const price = eventPrice(event, m, assetScales)

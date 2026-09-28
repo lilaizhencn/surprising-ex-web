@@ -195,8 +195,12 @@ export function loadRealtimeState(productLine: ProductLine) {
   })
 }
 
-export function loadMarket(symbol: string, productLine: ProductLine): Promise<ApiMarket> {
-  const query = new URLSearchParams({ symbol, productLine })
+export function loadDefaultMarket(productLine: ProductLine): Promise<ApiMarket> {
+  return request("/api/v1/gateway/instrument/default", MarketSchema, { productLine })
+}
+
+export function loadMarket(instrumentId: string, productLine: ProductLine): Promise<ApiMarket> {
+  const query = new URLSearchParams({ instrumentId, productLine })
   return request(`/api/v1/gateway/instrument/latest?${query}`, MarketSchema, { productLine })
 }
 
@@ -214,22 +218,25 @@ export async function loadMarkets(
   return response.instruments ?? response.items ?? []
 }
 
-export function loadFundingRate(symbol: string, productLine: ProductLine): Promise<ApiFundingRate> {
-  const query = new URLSearchParams({ symbol })
+export function loadFundingRate(
+  instrumentId: string,
+  productLine: ProductLine,
+): Promise<ApiFundingRate> {
+  const query = new URLSearchParams({ instrumentId })
   return request(`/api/v1/gateway/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
     productLine,
   })
 }
 
-export function loadMarkPrice(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol })
+export function loadMarkPrice(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId })
   return request(`/api/v1/gateway/price-mark/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
 }
 
-export function loadIndexPrice(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol })
+export function loadIndexPrice(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId })
   return request(`/api/v1/gateway/price-index/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
@@ -244,8 +251,8 @@ export function loadUsdValuation(amount: string, asset: string) {
   return request(`/api/v1/gateway/price-fx/convert?${query.toString()}`, ExchangeRateConvertSchema)
 }
 
-export async function loadFundingRateHistory(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol, limit: "100" })
+export async function loadFundingRateHistory(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId, limit: "100" })
   const response = await request(
     `/api/v1/gateway/funding/rates/history?${query.toString()}`,
     FundingRatePageSchema,
@@ -256,10 +263,10 @@ export async function loadFundingRateHistory(symbol: string, productLine: Produc
 
 export async function loadFundingPayments(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
 ): Promise<readonly ApiFundingPayment[]> {
-  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
   const response = await request(
     `/api/v1/gateway/funding/payments?${query.toString()}`,
     FundingPaymentPageSchema,
@@ -269,11 +276,11 @@ export async function loadFundingPayments(
 }
 
 export async function loadCandles(
-  symbol: string,
+  instrumentId: string,
   period: string,
   productLine?: ProductLine,
 ): Promise<readonly ApiCandle[]> {
-  const query = new URLSearchParams({ symbol, period, limit: "120" })
+  const query = new URLSearchParams({ instrumentId, period, limit: "120" })
   const range = candleRange(period, new Date(), 120)
   query.set("startTime", range.startTime)
   query.set("endTime", range.endTime)
@@ -287,14 +294,14 @@ export async function loadCandles(
 
 /** Fixed minute-resolution rolling-day history, independent of the chart selection. */
 export async function loadDayWindow(
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   signal?: AbortSignal,
 ) {
   const now = Date.now()
   const start = Math.floor(now / 60_000) * 60_000 - 86_400_000
   const query = new URLSearchParams({
-    symbol,
+    instrumentId,
     period: "1m",
     limit: "1441",
     startTime: new Date(start).toISOString(),
@@ -308,8 +315,8 @@ export async function loadDayWindow(
   return response.candles ?? response.items ?? []
 }
 
-export async function loadRecentTrades(symbol: string, productLine: ProductLine, limit = 50) {
-  const query = new URLSearchParams({ symbol, limit: String(limit) })
+export async function loadRecentTrades(instrumentId: string, productLine: ProductLine, limit = 50) {
+  const query = new URLSearchParams({ instrumentId, limit: String(limit) })
   const response = await request(
     `/api/v1/gateway/candlestick/trades/recent?${query.toString()}`,
     z.object({ trades: z.array(GenericObjectSchema) }),
@@ -560,11 +567,11 @@ export function updatePositionMode(
 
 export function loadLeverageSetting(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   marginMode?: string,
 ) {
-  const query = new URLSearchParams({ userId: String(userId), symbol, productLine })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
   if (marginMode) query.set("marginMode", marginMode)
   return request(
     `/api/v1/gateway/trading-leverage/settings?${query.toString()}`,
@@ -575,7 +582,7 @@ export function loadLeverageSetting(
 
 export function updateLeverageSetting(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   marginMode: string,
   leveragePpm: number,
@@ -584,17 +591,17 @@ export function updateLeverageSetting(
   return request("/api/v1/gateway/trading-leverage/settings", GenericObjectSchema, {
     method: "POST",
     productLine,
-    body: { userId, productLine, symbol, marginMode, leveragePpm, reason },
+    body: { userId, productLine, instrumentId, marginMode, leveragePpm, reason },
   })
 }
 
 export function loadPositionMargin(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   marginMode?: string,
 ) {
-  const query = new URLSearchParams({ userId: String(userId), symbol })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId })
   if (marginMode) query.set("marginMode", marginMode)
   return request(
     `/api/v1/gateway/account/position-margin?${query.toString()}`,
@@ -605,7 +612,7 @@ export function loadPositionMargin(
 
 export function adjustPositionMargin(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   marginMode: string,
   positionSide: string,
@@ -617,7 +624,7 @@ export function adjustPositionMargin(
     method: "POST",
     productLine,
     idempotencyKey: referenceId,
-    body: { userId, symbol, marginMode, positionSide, amountUnits, referenceId, reason },
+    body: { userId, instrumentId, marginMode, positionSide, amountUnits, referenceId, reason },
   })
 }
 
@@ -697,8 +704,8 @@ export async function loadTransferHistory(
   return response.transfers
 }
 
-export function loadFundingSettlement(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol })
+export function loadFundingSettlement(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId })
   return request(
     `/api/v1/gateway/funding/settlements/latest?${query.toString()}`,
     GenericObjectSchema,
@@ -820,10 +827,10 @@ export function cancelOpenAlgoOrders(
 
 export async function loadOpenAlgoOrders(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
 ) {
-  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
   const response = await request(
     `/api/v1/gateway/trading/algo/open?${query.toString()}`,
     ObjectOrArraySchema,
@@ -846,10 +853,10 @@ export function placeTriggerOrder(
 
 export async function loadOpenTriggerOrders(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
 ): Promise<readonly ApiTriggerOrder[]> {
-  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
   const response = await request(
     `/api/v1/gateway/trading-trigger/open?${query.toString()}`,
     TriggerOrderQuerySchema,
@@ -904,14 +911,14 @@ export function cancelOpenTriggerOrders(
   })
 }
 
-export async function loadOpenOrders(symbol: string, productLine: ProductLine) {
+export async function loadOpenOrders(instrumentId: string, productLine: ProductLine) {
   const session = loadSession()
   if (!session) return [] as readonly ApiOrder[]
   const query = new URLSearchParams({
     userId: String(session.user.userId),
     limit: "50",
   })
-  if (symbol.trim()) query.set("symbol", symbol.trim())
+  if (instrumentId.trim()) query.set("instrumentId", instrumentId.trim())
   const response = await request(
     `/api/v1/gateway/trading/open?${query.toString()}`,
     OrderListSchema,
@@ -921,7 +928,7 @@ export async function loadOpenOrders(symbol: string, productLine: ProductLine) {
 }
 
 export async function loadOrderHistory(
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   startTime?: number,
   endTime?: number,
@@ -932,7 +939,7 @@ export async function loadOrderHistory(
     userId: String(session.user.userId),
     limit: "100",
   })
-  if (symbol.trim()) query.set("symbol", symbol.trim())
+  if (instrumentId.trim()) query.set("instrumentId", instrumentId.trim())
   if (startTime !== undefined) query.set("startTime", String(startTime))
   if (endTime !== undefined) query.set("endTime", String(endTime))
   const response = await request(
@@ -945,10 +952,10 @@ export async function loadOrderHistory(
 
 export async function loadMyTrades(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
 ) {
-  const query = new URLSearchParams({ userId: String(userId), symbol, limit: "100" })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
   const response = await request(
     `/api/v1/gateway/trading-trades/trades?${query.toString()}`,
     ObjectOrArraySchema,
@@ -970,27 +977,27 @@ export function cancelOrder(_symbol: string, orderId: string, productLine: Produ
   })
 }
 
-export function loadOrderBook(symbol: string, productLine: ProductLine, depth = 50) {
-  const query = new URLSearchParams({ symbol, depth: String(depth) }).toString()
+export function loadOrderBook(instrumentId: string, productLine: ProductLine, depth = 50) {
+  const query = new URLSearchParams({ instrumentId, depth: String(depth) }).toString()
   return request(`/api/v1/gateway/trading-market/orderbook?${query}`, OrderBookSchema, {
     productLine,
   })
 }
 
-export async function loadLatestTrade(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol }).toString()
+export async function loadLatestTrade(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId }).toString()
   return request(`/api/v1/gateway/trading-market/latest-trade?${query}`, GenericObjectSchema, {
     productLine,
   })
 }
 
-export function loadOptionQuote(symbol: string): Promise<ApiOptionQuote> {
-  const query = new URLSearchParams({ symbol }).toString()
+export function loadOptionQuote(instrumentId: string): Promise<ApiOptionQuote> {
+  const query = new URLSearchParams({ instrumentId }).toString()
   return request(`/api/v1/options/quote?${query}`, OptionQuoteSchema)
 }
 
-export function loadTicker24h(symbol: string, productLine: ProductLine) {
-  const query = new URLSearchParams({ symbol })
+export function loadTicker24h(instrumentId: string, productLine: ProductLine) {
+  const query = new URLSearchParams({ instrumentId })
   return request(
     `/api/v1/gateway/trading-market/ticker-24hr?${query.toString()}`,
     GenericObjectSchema,
@@ -1088,10 +1095,10 @@ function periodMillisecondsFor(period: string): number {
 
 export function loadEffectiveTradingFee(
   userId: string | number,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
 ) {
-  const query = new URLSearchParams({ userId: String(userId), symbol, productLine })
+  const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
   return request(`/api/v1/gateway/trading-fees/effective?${query}`, GenericObjectSchema, {
     productLine,
   })

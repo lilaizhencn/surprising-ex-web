@@ -22,7 +22,7 @@ export type WsEnvelope = Row & {
   op?: string
   channel?: string
   id?: string
-  symbol?: string
+  instrumentId?: string
   period?: string
   productLine?: ProductLine
   userId?: string | number
@@ -34,7 +34,7 @@ type Entry = { version: string; value: Row | null }
 export const record = (value: unknown): Row =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Row) : {}
 export const rows = (value: unknown): Row[] => (Array.isArray(value) ? value.map(record) : [])
-const positionKey = (v: Row) => `${v["symbol"]}:${v["positionSide"] ?? "NET"}`
+const positionKey = (v: Row) => `${v["instrumentId"]}:${v["positionSide"] ?? "NET"}`
 const versionPattern = /^\d{19}:\d{10}$/
 
 export function parseRealtimeJson(raw: string): WsEnvelope {
@@ -74,7 +74,7 @@ export class PrivateView {
       put("metadata", { positionMode: account["positionMode"] })
       for (const v of rows(account["balances"])) put(`balance:${v["asset"]}`, v)
       for (const v of rows(account["leverages"]))
-        put(`leverage:${v["symbol"]}:${v["marginMode"]}`, v)
+        put(`leverage:${v["instrumentId"]}:${v["marginMode"]}`, v)
       for (const v of rows(account["positions"])) put(`position:${positionKey(v)}`, v)
       for (const v of rows(data["openOrders"])) put(`order:${v["orderId"]}`, v)
       for (const v of rows(data["triggerOrders"])) put(`trigger:${v["triggerOrderId"]}`, v)
@@ -97,7 +97,7 @@ export class PrivateView {
           put("metadata", { positionMode: value["positionMode"] })
         for (const row of rows(value["balances"])) put(`balance:${row["asset"]}`, row)
         for (const row of rows(value["leverages"]))
-          put(`leverage:${row["symbol"]}:${row["marginMode"]}`, row)
+          put(`leverage:${row["instrumentId"]}:${row["marginMode"]}`, row)
         break
       case "positions":
         for (const row of rows(value["positions"])) {
@@ -172,11 +172,11 @@ export function newerPublicEvent(event: WsEnvelope, previous?: WsEnvelope): bool
 export interface Subscription {
   channel: string
   productLine: ProductLine
-  symbol?: string
+  instrumentId?: string
   period?: string
 }
 export function subscriptionKey(s: Subscription): string {
-  return `${s.productLine}:${s.channel}:${s.symbol ?? "*"}:${s.period ?? ""}`
+  return `${s.productLine}:${s.channel}:${s.instrumentId ?? "*"}:${s.period ?? ""}`
 }
 export function privateSubscriptions(products: readonly ProductLine[]): Subscription[] {
   return products.flatMap((productLine) =>
@@ -232,7 +232,8 @@ export function accountEquity(
   for (const p of view.rows("position").filter((p) => Number(p["signedQuantitySteps"]) !== 0)) {
     const market = markets.find(
       (m) =>
-        m["symbol"] === p["symbol"] && String(m["changeId"]) === String(p["instrumentChangeId"]),
+        m["instrumentId"] === p["instrumentId"] &&
+        String(m["changeId"]) === String(p["instrumentChangeId"]),
     )
     const valuation = positionValuation(p, market)
     const risk = riskByPosition.get(positionKey(p))

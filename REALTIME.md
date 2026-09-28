@@ -9,10 +9,10 @@ Public and private streams use separate connections, grouped by configured produ
 Each connection carries at most 180 subscriptions, below the server's 200 limit. Asset conversion subscribes only to the spot prices needed by the accounts.
 
 - 行情页面只展示 SPOT；现货成交用于最新价，`bookTicker` 用于资产折算。交易页面订阅当前产品与交易对的 `depth`、`candles`、`trades`，衍生品额外订阅 `mark`、`index`，永续额外订阅 `funding`。切换页面、产品、交易对或周期会差量退订和订阅。
-- 登录后订阅六产品的 `accountState`、`orders`、`triggerOrders`、`positions`、`positionRisk`、`executionReports`。省略私有 symbol 表示本用户该产品的所有交易对；用户身份由服务器认证决定。已取消 `matches`。
-- 所有行情状态按产品线与 symbol 隔离。资产页保持六产品账户缓存，并根据实际持仓添加或移除标记价订阅。
+- 登录后订阅六产品的 `accountState`、`orders`、`triggerOrders`、`positions`、`positionRisk`、`executionReports`。省略私有 instrumentId 表示本用户该产品的所有交易对；用户身份由服务器认证决定。已取消 `matches`。
+- 所有行情状态按产品线与 instrumentId 隔离。资产页保持六产品账户缓存，并根据实际持仓添加或移除标记价订阅。
 
-Markets show spot instruments. Trading subscriptions are scoped by product, symbol and candle interval. All six authenticated product accounts remain cached for the assets overview; mark subscriptions follow actual holdings. Public data and private account data never share a symbol-only key.
+Markets show spot instruments. Trading subscriptions are scoped by product, instrumentId and candle interval. All six authenticated product accounts remain cached for the assets overview; mark subscriptions follow actual holdings. Public data and private account data never share a instrumentId-only key.
 
 ## 状态恢复 / Recovery
 
@@ -34,9 +34,9 @@ Equity includes cash plus floating position value, without double-counting reali
 
 Funding balances remain separately queried. Trading balances use snapshots and events. Integer amounts are displayed using each asset's declared scale.
 
-交易页风险面板展示当前 symbol / positionSide 的 Core 风险值，不累加重复账户权益。持仓模式、仓位保证金和风险由快照驱动；杠杆配置只在页面进入、参数切换或手动刷新时查询，不随行情或私有事件重复查询。
+交易页风险面板展示当前 instrumentId / positionSide 的 Core 风险值，不累加重复账户权益。持仓模式、仓位保证金和风险由快照驱动；杠杆配置只在页面进入、参数切换或手动刷新时查询，不随行情或私有事件重复查询。
 
-The trading risk panel identifies the selected symbol and position side. Position mode, position margin and risk use streamed state. Leverage configuration queries run on entry, parameter changes or explicit refresh, never on price or account events.
+The trading risk panel identifies the selected instrumentId and position side. Position mode, position margin and risk use streamed state. Leverage configuration queries run on entry, parameter changes or explicit refresh, never on price or account events.
 
 验证：`bun run test`、`bun run lint`、`bun run typecheck`、`bun run build`。前端测试模拟协议，不能替代部署环境中 Core → Router → WS 的完整联调。
 
@@ -145,3 +145,5 @@ pong 可维持无成交市场的连接。页面重新可见或 pageshow 时立�
 生产构建追加验证：Chrome 页面生命周期完全冻结 50 秒后激活，10 次盘口采样均不同、标签价格继续
 变化；390px 移动端切换 DOGE 后盘口继续变化，无脚本异常。证据保留在本机
 `~/.local/share/surprising-ex/perpetual-pmm-20/verification/wake-depth-20260927/`。
+
+目录中的 `symbol` 是可修改显示名称；API 和 WebSocket 使用永久 `instrumentId`。切换产品线时独立初始化和订阅，收藏键也包含产品线。

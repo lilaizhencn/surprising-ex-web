@@ -5,19 +5,19 @@ describe("trigger position targeting", () => {
   it("keeps hedge side, margin mode, and close direction bound to one position", () => {
     const positions = [
       {
-        symbol: "ETH-USDT",
+        instrumentId: "ETH-USDT",
         marginMode: "CROSS",
         positionSide: "LONG",
         signedQuantitySteps: "9",
       },
       {
-        symbol: "BTC-USDT",
+        instrumentId: "BTC-USDT",
         marginMode: "CROSS",
         positionSide: "LONG",
         signedQuantitySteps: "12",
       },
       {
-        symbol: "BTC-USDT",
+        instrumentId: "BTC-USDT",
         marginMode: "CROSS",
         positionSide: "SHORT",
         signedQuantitySteps: "-7",

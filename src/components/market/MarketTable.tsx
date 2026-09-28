@@ -28,27 +28,27 @@ export function MarketTable({
       return []
     }
   })
-  const [sort, setSort] = useState<"symbol" | "price" | "change" | "volume">("symbol")
+  const [sort, setSort] = useState<"instrumentId" | "price" | "change" | "volume">("instrumentId")
   useEffect(() => {
     try {
       window.localStorage.setItem(storageKeys.favorites, JSON.stringify(favorites))
     } catch {}
   }, [favorites])
   const visibleMarkets = favoriteOnly
-    ? markets.filter((market) => favorites.includes(market.symbol))
+    ? markets.filter((market) => favorites.includes(`${market.productLine}:${market.instrumentId}`))
     : markets
   const sorted = [...visibleMarkets].sort((left, right) => {
-    if (sort === "symbol") return left.symbol.localeCompare(right.symbol)
+    if (sort === "instrumentId") return left.symbol.localeCompare(right.symbol)
     const a = sort === "price" ? left.price : sort === "change" ? left.change24h : left.volume24h
     const b = sort === "price" ? right.price : sort === "change" ? right.change24h : right.volume24h
     return (b ?? -Infinity) - (a ?? -Infinity)
   })
   const favoriteSet = new Set(favorites)
-  const toggleFavorite = (symbol: string) =>
+  const toggleFavorite = (instrumentId: string) =>
     setFavorites((current) => {
-      const next = current.includes(symbol)
-        ? current.filter((value) => value !== symbol)
-        : [...current, symbol]
+      const next = current.includes(instrumentId)
+        ? current.filter((value) => value !== instrumentId)
+        : [...current, instrumentId]
       return next
     })
   return (
@@ -58,7 +58,7 @@ export function MarketTable({
           <tr>
             <th aria-label={t("Favorite")} />
             <th>
-              <button type="button" className="table-sort" onClick={() => setSort("symbol")}>
+              <button type="button" className="table-sort" onClick={() => setSort("instrumentId")}>
                 {" "}
                 {t("Trading pair")}{" "}
               </button>
@@ -104,8 +104,8 @@ export function MarketTable({
               <tr key={`${market.productLine}-${market.symbol}`}>
                 <td>
                   <FavoriteButton
-                    active={favoriteSet.has(market.symbol)}
-                    onClick={() => toggleFavorite(market.symbol)}
+                    active={favoriteSet.has(`${market.productLine}:${market.instrumentId}`)}
+                    onClick={() => toggleFavorite(`${market.productLine}:${market.instrumentId}`)}
                   />
                 </td>
                 <td>

@@ -4,7 +4,8 @@ import { type Market, PRODUCT_LINES } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
 
 const market: Market = {
-  symbol: "BTC-USDT-SWAP",
+  symbol: "BTC-USDT",
+  instrumentId: "1",
   baseAsset: "BTC",
   quoteAsset: "USDT",
   productLine: PRODUCT_LINES.usdMPerpetual,

@@ -18,18 +18,54 @@ describe("candle mapper", () => {
 })
 
 describe("market mapper", () => {
+  it("keeps identity and accounting assets when the display name changes", () => {
+    const raw = {
+      instrumentId: "604",
+      symbol: "BTC-USDT",
+      productLine: "LINEAR_PERPETUAL",
+      baseAsset: "BTC",
+      quoteAsset: "USDT",
+    }
+    const before = mapMarket(raw)
+    const after = mapMarket({ ...raw, symbol: "Bitcoin perpetual" })
+    expect(after.instrumentId).toBe(before.instrumentId)
+    expect(after.productLine).toBe(before.productLine)
+    expect(after.baseAsset).toBe("BTC")
+    expect(after.quoteAsset).toBe("USDT")
+    expect(after.symbol).toBe("Bitcoin perpetual")
+    expect(() => mapMarket({ instrumentId: "604", symbol: "BTC-USDT" })).toThrow("asset metadata")
+  })
+
   it("converts the instrument's maximum leverage from wire ppm into multiples", () => {
     for (const maxLeveragePpm of [50000000, "50000000", "125000000"]) {
-      const raw = MarketSchema.parse({ symbol: "BTC-USDT-SWAP", maxLeveragePpm })
+      const raw = MarketSchema.parse({
+        symbol: "BTC-USDT",
+        instrumentId: "1",
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        maxLeveragePpm,
+      })
       expect(mapMarket(raw).maxLeverage).toBe(Number(maxLeveragePpm) / 1_000_000)
     }
-    expect(mapMarket({ symbol: "BTC-USDT-SWAP" }).maxLeverage).toBeNull()
-    expect(mapMarket({ symbol: "BTC-USDT-SWAP", maxLeveragePpm: "0" }).maxLeverage).toBeNull()
+    expect(
+      mapMarket({ symbol: "BTC-USDT", instrumentId: "1", baseAsset: "BTC", quoteAsset: "USDT" })
+        .maxLeverage,
+    ).toBeNull()
+    expect(
+      mapMarket({
+        symbol: "BTC-USDT",
+        instrumentId: "1",
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        maxLeveragePpm: "0",
+      }).maxLeverage,
+    ).toBeNull()
   })
 
   it("normalizes integer prices using backend scale metadata", () => {
     const market = mapMarket({
       symbol: "BTCUSDT",
+      instrumentId: "100",
       baseAsset: "BTC",
       quoteAsset: "USDT",
       productLine: "SPOT",
@@ -46,6 +82,9 @@ describe("market mapper", () => {
   it("preserves backend price and quantity unit scales", () => {
     const market = mapMarket({
       symbol: "BTCUSDT",
+      instrumentId: "100",
+      baseAsset: "BTC",
+      quoteAsset: "USDT",
       priceTickUnits: "5",
       quantityStepUnits: "25",
     })
@@ -55,7 +94,15 @@ describe("market mapper", () => {
   })
 
   it("does not present a zero quote as live price data", () => {
-    const market = mapMarket({ symbol: "BTCUSDT", lastPrice: 0, high24h: 0, low24h: 0 })
+    const market = mapMarket({
+      symbol: "BTCUSDT",
+      instrumentId: "100",
+      baseAsset: "BTC",
+      quoteAsset: "USDT",
+      lastPrice: 0,
+      high24h: 0,
+      low24h: 0,
+    })
 
     expect(market.price).toBeNull()
     expect(market.high24h).toBeNull()

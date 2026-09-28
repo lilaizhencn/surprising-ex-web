@@ -121,7 +121,7 @@ class Connection {
           const key = subscriptionKey({
             channel: "depth",
             productLine: event.productLine,
-            ...(event.symbol ? { symbol: event.symbol } : {}),
+            ...(event.instrumentId ? { instrumentId: event.instrumentId } : {}),
           })
           const progress = this.depthProgress.get(key)
           const outer = event.data as { value?: unknown; updateType?: string } | undefined

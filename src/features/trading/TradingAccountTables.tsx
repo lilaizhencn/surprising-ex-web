@@ -26,7 +26,7 @@ export function orderStatus(row: Row): string {
   if (row["status"] !== "OPEN") return field(row, "status")
   return integer(row["executedQuantitySteps"] ?? 0) > 0n ? "PARTIALLY_FILLED" : "ACCEPTED"
 }
-const statusLabels: Record<string, string> = {
+export const statusLabels: Record<string, string> = {
   OPEN: "Unfilled",
   ACCEPTED: "Unfilled",
   PARTIALLY_FILLED: "Partially filled",
@@ -57,7 +57,7 @@ export function price(ticks: unknown, market: Market | undefined, scales: Props[
     return "—"
   }
 }
-function quantity(steps: unknown, market: Market | undefined, scales: Props["assetScales"]) {
+export function quantity(steps: unknown, market: Market | undefined, scales: Props["assetScales"]) {
   if (steps == null || !market) return "—"
   try {
     const spec = marketQuantitySpec(market, scales)
@@ -67,7 +67,7 @@ function quantity(steps: unknown, market: Market | undefined, scales: Props["ass
     return "—"
   }
 }
-function units(value: unknown, asset: string | undefined, scales: Props["assetScales"]) {
+export function units(value: unknown, asset: string | undefined, scales: Props["assetScales"]) {
   if (value == null || !asset || !scales[asset]) return "—"
   try {
     return `${signedUnitsToDecimal(String(value), scales[asset] ?? "")} ${asset}`
@@ -75,7 +75,7 @@ function units(value: unknown, asset: string | undefined, scales: Props["assetSc
     return "—"
   }
 }
-function timestamp(row: Row, key: "created" | "updated") {
+export function timestamp(row: Row, key: "created" | "updated") {
   const raw = row[`${key}AtEpochMillis`] ?? row[`${key}At`]
   if (raw == null) return "—"
   const date =
@@ -160,16 +160,22 @@ export function TradingAccountTables(props: Props) {
   const [history, setHistory] = useState<readonly Row[]>([])
   const symbolsKey = [
     ...new Set(
-      [...positions, ...orders, ...history].map((row) => field(row, "symbol")).filter(Boolean),
+      [...positions, ...orders, ...history]
+        .map((row) => field(row, "instrumentId"))
+        .filter(Boolean),
     ),
   ]
     .sort()
     .join("|")
   useEffect(() => {
     let cancelled = false
-    const symbols = symbolsKey.split("|").filter((symbol) => symbol && symbol !== market?.symbol)
+    const symbols = symbolsKey
+      .split("|")
+      .filter((instrumentId) => instrumentId && instrumentId !== market?.instrumentId)
     if (!onlyCurrent)
-      void Promise.all(symbols.map((symbol) => loadMarket(symbol, productLine).then(mapMarket)))
+      void Promise.all(
+        symbols.map((instrumentId) => loadMarket(instrumentId, productLine).then(mapMarket)),
+      )
         .then((rows) => {
           if (!cancelled) setMetadata(rows)
         })
@@ -179,10 +185,10 @@ export function TradingAccountTables(props: Props) {
     return () => {
       cancelled = true
     }
-  }, [symbolsKey, market?.symbol, productLine, onlyCurrent])
+  }, [symbolsKey, market?.instrumentId, productLine, onlyCurrent])
   useEffect(() => {
     setHistory([])
-  }, [productLine, loggedIn, market?.symbol])
+  }, [productLine, loggedIn, market?.instrumentId])
   const lastOrderEvent = useRef<WsEnvelope | undefined>(undefined)
   useEffect(() => {
     const latestOrder = events.find(
@@ -200,11 +206,13 @@ export function TradingAccountTables(props: Props) {
         return JSON.stringify(merged) === JSON.stringify(previous) ? previous : merged
       })
   }, [events, productLine])
-  const filter = (row: Row) => !onlyCurrent || field(row, "symbol") === market?.symbol
+  const filter = (row: Row) => !onlyCurrent || field(row, "instrumentId") === market?.instrumentId
   const positionRows = positions.filter(filter),
     orderRows = orders.filter(filter)
-  const marketFor = (symbol: string) =>
-    market?.symbol === symbol ? market : metadata.find((row) => row.symbol === symbol)
+  const marketFor = (instrumentId: string) =>
+    market?.instrumentId === instrumentId
+      ? market
+      : metadata.find((row) => row.instrumentId === instrumentId)
   return (
     <section className="trade-account-tables">
       <div className="account-table-toolbar">
@@ -263,33 +271,36 @@ export function TradingAccountTables(props: Props) {
             </thead>
             <tbody>
               {positionRows.map((position) => {
-                const symbol = field(position, "symbol"),
+                const instrumentId = field(position, "instrumentId"),
                   side = field(position, "positionSide"),
                   mode = field(position, "marginMode")
-                const m = marketFor(symbol),
+                const m = marketFor(instrumentId),
                   settle = field(position, "marginAsset") || m?.settleAsset || m?.quoteAsset
                 const risk = account?.ready()
                   ? account
                       .rows("risk")
-                      .find((row) => row["symbol"] === symbol && row["positionSide"] === side)
+                      .find(
+                        (row) =>
+                          row["instrumentId"] === instrumentId && row["positionSide"] === side,
+                      )
                   : undefined
                 const leverage = account
                   ?.rows("leverage")
-                  .find((row) => row["symbol"] === symbol && row["marginMode"] === mode)
+                  .find((row) => row["instrumentId"] === instrumentId && row["marginMode"] === mode)
                 const mark = events.find(
                   (event) =>
                     event.channel === "mark" &&
-                    event.symbol === symbol &&
+                    event.instrumentId === instrumentId &&
                     event.productLine === productLine,
                 )?.data as Row | undefined
                 const isLong = Number(position["signedQuantitySteps"]) > 0
                 const triggers = props.triggers.filter(
-                  (row) => row.symbol === symbol && row.positionSide === side,
+                  (row) => row.instrumentId === instrumentId && row.positionSide === side,
                 )
                 return (
-                  <tr key={`${symbol}:${side}:${mode}`}>
+                  <tr key={`${instrumentId}:${side}:${mode}`}>
                     <td>
-                      <b>{symbol}</b>
+                      <b>{m?.symbol ?? "—"}</b>
                       <small className={isLong ? "positive" : "negative"}>
                         {t(isLong ? "Long" : "Short")}
                       </small>
@@ -380,7 +391,7 @@ export function TradingAccountTables(props: Props) {
                   <TradingOrderRow
                     key={field(row, "orderId")}
                     row={row}
-                    market={marketFor(field(row, "symbol"))}
+                    market={marketFor(field(row, "instrumentId"))}
                     scales={assetScales}
                     productLine={productLine}
                     onNotice={onNotice}
@@ -417,7 +428,7 @@ function TradingOrderRow({
   return (
     <tr>
       <td>
-        <b>{field(row, "symbol")}</b>
+        <b>{market?.symbol ?? "—"}</b>
         <small>{field(row, "orderType")}</small>
       </td>
       <td>
@@ -471,7 +482,7 @@ function TradingOrderRow({
             disabled={canceling}
             onClick={() => {
               setCanceling(true)
-              void cancelOrder(field(row, "symbol"), id, productLine)
+              void cancelOrder(field(row, "instrumentId"), id, productLine)
                 .then(() => onNotice(t("Cancellation requested."), false))
                 .catch((reason) =>
                   onNotice(reason instanceof Error ? reason.message : String(reason), true),

@@ -2537,6 +2537,16 @@ button:disabled {
   min-width: 0;
   text-align: right;
 }
+.trade-pair-popover .pair-market-values strong {
+  color: var(--color-positive);
+  font-weight: 700;
+}
+.trade-pair-popover .pair-market-values small.positive {
+  color: var(--color-positive);
+}
+.trade-pair-popover .pair-market-values small.negative {
+  color: var(--color-negative);
+}
 .trade-pair-popover .pair-market-values strong,
 .trade-pair-popover .pair-market-values small {
   overflow: hidden;

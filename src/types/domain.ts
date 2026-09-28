@@ -11,6 +11,7 @@ export type ProductLine = (typeof PRODUCT_LINES)[keyof typeof PRODUCT_LINES]
 
 export type Market = {
   readonly symbol: string
+  readonly instrumentId: string
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly settleAsset?: string
@@ -40,7 +41,8 @@ export type Market = {
   readonly fundingIntervalHours?: number | undefined
   readonly expiryTime?: string | null | undefined
   readonly deliveryTime?: string | null | undefined
-  readonly underlyingSymbol?: string | null | undefined
+  readonly underlyingInstrumentId?: string | null | undefined
+  readonly underlyingProductLine?: ProductLine | null | undefined
   readonly strikePriceUnits?: string | null | undefined
   readonly optionType?: string | null | undefined
   readonly optionExerciseStyle?: string | null | undefined

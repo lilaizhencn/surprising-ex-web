@@ -6,17 +6,17 @@ export type TriggerPositionSide = "NET" | "LONG" | "SHORT"
 
 export function selectTriggerPosition(
   positions: readonly Record<string, unknown>[],
-  symbol: string | undefined,
+  instrumentId: string | undefined,
   marginMode: string,
   positionMode: TriggerPositionMode,
   positionSide: TriggerPositionSide,
 ): Record<string, unknown> | null {
-  if (!symbol) return null
+  if (!instrumentId) return null
   const expectedPositionSide = positionMode === "HEDGE" ? positionSide : "NET"
   return (
     positions.find(
       (position) =>
-        text(position, "symbol") === symbol &&
+        text(position, "instrumentId") === instrumentId &&
         text(position, "marginMode") === marginMode &&
         text(position, "positionSide") === expectedPositionSide &&
         signedPositionSteps(position) !== 0n,

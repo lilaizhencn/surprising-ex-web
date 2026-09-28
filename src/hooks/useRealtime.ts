@@ -25,12 +25,12 @@ export function isAuthenticatedMessage(event: RealtimeEvent): boolean {
 }
 export function useRealtime(
   session: AuthSession | null,
-  symbol: string,
+  instrumentId: string,
   productLine: ProductLine,
   period: string,
   additionalSubscriptions: readonly Subscription[] = [],
 ) {
-  const plan: Subscription[] = symbol
+  const plan: Subscription[] = instrumentId
     ? [
         "trades",
         "depth",
@@ -39,12 +39,15 @@ export function useRealtime(
         ...(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"].includes(productLine) ? ["funding"] : []),
       ].map((channel) => ({
         channel,
-        symbol,
+        instrumentId,
         productLine,
         ...(channel === "candles" ? { period } : {}),
       }))
     : []
-  return useRealtimeFeed(session, [...plan, ...additionalSubscriptions])
+  return useRealtimeFeed(session, [
+    ...plan,
+    ...additionalSubscriptions.filter((subscription) => subscription.instrumentId),
+  ])
 }
 
 export function useRealtimeFeed(
@@ -110,21 +113,23 @@ export function useRealtimeFeed(
       (raw) => {
         if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
         let event = unwrapEvent(raw)
-        const key = [raw.productLine, raw.channel, raw.symbol ?? "*", raw.period ?? ""].join(":")
+        const key = [raw.productLine, raw.channel, raw.instrumentId ?? "*", raw.period ?? ""].join(
+          ":",
+        )
         if (awaitingDepthSnapshot.has(key)) {
           if ((event.data as { updateType?: string } | undefined)?.updateType !== "SNAPSHOT") return
           awaitingDepthSnapshot.delete(key)
           latest.current.delete(key)
         }
         if (event.channel === "depth") {
-          if (!raw.symbol) return
+          if (!raw.instrumentId) return
           const previous = latest.current.get(key)
           const book = applyDepthEvent(event, previous)
           if (!book) {
             recoverDepth({
               productLine: raw.productLine,
               channel: "depth",
-              symbol: raw.symbol,
+              instrumentId: raw.instrumentId,
             })
             return
           }

@@ -4,7 +4,8 @@ import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
 import { parseSetting } from "./TradingTicketControls"
 
 const market: Market = {
-  symbol: "BTC-USDT-SWAP",
+  symbol: "BTC-USDT",
+  instrumentId: "1",
   baseAsset: "BTC",
   quoteAsset: "USDT",
   productLine: "LINEAR_PERPETUAL",
@@ -45,10 +46,15 @@ describe("opening capacity", () => {
       linearOpeningCapacity({
         ...input,
         market: { ...market, userOpenInterestLimitFloorUnits: "10000" },
-        positions: [{ symbol: market.symbol, signedQuantitySteps: "5" }],
+        positions: [{ instrumentId: market.instrumentId, signedQuantitySteps: "5" }],
         orders: [
-          { symbol: market.symbol, side: "BUY", remainingQuantitySteps: "3" },
-          { symbol: market.symbol, side: "BUY", remainingQuantitySteps: "9", reduceOnly: true },
+          { instrumentId: market.instrumentId, side: "BUY", remainingQuantitySteps: "3" },
+          {
+            instrumentId: market.instrumentId,
+            side: "BUY",
+            remainingQuantitySteps: "9",
+            reduceOnly: true,
+          },
         ],
       }),
     ).toBe("0.02")
