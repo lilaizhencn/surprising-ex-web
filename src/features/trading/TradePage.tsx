@@ -381,6 +381,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
+  useEffect(() => {
+    if (orderType !== "STOP") return
+    setTicketAction("CLOSE")
+    if (triggerCloseSide) setSide(triggerCloseSide)
+  }, [orderType, triggerCloseSide])
   const realtime = useRealtime(session, current?.instrumentId ?? "", view.line, period)
   const pairFeed = useRealtimeFeed(
     null,
@@ -1739,7 +1744,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 }
                 onClick={() => {
                   if (action === "BUY" || action === "SELL") setSide(action)
-                  else setTicketAction(action)
+                  else {
+                    if (action === "OPEN" && orderType === "STOP") setOrderType("LIMIT")
+                    setTicketAction(action)
+                  }
                 }}
               >
                 {t(
@@ -2078,7 +2086,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <Button
               tone={side === "BUY" ? "positive" : "negative"}
               loading={submitState === "loading"}
-              onClick={() => void submit()}
+              onClick={() => void submit(orderType === "STOP" ? (triggerCloseSide ?? side) : side)}
             >
               {session && orderType === "STOP"
                 ? `${protectionMode === "OCO" ? t("Set TP/SL pair") : triggerType === "STOP_LOSS" ? t("Set stop loss") : t("Set take profit")}（${side === "SELL" ? t("Sell to close") : t("Buy to close")}）`
