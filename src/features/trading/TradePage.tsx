@@ -975,7 +975,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       const baseScale = assetScales[current.baseAsset]
       const quoteScale = assetScales[current.quoteAsset]
       if (
-        !baseScale ||
+        (view.line === PRODUCT_LINES.spot && !baseScale) ||
         ((orderType === "STOP" || executionType !== "MARKET" || side === "BUY") && !quoteScale)
       ) {
         throw new Error(t("Asset precision is not loaded. Order not submitted."))
@@ -1434,7 +1434,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </div>
               <div>
                 <small>
-                  {t("Open interest")} ({current?.baseAsset})
+                  {t("Open interest")} ({t("Contracts")})
                 </small>
                 <strong className="mono" title={openInterestQuantity}>
                   {formatTradeQuantity(openInterestQuantity)}
@@ -1562,16 +1562,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   priceTickUnits={current?.priceTickUnits}
                   priceScale={current ? assetScales[current.quoteAsset] : undefined}
                   quantityStepUnits={
-                    current?.productLine === PRODUCT_LINES.usdMPerpetual
-                      ? String(current.contractMultiplierPpm ?? "")
-                      : current?.quantityStepUnits
+                    current?.productLine === PRODUCT_LINES.spot ? current.quantityStepUnits : "1"
                   }
                   quantityScale={
-                    current?.productLine === PRODUCT_LINES.usdMPerpetual
-                      ? "1000000"
-                      : current
-                        ? assetScales[current.baseAsset]
-                        : undefined
+                    current?.productLine === PRODUCT_LINES.spot && current
+                      ? assetScales[current.baseAsset]
+                      : "1"
                   }
                   accountView={realtime.views[view.line]}
                   onRefresh={realtime.refresh}
@@ -1672,7 +1668,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               }
               dollar={isDollarQuote(current?.quoteAsset)}
               pricePrecision={priceDisplayPrecision(current, assetScales)}
-              baseAsset={current?.baseAsset ?? "—"}
+              baseAsset={
+                view.line === PRODUCT_LINES.spot ? (current?.baseAsset ?? "—") : t("Contracts")
+              }
               quoteAsset={current?.quoteAsset ?? "—"}
               onPriceSelect={selectBookPrice}
               onDepthChange={setBookDepth}
@@ -1691,7 +1689,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </span>
                 <span>
                   {t("Quantity (")}
-                  {current?.baseAsset ?? "—"})
+                  {view.line === PRODUCT_LINES.spot ? (current?.baseAsset ?? "—") : t("Contracts")})
                 </span>
                 <span>{t("Time")}</span>
               </div>
@@ -1994,7 +1992,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 placeholder="0.00"
                 aria-label={orderType === "STOP" ? t("TP/SL close quantity") : t("Order quantity")}
               />
-              <span>{current?.baseAsset ?? t("Asset")}</span>
+              <span>
+                {view.line === PRODUCT_LINES.spot
+                  ? (current?.baseAsset ?? t("Asset"))
+                  : t("Contracts")}
+              </span>
             </div>
           </Field>
           {view.line === PRODUCT_LINES.spot || orderType === "STOP" ? (
@@ -2032,11 +2034,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   {t("Est. max long")}
                 </span>
                 <span className="mono">
-                  {formatTradeQuantity(openingCapacity("BUY"))} {current?.baseAsset}
+                  {formatTradeQuantity(openingCapacity("BUY"))} {t("Contracts")}
                 </span>
                 <span>{t("Est. max short")}</span>
                 <span className="mono">
-                  {formatTradeQuantity(openingCapacity("SELL"))} {current?.baseAsset}
+                  {formatTradeQuantity(openingCapacity("SELL"))} {t("Contracts")}
                 </span>
               </>
             )}
@@ -2081,7 +2083,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               {session && orderType === "STOP"
                 ? `${protectionMode === "OCO" ? t("Set TP/SL pair") : triggerType === "STOP_LOSS" ? t("Set stop loss") : t("Set take profit")}（${side === "SELL" ? t("Sell to close") : t("Buy to close")}）`
                 : session
-                  ? `${side === "BUY" ? t("Buy") : t("Sell")} ${current?.baseAsset ?? t("Asset")}`
+                  ? `${side === "BUY" ? t("Buy") : t("Sell")} ${view.line === PRODUCT_LINES.spot ? (current?.baseAsset ?? t("Asset")) : t("Contracts")}`
                   : t("Log in to trade")}
             </Button>
           )}
@@ -2635,7 +2637,7 @@ function formatTriggerOrderQuantity(
   }
   try {
     const spec = marketQuantitySpec(market, assetScales)
-    return `${stepUnitsToDecimal(row.quantitySteps, spec.unitSize, spec.scale)} ${market.baseAsset}`
+    return `${stepUnitsToDecimal(row.quantitySteps, spec.unitSize, spec.scale)} ${market.productLine === PRODUCT_LINES.spot ? market.baseAsset : t("Contracts")}`
   } catch {
     return `steps ${String(row.quantitySteps)}`
   }
@@ -2793,7 +2795,15 @@ function estimatedFee(
   ) {
     return "—"
   }
-  const fee = ((priceValue * quantityValue * rate) / 1_000_000).toFixed(8)
+  const contractSize =
+    market?.productLine === PRODUCT_LINES.spot
+      ? 1
+      : market?.productLine === PRODUCT_LINES.usdMPerpetual ||
+          market?.productLine === PRODUCT_LINES.usdMDelivery
+        ? (market.contractMultiplierPpm ?? 0) / 1_000_000
+        : 0
+  if (contractSize <= 0) return "—"
+  const fee = ((priceValue * quantityValue * contractSize * rate) / 1_000_000).toFixed(8)
   return `${displayPrice(fee, isDollarQuote(market?.quoteAsset))} ${market?.quoteAsset ?? ""}`
 }
 

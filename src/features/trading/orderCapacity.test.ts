@@ -38,7 +38,7 @@ const input = {
 }
 describe("opening capacity", () => {
   it("rounds margin and fee upward in settlement units before dividing available funds", () => {
-    expect(linearOpeningCapacity(input)).toBe("0.09")
+    expect(linearOpeningCapacity(input)).toBe("9")
     expect(linearOpeningCapacity({ ...input, availableUnits: "100" })).toBe("0")
   })
   it("reserves directional position capacity for existing positions and opening orders", () => {
@@ -57,7 +57,7 @@ describe("opening capacity", () => {
           },
         ],
       }),
-    ).toBe("0.02")
+    ).toBe("2")
   })
   it("does not invent capacity for missing fees, invalid tick prices or inverse contracts", () => {
     expect(linearOpeningCapacity({ ...input, feeRatePpm: undefined })).toBeNull()

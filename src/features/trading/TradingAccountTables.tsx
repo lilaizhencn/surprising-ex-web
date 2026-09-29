@@ -70,7 +70,7 @@ export function quantity(steps: unknown, market: Market | undefined, scales: Pro
   try {
     const spec = marketQuantitySpec(market, scales)
     const q = integer(steps)
-    return `${stepUnitsToDecimal((q < 0n ? -q : q).toString(), spec.unitSize, spec.scale)} ${market.baseAsset}`
+    return `${stepUnitsToDecimal((q < 0n ? -q : q).toString(), spec.unitSize, spec.scale)} ${market.productLine === "SPOT" ? market.baseAsset : t("Contracts")}`
   } catch {
     return "—"
   }

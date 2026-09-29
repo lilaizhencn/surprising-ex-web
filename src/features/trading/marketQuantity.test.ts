@@ -22,7 +22,7 @@ const market: Market = {
 }
 
 describe("market quantity", () => {
-  it("uses the contract multiplier for U perpetual orders and displayed fills", () => {
+  it("uses whole contracts for derivative orders and displayed fills", () => {
     const spec = marketQuantitySpec(market, { BTC: "100000000" })
     expect(decimalToStepUnits("1", spec.unitSize, spec.scale)).toBe("1")
     expect(stepUnitsToDecimal("2", spec.unitSize, spec.scale)).toBe("2")
@@ -38,12 +38,12 @@ describe("market quantity", () => {
   })
 })
 
-it("keeps a 0.01 BTC contract quantity independent of a 0.1 USDT price step", () => {
+it("keeps contract count independent of contract size and price step", () => {
   const spec = marketQuantitySpec(
     { ...market, contractMultiplierPpm: 10000, priceTickUnits: "10000000" },
     { BTC: "100000000", USDT: "100000000" },
   )
-  expect(stepUnitsToDecimal("2", spec.unitSize, spec.scale)).toBe("0.02")
-  expect(decimalToStepUnits("0.03", spec.unitSize, spec.scale)).toBe("3")
-  expect(() => decimalToStepUnits("0.001", spec.unitSize, spec.scale)).toThrow()
+  expect(stepUnitsToDecimal("2", spec.unitSize, spec.scale)).toBe("2")
+  expect(decimalToStepUnits("3", spec.unitSize, spec.scale)).toBe("3")
+  expect(() => decimalToStepUnits("0.5", spec.unitSize, spec.scale)).toThrow()
 })
