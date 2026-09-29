@@ -1,6 +1,7 @@
 import { AppShell } from "../components/layout/AppShell"
 import { AssetsPage } from "../features/assets/AssetsPage"
 import { FundingPage } from "../features/assets/FundingPage"
+import { LedgerPage } from "../features/assets/LedgerPage"
 import { AuthPage } from "../features/auth/AuthPage"
 import { CompliancePage } from "../features/compliance/CompliancePage"
 import { NotificationsPage } from "../features/notifications/NotificationsPage"
@@ -8,7 +9,9 @@ import { OrdersPage } from "../features/orders/OrdersPage"
 import { HelpPage } from "../features/public/HelpPage"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
-import { SecurityPage } from "../features/security/SecurityPage"
+import { AccountSecurityPage } from "../features/security/AccountSecurityPage"
+import { DeveloperApiPage } from "../features/security/DeveloperApiPage"
+import { DeviceManagementPage } from "../features/security/DeviceManagementPage"
 import { TradePage } from "../features/trading/TradePage"
 import { t, useLocale } from "../i18n"
 
@@ -45,6 +48,12 @@ export function App() {
         <AssetsPage account={new URLSearchParams(window.location.search).get("account")} />
       </AppShell>
     )
+  if (path === "/assets/ledger")
+    return (
+      <AppShell accountArea>
+        <LedgerPage />
+      </AppShell>
+    )
   if (path === "/assets/deposit")
     return (
       <AppShell accountArea>
@@ -63,10 +72,22 @@ export function App() {
         <FundingPage mode="transfer" />
       </AppShell>
     )
-  if (path === "/security" || path === "/account/security")
+  if (path === "/security" || path === "/account/security" || path === "/security/account")
     return (
       <AppShell accountArea>
-        <SecurityPage />
+        <AccountSecurityPage />
+      </AppShell>
+    )
+  if (path === "/security/devices")
+    return (
+      <AppShell accountArea>
+        <DeviceManagementPage />
+      </AppShell>
+    )
+  if (path === "/api")
+    return (
+      <AppShell accountArea>
+        <DeveloperApiPage />
       </AppShell>
     )
   if (path === "/compliance" || path === "/account/kyc")

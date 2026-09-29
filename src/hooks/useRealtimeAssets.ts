@@ -239,5 +239,10 @@ export function useRealtimeAssets(
     realtime.products,
     scales,
   ])
-  return { ...result, error: error ?? realtime.error, refresh: realtime.refresh }
+  return {
+    ...result,
+    products: realtime.products,
+    error: error ?? realtime.error,
+    refresh: realtime.refresh,
+  }
 }

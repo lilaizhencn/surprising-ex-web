@@ -5,6 +5,7 @@ import type { LoginChallenge } from "../../api/types"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { LoginVerificationDialog, verificationMessage } from "../auth/LoginVerificationDialog"
+import { SecurityActionDialog } from "./SecurityActionDialog"
 
 type Method = "EMAIL" | "PHONE" | "TOTP"
 type Setting = { type: Method; bound: boolean; enabled: boolean; destination: string | null }
@@ -46,11 +47,12 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
                     : "Google Authenticator",
               )}
             </h3>
-            <p>{setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")}</p>
+            <p>
+              {setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")} ·{" "}
+              {t(setting.enabled ? "Enabled" : "Disabled")}
+            </p>
             <button
               type="button"
-              role="switch"
-              aria-checked={setting.enabled}
               aria-label={t(
                 setting.type === "EMAIL"
                   ? "Email login verification"
@@ -65,7 +67,7 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
                 setEditing({ method: setting.type, enabled: !setting.enabled })
               }}
             >
-              {t(setting.enabled ? "Enabled" : "Disabled")}
+              {t(setting.enabled ? "Disable" : setting.bound ? "Enable" : "Bind")}
             </button>
             {setting.type !== "TOTP" ? (
               <Button
@@ -82,8 +84,17 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
           </Panel>
         ))}
       </div>
-      {editing ? (
-        <Panel className="security-action-panel">
+      {editing && !challenge ? (
+        <SecurityActionDialog
+          title={t(
+            editing.method === "EMAIL"
+              ? "Email login verification"
+              : editing.method === "PHONE"
+                ? "SMS login verification"
+                : "Google Authenticator",
+          )}
+          onClose={close}
+        >
           <h3>
             {t(
               editing.method === "EMAIL"
@@ -137,7 +148,7 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
           <Button tone="ghost" disabled={busy} onClick={close}>
             {t("Cancel")}
           </Button>
-        </Panel>
+        </SecurityActionDialog>
       ) : null}
       {challenge && editing ? (
         <LoginVerificationDialog

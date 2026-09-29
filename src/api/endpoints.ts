@@ -24,6 +24,7 @@ import {
   BalanceListSchema,
   CandleListSchema,
   DepositAddressSchema,
+  DeviceStatusSchema,
   EmailVerificationChallengeSchema,
   ExchangeRateConvertSchema,
   FundingPaymentPageSchema,
@@ -31,6 +32,7 @@ import {
   FundingRateSchema,
   GenericObjectSchema,
   HelpArticleListSchema,
+  IpStatusSchema,
   JwtPrincipalSchema,
   KycProfileSchema,
   LoginChallengeSchema,
@@ -270,13 +272,20 @@ export async function loadFundingPayments(
   instrumentId: string,
   productLine: ProductLine,
 ): Promise<readonly ApiFundingPayment[]> {
+  return (await loadFundingPaymentsPage(userId, instrumentId, productLine)).payments
+}
+
+export async function loadFundingPaymentsPage(
+  userId: string | number,
+  instrumentId: string,
+  productLine: ProductLine,
+  cursor?: string,
+) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
-  const response = await request(
-    `/api/v1/gateway/funding/payments?${query.toString()}`,
-    FundingPaymentPageSchema,
-    { productLine },
-  )
-  return response.payments
+  if (cursor) query.set("cursor", cursor)
+  return request(`/api/v1/gateway/funding/payments?${query.toString()}`, FundingPaymentPageSchema, {
+    productLine,
+  })
 }
 
 export async function loadCandles(
@@ -419,6 +428,48 @@ export function loadApiKeys() {
 export function loadUserSessions(active = true) {
   const query = new URLSearchParams({ active: String(active), limit: "100" })
   return request(`/api/v1/security/sessions?${query.toString()}`, UserSessionPageSchema)
+}
+
+export function loadDevices() {
+  return request("/api/v1/security/devices", z.array(DeviceStatusSchema))
+}
+
+export function revokeDevice(deviceId: string) {
+  return request(`/api/v1/security/devices/${encodeURIComponent(deviceId)}/revoke`, z.unknown(), {
+    method: "POST",
+  })
+}
+
+export function changeDeviceBlock(
+  deviceId: string,
+  blocked: boolean,
+  emailCode: string,
+  totpCode: string,
+) {
+  return request(
+    `/api/v1/security/devices/${encodeURIComponent(deviceId)}/${blocked ? "block" : "unblock"}`,
+    z.unknown(),
+    {
+      method: "POST",
+      body: { emailCode, totpCode },
+    },
+  )
+}
+
+export function loadLoginIps() {
+  return request("/api/v1/security/ips", z.array(IpStatusSchema))
+}
+
+export function changeIpBlock(
+  ipAddress: string,
+  blocked: boolean,
+  emailCode: string,
+  totpCode: string,
+) {
+  return request(`/api/v1/security/ips/${blocked ? "block" : "unblock"}`, z.unknown(), {
+    method: "POST",
+    body: { ipAddress, emailCode, totpCode },
+  })
 }
 
 export function revokeUserSession(sessionId: string | number) {
@@ -669,43 +720,66 @@ export async function loadPositions(
 }
 
 export async function loadAccountLedger(asset?: string, referenceType?: string) {
+  return (await loadAccountLedgerPage(asset, referenceType)).entries
+}
+
+export async function loadAccountLedgerPage(
+  asset?: string,
+  referenceType?: string,
+  cursor?: string,
+) {
   const query = new URLSearchParams({ limit: "100" })
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
   if (referenceType?.trim()) query.set("referenceType", referenceType.trim().toUpperCase())
-  const response = await request(
-    `/api/v1/gateway/account/ledger?${query.toString()}`,
-    AccountLedgerPageSchema,
-  )
-  return response.entries
+  if (cursor) query.set("cursor", cursor)
+  return request(`/api/v1/gateway/account/ledger?${query.toString()}`, AccountLedgerPageSchema)
 }
 
 export async function loadProductLedger(accountType: ProductLine, asset?: string) {
+  return (await loadProductLedgerPage(accountType, asset)).entries
+}
+
+export async function loadProductLedgerPage(
+  accountType: ProductLine,
+  asset?: string,
+  referenceType?: string,
+  cursor?: string,
+) {
   const query = new URLSearchParams({
     accountType: accountTypeForProductLine(accountType),
     limit: "100",
   })
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
-  const response = await request(
+  if (referenceType?.trim()) query.set("referenceType", referenceType.trim().toUpperCase())
+  if (cursor) query.set("cursor", cursor)
+  return request(
     `/api/v1/gateway/account/product-ledger?${query.toString()}`,
     AccountLedgerPageSchema,
     { productLine: accountType },
   )
-  return response.entries
 }
 
 export async function loadTransferHistory(
   accountType: ProductLine,
   asset?: string,
 ): Promise<readonly ApiProductTransferRecord[]> {
+  return (await loadTransferHistoryPage(accountType, asset)).transfers
+}
+
+export async function loadTransferHistoryPage(
+  accountType: ProductLine,
+  asset?: string,
+  cursor?: string,
+) {
   const query = new URLSearchParams({ limit: "100" })
   query.set("accountType", accountTypeForProductLine(accountType))
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
-  const response = await request(
+  if (cursor) query.set("cursor", cursor)
+  return request(
     `/api/v1/gateway/account/transfers?${query.toString()}`,
     ProductTransferRecordPageSchema,
     { productLine: accountType },
   )
-  return response.transfers
 }
 
 export function loadFundingSettlement(instrumentId: string, productLine: ProductLine) {

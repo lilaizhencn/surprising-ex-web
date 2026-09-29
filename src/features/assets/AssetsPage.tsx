@@ -1,38 +1,41 @@
-import { Eye, EyeOff, FileText, PieChart, Plus, Send, Shuffle } from "lucide-react"
+import { Eye, EyeOff, PieChart, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadAccountLedger, loadAssetScales } from "../../api/endpoints"
+import { loadAssetScales } from "../../api/endpoints"
+import { productLineLabels } from "../../components/layout/navigation"
 import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
 import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
 import { formatUsd } from "../../lib/format"
-import { signedUnitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
-import type { Balance } from "../../types/domain"
+import { type Balance, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
-type LedgerRow = Readonly<Record<string, unknown> & { readonly amountUnits?: string | number }>
+const productAccounts: Readonly<Record<ProductLine, string>> = {
+  SPOT: "SPOT",
+  LINEAR_PERPETUAL: "USDT_PERPETUAL",
+  INVERSE_PERPETUAL: "COIN_PERPETUAL",
+  LINEAR_DELIVERY: "USDT_DELIVERY",
+  INVERSE_DELIVERY: "COIN_DELIVERY",
+  OPTION: "OPTION",
+}
+const assetColors = ["#5b8def", "#31c48d", "#f59e0b", "#9b7ae4", "#ef6c78", "#64748b"]
 
 export function AssetsPage({ account }: { readonly account: string | null }) {
   const [error, setError] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [ledger, setLedger] = useState<readonly LedgerRow[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
-  const [ledgerError, setLedgerError] = useState<string | null>(null)
   const session = useSession()
   const realtime = useRealtimeAssets(session, assetScales)
   useEffect(() => {
     if (!session) return
     let cancelled = false
     setLoading(true)
-    void Promise.allSettled([loadAssetScales(), loadAccountLedger()])
-      .then(([scaleResult, ledgerResult]) => {
+    void loadAssetScales()
+      .then((scaleResult) => {
         if (cancelled) return
-        if (scaleResult.status === "rejected") throw scaleResult.reason
-        setAssetScales(scaleResult.value)
-        setLedger(ledgerResult.status === "fulfilled" ? ledgerResult.value : [])
-        setLedgerError(ledgerResult.status === "rejected" ? readError(ledgerResult.reason) : null)
+        setAssetScales(scaleResult)
         setError(null)
       })
       .catch((reason: unknown) => {
@@ -57,11 +60,22 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
     : null
   const distribution = aggregateAssets(rows)
   const hasDistribution = distribution.length > 0 && total !== null && total > 0
+  const segments = hasDistribution ? distributionSegments(distribution, total) : []
+  const overview = !account || account === "overview"
+  const selectedLine = (Object.keys(PRODUCT_LINES) as (keyof typeof PRODUCT_LINES)[])
+    .map((key) => PRODUCT_LINES[key])
+    .find((line) => productAccountKey(line) === account)
   return (
     <div className="account-content">
       <div className="page-heading">
         <div>
-          <h1>{t("Asset Overview")}</h1>
+          <h1>
+            {overview
+              ? t("Overview")
+              : selectedLine
+                ? `${t(productLineLabels[selectedLine])} ${t("Assets")}`
+                : t("Assets")}
+          </h1>
           <p>{t("Review account balances and move funds with explicit confirmation.")}</p>
         </div>
         <Button tone="outline" onClick={() => setHidden(!hidden)}>
@@ -132,19 +146,24 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           <h2>{t("Asset distribution")}</h2>
           {hasDistribution ? (
             <>
-              <div className="donut">
+              <div
+                className="donut"
+                style={{ background: donutGradient(segments) }}
+                aria-label={t("Asset distribution")}
+                role="img"
+              >
                 <span>
                   <PieChart size={30} />
                 </span>
               </div>
               <div className="distribution-rows">
-                {distribution.slice(0, 3).map((balance, index) => (
-                  <div key={balance.asset}>
+                {segments.map((segment) => (
+                  <div key={segment.asset}>
                     <span>
-                      <i className={`dot dot-${index}`} />
-                      {balance.asset}
+                      <i className="dot" style={{ background: segment.color }} />
+                      {segment.asset}
                     </span>
-                    <strong>{`${Math.round(((balance.estimatedUsd ?? 0) / total) * 100)}%`}</strong>
+                    <strong>{`${segment.percent.toFixed(1)}%`}</strong>
                   </div>
                 ))}
               </div>
@@ -165,44 +184,43 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           )}
         </Panel>
       </div>
-      {ledgerError ? (
-        <div className="inline-error" role="alert">
-          {" "}
-          {t("Funding ledger unavailable:")}
-          {ledgerError}
-        </div>
+      {overview ? (
+        <section className="section-block">
+          <div className="panel-heading">
+            <h2>{t("Assets by product line")}</h2>
+            <a className="route-link" href="/assets/ledger">
+              {t("View ledger")}
+            </a>
+          </div>
+          <div className="asset-product-grid">
+            {(Object.values(PRODUCT_LINES) as ProductLine[]).map((line) => {
+              const lineRows = allRows.filter((row) => row.accountType === productAccounts[line])
+              const available = demo || realtime.products.includes(line)
+              const value = lineRows.every((row) => row.estimatedUsd !== null)
+                ? lineRows.reduce((sum, row) => sum + (row.estimatedUsd ?? 0), 0)
+                : null
+              return (
+                <a
+                  className="asset-product-card"
+                  href={`/assets?account=${productAccountKey(line)}`}
+                  key={line}
+                >
+                  <span>{t(productLineLabels[line])}</span>
+                  <strong className="mono">
+                    {hidden ? "••••" : !available ? "—" : formatUsd(value)}
+                  </strong>
+                  <small>
+                    {available
+                      ? `${lineRows.length} ${t("Assets")}`
+                      : t("Product line unavailable")}
+                  </small>
+                </a>
+              )
+            })}
+          </div>
+        </section>
       ) : null}
       <div className="asset-overview-grid">
-        <Panel>
-          <div className="panel-heading">
-            <h2>{t("Funding ledger")}</h2>
-            <FileText size={18} />
-          </div>
-          {ledger.length === 0 ? (
-            <StateView
-              kind={loading ? "loading" : "empty"}
-              message={loading ? "Loading funding history" : "No funding account activity yet."}
-            />
-          ) : (
-            <div className="asset-ledger-list">
-              {ledger.slice(0, 8).map((entry, index) => (
-                <div className="asset-ledger-item" key={text(entry, "entryId") || String(index)}>
-                  <div>
-                    <strong>{text(entry, "referenceType") || "Account update"}</strong>
-                    <small>
-                      {text(entry, "asset")} · {text(entry, "createdAt") || "—"}
-                    </small>
-                  </div>
-                  <b className="mono">{formatLedgerAmount(entry, assetScales)}</b>
-                </div>
-              ))}
-            </div>
-          )}
-          <a className="route-link" href="/assets/orders">
-            {" "}
-            {t("View full transaction history")}{" "}
-          </a>
-        </Panel>
         <Panel>
           <div className="panel-heading">
             <h2>{t("Account totals")}</h2>
@@ -316,32 +334,46 @@ function accountLabel(accountType: string | undefined): string {
 
 function accountMatches(balance: Balance, account: string | null): boolean {
   if (!account || account === "overview") return true
-  const type = (balance.accountType ?? "").toUpperCase()
-  if (account === "spot") return type === "SPOT"
-  if (account === "options") return type === "OPTION"
-  if (account === "futures") return type.endsWith("PERPETUAL") || type.endsWith("DELIVERY")
-  return true
+  return (Object.values(PRODUCT_LINES) as ProductLine[]).some(
+    (line) => productAccountKey(line) === account && balance.accountType === productAccounts[line],
+  )
 }
 
-function text(row: LedgerRow, key: string): string {
-  const value = row[key]
-  return typeof value === "string" || typeof value === "number" ? String(value) : ""
-}
-
-function formatLedgerAmount(row: LedgerRow, assetScales: Readonly<Record<string, string>>): string {
-  const raw = row.amountUnits
-  const asset = text(row, "asset")
-  const scale = assetScales[asset]
-  if ((typeof raw !== "string" && typeof raw !== "number") || !scale) {
-    return raw === undefined ? "—" : `${String(raw)} units`
+function productAccountKey(line: ProductLine): string {
+  const keys: Record<ProductLine, string> = {
+    SPOT: "spot",
+    LINEAR_PERPETUAL: "usd-perpetual",
+    INVERSE_PERPETUAL: "coin-perpetual",
+    LINEAR_DELIVERY: "usd-delivery",
+    INVERSE_DELIVERY: "coin-delivery",
+    OPTION: "options",
   }
-  try {
-    return `${signedUnitsToDecimal(raw, scale)} ${asset}`
-  } catch {
-    return `${String(raw)} units`
-  }
+  return keys[line]
 }
 
-function readError(reason: unknown): string {
-  return reason instanceof Error ? reason.message : "Account ledger unavailable"
+type DistributionSegment = { asset: string; percent: number; color: string }
+
+function distributionSegments(rows: readonly Balance[], total: number): DistributionSegment[] {
+  const largest = rows.slice(0, 5)
+  const remainder = rows.slice(5).reduce((sum, row) => sum + (row.estimatedUsd ?? 0), 0)
+  const segments = largest.map((row, index) => ({
+    asset: row.asset,
+    percent: ((row.estimatedUsd ?? 0) / total) * 100,
+    color: assetColors[index] ?? "#64748b",
+  }))
+  if (remainder > 0)
+    segments.push({ asset: "Other", percent: (remainder / total) * 100, color: "#64748b" })
+  return segments
+}
+
+function donutGradient(segments: readonly DistributionSegment[]): string {
+  let start = 0
+  return `conic-gradient(${segments
+    .map((segment) => {
+      const end = start + segment.percent
+      const stop = `${segment.color} ${start}% ${end}%`
+      start = end
+      return stop
+    })
+    .join(", ")})`
 }

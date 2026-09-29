@@ -81,8 +81,8 @@ export function TopNav({
           </IconButton>
           <a
             className="nav-account"
-            href={session ? "/account/security" : "/auth/login"}
-            aria-label={session ? t("Account security") : t("Sign in")}
+            href={session ? "/assets" : "/auth/login"}
+            aria-label={session ? t("Overview") : t("Sign in")}
           >
             <CircleUserRound size={21} />
           </a>

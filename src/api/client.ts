@@ -31,6 +31,21 @@ export type RequestOptions = {
 
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
 
+const DEVICE_ID_KEY = "surprising-ex.device-id"
+
+function browserDeviceId(): string {
+  try {
+    const current = window.localStorage.getItem(DEVICE_ID_KEY)
+    if (current && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(current))
+      return current
+    const generated = crypto.randomUUID()
+    window.localStorage.setItem(DEVICE_ID_KEY, generated)
+    return generated
+  } catch {
+    return crypto.randomUUID()
+  }
+}
+
 export async function request<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -40,6 +55,7 @@ export async function request<T>(
   const method = options.method ?? "GET"
   const session = loadSession()
   const headers = new Headers(options.headers)
+  headers.set("X-Device-Id", browserDeviceId())
   if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
   if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
   if (options.productLine) headers.set("X-Product-Line", options.productLine)
@@ -104,6 +120,7 @@ export async function requestBlob(path: string, options: BinaryRequestOptions = 
   const method = options.method ?? "GET"
   const session = loadSession()
   const headers = new Headers(options.headers)
+  headers.set("X-Device-Id", browserDeviceId())
   if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
   if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
   if (options.productLine) headers.set("X-Product-Line", options.productLine)

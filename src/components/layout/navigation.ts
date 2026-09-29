@@ -23,12 +23,18 @@ export const publicNavigation = [
   { label: "Assets", href: "/assets" },
 ] as const
 
-export const accountNavigation = [
-  { label: "Overview", href: "/assets" },
+export const assetNavigation = [
   { label: "Spot", href: "/assets?account=spot" },
-  { label: "Futures", href: "/assets?account=futures" },
+  { label: "USD-M Perpetual", href: "/assets?account=usd-perpetual" },
+  { label: "Coin-M Perpetual", href: "/assets?account=coin-perpetual" },
+  { label: "USD-M Delivery", href: "/assets?account=usd-delivery" },
+  { label: "Coin-M Delivery", href: "/assets?account=coin-delivery" },
   { label: "Options", href: "/assets?account=options" },
-  { label: "History", href: "/assets/orders" },
+] as const
+
+export const securityNavigation = [
+  { label: "Account security", href: "/security/account" },
+  { label: "Device management", href: "/security/devices" },
 ] as const
 
 export const productLineLabels: Readonly<Record<ProductLine, string>> = {

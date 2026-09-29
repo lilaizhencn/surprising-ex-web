@@ -540,6 +540,23 @@ export const UserSessionSchema = z
   })
   .passthrough()
 
+export const DeviceStatusSchema = z.object({
+  sessionId: IdentifierSchema,
+  deviceId: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  ipAddress: z.string().nullable(),
+  lastSeen: z.string(),
+  active: z.boolean(),
+  current: z.boolean(),
+  blocked: z.boolean(),
+})
+export const IpStatusSchema = z.object({
+  ipAddress: z.string(),
+  loginCount: z.number(),
+  lastSeen: z.string(),
+  blocked: z.boolean(),
+})
+
 export const UserSessionPageSchema = z
   .object({
     count: z.number(),
@@ -586,6 +603,8 @@ export const HelpArticleListSchema = z.array(HelpArticleSchema)
 export type AuthSession = z.infer<typeof AuthSessionSchema>
 export type JwtPrincipal = z.infer<typeof JwtPrincipalSchema>
 export type ApiUserSession = z.infer<typeof UserSessionSchema>
+export type ApiDeviceStatus = z.infer<typeof DeviceStatusSchema>
+export type ApiIpStatus = z.infer<typeof IpStatusSchema>
 export type ApiLoginHistoryEntry = z.infer<typeof LoginHistoryEntrySchema>
 export type ApiMarket = z.infer<typeof MarketSchema>
 export type ApiOptionQuote = z.infer<typeof OptionQuoteSchema>
