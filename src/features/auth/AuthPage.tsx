@@ -66,6 +66,8 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     } catch (reason: unknown) {
       if (mode === "login" && reason instanceof ApiError && reason.status === 401) {
         setCredentialsRejected(true)
+      } else if (mode === "login" && reason instanceof ApiError && reason.status === 403) {
+        setMessage(t("This account cannot sign in right now. Please contact support."))
       } else {
         setMessage(verificationMessage(reason))
       }

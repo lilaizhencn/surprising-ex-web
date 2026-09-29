@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState } from "react"
+import { ApiError } from "../../api/client"
 import type { LoginChallenge, LoginVerificationCodes } from "../../api/types"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 
 export function verificationMessage(reason: unknown): string {
+  if (reason instanceof ApiError && reason.status >= 500) {
+    return t("The service is temporarily unavailable. Please try again shortly.")
+  }
+  if (reason instanceof ApiError && reason.status === 429) {
+    return t("Too many attempts. Please wait a moment and try again.")
+  }
+  if (reason instanceof TypeError || (reason instanceof Error && reason.name === "TimeoutError")) {
+    return t("Could not connect to the service. Check your connection and try again.")
+  }
   const messages: Record<string, string> = {
     LOGIN_CHALLENGE_EXPIRED: "Verification expired or too many attempts. Please start again.",
     LOGIN_VERIFICATION_INVALID: "Incorrect verification code. Check all required codes.",
