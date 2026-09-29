@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+import { refreshStoredSession } from "../api/client"
 import { AppShell } from "../components/layout/AppShell"
 import { AssetsPage } from "../features/assets/AssetsPage"
 import { FundingPage } from "../features/assets/FundingPage"
@@ -14,9 +16,42 @@ import { DeveloperApiPage } from "../features/security/DeveloperApiPage"
 import { DeviceManagementPage } from "../features/security/DeviceManagementPage"
 import { TradePage } from "../features/trading/TradePage"
 import { t, useLocale } from "../i18n"
+import { loadSession, saveSession, sessionAccessExpired, useSession } from "../state/session"
 
 export function App() {
   useLocale()
+  const session = useSession()
+  const [sessionReady, setSessionReady] = useState(() => !sessionAccessExpired(loadSession()))
+  useEffect(() => {
+    if (sessionReady) return
+    let active = true
+    void refreshStoredSession()
+      .catch(() => saveSession(null))
+      .finally(() => {
+        if (active) setSessionReady(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [sessionReady])
+  useEffect(() => {
+    if (!session?.accessTokenExpiresAt) return
+    const refreshAt = Date.parse(session.accessTokenExpiresAt) - Date.now() - 30_000
+    if (!Number.isFinite(refreshAt)) return
+    const timer = window.setTimeout(
+      () => {
+        void refreshStoredSession().catch(() => {})
+      },
+      Math.max(0, refreshAt),
+    )
+    return () => window.clearTimeout(timer)
+  }, [session?.accessToken, session?.accessTokenExpiresAt])
+  if (!sessionReady)
+    return (
+      <div className="container section" role="status">
+        {t("Restoring session")}
+      </div>
+    )
   const path = window.location.pathname
   if (path.startsWith("/auth/"))
     return (

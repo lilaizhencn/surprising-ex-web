@@ -26,7 +26,23 @@ export function loadSession(): AuthSession | null {
     return cachedSession
   }
   cachedSession = result.data
+  if (sessionRefreshExpired(cachedSession)) {
+    window.localStorage.removeItem(storageKeys.session)
+    cachedRaw = null
+    cachedSession = null
+  }
   return cachedSession
+}
+
+export function sessionAccessExpired(session: AuthSession | null): boolean {
+  const expiresAt = session?.accessTokenExpiresAt ?? session?.expiresAt
+  return Boolean(expiresAt && Date.parse(expiresAt) <= Date.now())
+}
+
+function sessionRefreshExpired(session: AuthSession): boolean {
+  return Boolean(
+    session.refreshTokenExpiresAt && Date.parse(session.refreshTokenExpiresAt) <= Date.now(),
+  )
 }
 
 export function saveSession(session: AuthSession | null): void {

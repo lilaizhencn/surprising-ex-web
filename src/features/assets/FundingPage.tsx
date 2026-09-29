@@ -50,7 +50,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   useEffect(() => {
     if (!session) return
     void Promise.all([
-      loadWalletChains(),
+      mode === "transfer" ? Promise.resolve([] as readonly RecordRow[]) : loadWalletChains(),
       loadFundingBalances(),
       mode === "deposit"
         ? loadDepositHistory(asset)

@@ -80,7 +80,7 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(false)
   const [actionMessage, setActionMessage] = useState("")
   const [countdown, setCountdown] = useState("0")
-  const realtime = useRealtimeFeed(session, [])
+  const realtime = useRealtimeFeed(session, [], 100, true, productLine)
   const privateView = realtime.views[productLine]
 
   const load = () => {

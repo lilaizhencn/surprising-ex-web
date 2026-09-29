@@ -38,7 +38,7 @@ export function AppShell({
       {accountArea ? (
         <div className="account-layout">
           <AccountSidebar />
-          <main className="account-main">{children}</main>
+          <main className="account-main">{session ? children : null}</main>
         </div>
       ) : (
         <main className="page">{children}</main>

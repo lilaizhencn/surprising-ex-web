@@ -2,7 +2,7 @@ import ky, { type Options } from "ky"
 import type { z } from "zod"
 import { t } from "../i18n"
 import { config } from "../lib/config"
-import { loadSession, saveSession } from "../state/session"
+import { loadSession, saveSession, sessionAccessExpired } from "../state/session"
 import type { ProductLine } from "../types/domain"
 import type { AuthSession } from "./types"
 import { AuthSessionSchema } from "./types"
@@ -32,6 +32,33 @@ export type RequestOptions = {
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
 
 const DEVICE_ID_KEY = "surprising-ex.device-id"
+let refreshInFlight: Promise<AuthSession> | null = null
+
+export function refreshStoredSession(): Promise<AuthSession> {
+  if (refreshInFlight) return refreshInFlight
+  const session = loadSession()
+  if (!session?.refreshToken) return Promise.reject(new ApiError(t("Sign in required."), 401))
+  const refreshToken = session.refreshToken
+  const operation = request<AuthSession>(
+    "/api/v1/auth/refresh",
+    AuthSessionSchema,
+    { method: "POST", body: { refreshToken } },
+    false,
+  )
+    .then((refreshed) => {
+      if (loadSession()?.refreshToken === refreshToken) saveSession(refreshed)
+      return refreshed
+    })
+    .catch((error: unknown) => {
+      if (loadSession()?.refreshToken === refreshToken) saveSession(null)
+      throw error
+    })
+    .finally(() => {
+      refreshInFlight = null
+    })
+  refreshInFlight = operation
+  return operation
+}
 
 function browserDeviceId(): string {
   try {
@@ -53,6 +80,8 @@ export async function request<T>(
   allowRefresh = true,
 ): Promise<T> {
   const method = options.method ?? "GET"
+  if (allowRefresh && !path.includes("/auth/") && sessionAccessExpired(loadSession()))
+    await refreshStoredSession()
   const session = loadSession()
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
@@ -84,22 +113,17 @@ export async function request<T>(
     session?.refreshToken &&
     !path.includes("/auth/")
   ) {
-    try {
-      const refreshed = await request<AuthSession>(
-        "/api/v1/auth/refresh",
-        AuthSessionSchema,
-        { method: "POST", body: { refreshToken: session.refreshToken } },
-        false,
-      )
-      saveSession(refreshed)
-      return request(path, schema, options, false)
-    } catch (error) {
-      saveSession(null)
-      throw error
-    }
+    if (loadSession()?.accessToken === session.accessToken) await refreshStoredSession()
+    return request(path, schema, options, false)
   }
 
-  if (response.status === 401 && session && !path.includes("/auth/")) saveSession(null)
+  if (
+    response.status === 401 &&
+    session &&
+    !path.includes("/auth/") &&
+    loadSession()?.accessToken === session.accessToken
+  )
+    saveSession(null)
 
   if (!response.ok)
     throw new ApiError(readableMessage(payload, response.status), response.status, payload)
@@ -116,8 +140,14 @@ export async function request<T>(
   return result.data
 }
 
-export async function requestBlob(path: string, options: BinaryRequestOptions = {}): Promise<Blob> {
+export async function requestBlob(
+  path: string,
+  options: BinaryRequestOptions = {},
+  allowRefresh = true,
+): Promise<Blob> {
   const method = options.method ?? "GET"
+  if (allowRefresh && !path.includes("/auth/") && sessionAccessExpired(loadSession()))
+    await refreshStoredSession()
   const session = loadSession()
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
@@ -134,22 +164,22 @@ export async function requestBlob(path: string, options: BinaryRequestOptions = 
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
   const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
-  if (response.status === 401 && session?.refreshToken && !path.includes("/auth/")) {
-    try {
-      const refreshed = await request<AuthSession>(
-        "/api/v1/auth/refresh",
-        AuthSessionSchema,
-        { method: "POST", body: { refreshToken: session.refreshToken } },
-        false,
-      )
-      saveSession(refreshed)
-      return requestBlob(path, options)
-    } catch (error) {
-      saveSession(null)
-      throw error
-    }
+  if (
+    response.status === 401 &&
+    allowRefresh &&
+    session?.refreshToken &&
+    !path.includes("/auth/")
+  ) {
+    if (loadSession()?.accessToken === session.accessToken) await refreshStoredSession()
+    return requestBlob(path, options, false)
   }
-  if (response.status === 401 && session && !path.includes("/auth/")) saveSession(null)
+  if (
+    response.status === 401 &&
+    session &&
+    !path.includes("/auth/") &&
+    loadSession()?.accessToken === session.accessToken
+  )
+    saveSession(null)
   if (!response.ok) {
     const raw = await response.text()
     throw new ApiError(readableMessage(parseResponse(raw), response.status), response.status)

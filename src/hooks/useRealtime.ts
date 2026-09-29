@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { loadRealtimeState, loadRuntimeProducts } from "../api/endpoints"
+import { loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
 import {
@@ -44,10 +44,13 @@ export function useRealtime(
         ...(channel === "candles" ? { period } : {}),
       }))
     : []
-  return useRealtimeFeed(session, [
-    ...plan,
-    ...additionalSubscriptions.filter((subscription) => subscription.instrumentId),
-  ])
+  return useRealtimeFeed(
+    session,
+    [...plan, ...additionalSubscriptions.filter((subscription) => subscription.instrumentId)],
+    100,
+    true,
+    productLine,
+  )
 }
 
 export function useRealtimeFeed(
@@ -55,6 +58,7 @@ export function useRealtimeFeed(
   subscriptions: readonly Subscription[],
   publishInterval = 100,
   retainTrades = true,
+  privateProductLine?: ProductLine,
 ) {
   const [products, setProducts] = useState<readonly ProductLine[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -206,24 +210,13 @@ export function useRealtimeFeed(
           if (closed) return
           setProducts(enabled)
           setError(null)
-          privateManager?.update(privateSubscriptions(enabled))
-          if (privateManager)
-            for (const productLine of enabled) {
-              void loadRealtimeState(productLine)
-                .then((snapshot) => {
-                  if (closed || snapshot["status"] !== "READY") return
-                  current[productLine] ??= new PrivateView()
-                  if (
-                    current[productLine]?.apply({ op: "snapshot", productLine, data: snapshot })
-                  ) {
-                    privateDirty = true
-                    publish()
-                  }
-                })
-                .catch(() => {
-                  /* The subscribed WS snapshot remains responsible for recovery. */
-                })
-            }
+          privateManager?.update(
+            privateSubscriptions(
+              privateProductLine
+                ? enabled.filter((productLine) => productLine === privateProductLine)
+                : enabled,
+            ),
+          )
         })
         .catch((reason: unknown) => {
           if (closed) return
@@ -239,7 +232,7 @@ export function useRealtimeFeed(
       publicManager.close()
       privateManager?.close()
     }
-  }, [accessToken, userId, identity, publishInterval, retainTrades])
+  }, [accessToken, userId, identity, publishInterval, retainTrades, privateProductLine])
   return {
     products,
     error,

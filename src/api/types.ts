@@ -40,6 +40,8 @@ export const AuthSessionSchema = z
     accessToken: z.string(),
     refreshToken: z.string().optional(),
     expiresAt: z.string().optional(),
+    accessTokenExpiresAt: z.string().optional(),
+    refreshTokenExpiresAt: z.string().optional(),
     requiresEmailVerification: z.boolean().optional(),
     user: UserSchema,
   })
