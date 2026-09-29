@@ -262,12 +262,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setNotice((previous) => (message ? { id: (previous?.id ?? 0) + 1, message } : null))
   }, [])
   const clearNotice = useCallback(() => setNotice(null), [])
-  const selectBookPrice = useCallback((value: string) => {
-    if (!isPositiveDecimal(value)) return
-    setBboEnabled(false)
-    setOrderType("LIMIT")
-    setPrice(value)
-  }, [])
+  const selectBookPrice = useCallback(
+    (value: string) => {
+      if (!isPositiveDecimal(value)) return
+      if (orderType === "STOP") {
+        setTriggerPrice(value)
+        return
+      }
+      setBboEnabled(false)
+      setOrderType("LIMIT")
+      setPrice(value)
+    },
+    [orderType],
+  )
   const demo = config.demoDataEnabled && !marketsRequestFinished
   const availableMarkets = markets.length > 0 ? markets : demo ? demoMarkets : []
   useEffect(() => {
@@ -1181,7 +1188,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       refresh()
     } catch (reason: unknown) {
       setSubmitState("error")
-      notify(reason instanceof ApiError ? reason.message : readError(reason))
+      notify(orderType === "STOP" ? triggerSubmitError(reason) : readError(reason))
     }
   }
   const refresh = () => {
@@ -1501,7 +1508,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   onClick={() => setAccountTab("triggers")}
                 >
                   {" "}
-                  {t("Take-profit & stop-loss")}{" "}
+                  {t("TP & SL")}{" "}
                 </button>
               ) : null}
               {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
@@ -1582,6 +1589,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     orders={openOrders}
                     triggers={triggerOrders}
                     account={realtime.views[view.line]}
+                    leverageSetting={leverageSetting}
                     events={realtime.events}
                     loggedIn={!!session}
                     onNotice={(message, failed) => {
@@ -2139,14 +2147,19 @@ export function OrderBook({
   const asks = withTotals(
     aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask"),
   ).reverse()
-  // Both sides use the same visible quantity scale; totals remain separate text values.
-  const maxQuantity = Math.max(
+  // Keep the bar scale stable while deltas update individual price levels.
+  const scaleRef = useRef({ key: "", value: 0 })
+  const scaleKey = `${baseAsset}/${quoteAsset}/${depth}/${precision}`
+  if (scaleRef.current.key !== scaleKey) scaleRef.current = { key: scaleKey, value: 0 }
+  const observedMaximum = Math.max(
     0,
     ...[...bids, ...asks].map(({ level }) => {
-      const quantity = Number(Array.isArray(level) ? level[1] : level.quantitySteps)
-      return Number.isFinite(quantity) ? quantity : 0
+      const amount = Number(Array.isArray(level) ? level[1] : level.quantitySteps)
+      return Number.isFinite(amount) ? amount : 0
     }),
   )
+  if (scaleRef.current.value === 0 && observedMaximum > 0) scaleRef.current.value = observedMaximum
+  const maxQuantity = scaleRef.current.value
   useLayoutEffect(() => {
     const askSide = askSideRef.current
     if (askSide) askSide.scrollTop = askSide.scrollHeight
@@ -2457,7 +2470,7 @@ function TriggerOrders({
   readonly assetScales: Readonly<Record<string, string>>
   readonly onDone: (message: string) => void
 }) {
-  const title = t("Take-profit & stop-loss")
+  const title = t("TP & SL")
   if (rows.length === 0) {
     return (
       <div className="trigger-orders-state">
@@ -2814,6 +2827,21 @@ function readError(reason: unknown): string {
   return reason instanceof Error
     ? reason.message
     : t("Trading service is unavailable. Please retry later.")
+}
+function triggerSubmitError(reason: unknown): string {
+  const message = readError(reason)
+  const explanations: Record<string, string> = {
+    TRIGGER_POSITION_REQUIRED: "Open a position in this pair before setting TP/SL.",
+    TRIGGER_SIDE_NOT_REDUCING: "Select the side that closes your current position.",
+    TRIGGER_CLOSE_CAPACITY_EXCEEDED:
+      "TP/SL quantity exceeds the position available to close, including existing close orders.",
+    POSITION_MARGIN_ADJUSTMENT_INVALID: "TP/SL margin mode must match the current position.",
+    POSITION_MODE_MISMATCH: "TP/SL position side must match your account position mode.",
+    INVALID_COMMAND:
+      "TP/SL request is invalid. Check trigger price, execution price, quantity and position settings.",
+  }
+  const code = Object.keys(explanations).find((key) => message.includes(key))
+  return code ? t(explanations[code] ?? message) : message
 }
 
 function fundingRate(

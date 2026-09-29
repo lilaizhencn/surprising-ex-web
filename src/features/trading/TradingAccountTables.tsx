@@ -4,9 +4,16 @@ import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
 import { signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
-import { integer, type PrivateView, type Row, type WsEnvelope } from "../../realtime"
+import {
+  integer,
+  type PrivateView,
+  positionValuation,
+  type Row,
+  type WsEnvelope,
+} from "../../realtime"
 import type { Market, ProductLine } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
+import type { LeverageSettings } from "./TradingTicketControls"
 
 type Props = {
   readonly market: Market | null
@@ -17,6 +24,7 @@ type Props = {
   readonly orders: readonly ApiOrder[]
   readonly triggers: readonly ApiTriggerOrder[]
   readonly account: PrivateView | undefined
+  readonly leverageSetting?: LeverageSettings | null
   readonly events: readonly WsEnvelope[]
   readonly loggedIn: boolean
   readonly onNotice: (message: string, failed: boolean) => void
@@ -234,6 +242,7 @@ export function TradingAccountTables(props: Props) {
                   "Position margin",
                   "Maintenance margin",
                   "Margin ratio",
+                  "Liquidation price",
                   "Risk status",
                   "TP/SL",
                 ].map((label) => (
@@ -265,6 +274,25 @@ export function TradingAccountTables(props: Props) {
                     event.instrumentId === instrumentId &&
                     event.productLine === productLine,
                 )?.data as Row | undefined
+                const markTicks =
+                  mark?.["markPriceTicks"] ??
+                  (mark?.["markPrice"] != null && m?.priceTickUnits && assetScales[m.quoteAsset]
+                    ? String(
+                        Math.round(
+                          (Number(mark["markPrice"]) * Number(assetScales[m.quoteAsset])) /
+                            Number(m.priceTickUnits),
+                        ),
+                      )
+                    : undefined)
+                const livePnl =
+                  markTicks == null || m?.productLine === "OPTION"
+                    ? null
+                    : positionValuation(position, {
+                        ...m,
+                        contractType: m?.productLine,
+                        markPriceTicks: markTicks,
+                        settleScaleUnits: assetScales[settle ?? ""],
+                      })?.pnl
                 const isLong = Number(position["signedQuantitySteps"]) > 0
                 const triggers = props.triggers.filter(
                   (row) => row.instrumentId === instrumentId && row.positionSide === side,
@@ -280,7 +308,11 @@ export function TradingAccountTables(props: Props) {
                     <td>
                       {t(mode === "ISOLATED" ? "Isolated" : "Cross")}
                       <small>
-                        {leverage ? `${Number(leverage["leveragePpm"]) / 1000000}×` : "—"}
+                        {leverage
+                          ? `${Number(leverage["leveragePpm"]) / 1000000}×`
+                          : m?.instrumentId === props.market?.instrumentId && props.leverageSetting
+                            ? `${props.leverageSetting.leveragePpm / 1000000}×`
+                            : "—"}
                       </small>
                     </td>
                     <td>{quantity(position["signedQuantitySteps"], m, assetScales)}</td>
@@ -298,10 +330,16 @@ export function TradingAccountTables(props: Props) {
                     </td>
                     <td
                       className={
-                        Number(risk?.["unrealizedPnlUnits"]) >= 0 ? "positive" : "negative"
+                        Number(livePnl ?? risk?.["unrealizedPnlUnits"]) >= 0
+                          ? "positive"
+                          : "negative"
                       }
                     >
-                      {units(risk?.["unrealizedPnlUnits"], settle, assetScales)}
+                      {units(
+                        livePnl?.toString() ?? risk?.["unrealizedPnlUnits"],
+                        settle,
+                        assetScales,
+                      )}
                     </td>
                     <td>{units(position["realizedPnlUnits"], settle, assetScales)}</td>
                     <td>{units(position["positionMarginUnits"], settle, assetScales)}</td>
@@ -311,7 +349,8 @@ export function TradingAccountTables(props: Props) {
                         ? "—"
                         : `${Number(risk["marginRatioPpm"]) / 10000}%`}
                     </td>
-                    <td>{field(risk, "status") || "—"}</td>
+                    <td>{price(risk?.["liquidationPriceTicks"], m, assetScales)}</td>
+                    <td>{field(risk, "status") || t("Risk data pending")}</td>
                     <td>
                       {triggers.length
                         ? triggers
@@ -320,7 +359,7 @@ export function TradingAccountTables(props: Props) {
                                 `${row.triggerType}: ${price(row.triggerPriceTicks, m, assetScales)}`,
                             )
                             .join(" / ")
-                        : "—"}
+                        : t("Not set")}
                     </td>
                   </tr>
                 )

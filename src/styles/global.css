@@ -1464,7 +1464,8 @@ button:disabled {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--color-ink-muted);
-  padding: 12px 8px;
+  padding: 8px 8px;
+  font-size: var(--font-body-small);
   cursor: pointer;
 }
 .trade-account-tabs button.active {
@@ -1477,6 +1478,7 @@ button:disabled {
 }
 .trade-account-body > .panel {
   border: 0;
+  padding-top: 0;
 }
 .dropdown-select {
   display: flex;
@@ -1864,7 +1866,11 @@ button:disabled {
 .trigger-orders-state {
   display: grid;
   gap: var(--space-3);
-  margin-top: var(--space-5);
+  margin-top: 0;
+}
+.trigger-orders-state .state-view {
+  min-height: 80px;
+  padding: var(--space-3);
 }
 .trigger-orders-state h3 {
   margin: 0;
