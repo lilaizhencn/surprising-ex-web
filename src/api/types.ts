@@ -295,6 +295,7 @@ export const TriggerOrderSchema = z
     instrumentId: z.string(),
     side: z.enum(["BUY", "SELL"]),
     triggerType: z.enum(["TAKE_PROFIT", "STOP_LOSS", "TRAILING_STOP"]),
+    priceSource: z.enum(["MARK", "LAST", "INDEX"]).optional(),
     triggerCondition: z.enum(["GREATER_OR_EQUAL", "LESS_OR_EQUAL"]).optional(),
     triggerPriceTicks: SafeIntegerWireSchema,
     activationPriceTicks: SafeIntegerWireSchema.nullable().optional(),

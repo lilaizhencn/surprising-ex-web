@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { cancelOrder } from "../../api/endpoints"
+import { cancelOrder, loadPositionRisk } from "../../api/endpoints"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
@@ -27,6 +27,7 @@ type Props = {
   readonly leverageSetting?: LeverageSettings | null
   readonly events: readonly WsEnvelope[]
   readonly loggedIn: boolean
+  readonly userId: string | number | undefined
   readonly onNotice: (message: string, failed: boolean) => void
 }
 const field = (row: Row | undefined, key: string) => (row?.[key] == null ? "" : String(row[key]))
@@ -161,11 +162,48 @@ export function TradingAccountTables(props: Props) {
     account,
     events,
     loggedIn,
+    userId,
     onNotice,
   } = props
   const [tab, setTab] = useState<"positions" | "orders" | "history">("orders")
   const [onlyCurrent, setOnlyCurrent] = useState(true)
   const [history, setHistory] = useState<readonly Row[]>([])
+  const [riskSnapshots, setRiskSnapshots] = useState<readonly Row[]>([])
+  const positionVersion =
+    positions
+      .map((position) =>
+        [
+          position["instrumentId"],
+          position["positionSide"],
+          position["signedQuantitySteps"],
+          position["entryPriceTicks"],
+          position["positionMarginUnits"],
+        ].join(":"),
+      )
+      .join("|") +
+    ":" +
+    (account?.rows("balance") ?? [])
+      .map((balance) =>
+        [balance["asset"], balance["availableUnits"], balance["lockedUnits"]].join(":"),
+      )
+      .join("|")
+  useEffect(() => {
+    if (tab !== "positions" || !loggedIn || userId == null || positions.length === 0) {
+      setRiskSnapshots([])
+      return
+    }
+    let current = true
+    void loadPositionRisk(userId, productLine)
+      .then((rows) => {
+        if (current) setRiskSnapshots(rows)
+      })
+      .catch(() => {
+        if (current) setRiskSnapshots([])
+      })
+    return () => {
+      current = false
+    }
+  }, [tab, loggedIn, userId, productLine, positionVersion, positions.length])
   useEffect(() => {
     setHistory([])
   }, [productLine, loggedIn, market?.instrumentId])
@@ -265,6 +303,9 @@ export function TradingAccountTables(props: Props) {
                           row["instrumentId"] === instrumentId && row["positionSide"] === side,
                       )
                   : undefined
+                const queriedRisk = riskSnapshots.find(
+                  (row) => row["instrumentId"] === instrumentId && row["positionSide"] === side,
+                )
                 const leverage = account
                   ?.rows("leverage")
                   .find((row) => row["instrumentId"] === instrumentId && row["marginMode"] === mode)
@@ -349,7 +390,7 @@ export function TradingAccountTables(props: Props) {
                         ? "—"
                         : `${Number(risk["marginRatioPpm"]) / 10000}%`}
                     </td>
-                    <td>{price(risk?.["liquidationPriceTicks"], m, assetScales)}</td>
+                    <td>{price(queriedRisk?.["liquidationPriceTicks"], m, assetScales)}</td>
                     <td>{field(risk, "status") || t("Risk data pending")}</td>
                     <td>
                       {triggers.length

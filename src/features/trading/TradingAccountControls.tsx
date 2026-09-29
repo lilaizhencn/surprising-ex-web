@@ -1,6 +1,6 @@
 import { RefreshCw, Settings2, ShieldAlert } from "lucide-react"
 import { useEffect, useState } from "react"
-import { adjustPositionMargin, updatePositionMode } from "../../api/endpoints"
+import { adjustPositionMargin, loadPositionRisk, updatePositionMode } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
@@ -55,6 +55,42 @@ export function TradingAccountControls({
 }: Props) {
   const [positionMode, setPositionMode] = useState<PositionMode>("ONE_WAY")
   const [positionSide, setPositionSide] = useState<PositionSide>("NET")
+  const [queriedRisks, setQueriedRisks] = useState<readonly Record<string, unknown>[]>([])
+  const positionVersion =
+    positions
+      .map((position) =>
+        [
+          position["instrumentId"],
+          position["positionSide"],
+          position["signedQuantitySteps"],
+          position["entryPriceTicks"],
+          position["positionMarginUnits"],
+        ].join(":"),
+      )
+      .join("|") +
+    ":" +
+    (accountView?.rows("balance") ?? [])
+      .map((balance) =>
+        [balance["asset"], balance["availableUnits"], balance["lockedUnits"]].join(":"),
+      )
+      .join("|")
+  useEffect(() => {
+    if (userId == null || positions.length === 0) {
+      setQueriedRisks([])
+      return
+    }
+    let current = true
+    void loadPositionRisk(userId, productLine)
+      .then((rows) => {
+        if (current) setQueriedRisks(rows)
+      })
+      .catch(() => {
+        if (current) setQueriedRisks([])
+      })
+    return () => {
+      current = false
+    }
+  }, [userId, productLine, positionVersion, positions.length])
   const positionRisk = (accountView?.rows("risk") ?? [])
     .filter((row) => text(row, "instrumentId") === instrumentId)
     .filter((row) =>
@@ -71,6 +107,11 @@ export function TradingAccountControls({
           text(p, "positionSide") === text(row, "positionSide"),
       ),
       ...row,
+      liquidationPriceTicks: queriedRisks.find(
+        (queried) =>
+          text(queried, "instrumentId") === instrumentId &&
+          text(queried, "positionSide") === text(row, "positionSide"),
+      )?.["liquidationPriceTicks"],
     }))
   const selectedPosition = positions.find(
     (row) =>

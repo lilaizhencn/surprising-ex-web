@@ -3186,8 +3186,13 @@ body,
 .trigger-price-source {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: var(--color-ink-muted);
+}
+.trigger-price-source select {
+  max-width: 55%;
 }
 .protection-second-leg {
   display: grid;

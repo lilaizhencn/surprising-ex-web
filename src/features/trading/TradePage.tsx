@@ -248,6 +248,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     "MARKET",
   )
   const [triggerType, setTriggerType] = useState<"STOP_LOSS" | "TAKE_PROFIT">("STOP_LOSS")
+  const [triggerPriceSource, setTriggerPriceSource] = useState<"MARK" | "LAST" | "INDEX">("MARK")
   const [triggerExecutionType, setTriggerExecutionType] = useState<"LIMIT" | "MARKET">("MARKET")
   const [orderSettings, setOrderSettings] = useState<TradingOrderSettings>({
     marginMode: "CROSS",
@@ -1077,6 +1078,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           instrumentId: current.instrumentId,
           side,
           triggerType,
+          priceSource: triggerPriceSource,
           triggerPriceTicks: decimalToStepUnits(
             triggerPrice,
             current.priceTickUnits ?? "",
@@ -1593,6 +1595,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     leverageSetting={leverageSetting}
                     events={realtime.events}
                     loggedIn={!!session}
+                    userId={session?.user.userId}
                     onNotice={(message, failed) => {
                       setSubmitState(failed ? "error" : "success")
                       notify(message)
@@ -1854,7 +1857,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 )}
               </Field>
               <div className="trigger-price-source">
-                {t("Trigger source")} <strong>{t("Mark price")}</strong>
+                <span>{t("Trigger source")}</span>
+                <DropdownSelect
+                  aria-label={t("Trigger source")}
+                  value={triggerPriceSource}
+                  onChange={(event) =>
+                    setTriggerPriceSource(event.target.value as "MARK" | "LAST" | "INDEX")
+                  }
+                >
+                  <option value="MARK">{t("Mark price")}</option>
+                  <option value="LAST">{t("Last traded price")}</option>
+                  <option value="INDEX" disabled={view.line === PRODUCT_LINES.spot}>
+                    {t("Index price")}
+                  </option>
+                </DropdownSelect>
               </div>
               {triggerCloseSide && triggerCloseSide !== side ? (
                 <button
@@ -2558,6 +2574,15 @@ function TriggerOrderRow({
       </td>
       <td className="mono" title={`ticks: ${String(row.triggerPriceTicks)}`}>
         {triggerPrice} <small>{row.triggerCondition === "GREATER_OR_EQUAL" ? "≥" : "≤"}</small>
+        <small className="table-subline">
+          {t(
+            row.priceSource === "LAST"
+              ? "Last traded price"
+              : row.priceSource === "INDEX"
+                ? "Index price"
+                : "Mark price",
+          )}
+        </small>
       </td>
       <td>{row.side === "SELL" ? t("Close long") : t("Close short")}</td>
       <td className="mono">{quantity}</td>
