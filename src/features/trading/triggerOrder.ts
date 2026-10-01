@@ -31,6 +31,12 @@ export function signedPositionSteps(position: Record<string, unknown>): bigint {
   return 0n
 }
 
+export function positionPercentageSteps(signedSteps: bigint, percentage: number): bigint {
+  if (!Number.isInteger(percentage) || percentage < 0 || percentage > 100) return 0n
+  const magnitude = signedSteps < 0n ? -signedSteps : signedSteps
+  return (magnitude * BigInt(percentage)) / 100n
+}
+
 export function closeSideForPosition(position: Record<string, unknown>): OrderSide | null {
   const signed = signedPositionSteps(position)
   return signed > 0n ? "SELL" : signed < 0n ? "BUY" : null

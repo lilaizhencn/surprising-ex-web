@@ -1,13 +1,4 @@
-import {
-  BarChart3,
-  ChevronDown,
-  CircleHelp,
-  Info,
-  RefreshCw,
-  Settings2,
-  Star,
-  XCircle,
-} from "lucide-react"
+import { BarChart3, ChevronDown, CircleHelp, Info, RefreshCw, Settings2, Star } from "lucide-react"
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
@@ -91,6 +82,7 @@ import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
 import {
   closeSideForPosition,
+  positionPercentageSteps,
   selectTriggerPosition,
   signedPositionSteps,
   triggerConditionText,
@@ -528,15 +520,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       return
     }
     if (orderType === "STOP" && activeTriggerPosition) {
-      const signedSteps = signedPositionSteps(activeTriggerPosition)
-      const magnitude = signedSteps < 0n ? -signedSteps : signedSteps
+      const closeSteps = positionPercentageSteps(signedPositionSteps(activeTriggerPosition), next)
       try {
         const quantitySpec = marketQuantitySpec(current, assetScales)
-        const positionQuantity = Number(
-          stepUnitsToDecimal(magnitude.toString(), quantitySpec.unitSize, quantitySpec.scale),
+        setQuantity(
+          closeSteps > 0n
+            ? stepUnitsToDecimal(closeSteps.toString(), quantitySpec.unitSize, quantitySpec.scale)
+            : "",
         )
-        const value = positionQuantity * (next / 100)
-        setQuantity(Number.isFinite(value) && value > 0 ? String(value) : "")
       } catch {
         setQuantity("")
       }
@@ -1604,7 +1595,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </Panel>
               ) : null}
               {accountTab === "triggers" && view.line !== PRODUCT_LINES.spot ? (
-                <Panel dense>
+                <Panel dense className="trade-orders-panel">
                   <TriggerOrders
                     rows={triggerOrders}
                     productLine={view.line}
@@ -2496,28 +2487,17 @@ function TriggerOrders({
   readonly assetScales: Readonly<Record<string, string>>
   readonly onDone: (message: string) => void
 }) {
-  const title = t("TP & SL")
   if (rows.length === 0) {
     return (
       <div className="trigger-orders-state">
-        <div className="panel-heading">
-          <h3>{title}</h3>
-          <Badge tone="neutral">{t("0 active")}</Badge>
-        </div>
-        <StateView kind="empty" message={t("No pending trigger orders for this pair.")} />
+        <p className="account-table-empty">{t("No pending trigger orders for this pair.")}</p>
       </div>
     )
   }
   return (
     <div className="trigger-orders-state">
-      <div className="panel-heading">
-        <h3>{title}</h3>
-        <Badge tone="info">
-          {rows.length} {t("active")}
-        </Badge>
-      </div>
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table compact-trading-table">
           <thead>
             <tr>
               <th>{t("Protection")}</th>
@@ -2569,11 +2549,11 @@ function TriggerOrderRow({
   return (
     <tr>
       <td>
-        <strong>{triggerTypeLabel(row.triggerType)}</strong>
+        <b>{triggerTypeLabel(row.triggerType)}</b>
         <small className="table-subline mono">#{String(row.triggerOrderId)}</small>
       </td>
       <td className="mono" title={`ticks: ${String(row.triggerPriceTicks)}`}>
-        {triggerPrice} <small>{row.triggerCondition === "GREATER_OR_EQUAL" ? "≥" : "≤"}</small>
+        {row.triggerCondition === "GREATER_OR_EQUAL" ? "≥" : "≤"} {triggerPrice}
         <small className="table-subline">
           {t(
             row.priceSource === "LAST"
@@ -2591,10 +2571,11 @@ function TriggerOrderRow({
         <Badge tone={triggerStatusTone(row.status)}>{triggerStatusLabel(row.status)}</Badge>
       </td>
       <td>
-        <Button
-          tone="negative"
-          loading={loading}
-          disabled={userId === undefined || row.status !== "PENDING"}
+        <button
+          type="button"
+          className="compact-cancel"
+          aria-busy={loading}
+          disabled={loading || userId === undefined || row.status !== "PENDING"}
           onClick={() => {
             if (
               userId === undefined ||
@@ -2610,8 +2591,8 @@ function TriggerOrderRow({
               .finally(() => setLoading(false))
           }}
         >
-          <XCircle size={14} /> {t("Revoke")}{" "}
-        </Button>
+          {t("Revoke")}
+        </button>
       </td>
     </tr>
   )

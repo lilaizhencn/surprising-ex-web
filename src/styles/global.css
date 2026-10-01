@@ -1868,13 +1868,9 @@ button:disabled {
   gap: var(--space-3);
   margin-top: 0;
 }
-.trigger-orders-state .state-view {
-  min-height: 80px;
-  padding: var(--space-3);
-}
-.trigger-orders-state h3 {
-  margin: 0;
-  font-size: var(--font-body);
+.trigger-orders-state .badge {
+  font-size: 10px;
+  padding: 2px 5px;
 }
 .table-subline {
   display: block;
