@@ -47,7 +47,7 @@ export function useRealtime(
   return useRealtimeFeed(
     session,
     [...plan, ...additionalSubscriptions.filter((subscription) => subscription.instrumentId)],
-    100,
+    0,
     true,
     productLine,
   )
@@ -87,7 +87,7 @@ export function useRealtimeFeed(
   }, [key])
   useEffect(() => {
     let closed = false
-    let flush: ReturnType<typeof setTimeout> | undefined
+    let cancelPublish: (() => void) | undefined
     let receivedAt: string | null = null
     const current: Partial<Record<ProductLine, PrivateView>> = {}
     let tape: WsEnvelope[] = []
@@ -98,9 +98,9 @@ export function useRealtimeFeed(
     const awaitingDepthSnapshot = new Set<string>()
     latest.current.clear()
     const publish = () => {
-      if (closed || flush) return
-      flush = setTimeout(() => {
-        flush = undefined
+      if (closed || cancelPublish) return
+      const render = () => {
+        cancelPublish = undefined
         if (privateDirty) {
           setViews({ ...current })
           setRevision((n) => n + 1)
@@ -109,7 +109,15 @@ export function useRealtimeFeed(
         setOwner(identity)
         setLastEventAt(receivedAt)
         setEvents([...privateEvents, ...latest.current.values(), ...tape])
-      }, publishInterval)
+      }
+      if (publishInterval > 0) {
+        const timer = setTimeout(render, publishInterval)
+        cancelPublish = () => clearTimeout(timer)
+      } else {
+        // Materialize every depth delta; publish the latest complete book at the next paint.
+        const frame = requestAnimationFrame(render)
+        cancelPublish = () => cancelAnimationFrame(frame)
+      }
     }
     const publicManager = new RealtimeConnections(
       config.wsBaseUrlForProductLine,
@@ -224,11 +232,9 @@ export function useRealtimeFeed(
           setState("degraded")
         })
     publish()
-    const freshness = setInterval(publish, 1000)
     return () => {
       closed = true
-      clearTimeout(flush)
-      clearInterval(freshness)
+      cancelPublish?.()
       publicManager.close()
       privateManager?.close()
     }
