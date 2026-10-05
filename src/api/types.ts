@@ -67,6 +67,7 @@ export const EmailVerificationChallengeSchema = z
 
 export const MarketSchema = z
   .object({
+    status: z.string().optional(),
     symbol: z.string(),
     instrumentId: SafeIntegerWireSchema,
     baseAsset: z.string().optional(),

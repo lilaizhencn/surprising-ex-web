@@ -212,7 +212,7 @@ export async function loadMarkets(
   includeMarketSummary = false,
   includeTrend = false,
 ): Promise<readonly ApiMarket[]> {
-  const query = new URLSearchParams({ status: "TRADING" })
+  const query = new URLSearchParams()
   if (productLine) query.set("productLine", productLine)
   if (includeMarketSummary) query.set("includeMarketSummary", "true")
   if (includeTrend) query.set("includeTrend", "true")

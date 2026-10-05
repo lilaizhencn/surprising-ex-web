@@ -18,30 +18,43 @@ import { demoMarkets, demoTrend } from "../../lib/demo"
 import { formatPercent } from "../../lib/format"
 import { type Market, PRODUCT_LINES } from "../../types/domain"
 
-const featuredSymbols = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]
-
 export function HomePage() {
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    void loadMarkets(PRODUCT_LINES.usdMPerpetual, undefined, true, true)
-      .then((rows) =>
+    const controller = new AbortController()
+    let pending = false
+    const refresh = async () => {
+      if (pending) return
+      pending = true
+      try {
+        const [rows, scales] = await Promise.all([
+          loadMarkets(PRODUCT_LINES.usdMPerpetual, controller.signal, true, true),
+          loadAssetScales(),
+        ])
+        if (controller.signal.aborted) return
         setMarkets(
           rows
             .map(mapMarket)
             .filter((market) => market.productLine === PRODUCT_LINES.usdMPerpetual),
-        ),
-      )
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : t("Market data unavailable")),
-      )
-  }, [])
-  useEffect(() => {
-    void loadAssetScales()
-      .then(setAssetScales)
-      .catch(() => {})
+        )
+        setAssetScales(scales)
+        setError(null)
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted)
+          setError(reason instanceof Error ? reason.message : t("Market data unavailable"))
+      } finally {
+        pending = false
+      }
+    }
+    void refresh()
+    const timer = window.setInterval(() => void refresh(), 10000)
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+    }
   }, [])
   const source =
     markets.length > 0
@@ -56,14 +69,7 @@ export function HomePage() {
         : []
   const featured = source
     .filter((market) => market.symbol.toLowerCase().includes(query.trim().toLowerCase()))
-    .sort((left, right) => {
-      const leftRank = featuredSymbols.indexOf(left.symbol)
-      const rightRank = featuredSymbols.indexOf(right.symbol)
-      return (
-        (leftRank < 0 ? featuredSymbols.length : leftRank) -
-        (rightRank < 0 ? featuredSymbols.length : rightRank)
-      )
-    })
+    .sort((left, right) => (right.quoteVolume24h ?? 0) - (left.quoteVolume24h ?? 0))
     .slice(0, 3)
   const realtime = useRealtimeFeed(
     null,

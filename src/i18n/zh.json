@@ -825,5 +825,8 @@
   "Login": "登录",
   "Password changes": "修改密码",
   "External transfers": "外部转账",
-  "Trades": "成交"
+  "Trades": "成交",
+  "Trading is not enabled for this contract.": "该合约尚未开启交易。",
+  "This contract is listed. Trading will open soon.": "该合约已上线，尚未开放交易。",
+  "Trading is paused for this contract.": "该合约已暂停交易。"
 }

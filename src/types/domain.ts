@@ -10,6 +10,7 @@ export const PRODUCT_LINES = {
 export type ProductLine = (typeof PRODUCT_LINES)[keyof typeof PRODUCT_LINES]
 
 export type Market = {
+  readonly status?: string | undefined
   readonly symbol: string
   readonly instrumentId: string
   readonly baseAsset: string

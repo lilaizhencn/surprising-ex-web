@@ -567,30 +567,39 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setError(null)
     setMarkets([])
     setSelected("")
-    void loadMarkets(view.line, controller.signal, true)
-      .then((rows) => {
+    let pending = false
+    const refreshMarkets = async () => {
+      if (pending) return
+      pending = true
+      try {
+        const rows = await loadMarkets(view.line, controller.signal, true)
         if (controller.signal.aborted) return
         const productMarkets = rows
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
         const requested = new URLSearchParams(window.location.search).get("instrumentId")
-        setSelected(
-          productMarkets.find((market) => market.instrumentId === requested)?.instrumentId ??
-            productMarkets[0]?.instrumentId ??
-            "",
+        setSelected((previous) =>
+          productMarkets.some((market) => market.instrumentId === previous)
+            ? previous
+            : (productMarkets.find((market) => market.instrumentId === requested)?.instrumentId ??
+              productMarkets[0]?.instrumentId ??
+              ""),
         )
         setMarkets(productMarkets)
         setMarketsRequestFinished(true)
-        if (rows.length > 0 && productMarkets.length === 0) {
-          setError(`${t("No tradable contracts returned for")} ${t(view.title)}.`)
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) {
+          setMarketsRequestFinished(true)
+          setError(readError(reason))
         }
-      })
-      .catch((reason: unknown) => {
-        if (controller.signal.aborted) return
-        setMarketsRequestFinished(true)
-        setError(readError(reason))
-      })
+      } finally {
+        pending = false
+      }
+    }
+    void refreshMarkets()
+    const timer = window.setInterval(() => void refreshMarkets(), 10000)
     return () => {
+      window.clearInterval(timer)
       controller.abort()
     }
   }, [view.line])
@@ -921,6 +930,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   const submit = async (requestedSide: OrderSide = side) => {
     const side = requestedSide
+    if (current?.status !== "TRADING") {
+      setSubmitState("error")
+      notify(t("Trading is not enabled for this contract."))
+      return
+    }
     if (!session) {
       setSubmitState("error")
       notify(t("Please sign in before placing an order."))
@@ -2064,6 +2078,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 : "—"}
             </span>
           </div>
+          {current && current.status !== "TRADING" && (
+            <p role="status">
+              {t(
+                current.status === "PRE_TRADING"
+                  ? "This contract is listed. Trading will open soon."
+                  : "Trading is paused for this contract.",
+              )}
+            </p>
+          )}
           {!session ? (
             <a className="ticket-sign-in" href="/auth/login">
               {t("Log in to trade")}
@@ -2073,6 +2096,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Button
                 tone="positive"
                 loading={submitState === "loading"}
+                disabled={current?.status !== "TRADING"}
                 onClick={() => void submit("BUY")}
               >
                 {session
@@ -2082,6 +2106,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Button
                 tone="negative"
                 loading={submitState === "loading"}
+                disabled={current?.status !== "TRADING"}
                 onClick={() => void submit("SELL")}
               >
                 {session
@@ -2093,6 +2118,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <Button
               tone={side === "BUY" ? "positive" : "negative"}
               loading={submitState === "loading"}
+              disabled={current?.status !== "TRADING"}
               onClick={() => void submit(orderType === "STOP" ? (triggerCloseSide ?? side) : side)}
             >
               {session && orderType === "STOP"

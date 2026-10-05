@@ -8,6 +8,7 @@ export function mapMarket(raw: ApiMarket): Market {
   const { baseAsset, quoteAsset } = raw
   return {
     instrumentId: raw.instrumentId,
+    status: raw.status,
     symbol: raw.symbol,
     baseAsset,
     quoteAsset,

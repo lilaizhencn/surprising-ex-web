@@ -29,22 +29,36 @@ export function MarketsPage() {
   const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
     const controller = new AbortController()
-    void loadMarkets(PRODUCT_LINES.usdMPerpetual, controller.signal, true, true)
-      .then((rows) => {
+    let pending = false
+    const refresh = async () => {
+      if (pending) return
+      pending = true
+      try {
+        const [rows, scales] = await Promise.all([
+          loadMarkets(PRODUCT_LINES.usdMPerpetual, controller.signal, true, true),
+          loadAssetScales(),
+        ])
         if (controller.signal.aborted) return
-        const mapped = rows
-          .map(mapMarket)
-          .filter((m) => m.productLine === PRODUCT_LINES.usdMPerpetual)
-        setMarkets(mapped)
-      })
-      .catch((reason: unknown) => {
+        setMarkets(
+          rows
+            .map(mapMarket)
+            .filter((market) => market.productLine === PRODUCT_LINES.usdMPerpetual),
+        )
+        setAssetScales(scales)
+        setError(null)
+      } catch (reason: unknown) {
         if (!controller.signal.aborted)
           setError(reason instanceof Error ? reason.message : t("Market data unavailable"))
-      })
-    void loadAssetScales()
-      .then(setAssetScales)
-      .catch(() => {})
-    return () => controller.abort()
+      } finally {
+        pending = false
+      }
+    }
+    void refresh()
+    const timer = window.setInterval(() => void refresh(), 10000)
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+    }
   }, [])
   const source = (
     markets.length > 0
