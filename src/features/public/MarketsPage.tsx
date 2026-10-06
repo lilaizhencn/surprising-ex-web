@@ -2,6 +2,7 @@ import { Filter } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { loadAssetScales, loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
+import { MarketSkeleton } from "../../components/market/MarketSkeleton"
 import { MarketTable } from "../../components/market/MarketTable"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
@@ -14,6 +15,7 @@ import type { Subscription } from "../../realtime"
 import { type Market, PRODUCT_LINES } from "../../types/domain"
 
 export function MarketsPage() {
+  const [loaded, setLoaded] = useState(false)
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [query, setQuery] = useState("")
   const [scope, setScope] = useState<"all" | "perpetual" | "favorites">("all")
@@ -52,6 +54,7 @@ export function MarketsPage() {
         if (!controller.signal.aborted)
           setError(reason instanceof Error ? reason.message : t("Market data unavailable"))
       } finally {
+        if (!controller.signal.aborted) setLoaded(true)
         pending = false
       }
     }
@@ -88,15 +91,6 @@ export function MarketsPage() {
   )
   const hasLiveQuotes =
     markets.length > 0 && source.some((market) => market.price !== null && market.price > 0)
-  const status = hasLiveQuotes
-    ? { label: "Live data", className: "" }
-    : markets.length > 0
-      ? { label: "Live instruments", className: "status-pending" }
-      : config.demoDataEnabled
-        ? { label: "Demo data", className: "status-demo" }
-        : error
-          ? { label: "Unavailable", className: "status-error" }
-          : { label: "Loading", className: "status-loading" }
   return (
     <div className="container section markets-page">
       <div className="page-heading">
@@ -104,9 +98,6 @@ export function MarketsPage() {
           <h1>{t("Market Center")}</h1>
           <p>{t("Explore real-time prices, charts, and market data.")}</p>
         </div>
-        <span className={`live-indicator ${status.className}`}>
-          <span /> {status.label}
-        </span>
       </div>
       {config.demoDataEnabled && markets.length === 0 ? (
         <div className="demo-banner">
@@ -169,6 +160,8 @@ export function MarketsPage() {
         <Panel>
           <StateView kind="error" message={error} retry={() => window.location.reload()} />
         </Panel>
+      ) : !loaded && source.length === 0 ? (
+        <MarketSkeleton />
       ) : filtered.length > 0 ? (
         <MarketTable
           markets={filtered}

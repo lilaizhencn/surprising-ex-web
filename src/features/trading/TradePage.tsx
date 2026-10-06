@@ -74,6 +74,7 @@ import {
   PRODUCT_LINES,
   type ProductLine,
 } from "../../types/domain"
+import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
@@ -2186,9 +2187,15 @@ export function OrderBook({
       return { level, total }
     })
   }
-  const bids = withTotals(aggregateBookLevels(book?.bids ?? [], priceStep * precision, "bid"))
+  const referencePrice = Number(levelPrice(book?.asks?.[0] ?? book?.bids?.[0] ?? ["0", "0"]))
+  const priceMultipliers = bookPriceMultipliers(priceStep, referencePrice)
+  const selectedPrecision = priceMultipliers.includes(precision) ? precision : 1
+  const aggregatedPricePrecision = priceDecimalsForStep(priceStep * selectedPrecision, 0)
+  const bids = withTotals(
+    aggregateBookLevels(book?.bids ?? [], priceStep * selectedPrecision, "bid"),
+  )
   const asks = withTotals(
-    aggregateBookLevels(book?.asks ?? [], priceStep * precision, "ask"),
+    aggregateBookLevels(book?.asks ?? [], priceStep * selectedPrecision, "ask"),
   ).reverse()
   // Keep the bar scale stable while deltas update individual price levels.
   const scaleRef = useRef({ key: "", value: 0 })
@@ -2216,13 +2223,13 @@ export function OrderBook({
           {t("Price step")}{" "}
           <DropdownSelect
             aria-label={t("Order book price precision")}
-            value={precision}
+            value={selectedPrecision}
             onChange={(event) => onPrecisionChange(Number(event.target.value))}
           >
-            {([1, 10, 100, 500, 1000, 10000, 100000] as const).map((multiple) => (
+            {priceMultipliers.map((multiple) => (
               <option key={multiple} value={multiple}>
                 {priceStep > 0
-                  ? formatPrice(priceStep * multiple, priceDecimalsForStep(priceStep * multiple))
+                  ? formatPrice(priceStep * multiple, priceDecimalsForStep(priceStep * multiple, 0))
                   : "—"}
               </option>
             ))}
@@ -2265,7 +2272,7 @@ export function OrderBook({
                   maxQuantity={maxQuantity}
                   tone="negative"
                   dollar={dollar}
-                  pricePrecision={pricePrecision}
+                  pricePrecision={aggregatedPricePrecision}
                   onPriceSelect={onPriceSelect}
                 />
               ))}
@@ -2309,7 +2316,7 @@ export function OrderBook({
                   maxQuantity={maxQuantity}
                   tone="positive"
                   dollar={dollar}
-                  pricePrecision={pricePrecision}
+                  pricePrecision={aggregatedPricePrecision}
                   onPriceSelect={onPriceSelect}
                 />
               ))}

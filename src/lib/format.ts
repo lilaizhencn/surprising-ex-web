@@ -13,7 +13,10 @@ export function priceDecimalsForStep(step: number, declaredPrecision = 2): numbe
   if (!Number.isFinite(step) || step <= 0) return Math.max(0, Math.min(20, declaredPrecision))
   const [coefficient = "", exponent = "0"] = step.toString().toLowerCase().split("e")
   const fraction = coefficient.split(".")[1]?.length ?? 0
-  return Math.max(2, Math.min(20, fraction - Number(exponent)))
+  return Math.max(
+    Math.min(20, Math.max(0, declaredPrecision)),
+    Math.min(20, fraction - Number(exponent)),
+  )
 }
 
 export function formatPrice(value: number | null, precision?: number): string {

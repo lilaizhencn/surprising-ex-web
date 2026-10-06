@@ -80,9 +80,18 @@ export async function request<T>(
   allowRefresh = true,
 ): Promise<T> {
   const method = options.method ?? "GET"
-  if (allowRefresh && !path.includes("/auth/") && sessionAccessExpired(loadSession()))
+  // Public market discovery must not wait for an unrelated session refresh.
+  const publicMarket =
+    method === "GET" &&
+    /^\/api\/v1\/gateway\/instrument\/(list|latest|asset-scales)(?:\?|$)/.test(path)
+  if (
+    !publicMarket &&
+    allowRefresh &&
+    !path.includes("/auth/") &&
+    sessionAccessExpired(loadSession())
+  )
     await refreshStoredSession()
-  const session = loadSession()
+  const session = publicMarket ? null : loadSession()
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
   if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)

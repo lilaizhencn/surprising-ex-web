@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { refreshStoredSession } from "../api/client"
 import { AppShell } from "../components/layout/AppShell"
 import { AssetsPage } from "../features/assets/AssetsPage"
@@ -14,9 +14,12 @@ import { MarketsPage } from "../features/public/MarketsPage"
 import { AccountSecurityPage } from "../features/security/AccountSecurityPage"
 import { DeveloperApiPage } from "../features/security/DeveloperApiPage"
 import { DeviceManagementPage } from "../features/security/DeviceManagementPage"
-import { TradePage } from "../features/trading/TradePage"
 import { t, useLocale } from "../i18n"
 import { loadSession, saveSession, sessionAccessExpired, useSession } from "../state/session"
+
+const TradePage = lazy(() =>
+  import("../features/trading/TradePage").then((module) => ({ default: module.TradePage })),
+)
 
 export function App() {
   useLocale()
@@ -46,12 +49,6 @@ export function App() {
     )
     return () => window.clearTimeout(timer)
   }, [session?.accessToken, session?.accessTokenExpiresAt])
-  if (!sessionReady)
-    return (
-      <div className="container section" role="status">
-        {t("Restoring session")}
-      </div>
-    )
   const path = window.location.pathname
   if (path.startsWith("/auth/"))
     return (
@@ -74,7 +71,15 @@ export function App() {
   if (path.startsWith("/trade/") && isSupportedTradeRoute(path.slice("/trade/".length)))
     return (
       <AppShell>
-        <TradePage productKey={path.slice("/trade/".length)} />
+        <Suspense fallback={<div className="container section" aria-busy="true" />}>
+          <TradePage productKey={path.slice("/trade/".length)} />
+        </Suspense>
+      </AppShell>
+    )
+  if (!sessionReady)
+    return (
+      <AppShell>
+        <div className="container section" aria-busy="true" />
       </AppShell>
     )
   if (path === "/assets")

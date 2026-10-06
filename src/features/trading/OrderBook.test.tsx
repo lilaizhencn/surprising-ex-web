@@ -143,7 +143,7 @@ it("aggregates only price and preserves fractional base quantities", () => {
       onPrecisionChange: () => {},
     }),
   )
-  expect(html).toContain("100.10")
+  expect(html).toContain("100.1")
   expect(html).toContain('title="0.03"')
   expect(html).toContain("Price step")
   expect(html).not.toContain("Quantity step")

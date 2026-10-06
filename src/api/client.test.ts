@@ -27,6 +27,24 @@ describe("gateway JSON integer decoding", () => {
 })
 
 describe("session refresh", () => {
+  it("loads public instruments without refreshing an expired session or sending credentials", async () => {
+    browserStorage()
+    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
+      expect(options?.method).toBe("GET")
+      expect(new Headers(options?.headers as HeadersInit).has("Authorization")).toBe(false)
+      expect(new Headers(options?.headers as HeadersInit).has("X-User-Id")).toBe(false)
+      return json({ ok: true }) as never
+    }) as unknown as typeof ky)
+    await expect(
+      request(
+        "/api/v1/gateway/instrument/list?productLine=LINEAR_PERPETUAL",
+        z.object({ ok: z.boolean() }),
+      ),
+    ).resolves.toEqual({ ok: true })
+    expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
+  })
+
   it("refreshes an expired session before making a private request", async () => {
     browserStorage()
     saveSession(session("old", "2000-01-01T00:00:00Z"))

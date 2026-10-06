@@ -2,6 +2,7 @@ import { ArrowRight, Globe2, Search, ShieldCheck, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAssetScales, loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
+import { MarketSkeleton } from "../../components/market/MarketSkeleton"
 import {
   AssetIcon,
   Button,
@@ -19,6 +20,7 @@ import { formatPercent } from "../../lib/format"
 import { type Market, PRODUCT_LINES } from "../../types/domain"
 
 export function HomePage() {
+  const [loaded, setLoaded] = useState(false)
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [query, setQuery] = useState("")
@@ -46,6 +48,7 @@ export function HomePage() {
         if (!controller.signal.aborted)
           setError(reason instanceof Error ? reason.message : t("Market data unavailable"))
       } finally {
+        if (!controller.signal.aborted) setLoaded(true)
         pending = false
       }
     }
@@ -141,6 +144,8 @@ export function HomePage() {
         </div>
         {error && !config.demoDataEnabled ? (
           <StateView kind="error" message={error} />
+        ) : !loaded && displayed.length === 0 ? (
+          <MarketSkeleton cards />
         ) : (
           <div className="grid-3">
             {displayed.map((market) => (
