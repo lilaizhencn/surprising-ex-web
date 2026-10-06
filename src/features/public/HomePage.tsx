@@ -11,7 +11,7 @@ import {
   StateView,
 } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
-import { marketWithLivePrice } from "../../hooks/useRealtimeAssets"
+import { marketWithLiveQuote } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets, demoTrend } from "../../lib/demo"
@@ -73,18 +73,17 @@ export function HomePage() {
     .slice(0, 3)
   const realtime = useRealtimeFeed(
     null,
-    featured.map((market) => ({
-      channel: "trades",
-      productLine: PRODUCT_LINES.usdMPerpetual,
-      instrumentId: market.instrumentId,
-    })),
+    featured.flatMap((market) =>
+      ["trades", "mark"].map((channel) => ({
+        channel,
+        productLine: PRODUCT_LINES.usdMPerpetual,
+        instrumentId: market.instrumentId,
+      })),
+    ),
   )
-  const displayed = featured.map((market) => {
-    const event = realtime.events.find(
-      (row) => row.channel === "trades" && row.instrumentId === market.instrumentId,
-    )
-    return marketWithLivePrice(market, event, assetScales)
-  })
+  const displayed = featured.map((market) =>
+    marketWithLiveQuote(market, realtime.events, assetScales),
+  )
   return (
     <div className="home-page">
       <section className="hero container">
@@ -165,6 +164,9 @@ export function HomePage() {
                   </span>
                 </div>
                 <Price value={market.price} prefix="$" />
+                {market.priceSource === "mark" ? (
+                  <small className="muted">{t("Mark price")}</small>
+                ) : null}
                 {market.trend && market.trend.length > 1 ? (
                   <Sparkline values={market.trend} positive={(market.change24h ?? 0) >= 0} />
                 ) : markets.length === 0 && config.demoDataEnabled ? (

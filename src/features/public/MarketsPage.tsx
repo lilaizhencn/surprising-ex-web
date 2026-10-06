@@ -6,7 +6,7 @@ import { MarketTable } from "../../components/market/MarketTable"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
-import { marketWithLivePrice } from "../../hooks/useRealtimeAssets"
+import { marketWithLiveQuote } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
@@ -21,11 +21,13 @@ export function MarketsPage() {
   const [minimumChange, setMinimumChange] = useState("0")
   const [error, setError] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
-  const plan: Subscription[] = markets.map((market) => ({
-    channel: "trades",
-    productLine: PRODUCT_LINES.usdMPerpetual,
-    instrumentId: market.instrumentId,
-  }))
+  const plan: Subscription[] = markets.flatMap((market) =>
+    ["trades", "mark"].map((channel) => ({
+      channel,
+      productLine: PRODUCT_LINES.usdMPerpetual,
+      instrumentId: market.instrumentId,
+    })),
+  )
   const realtime = useRealtimeFeed(null, plan)
   useEffect(() => {
     const controller = new AbortController()
@@ -71,15 +73,7 @@ export function MarketsPage() {
             maxLeverage: 125,
           }))
         : []
-  ).map((m) => {
-    const event = realtime.events.find(
-      (e) =>
-        e.productLine === PRODUCT_LINES.usdMPerpetual &&
-        e.instrumentId === m.instrumentId &&
-        e.channel === "trades",
-    )
-    return marketWithLivePrice(m, event, assetScales)
-  })
+  ).map((market) => marketWithLiveQuote(market, realtime.events, assetScales))
   const filtered = useMemo(
     () =>
       source.filter(

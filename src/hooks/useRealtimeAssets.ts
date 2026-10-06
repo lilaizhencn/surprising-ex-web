@@ -55,6 +55,26 @@ export function eventPrice(
   return Number.isFinite(price) && price > 0 ? price : null
 }
 
+/** A missing last trade may use a labelled mark quote, without inventing trade statistics. */
+export function marketWithLiveQuote(
+  market: Market,
+  events: readonly WsEnvelope[],
+  scales: Readonly<Record<string, string>>,
+): Market {
+  const matches = (event: WsEnvelope) =>
+    event.productLine === market.productLine && event.instrumentId === market.instrumentId
+  const trade = events.find((event) => matches(event) && event.channel === "trades")
+  if (eventPrice(trade, market, scales) !== null)
+    return { ...marketWithLivePrice(market, trade, scales), priceSource: "trade" }
+  if (market.price !== null && market.price > 0) return market
+  if (market.productLine === "SPOT") return market
+  const mark = events.find((event) => matches(event) && event.channel === "mark")
+  const status = record(mark?.data)["status"]
+  if (status && !["HEALTHY", "DEGRADED", "CLAMPED"].includes(String(status))) return market
+  const price = eventPrice(mark, market, scales)
+  return price === null ? market : { ...market, price, priceSource: "mark" }
+}
+
 export function marketWithLivePrice(
   market: Market,
   event: WsEnvelope | undefined,

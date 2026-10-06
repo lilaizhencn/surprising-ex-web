@@ -18,6 +18,7 @@ export type Market = {
   readonly settleAsset?: string
   readonly productLine: ProductLine | "UNKNOWN"
   readonly price: number | null
+  readonly priceSource?: "trade" | "mark"
   readonly change24h: number | null
   readonly volume24h: number | null
   readonly quoteVolume24h?: number | null

@@ -129,6 +129,9 @@ export function MarketTable({
                       market.price !== null && market.price >= 1 && market.quoteAsset === "USDT"
                     }
                   />
+                  {market.priceSource === "mark" ? (
+                    <div className="muted">{t("Mark price")}</div>
+                  ) : null}
                 </td>
                 <td className="number">
                   {quoteUnavailable ? (
