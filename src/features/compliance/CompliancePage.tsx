@@ -2,9 +2,12 @@ import { Check, FileText, Upload, UserRound } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import {
+  completeKycSimulation,
   downloadKycDocument,
   loadKyc,
   loadKycDocuments,
+  loadKycProvider,
+  refreshKycSession,
   submitKyc,
   uploadKycDocument,
 } from "../../api/endpoints"
@@ -21,6 +24,7 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
   const [kyc, setKyc] = useState<RecordRow | null>(null)
   const [message, setMessage] = useState("")
   const [documents, setDocuments] = useState<readonly RecordRow[]>([])
+  const [providerInfo, setProviderInfo] = useState<RecordRow | null>(null)
   const [documentLoading, setDocumentLoading] = useState(false)
   const refreshDocuments = () => {
     if (!session) return
@@ -31,13 +35,27 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
   }
   useEffect(() => {
     if (!session) return
-    void Promise.all([loadKyc(), loadKycDocuments()])
-      .then(([profile, rows]) => {
+    void Promise.all([loadKyc(), loadKycDocuments(), loadKycProvider()])
+      .then(([profile, rows, provider]) => {
         setKyc(profile)
         setDocuments(rows)
+        setProviderInfo(provider)
       })
       .catch((reason: unknown) => setMessage(readError(reason)))
   }, [session])
+  useEffect(() => {
+    if (!session || text(kyc, "status") !== "PENDING") return
+    const refreshStatus = () => {
+      if (document.visibilityState !== "visible") return
+      void loadKyc().then(setKyc, (reason: unknown) => setMessage(readError(reason)))
+    }
+    const timer = window.setInterval(refreshStatus, 10_000)
+    document.addEventListener("visibilitychange", refreshStatus)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refreshStatus)
+    }
+  }, [session, kyc])
   if (!session)
     return (
       <div className="account-content">
@@ -63,12 +81,7 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
       <div className="page-heading">
         <div>
           <h1>{t("Identity Verification")}</h1>
-          <p>
-            {" "}
-            {t(
-              "Submit documents to the backend compliance workflow. Approval is never simulated by this page.",
-            )}{" "}
-          </p>
+          <p>{t("Complete identity and face verification with the configured provider.")}</p>
         </div>
         <span className="verification-status">{status}</span>
       </div>
@@ -98,10 +111,31 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
           </div>
           {flow ? (
             <KycForm
+              profile={kyc}
+              provider={text(providerInfo, "provider") || "SUMSUB"}
+              providerReady={providerInfo !== null}
+              simulationEnabled={providerInfo?.["simulationEnabled"] === true}
               onDone={(value, profile) => {
                 setMessage(value)
                 if (profile) setKyc(profile)
                 refreshDocuments()
+              }}
+              onSimulationComplete={(decision) => {
+                return completeKycSimulation(decision).then(
+                  (profile) => {
+                    setKyc(profile)
+                    setMessage(
+                      t(
+                        "Simulation result recorded. Manual review remains available when selected.",
+                      ),
+                    )
+                    return profile
+                  },
+                  (reason: unknown) => {
+                    setMessage(readError(reason))
+                    throw reason
+                  },
+                )
               }}
             />
           ) : (
@@ -114,14 +148,14 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
                   active={level === "BASIC"}
                 />
                 <Tier
-                  title={t("Intermediate")}
-                  text="Identity document upload."
-                  active={level === "INTERMEDIATE" || level === "ADVANCED"}
+                  title={t("Standard")}
+                  text="Identity document verification."
+                  active={level === "STANDARD" || level === "ENHANCED"}
                 />
                 <Tier
-                  title={t("Advanced")}
-                  text="Face verification provider status."
-                  active={level === "ADVANCED"}
+                  title={t("Enhanced")}
+                  text="Identity document and face verification."
+                  active={level === "ENHANCED"}
                 />
               </div>
               <Button
@@ -144,13 +178,18 @@ export function CompliancePage({ flow = false }: { readonly flow?: boolean }) {
           </p>
           <div className="notice-list">
             <span>
-              <Check size={16} /> {t("No mock approval")}{" "}
+              <Check size={16} />{" "}
+              {t(
+                providerInfo?.["simulationEnabled"] === true
+                  ? "Development simulation is enabled"
+                  : "Provider callbacks are signature verified",
+              )}{" "}
             </span>
             <span>
               <Check size={16} /> {t("Documents upload through the real API")}{" "}
             </span>
             <span>
-              <Check size={16} /> {t("Risk decisions remain server-side")}{" "}
+              <Check size={16} /> {t("Manual review remains available for escalations")}{" "}
             </span>
           </div>
         </Panel>
@@ -241,19 +280,85 @@ function Tier({
   )
 }
 
-function KycForm({ onDone }: { readonly onDone: (message: string, profile?: RecordRow) => void }) {
+function KycForm({
+  profile,
+  onDone,
+  onSimulationComplete,
+  provider,
+  providerReady,
+  simulationEnabled,
+}: {
+  readonly profile: RecordRow | null
+  readonly onDone: (message: string, profile?: RecordRow) => void
+  readonly onSimulationComplete: (
+    decision: "APPROVED" | "REJECTED" | "MANUAL_REVIEW",
+  ) => Promise<RecordRow>
+  readonly provider: string
+  readonly providerReady: boolean
+  readonly simulationEnabled: boolean
+}) {
   const [country, setCountry] = useState("")
   const [documentType, setDocumentType] = useState("PASSPORT")
   const [level, setLevel] = useState("BASIC")
   const [documentIds, setDocumentIds] = useState<readonly number[]>([])
   const [fileName, setFileName] = useState("")
   const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [simulationCompleted, setSimulationCompleted] = useState(false)
+  const simulate = async (decision: "APPROVED" | "REJECTED" | "MANUAL_REVIEW") => {
+    setLoading(true)
+    try {
+      await onSimulationComplete(decision)
+      setSimulationCompleted(true)
+    } catch {
+      // The shared status panel already displays the API error.
+    } finally {
+      setLoading(false)
+    }
+  }
+  const openSession = async (session: RecordRow) => {
+    if (simulationEnabled || provider === "SELF") return
+    const redirect = text(session, "redirectUrl")
+    if (provider === "VERIFF" && redirect) {
+      const url = new URL(redirect)
+      if (url.protocol !== "https:") throw new Error(t("Invalid verification link."))
+      window.location.assign(url.href)
+    } else if (provider === "SUMSUB" && text(session, "launchToken")) {
+      await launchSumsub(
+        text(session, "launchToken"),
+        async () => {
+          const refreshed = await refreshKycSession()
+          const token = text(refreshed, "launchToken")
+          if (!token) throw new Error(t("Verification session expired. Please retry."))
+          return token
+        },
+        () => onDone(t("Identity and face verification submitted.")),
+        onDone,
+      )
+    } else throw new Error(t("Verification session is unavailable. Please retry."))
+  }
+  const resume = async () => {
+    setLoading(true)
+    try {
+      if (!simulationEnabled) await openSession(await refreshKycSession())
+      setSubmitted(true)
+    } catch (reason) {
+      onDone(readError(reason))
+    } finally {
+      setLoading(false)
+    }
+  }
+  const pending = text(profile, "status") === "PENDING"
   const submit = async () => {
+    if (!providerReady) {
+      onDone(t("KYC provider configuration is unavailable. Reload and try again."))
+      return
+    }
     if (!/^[A-Z]{2}$/.test(country)) {
       onDone(t("Enter a two-letter country or region code, such as SG."))
       return
     }
-    if (documentIds.length === 0) {
+    if (provider === "SELF" && documentIds.length === 0) {
       onDone(t("Upload at least one document first."))
       return
     }
@@ -264,14 +369,31 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
         kycLevel: level,
         country,
         documentType,
-        provider: "WEB_UPLOAD",
+        provider,
         submittedDocuments: JSON.stringify(
           documentIds.map((documentId) => ({ documentId, documentType })),
         ),
-        faceVerificationStatus: "NOT_REQUIRED",
+        faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
         documentIds,
       })
-      onDone(t("Identity information submitted for review."), profile)
+      const savedProfile =
+        profile["profile"] && typeof profile["profile"] === "object"
+          ? (profile["profile"] as RecordRow)
+          : profile
+      const session =
+        profile["verificationSession"] && typeof profile["verificationSession"] === "object"
+          ? (profile["verificationSession"] as RecordRow)
+          : null
+      setSubmitted(true)
+      if (session) await openSession(session)
+      onDone(
+        simulationEnabled
+          ? t(
+              "Simulation session ready. Choose a simulated provider outcome to test the full flow.",
+            )
+          : t("Identity information submitted to the provider."),
+        savedProfile,
+      )
     } catch (reason: unknown) {
       onDone(readError(reason))
     } finally {
@@ -281,6 +403,7 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
   return (
     <div className="kyc-form">
       <h2>{t("Submit identity information")}</h2>
+      <div id="sumsub-websdk-container" />
       <div className="grid-2">
         <Field label={t("Country or region")}>
           <input
@@ -293,8 +416,8 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
         <Field label={t("Verification level")}>
           <DropdownSelect value={level} onChange={(event) => setLevel(event.target.value)}>
             <option value="BASIC">{t("Basic")}</option>
-            <option value="INTERMEDIATE">{t("Intermediate")}</option>
-            <option value="ADVANCED">{t("Advanced")}</option>
+            <option value="STANDARD">{t("Standard")}</option>
+            <option value="ENHANCED">{t("Enhanced")}</option>
           </DropdownSelect>
         </Field>
         <Field label={t("Document type")}>
@@ -333,18 +456,92 @@ function KycForm({ onDone }: { readonly onDone: (message: string, profile?: Reco
           }}
         />
       </label>
+      {provider !== "SELF" ? (
+        <p className="muted">
+          {t(
+            "The selected provider securely collects the identity document and face/liveness check in its verification flow.",
+          )}
+        </p>
+      ) : null}
       <p className="muted">
         {" "}
-        {t(
-          "Supported by the real `/api/v1/compliance/kyc/documents` endpoint. The page does not claim face recognition capability.",
-        )}{" "}
+        {t("Optional internal documents can be provided for a fallback manual review.")}{" "}
       </p>
-      <Button loading={loading} onClick={() => void submit()}>
-        {" "}
-        {t("Submit for review")}{" "}
-      </Button>
+      {pending && provider !== "SELF" ? (
+        <Button loading={loading} onClick={() => void resume()}>
+          {t("Continue verification")}
+        </Button>
+      ) : null}
+      {!submitted && !pending && provider !== "SELF" && documentIds.length === 0 ? (
+        <Button loading={loading} onClick={() => void submit()}>
+          {t("Start provider verification")}
+        </Button>
+      ) : null}
+      {!submitted && !pending && (provider === "SELF" || documentIds.length > 0) ? (
+        <Button loading={loading} onClick={() => void submit()}>
+          {t("Submit for verification")}
+        </Button>
+      ) : null}
+      {submitted && simulationEnabled && !simulationCompleted ? (
+        <div className="button-row">
+          <Button loading={loading} onClick={() => void simulate("APPROVED")}>
+            {t("Simulate automatic approval")}
+          </Button>
+          <Button loading={loading} onClick={() => void simulate("MANUAL_REVIEW")}>
+            {t("Simulate manual review")}
+          </Button>
+          <Button loading={loading} onClick={() => void simulate("REJECTED")}>
+            {t("Simulate rejection")}
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
+}
+
+type SumsubBuilder = {
+  withConf: (conf: Record<string, unknown>) => SumsubBuilder
+  on: (event: string, callback: () => void) => SumsubBuilder
+  build: () => { launch: (selector: string) => void }
+}
+
+async function launchSumsub(
+  token: string,
+  refresh: () => Promise<string>,
+  onComplete: () => void,
+  onError: (message: string) => void,
+): Promise<void> {
+  const w = window as typeof window & {
+    snsWebSdk?: { init: (token: string, refresh: () => Promise<string>) => SumsubBuilder }
+  }
+  if (!w.snsWebSdk) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script")
+      const timer = window.setTimeout(() => {
+        script.remove()
+        reject(new Error(t("Verification service failed to load. Please retry.")))
+      }, 15_000)
+      script.src = "https://static.sumsub.com/idensic/static/sns-websdk-builder.js"
+      script.onload = () => {
+        window.clearTimeout(timer)
+        resolve()
+      }
+      script.onerror = () => {
+        window.clearTimeout(timer)
+        script.remove()
+        reject(new Error(t("Verification service failed to load. Please retry.")))
+      }
+      document.head.append(script)
+    })
+  }
+  if (!w.snsWebSdk) throw new Error(t("Verification service failed to load. Please retry."))
+  w.snsWebSdk
+    .init(token, refresh)
+    .withConf({})
+    .on("idCheck.onApplicantSubmitted", onComplete)
+    .on("idCheck.onError", () => onError(t("Verification could not be completed. Please retry.")))
+    .build()
+    .launch("#sumsub-websdk-container")
 }
 
 function text(row: RecordRow | null | undefined, key: string): string {

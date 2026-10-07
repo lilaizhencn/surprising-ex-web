@@ -569,6 +569,23 @@ export function submitKyc(body: Readonly<Record<string, unknown>>) {
   })
 }
 
+export function loadKycProvider() {
+  return request("/api/v1/compliance/kyc/provider", GenericObjectSchema)
+}
+
+export function completeKycSimulation(decision: "APPROVED" | "REJECTED" | "MANUAL_REVIEW") {
+  return request("/api/v1/compliance/kyc/simulation/complete", GenericObjectSchema, {
+    method: "POST",
+    body: { decision },
+  })
+}
+
+export function refreshKycSession() {
+  return request("/api/v1/compliance/kyc/session/refresh", GenericObjectSchema, {
+    method: "POST",
+  })
+}
+
 export function createTransfer(
   sourceAccountType: string,
   targetAccountType: string,
