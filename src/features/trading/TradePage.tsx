@@ -84,6 +84,7 @@ import { type LeverageSettings, TradingTicketControls } from "./TradingTicketCon
 import {
   closeSideForPosition,
   positionPercentageSteps,
+  positionQuantityPercentage,
   selectTriggerPosition,
   signedPositionSteps,
   triggerConditionText,
@@ -372,6 +373,32 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       ),
     [current?.instrumentId, orderSettings, positions],
   )
+  const closingTicket = view.line !== PRODUCT_LINES.spot && ticketAction === "CLOSE"
+  let closePercentage = 0
+  if (closingTicket && activeTriggerPosition && current) {
+    try {
+      const spec = marketQuantitySpec(current, assetScales)
+      closePercentage = positionQuantityPercentage(
+        signedPositionSteps(activeTriggerPosition),
+        BigInt(decimalToStepUnits(quantity || "0", spec.unitSize, spec.scale)),
+      )
+    } catch {
+      // Invalid manual quantities are rejected by the existing submit validation.
+    }
+  }
+  useEffect(() => {
+    setQuantity("")
+    setPercentage(0)
+  }, [
+    current?.instrumentId,
+    view.line,
+    session?.user.userId,
+    ticketAction,
+    orderSettings.marginMode,
+    orderSettings.positionSide,
+    orderSettings.positionMode,
+    orderType,
+  ])
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
     : null
@@ -520,7 +547,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setQuantity("")
       return
     }
-    if (orderType === "STOP" && activeTriggerPosition) {
+    if (closingTicket && activeTriggerPosition) {
       const closeSteps = positionPercentageSteps(signedPositionSteps(activeTriggerPosition), next)
       try {
         const quantitySpec = marketQuantitySpec(current, assetScales)
@@ -2008,8 +2035,25 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               ) : null}
             </div>
           ) : null}
+          {closingTicket && orderSettings.positionMode === "HEDGE" ? (
+            <Field label={t("Close position")}>
+              <DropdownSelect
+                aria-label={t("Close position")}
+                value={orderSettings.positionSide}
+                onChange={(event) =>
+                  setOrderSettings((previous) => ({
+                    ...previous,
+                    positionSide: event.target.value === "SHORT" ? "SHORT" : "LONG",
+                  }))
+                }
+              >
+                <option value="LONG">{t("Long")}</option>
+                <option value="SHORT">{t("Short")}</option>
+              </DropdownSelect>
+            </Field>
+          ) : null}
           <Field
-            label={orderType === "STOP" ? t("Close quantity") : t("Quantity")}
+            label={closingTicket ? t("Close quantity") : t("Quantity")}
             {...(orderType === "STOP"
               ? { hint: t("Cannot exceed the current position size") }
               : {})}
@@ -2029,18 +2073,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </span>
             </div>
           </Field>
-          {view.line === PRODUCT_LINES.spot || orderType === "STOP" ? (
+          {view.line === PRODUCT_LINES.spot || closingTicket ? (
             <div className="slider-row">
               <span>0%</span>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={percentage}
+                value={closingTicket ? closePercentage : percentage}
+                disabled={closingTicket && (!session || !activeTriggerPosition)}
+                aria-valuetext={`${closingTicket ? closePercentage : percentage}%`}
                 onChange={(event) => setOrderPercentage(Number(event.target.value))}
                 aria-label={t("Order percentage")}
               />
-              <span>100%</span>
+              <span>{closingTicket ? `${closePercentage}%` : "100%"}</span>
             </div>
           ) : null}
           <div className="ticket-summary">
@@ -2097,7 +2143,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Button
                 tone="positive"
                 loading={submitState === "loading"}
-                disabled={current?.status !== "TRADING"}
+                disabled={
+                  current?.status !== "TRADING" || (closingTicket && triggerCloseSide !== "BUY")
+                }
                 onClick={() => void submit("BUY")}
               >
                 {session
@@ -2107,7 +2155,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <Button
                 tone="negative"
                 loading={submitState === "loading"}
-                disabled={current?.status !== "TRADING"}
+                disabled={
+                  current?.status !== "TRADING" || (closingTicket && triggerCloseSide !== "SELL")
+                }
                 onClick={() => void submit("SELL")}
               >
                 {session

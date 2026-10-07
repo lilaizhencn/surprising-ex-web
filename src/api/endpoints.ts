@@ -44,6 +44,7 @@ import {
   OrderListSchema,
   OrderSubmissionSchema,
   PositionListSchema,
+  PositionRiskListSchema,
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
@@ -700,11 +701,13 @@ export function loadAccountRisk(
 
 export function loadPositionRisk(userId: string | number, productLine: ProductLine) {
   const query = new URLSearchParams({ userId: String(userId) })
-  return request(`/api/v1/gateway/risk/positions/latest?${query.toString()}`, PositionListSchema, {
-    productLine,
-  }).then((response) =>
-    Array.isArray(response) ? response : (response.positions ?? response.items ?? []),
-  )
+  return request(
+    `/api/v1/gateway/risk/positions/latest?${query.toString()}`,
+    PositionRiskListSchema,
+    {
+      productLine,
+    },
+  ).then((response) => response.positions)
 }
 
 export async function loadPositions(

@@ -37,6 +37,12 @@ export function positionPercentageSteps(signedSteps: bigint, percentage: number)
   return (magnitude * BigInt(percentage)) / 100n
 }
 
+export function positionQuantityPercentage(signedSteps: bigint, quantitySteps: bigint): number {
+  const capacity = signedSteps < 0n ? -signedSteps : signedSteps
+  if (capacity === 0n || quantitySteps <= 0n) return 0
+  return Number(quantitySteps >= capacity ? 10000n : (quantitySteps * 10000n) / capacity) / 100
+}
+
 export function closeSideForPosition(position: Record<string, unknown>): OrderSide | null {
   const signed = signedPositionSteps(position)
   return signed > 0n ? "SELL" : signed < 0n ? "BUY" : null

@@ -8,6 +8,8 @@ import {
   FundingRatePageSchema,
   OrderBookSchema,
   OrderSubmissionSchema,
+  PositionRiskListSchema,
+  PositionSchema,
   ProductTransferRecordPageSchema,
   ProductTransferRecordSchema,
   TriggerOrderQuerySchema,
@@ -158,4 +160,32 @@ it("accepts a depth baseline without a predecessor and zero-quantity removal del
       asks: [],
     }).success,
   ).toBe(true)
+})
+
+describe("position risk response", () => {
+  const risk = {
+    instrumentId: "604",
+    marginMode: "CROSS",
+    positionSide: "NET",
+    signedQuantitySteps: 180,
+    entryPriceTicks: 835866,
+    liquidationPriceTicks: 281913,
+  }
+  it("accepts risk snapshots without realized PnL and preserves the liquidation price", () => {
+    expect(
+      PositionRiskListSchema.parse({ positions: [risk] }).positions[0]?.liquidationPriceTicks,
+    ).toBe("281913")
+    expect(PositionSchema.safeParse(risk).success).toBe(false)
+  })
+  it("distinguishes an explicit absent boundary from a malformed response", () => {
+    expect(
+      PositionRiskListSchema.parse({ positions: [{ ...risk, liquidationPriceTicks: null }] })
+        .positions[0]?.liquidationPriceTicks,
+    ).toBeNull()
+    expect(PositionRiskListSchema.safeParse({}).success).toBe(false)
+    expect(
+      PositionRiskListSchema.safeParse({ positions: [{ ...risk, liquidationPriceTicks: "bad" }] })
+        .success,
+    ).toBe(false)
+  })
 })

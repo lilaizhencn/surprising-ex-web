@@ -204,6 +204,14 @@ export const PositionSchema = z
   })
   .passthrough()
 
+// Risk snapshots are a separate API contract: they do not contain realized PnL.
+export const PositionRiskSchema = PositionSchema.omit({ realizedPnlUnits: true }).extend({
+  marginMode: z.string(),
+  positionSide: z.string(),
+  liquidationPriceTicks: SafeIntegerWireSchema.nullable(),
+})
+export const PositionRiskListSchema = z.object({ positions: z.array(PositionRiskSchema) })
+
 export const PositionListSchema = z.union([
   z.array(PositionSchema),
   z

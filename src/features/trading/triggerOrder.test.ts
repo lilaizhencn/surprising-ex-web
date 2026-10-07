@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   closeSideForPosition,
   positionPercentageSteps,
+  positionQuantityPercentage,
   selectTriggerPosition,
 } from "./triggerOrder"
 
@@ -58,5 +59,17 @@ describe("trigger position targeting", () => {
     const long = selectTriggerPosition(positions, "BTC-USDT", "CROSS", "HEDGE", "LONG")
     expect(long && closeSideForPosition(long)).toBe("SELL")
     expect(long ? Reflect.get(long, "signedQuantitySteps") : undefined).toBe("12")
+  })
+})
+
+describe("manual close quantity percentage", () => {
+  it("tracks both directions and clamps invalid or oversized quantities", () => {
+    expect(positionQuantityPercentage(180n, 45n)).toBe(25)
+    expect(positionQuantityPercentage(-180n, 90n)).toBe(50)
+    expect(positionQuantityPercentage(7n, 3n)).toBe(42.85)
+    expect(positionQuantityPercentage(7n, 9n)).toBe(100)
+    expect(positionQuantityPercentage(7n, -1n)).toBe(0)
+    expect(positionQuantityPercentage(0n, 1n)).toBe(0)
+    expect(positionQuantityPercentage(900719925474099300n, 450359962737049650n)).toBe(50)
   })
 })
