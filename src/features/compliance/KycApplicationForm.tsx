@@ -217,12 +217,17 @@ export function KycApplicationForm({
               value={country}
               onChange={(event) => setCountry(event.target.value)}
               aria-label={t("Country or region")}
+              searchable
+              searchPlaceholder={t("Search by country name")}
+              noResultsLabel={t("No matches")}
+              maxMenuWidth={320}
             >
               <option value="">{t("Select a country or region.")}</option>
               {countries.map((row) => (
                 <option
                   key={row.code}
                   value={row.code}
+                  data-search={`${row.code} ${row.names.en} ${row.names.zh}`}
                 >{`${row.flag} ${row.names[locale]}`}</option>
               ))}
             </DropdownSelect>
@@ -304,15 +309,26 @@ export function KycApplicationForm({
                 <DropdownSelect
                   aria-label={t("Address proof type")}
                   value={proof}
+                  searchable
+                  searchPlaceholder={t("Search address proof")}
+                  noResultsLabel={t("No matches")}
+                  maxMenuWidth={300}
                   onChange={(event) => {
                     setProof(event.target.value)
                     setIssued("")
                   }}
                 >
                   <option value="">{t("Select an address proof")}</option>
-                  <option value="UTILITY_BILL">{t("Utility bill")}</option>
-                  <option value="BANK_STATEMENT">{t("Bank statement")}</option>
-                  <option value="RESIDENCE_CERTIFICATE">
+                  <option value="UTILITY_BILL" data-search="utility bill 水电 燃气 账单">
+                    {t("Utility bill")}
+                  </option>
+                  <option value="BANK_STATEMENT" data-search="bank statement 银行 对账单 流水">
+                    {t("Bank statement")}
+                  </option>
+                  <option
+                    value="RESIDENCE_CERTIFICATE"
+                    data-search="government residence certificate 居住证明 居住证 政府"
+                  >
                     {t("Government residence certificate")}
                   </option>
                 </DropdownSelect>

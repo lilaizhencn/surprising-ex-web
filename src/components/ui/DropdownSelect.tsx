@@ -12,34 +12,52 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 
-type Option = { value: string; label: string; disabled: boolean }
+type Option = { value: string; label: string; disabled: boolean; searchText: string }
 
 type Props = Readonly<{
   value: string | number
   onChange: (event: { target: { value: string } }) => void
   children: ReactNode
   "aria-label"?: string
+  searchable?: boolean
+  searchPlaceholder?: string
+  noResultsLabel?: string
+  maxMenuWidth?: number
 }>
 
 /** A controlled select whose menu stays inside the page and above scroll containers. */
-export function DropdownSelect({ value, onChange, children, "aria-label": ariaLabel }: Props) {
+export function DropdownSelect({
+  value,
+  onChange,
+  children,
+  "aria-label": ariaLabel,
+  searchable = false,
+  searchPlaceholder = "Search",
+  noResultsLabel = "No matches",
+  maxMenuWidth = 320,
+}: Props) {
   const options: Option[] = Children.toArray(children)
     .filter(isValidElement<OptionHTMLAttributes<HTMLOptionElement>>)
     .map((option) => ({
       value: String(option.props.value ?? option.props.children ?? ""),
       label: String(option.props.children ?? ""),
       disabled: Boolean(option.props.disabled),
+      searchText:
+        `${String(option.props.children ?? "")} ${(option.props as OptionHTMLAttributes<HTMLOptionElement> & { "data-search"?: string })["data-search"] ?? ""}`.toLocaleLowerCase(),
     }))
   const selected = options.find((option) => option.value === String(value))
   const trigger = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
   const menuId = useId()
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const [query, setQuery] = useState("")
   const [position, setPosition] = useState<CSSProperties>({ visibility: "hidden" })
 
   useEffect(() => {
     if (!open) return
+    if (searchable) requestAnimationFrame(() => searchInput.current?.focus())
     const place = () => {
       const box = trigger.current?.getBoundingClientRect()
       if (!box) return
@@ -47,12 +65,13 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
       const above = box.top - 8
       const showAbove = below < 180 && above > below
       const maxHeight = Math.max(0, Math.min(240, showAbove ? above - 4 : below - 4))
+      const width = Math.min(box.width, maxMenuWidth, window.innerWidth - 16)
       setPosition({
         top: showAbove ? undefined : box.bottom + 4,
         bottom: showAbove ? window.innerHeight - box.top + 4 : undefined,
         boxSizing: "border-box",
-        left: Math.max(8, Math.min(box.left, window.innerWidth - box.width - 8)),
-        width: box.width,
+        left: Math.max(8, Math.min(box.left, window.innerWidth - width - 8)),
+        width,
         maxHeight,
       })
     }
@@ -72,20 +91,25 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
       window.removeEventListener("scroll", place, true)
       document.removeEventListener("pointerdown", closeOutside)
     }
-  }, [open])
+  }, [maxMenuWidth, open, searchable])
+
+  const filteredOptions = options.filter(
+    (option) => !query.trim() || option.searchText.includes(query.trim().toLocaleLowerCase()),
+  )
 
   const choose = (option: Option) => {
     if (option.disabled || trigger.current?.matches(":disabled")) return
     onChange({ target: { value: option.value } })
     setOpen(false)
+    setQuery("")
     trigger.current?.focus()
   }
   const move = (direction: number) => {
-    if (options.length === 0) return
+    if (filteredOptions.length === 0) return
     let next = active
-    for (let index = 0; index < options.length; index++) {
-      next = (next + direction + options.length) % options.length
-      if (!options[next]?.disabled) break
+    for (let index = 0; index < filteredOptions.length; index++) {
+      next = (next + direction + filteredOptions.length) % filteredOptions.length
+      if (!filteredOptions[next]?.disabled) break
     }
     setActive(next)
     menu.current
@@ -111,6 +135,7 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
               options.findIndex((option) => option.value === String(value)),
             ),
           )
+          setQuery("")
           setOpen((current) => !current)
         }}
         onKeyDown={(event) => {
@@ -128,7 +153,7 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
           }
           if (open && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault()
-            const option = options[active]
+            const option = filteredOptions[active]
             if (option) choose(option)
           }
         }}
@@ -138,28 +163,56 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
       </button>
       {open &&
         createPortal(
-          <div
-            ref={menu}
-            id={menuId}
-            className="dropdown-select-menu"
-            role="listbox"
-            aria-label={ariaLabel}
-            style={position}
-          >
-            {options.map((option, index) => (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={option.value === String(value)}
-                className={index === active ? "active" : ""}
-                disabled={option.disabled}
-                onMouseEnter={() => setActive(index)}
-                onClick={() => choose(option)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div ref={menu} className="dropdown-select-menu" style={position}>
+            {searchable ? (
+              <input
+                className="dropdown-select-search"
+                type="search"
+                aria-label={`${searchPlaceholder} ${ariaLabel ?? "options"}`}
+                placeholder={searchPlaceholder}
+                ref={searchInput}
+                value={query}
+                autoComplete="off"
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setActive(0)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setOpen(false)
+                    setQuery("")
+                  }
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault()
+                    menu.current?.querySelector<HTMLButtonElement>("[role=option]")?.focus()
+                  }
+                  if (event.key === "Enter" && filteredOptions[active]) {
+                    event.preventDefault()
+                    choose(filteredOptions[active])
+                  }
+                }}
+              />
+            ) : null}
+            <div id={menuId} role="listbox" aria-label={ariaLabel}>
+              {filteredOptions.length ? (
+                filteredOptions.map((option, index) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={option.value === String(value)}
+                    className={index === active ? "active" : ""}
+                    disabled={option.disabled}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => choose(option)}
+                  >
+                    {option.label}
+                  </button>
+                ))
+              ) : (
+                <p className="dropdown-select-empty">{noResultsLabel}</p>
+              )}
+            </div>
           </div>,
           document.body,
         )}

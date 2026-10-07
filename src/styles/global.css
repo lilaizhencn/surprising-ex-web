@@ -1526,7 +1526,7 @@ button:disabled {
 .dropdown-select-menu::-webkit-scrollbar {
   display: none;
 }
-.dropdown-select-menu > button {
+.dropdown-select-menu [role="option"] {
   display: block;
   width: 100%;
   padding: 8px 10px;
@@ -1538,14 +1538,14 @@ button:disabled {
   text-align: left;
   cursor: pointer;
 }
-.dropdown-select-menu > button:hover,
-.dropdown-select-menu > button.active {
+.dropdown-select-menu [role="option"]:hover,
+.dropdown-select-menu [role="option"].active {
   background: var(--color-surface-active);
 }
-.dropdown-select-menu > button[aria-selected="true"] {
+.dropdown-select-menu [role="option"][aria-selected="true"] {
   color: var(--color-primary);
 }
-.dropdown-select-menu > button:disabled {
+.dropdown-select-menu [role="option"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

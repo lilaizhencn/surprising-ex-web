@@ -902,5 +902,8 @@
   "Select a date": "请选择日期",
   "Year": "年份",
   "Month": "月份",
-  "Submit for verification": "提交认证"
+  "Submit for verification": "提交认证",
+  "Search by country name": "输入中文、英文或国家代码搜索",
+  "Search address proof": "输入地址证明名称搜索",
+  "No matches": "没有匹配结果"
 }
