@@ -1,7 +1,6 @@
 .login-method-code-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  gap: 14px;
 }
 
 .login-method-code-row input {
@@ -10,7 +9,8 @@
 }
 
 .login-method-code-row button {
-  flex-shrink: 0;
+  justify-self: center;
+  min-width: 160px;
   white-space: nowrap;
 }
 
@@ -19,12 +19,14 @@
   gap: 14px;
 }
 
-.security-dialog > .button {
-  margin-top: 4px;
+.security-dialog-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 
-.security-dialog > form > .button {
-  margin-top: 4px;
+.security-dialog-actions > .button {
+  min-width: 180px;
 }
 
 .security-dialog [role="alert"] {
@@ -41,8 +43,25 @@
   gap: 14px;
 }
 
-.login-verification-dialog form > .button + .button {
-  margin-top: 2px;
+.login-verification-dialog form > .button {
+  justify-self: center;
+  min-width: 180px;
+  width: auto;
+}
+
+.login-verification-resend {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.login-verification-dialog .login-verification-resend > .button {
+  min-width: 180px;
+  width: auto;
+}
+
+.login-verification-dialog .security-dialog-heading h2 {
+  margin: 0;
 }
 
 .login-verification-dialog [role="alert"] {

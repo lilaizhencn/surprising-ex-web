@@ -1,3 +1,4 @@
+import { X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import type { LoginChallenge, LoginVerificationCodes } from "../../api/types"
@@ -34,17 +35,21 @@ export function verificationMessage(reason: unknown): string {
 export function LoginVerificationDialog({
   challenge,
   onVerify,
+  onResend,
   onCancel,
   enrollment,
 }: {
   readonly challenge: LoginChallenge
   readonly onVerify: (codes: LoginVerificationCodes) => Promise<void>
+  readonly onResend?: (challengeToken: string) => Promise<void>
   readonly enrollment?: { secret: string; qr: string } | null
   readonly onCancel: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [codes, setCodes] = useState<Partial<Record<"EMAIL" | "PHONE" | "TOTP", string>>>({})
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(60)
   const [error, setError] = useState("")
   const [expired, setExpired] = useState(false)
   useEffect(() => {
@@ -59,6 +64,11 @@ export function LoginVerificationDialog({
       element?.close()
     }
   }, [challenge.expiresAt])
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
   return (
     <dialog
       ref={dialog}
@@ -66,10 +76,20 @@ export function LoginVerificationDialog({
       aria-labelledby="verification-title"
       onCancel={(event) => {
         event.preventDefault()
-        if (!loading) onCancel()
+        if (!loading && !resending) onCancel()
       }}
     >
-      <h2 id="verification-title">{t("Security verification")}</h2>
+      <div className="security-dialog-heading">
+        <h2 id="verification-title">{t("Security verification")}</h2>
+        <button
+          type="button"
+          aria-label={t("Close")}
+          onClick={onCancel}
+          disabled={loading || resending}
+        >
+          <X size={20} />
+        </button>
+      </div>
       <p>{t("Enter every required code to complete verification.")}</p>
       {challenge.simulated ? (
         <p className="verification-simulation-hint" role="status">
@@ -137,6 +157,28 @@ export function LoginVerificationDialog({
                 setCodes({ ...codes, [method.type]: event.target.value.replace(/\D/g, "") })
               }
             />
+            {(method.type === "EMAIL" || method.type === "PHONE") && onResend ? (
+              <div className="login-verification-resend">
+                <Button
+                  type="button"
+                  tone="ghost"
+                  disabled={loading || resending || expired || resendCooldown > 0}
+                  loading={resending}
+                  onClick={() => {
+                    if (loading || resending || expired || resendCooldown > 0) return
+                    setResending(true)
+                    setError("")
+                    void onResend(challenge.challengeToken)
+                      .catch((reason: unknown) => setError(verificationMessage(reason)))
+                      .finally(() => setResending(false))
+                  }}
+                >
+                  {resendCooldown > 0
+                    ? `${t("Resend code")} (${resendCooldown}s)`
+                    : t("Resend code")}
+                </Button>
+              </div>
+            ) : null}
           </Field>
         ))}
         {error || expired ? (
@@ -146,9 +188,6 @@ export function LoginVerificationDialog({
         ) : null}
         <Button type="submit" loading={loading} disabled={expired}>
           {t("Confirm")}
-        </Button>
-        <Button tone="ghost" disabled={loading} onClick={onCancel}>
-          {t("Cancel")}
         </Button>
       </form>
     </dialog>

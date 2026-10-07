@@ -99,7 +99,7 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
             >
               {t(setting.enabled ? "Disable" : setting.bound ? "Enable" : "Bind")}
             </button>
-            {setting.type !== "TOTP" ? (
+            {setting.type !== "TOTP" && setting.bound ? (
               <Button
                 tone="ghost"
                 onClick={() => {
@@ -130,6 +130,15 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
           <p className="muted">
             {t("Changing a security method disables withdrawals for 24 hours.")}
           </p>
+          {editing.method === "PHONE" && editing.enabled ? (
+            <p className="muted">
+              {t(
+                editing.changeBinding
+                  ? "To change your bound phone, enter your password and the new phone number."
+                  : "To bind a phone, enter your password and phone number. We will send a code to verify it.",
+              )}
+            </p>
+          ) : null}
           {challenge?.simulated ? (
             <p className="verification-simulation-hint" role="status">
               {t("Test environment: use 123456 for email or SMS verification.")}
@@ -261,50 +270,51 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
                   />
                 </Field>
               ) : null}
-              <Button
-                loading={busy}
-                disabled={
-                  !password ||
-                  (editing.enabled &&
-                    editing.method !== "TOTP" &&
-                    (editing.changeBinding || !selectedSetting?.bound) &&
-                    !destination.trim())
-                }
-                onClick={() => {
-                  setBusy(true)
-                  setError("")
-                  if (stagedEmail) {
+              <div className="security-dialog-actions">
+                <Button
+                  loading={busy}
+                  disabled={
+                    !password ||
+                    (editing.enabled &&
+                      editing.method !== "TOTP" &&
+                      (editing.changeBinding || !selectedSetting?.bound) &&
+                      !destination.trim())
+                  }
+                  onClick={() => {
+                    setBusy(true)
+                    setError("")
+                    if (stagedEmail) {
+                      void authApi
+                        .verifyLoginMethodPassword(editing.method, password)
+                        .then(() => setPasswordVerified(true))
+                        .catch((reason) => setError(verificationMessage(reason)))
+                        .finally(() => setBusy(false))
+                      return
+                    }
                     void authApi
-                      .verifyLoginMethodPassword(editing.method, password)
-                      .then(() => setPasswordVerified(true))
+                      .bindLoginMethod(editing.method, password, destination, editing.enabled)
+                      .then(async (result) => {
+                        if (result.secret && result.provisioningUri)
+                          setEnrollment({
+                            secret: result.secret,
+                            qr: await QRCode.toDataURL(result.provisioningUri),
+                          })
+                        setChallenge(result.challenge)
+                      })
                       .catch((reason) => setError(verificationMessage(reason)))
                       .finally(() => setBusy(false))
-                    return
-                  }
-                  void authApi
-                    .bindLoginMethod(editing.method, password, destination, editing.enabled)
-                    .then(async (result) => {
-                      if (result.secret && result.provisioningUri)
-                        setEnrollment({
-                          secret: result.secret,
-                          qr: await QRCode.toDataURL(result.provisioningUri),
-                        })
-                      setChallenge(result.challenge)
-                    })
-                    .catch((reason) => setError(verificationMessage(reason)))
-                    .finally(() => setBusy(false))
-                }}
-              >
-                {t(
-                  stagedEmail || editing.method === "TOTP" ? "Continue" : "Send verification code",
-                )}
-              </Button>
+                  }}
+                >
+                  {t(
+                    stagedEmail || editing.method === "TOTP"
+                      ? "Continue"
+                      : "Send verification code",
+                  )}
+                </Button>
+              </div>
             </>
           )}
           {error ? <p role="alert">{error}</p> : null}
-          <Button tone="ghost" disabled={busy} onClick={close}>
-            {t("Cancel")}
-          </Button>
         </SecurityActionDialog>
       ) : null}
       {challenge && editing && !stagedEmail ? (
@@ -312,6 +322,13 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
           key={challenge.challengeToken}
           challenge={challenge}
           enrollment={enrollment}
+          {...(editing.method === "TOTP" && editing.enabled
+            ? {
+                onResend: async (challengeToken: string) => {
+                  setChallenge(await authApi.resendLoginMethodCode("TOTP", challengeToken))
+                },
+              }
+            : {})}
           onCancel={close}
           onVerify={async (codes) => {
             await authApi.confirmLoginMethod(editing.method, codes, password)

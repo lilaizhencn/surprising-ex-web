@@ -133,6 +133,11 @@ export const authApi = {
         body: { currentPassword, destination, enabled },
       },
     ),
+  resendLoginMethodCode: (method: "EMAIL" | "PHONE" | "TOTP", challengeToken: string) =>
+    request(`/api/v1/security/login-verification/${method}/resend`, LoginChallengeSchema, {
+      method: "POST",
+      body: { challengeToken },
+    }),
   confirmLoginMethod: (
     method: "EMAIL" | "PHONE" | "TOTP",
     codes: import("./types").LoginVerificationCodes,
