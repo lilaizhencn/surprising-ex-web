@@ -1,0 +1,109 @@
+.funding-asset-select {
+  position: relative;
+}
+.funding-asset-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.funding-asset-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.funding-asset-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: contain;
+}
+.funding-asset-initial {
+  display: inline-grid;
+  place-items: center;
+  background: var(--color-primary);
+  color: white;
+  font-size: 11px;
+}
+.funding-asset-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px #0002;
+}
+.funding-asset-menu input {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.funding-asset-options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.funding-asset-options button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.funding-asset-options button.active,
+.funding-asset-options button:hover {
+  background: var(--color-surface-muted, #8882);
+}
+.funding-asset-options button span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deposit-details {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+.deposit-qr {
+  width: 180px;
+  height: 180px;
+  display: block;
+  background: white;
+}
+.deposit-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.deposit-copy code {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.deposit-info {
+  min-width: 0;
+  flex: 1;
+}
+.deposit-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+.deposit-facts span {
+  display: block;
+}
+@media (max-width: 600px) {
+  .deposit-details {
+    flex-direction: column;
+  }
+  .deposit-facts {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,19 +1,16 @@
-import { ArrowDownUp, Copy, Info, ShieldCheck } from "lucide-react"
-import QRCode from "qrcode"
+import { ArrowDownUp, ShieldCheck } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
 import {
-  createDepositAddress,
   createTransfer,
   createWithdrawal,
   issueSecurityChallenge,
   loadAssetScales,
   loadBalances,
-  loadDepositHistory,
   loadTransferHistory,
-  loadWalletChains,
   loadWithdrawalHistory,
 } from "../../api/endpoints"
+import { type FundingAsset, loadFundingAssets } from "../../api/funding"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
@@ -21,11 +18,17 @@ import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/uni
 import { useSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
 import { PRODUCT_LINES } from "../../types/domain"
+import { DepositPage } from "./DepositPage"
+import { FundingAssetSelect } from "./FundingAssetSelect"
 
 type RecordRow = Readonly<Record<string, unknown>>
 type RequestState = "idle" | "loading" | "success" | "error"
 
 export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | "transfer" }) {
+  return mode === "deposit" ? <DepositPage /> : <FundingForm mode={mode} />
+}
+
+function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
   const session = useSession()
   const [asset, setAsset] = useState("BTC")
   const [network, setNetwork] = useState("")
@@ -40,8 +43,7 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   const [records, setRecords] = useState<readonly RecordRow[]>([])
   const [transferRecords, setTransferRecords] = useState<readonly RecordRow[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
-  const [depositAddress, setDepositAddress] = useState<RecordRow | null>(null)
-  const [depositQr, setDepositQr] = useState("")
+  const [fundingAssets, setFundingAssets] = useState<readonly FundingAsset[]>([])
   const [state, setState] = useState<RequestState>("idle")
   const [message, setMessage] = useState("")
   const [challengeLoading, setChallengeLoading] = useState(false)
@@ -50,53 +52,41 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
   useEffect(() => {
     if (!session) return
     void Promise.all([
-      mode === "transfer" ? Promise.resolve([] as readonly RecordRow[]) : loadWalletChains(),
       loadFundingBalances(),
-      mode === "deposit"
-        ? loadDepositHistory(asset)
-        : mode === "withdraw"
-          ? loadWithdrawalHistory(asset)
-          : Promise.resolve([] as readonly RecordRow[]),
+      mode === "withdraw"
+        ? loadWithdrawalHistory(asset)
+        : Promise.resolve([] as readonly RecordRow[]),
       mode === "transfer"
         ? loadAllTransferHistory(asset)
         : Promise.resolve([] as readonly RecordRow[]),
       loadAssetScales(),
     ])
-      .then(([chainRows, balanceRows, recordRows, transferRows, scales]) => {
-        setChains(chainRows)
+      .then(([balanceRows, recordRows, transferRows, scales]) => {
         setBalances(balanceRows)
         setRecords(recordRows)
         setTransferRecords(transferRows)
         setAssetScales(scales)
-        setNetwork((current) => current || chainName(chainRows[0]) || "")
       })
       .catch((reason: unknown) => setMessage(readError(reason)))
   }, [asset, mode, session])
 
   useEffect(() => {
-    const value = depositAddress
-      ? text(depositAddress, "address") || text(depositAddress, "depositAddress")
-      : ""
-    if (!value) {
-      setDepositQr("")
-      return
-    }
-    let active = true
-    const rootStyles = getComputedStyle(document.documentElement)
-    const darkColor = rootStyles.getPropertyValue("--color-ink").trim()
-    const lightColor = rootStyles.getPropertyValue("--color-surface").trim()
-    void QRCode.toDataURL(value, {
-      width: 180,
-      margin: 1,
-      errorCorrectionLevel: "M",
-      color: { dark: darkColor, light: lightColor },
-    }).then((dataUrl) => {
-      if (active) setDepositQr(dataUrl)
-    })
-    return () => {
-      active = false
-    }
-  }, [depositAddress])
+    if (!session || mode !== "withdraw") return
+    const abort = new AbortController()
+    void loadFundingAssets("withdraw", abort.signal).then(
+      (rows) => {
+        if (abort.signal.aborted) return
+        setFundingAssets(rows)
+        setAsset(rows[0]?.asset ?? "")
+        setChains(rows[0]?.networks ?? [])
+        setNetwork(rows[0]?.networks[0]?.networkCode ?? "")
+      },
+      (reason) => {
+        if (!abort.signal.aborted) setMessage(readError(reason))
+      },
+    )
+    return () => abort.abort()
+  }, [session, mode])
 
   const available = useMemo(() => {
     const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
@@ -113,24 +103,6 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
     if (!session) {
       setState("error")
       setMessage(t("Please sign in before funding operations."))
-      return
-    }
-    if (mode === "deposit") {
-      if (!network) {
-        setState("error")
-        setMessage(t("Select a deposit network."))
-        return
-      }
-      setState("loading")
-      try {
-        const response = await createDepositAddress(network)
-        setDepositAddress(response)
-        setState("success")
-        setMessage(t("Deposit address received. Verify the network before using it."))
-      } catch (reason: unknown) {
-        setState("error")
-        setMessage(readError(reason))
-      }
       return
     }
     if (mode === "withdraw") {
@@ -229,90 +201,6 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
       </FundingLayout>
     )
 
-  if (mode === "deposit")
-    return (
-      <FundingLayout
-        title={t("Deposit Crypto")}
-        description={t("Receive digital assets through a network returned by the custody service.")}
-      >
-        <Panel>
-          <h2>{t("1. Select asset & network")}</h2>
-          <div className="grid-2">
-            <Field label={t("Asset")}>
-              <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
-                <option>BTC</option>
-                <option>ETH</option>
-                <option>USDT</option>
-              </DropdownSelect>
-            </Field>
-            <Field label={t("Network")}>
-              <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
-                <option value="">{t("Select network")}</option>
-                {chains.map((chain) => (
-                  <option key={chainName(chain)} value={chainName(chain)}>
-                    {chainName(chain)}
-                  </option>
-                ))}
-              </DropdownSelect>
-            </Field>
-          </div>
-        </Panel>
-        <Panel>
-          <h2>{t("2. Deposit details")}</h2>
-          {depositAddress ? (
-            <div className="deposit-address">
-              {depositQr ? (
-                <img className="qr-code" src={depositQr} alt="Deposit address QR code" />
-              ) : (
-                <div className="qr-placeholder" role="status">
-                  {" "}
-                  {t("Generating QR code…")}{" "}
-                </div>
-              )}
-              <div className="address-value">
-                <strong>
-                  {text(depositAddress, "address") ||
-                    text(depositAddress, "depositAddress") ||
-                    "Address returned without display field"}
-                </strong>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={t("Copy deposit address")}
-                  onClick={() =>
-                    void copyText(
-                      text(depositAddress, "address") || text(depositAddress, "depositAddress"),
-                    )
-                  }
-                >
-                  <Copy size={16} />
-                </button>
-                <small>
-                  {" "}
-                  {t("Network:")} {network} {t("· Memo/Tag:")}{" "}
-                  {text(depositAddress, "memo") || text(depositAddress, "tag") || "Not required"}
-                </small>
-              </div>
-            </div>
-          ) : (
-            <StateView kind="empty" message="Select a network, then load a custody address." />
-          )}
-          <div className="notice">
-            <Info size={18} /> {t("Only send")} {asset}{" "}
-            {t("through the selected network. Network mismatches can permanently lose funds.")}{" "}
-          </div>
-        </Panel>
-        <RecordPanel title={t("Deposit history")} records={records} />
-        <ActionSummary
-          title={t("Deposit status")}
-          message={message}
-          state={state}
-          onSubmit={submit}
-          action="Load deposit address"
-        />
-      </FundingLayout>
-    )
-
   if (mode === "withdraw")
     return (
       <FundingLayout
@@ -323,11 +211,16 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
           <h2>{t("1. Transfer details")}</h2>
           <div className="grid-2">
             <Field label={t("Asset")}>
-              <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
-                <option>BTC</option>
-                <option>ETH</option>
-                <option>USDT</option>
-              </DropdownSelect>
+              <FundingAssetSelect
+                assets={fundingAssets}
+                value={asset}
+                onChange={(value) => {
+                  const row = fundingAssets.find((item) => item.asset === value)
+                  setAsset(value)
+                  setChains(row?.networks ?? [])
+                  setNetwork(row?.networks[0]?.networkCode ?? "")
+                }}
+              />
             </Field>
             <Field label={t("Network")}>
               <DropdownSelect value={network} onChange={(event) => setNetwork(event.target.value)}>
@@ -647,7 +540,13 @@ function titleFor(mode: "deposit" | "withdraw" | "transfer") {
       : "Internal Transfer"
 }
 function chainName(record: RecordRow | undefined): string {
-  return text(record, "chain") || text(record, "chainId") || text(record, "name") || ""
+  return (
+    text(record, "networkCode") ||
+    text(record, "chain") ||
+    text(record, "chainId") ||
+    text(record, "name") ||
+    ""
+  )
 }
 function text(record: RecordRow | null | undefined, key: string): string {
   const value = record?.[key]
@@ -676,10 +575,6 @@ function requestStatusAccepted(status: string): boolean {
     "TARGET_CREDIT_UNKNOWN",
     "COMPLETED",
   ].includes(status.trim().toUpperCase())
-}
-
-async function copyText(value: string) {
-  if (value && navigator.clipboard) await navigator.clipboard.writeText(value)
 }
 
 async function loadFundingBalances(): Promise<readonly RecordRow[]> {
