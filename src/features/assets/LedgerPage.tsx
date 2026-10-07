@@ -27,7 +27,13 @@ type Category =
   | "funding-payment"
   | "order"
   | "trade"
-type Row = Readonly<Record<string, unknown>>
+type Row = Readonly<Record<string, unknown>> & {
+  createdAt?: unknown
+  updatedAt?: unknown
+  asset?: unknown
+  currency?: unknown
+  instrumentId?: unknown
+}
 
 export function LedgerPage() {
   const session = useSession()

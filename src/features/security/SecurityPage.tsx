@@ -23,7 +23,7 @@ import { useSession } from "../../state/session"
 import { LoginVerificationSettings } from "./LoginVerificationSettings"
 import { MfaRecoveryPanel } from "./MfaRecoveryPanel"
 
-type RecordRow = Readonly<Record<string, unknown>>
+type RecordRow = Readonly<Record<string, unknown>> & { withdrawalsRestrictedUntil?: unknown }
 
 export function SecurityPage() {
   const session = useSession()
@@ -103,7 +103,7 @@ export function SecurityPage() {
         <Panel className="security-restriction-notice">
           {t("Withdrawals are temporarily unavailable after a security change.")}{" "}
           {t("Available after:")}{" "}
-          {new Date(String(mfa?.["withdrawalsRestrictedUntil"])).toLocaleString()}
+          {new Date(String(mfa?.withdrawalsRestrictedUntil)).toLocaleString()}
         </Panel>
       ) : null}
       <section className="section-block">
@@ -753,7 +753,7 @@ function booleanValue(row: RecordRow | null | undefined, key: string): boolean {
   return value === true || value === "true"
 }
 function withdrawalRestrictionActive(row: RecordRow | null): boolean {
-  const until = row?.["withdrawalsRestrictedUntil"]
+  const until = row?.withdrawalsRestrictedUntil
   return typeof until === "string" && Date.parse(until) > Date.now()
 }
 function readError(reason: unknown): string {

@@ -19,8 +19,11 @@
   gap: 14px;
 }
 
-.security-dialog > form > .button,
 .security-dialog > .button {
+  margin-top: 4px;
+}
+
+.security-dialog > form > .button {
   margin-top: 4px;
 }
 

@@ -3,7 +3,13 @@ import { issueMfaRecoveryChallenge, loadMfaRecovery, submitMfaRecovery } from ".
 import { Button, Field, Panel } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 
-type RecordRow = Readonly<Record<string, unknown>>
+type RecordRow = Readonly<Record<string, unknown>> & {
+  status?: unknown
+  decisionReason?: unknown
+  challengeId?: unknown
+  destination?: unknown
+  simulated?: unknown
+}
 
 export function MfaRecoveryPanel() {
   const [request, setRequest] = useState<RecordRow | null>(null)
@@ -20,10 +26,10 @@ export function MfaRecoveryPanel() {
     refresh()
   }, [])
   useEffect(() => {
-    if (request?.["status"] !== "PENDING") return
+    if (request?.status !== "PENDING") return
     const timer = window.setInterval(refresh, 10_000)
     return () => window.clearInterval(timer)
-  }, [request?.["status"]])
+  }, [request?.status])
 
   async function begin() {
     setBusy(true)
@@ -42,12 +48,7 @@ export function MfaRecoveryPanel() {
     setBusy(true)
     setMessage("")
     try {
-      const result = await submitMfaRecovery(
-        Number(challenge?.["challengeId"]),
-        password,
-        code,
-        reason,
-      )
+      const result = await submitMfaRecovery(Number(challenge?.challengeId), password, code, reason)
       setRequest(result)
       setChallenge(null)
       setCode("")
@@ -62,16 +63,16 @@ export function MfaRecoveryPanel() {
   return (
     <Panel>
       <h3>{t("Lost authenticator")}</h3>
-      {request && request["status"] !== "REJECTED" ? (
+      {request && request.status !== "REJECTED" ? (
         <p>
-          {t("Recovery request status:")} {String(request["status"])}
-          {request["decisionReason"] ? ` · ${String(request["decisionReason"])}` : ""}
+          {t("Recovery request status:")} {String(request.status)}
+          {request.decisionReason ? ` · ${String(request.decisionReason)}` : ""}
         </p>
       ) : (
         <>
-          {request?.["status"] === "REJECTED" ? (
+          {request?.status === "REJECTED" ? (
             <p>
-              {t("Previous request was rejected:")} {String(request["decisionReason"] ?? "")}
+              {t("Previous request was rejected:")} {String(request.decisionReason ?? "")}
             </p>
           ) : null}
           <p className="muted">
@@ -96,9 +97,9 @@ export function MfaRecoveryPanel() {
           ) : (
             <>
               <p>
-                {t("Code sent to:")} {String(challenge["destination"] ?? "")}
+                {t("Code sent to:")} {String(challenge.destination ?? "")}
               </p>
-              {challenge["simulated"] === true ? (
+              {challenge.simulated === true ? (
                 <p className="verification-simulation-hint" role="status">
                   {t("Test environment: use 123456 for email or SMS verification.")}
                 </p>

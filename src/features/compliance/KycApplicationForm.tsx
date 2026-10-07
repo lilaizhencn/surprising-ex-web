@@ -8,7 +8,7 @@ import { t, useLocale } from "../../i18n"
 import { KycDatePicker } from "./KycDatePicker"
 import "./KycApplicationForm.css"
 
-type Row = Readonly<Record<string, unknown>>
+type Row = Readonly<Record<string, unknown>> & { documentId?: unknown; profile?: unknown }
 type UploadedDocument = { id: number; name: string; file: File }
 type Slot = {
   type: string
@@ -404,7 +404,7 @@ function DocumentSlot({
     setBusy(true)
     onBusy(1)
     try {
-      const result = await uploadKycDocument(slot.type, value)
+      const result = (await uploadKycDocument(slot.type, value)) as { documentId?: unknown }
       if (typeof result.documentId !== "number") throw new Error(t("Document upload failed."))
       if (mounted.current) {
         onChange({ id: result.documentId, name: value.name, file: value })

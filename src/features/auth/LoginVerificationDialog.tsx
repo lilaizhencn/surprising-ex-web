@@ -43,7 +43,7 @@ export function LoginVerificationDialog({
   readonly onCancel: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [codes, setCodes] = useState<Record<string, string>>({})
+  const [codes, setCodes] = useState<Partial<Record<"EMAIL" | "PHONE" | "TOTP", string>>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [expired, setExpired] = useState(false)

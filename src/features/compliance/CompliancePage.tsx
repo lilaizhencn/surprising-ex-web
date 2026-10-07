@@ -12,7 +12,10 @@ import { useSession } from "../../state/session"
 import { KycApplicationForm } from "./KycApplicationForm"
 import "./KycApplicationForm.css"
 
-type RecordRow = Readonly<Record<string, unknown>>
+type RecordRow = Readonly<Record<string, unknown>> & {
+  simulationEnabled?: unknown
+  profile?: unknown
+}
 export function CompliancePage(_props: { readonly flow?: boolean }) {
   const session = useSession()
   return session ? (

@@ -19,7 +19,7 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
   } | null>(null)
   const [password, setPassword] = useState("")
   const [passwordVerified, setPasswordVerified] = useState(false)
-  const [codes, setCodes] = useState<Record<string, string>>({})
+  const [codes, setCodes] = useState<Partial<Record<Method, string>>>({})
   const [cooldown, setCooldown] = useState(0)
   const [destination, setDestination] = useState("")
   const [challenge, setChallenge] = useState<LoginChallenge | null>(null)
@@ -157,9 +157,9 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
                     editing.method,
                     {
                       challengeToken: challenge.challengeToken,
-                      emailCode: codes["EMAIL"],
-                      phoneCode: codes["PHONE"],
-                      totpCode: codes["TOTP"],
+                      emailCode: codes.EMAIL,
+                      phoneCode: codes.PHONE,
+                      totpCode: codes.TOTP,
                     },
                     password,
                   )
@@ -295,7 +295,9 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
                     .finally(() => setBusy(false))
                 }}
               >
-                {t(stagedEmail || editing.method === "TOTP" ? "Continue" : "Send verification code")}
+                {t(
+                  stagedEmail || editing.method === "TOTP" ? "Continue" : "Send verification code",
+                )}
               </Button>
             </>
           )}

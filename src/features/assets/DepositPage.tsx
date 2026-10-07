@@ -34,7 +34,14 @@ export function DepositPage() {
   const [notice, setNotice] = useState("")
   const [history, setHistory] = useState<{
     key: string
-    rows: readonly Readonly<Record<string, unknown>>[]
+    rows: readonly (Readonly<Record<string, unknown>> & {
+      id?: unknown
+      assetSymbol?: unknown
+      asset?: unknown
+      amount?: unknown
+      status?: unknown
+      createdAt?: unknown
+    })[]
     error: string
   } | null>(null)
   const assets = catalog?.token === session?.accessToken ? (catalog?.rows ?? []) : []
