@@ -28,7 +28,20 @@ type Category =
   | "order"
   | "trade"
 type Row = Readonly<Record<string, unknown>> & {
+  amount?: unknown
+  amountUnits?: unknown
   createdAt?: unknown
+  entryId?: unknown
+  id?: unknown
+  orderId?: unknown
+  paymentId?: unknown
+  quantitySteps?: unknown
+  reason?: unknown
+  referenceId?: unknown
+  referenceType?: unknown
+  status?: unknown
+  transactionId?: unknown
+  transferId?: unknown
   updatedAt?: unknown
   asset?: unknown
   currency?: unknown
@@ -173,11 +186,11 @@ export function LedgerPage() {
       category !== "funding-payment"
     )
       return false
-    if (status && String(row["status"] ?? "").toUpperCase() !== status.toUpperCase()) return false
+    if (status && String(row.status ?? "").toUpperCase() !== status.toUpperCase()) return false
     if (
       referenceType &&
       category !== "funding-ledger" &&
-      String(row["referenceType"] ?? "").toUpperCase() !== referenceType.toUpperCase()
+      String(row.referenceType ?? "").toUpperCase() !== referenceType.toUpperCase()
     )
       return false
     return (
@@ -296,29 +309,29 @@ export function LedgerPage() {
               {visible.map((row, index) => (
                 <tr
                   key={String(
-                    row["entryId"] ??
-                      row["transferId"] ??
-                      row["paymentId"] ??
-                      row["orderId"] ??
-                      row["id"] ??
+                    row.entryId ??
+                      row.transferId ??
+                      row.paymentId ??
+                      row.orderId ??
+                      row.id ??
                       index,
                   )}
                 >
-                  <td>{formatDate(row["createdAt"] ?? row["updatedAt"])}</td>
-                  <td>{String(row["referenceType"] ?? row["reason"] ?? category)}</td>
-                  <td>{String(row["asset"] ?? row["currency"] ?? "—")}</td>
+                  <td>{formatDate(row.createdAt ?? row.updatedAt)}</td>
+                  <td>{String(row.referenceType ?? row.reason ?? category)}</td>
+                  <td>{String(row.asset ?? row.currency ?? "—")}</td>
                   <td className="mono">
-                    {row["amountUnits"] != null
-                      ? units(row["amountUnits"], String(row["asset"] ?? ""), assetScales)
-                      : String(row["amount"] ?? row["quantitySteps"] ?? "—")}
+                    {row.amountUnits != null
+                      ? units(row.amountUnits, String(row.asset ?? ""), assetScales)
+                      : String(row.amount ?? row.quantitySteps ?? "—")}
                   </td>
-                  <td>{String(row["status"] ?? "—")}</td>
+                  <td>{String(row.status ?? "—")}</td>
                   <td className="mono">
                     {String(
-                      row["referenceId"] ??
-                        row["transactionId"] ??
-                        row["instrumentId"] ??
-                        row["orderId"] ??
+                      row.referenceId ??
+                        row.transactionId ??
+                        row.instrumentId ??
+                        row.orderId ??
                         "—",
                     )}
                   </td>
