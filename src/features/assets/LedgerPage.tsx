@@ -174,10 +174,7 @@ export function LedgerPage() {
       return false
     if (to && (!Number.isFinite(created.getTime()) || created.getTime() > (dateEnd(to) ?? 0)))
       return false
-    if (
-      asset &&
-      String(row.asset ?? row.currency ?? "").toUpperCase() !== asset.toUpperCase()
-    )
+    if (asset && String(row.asset ?? row.currency ?? "").toUpperCase() !== asset.toUpperCase())
       return false
     if (
       instrumentId &&
