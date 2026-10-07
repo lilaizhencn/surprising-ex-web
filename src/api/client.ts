@@ -104,7 +104,7 @@ export async function request<T>(
   const requestOptions: Options = {
     method,
     headers,
-    timeout: 10_000,
+    timeout: isFormData ? 180_000 : 10_000,
     retry: method === "GET" ? { limit: options.retry ?? 1, methods: ["get"] } : { limit: 0 },
     throwHttpErrors: false,
   }
