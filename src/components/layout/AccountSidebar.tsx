@@ -1,4 +1,12 @@
-import { ChartNoAxesCombined, Clock3, Code2, Grid2X2, ShieldCheck, WalletCards } from "lucide-react"
+import {
+  ChartNoAxesCombined,
+  Clock3,
+  Code2,
+  Grid2X2,
+  IdCard,
+  ShieldCheck,
+  WalletCards,
+} from "lucide-react"
 import { t } from "../../i18n"
 import { assetNavigation, securityNavigation } from "./navigation"
 
@@ -60,6 +68,17 @@ export function AccountSidebar() {
             </a>
           ))}
         </div>
+        <a
+          className={
+            pathname.startsWith("/account/kyc") || pathname.startsWith("/compliance")
+              ? "active"
+              : ""
+          }
+          href="/account/kyc"
+        >
+          <IdCard size={21} />
+          <span>{t("Identity Verification")}</span>
+        </a>
         <a className={pathname === "/api" ? "active" : ""} href="/api">
           <Code2 size={21} />
           <span>{t("Developer API")}</span>
