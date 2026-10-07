@@ -5,77 +5,10 @@
 
 .login-method-code-row input {
   min-width: 0;
-  flex: 1;
 }
 
 .login-method-code-row button {
   justify-self: center;
   min-width: 160px;
   white-space: nowrap;
-}
-
-.security-dialog > form {
-  display: grid;
-  gap: 14px;
-}
-
-.security-dialog-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.security-dialog-actions > .button {
-  min-width: 180px;
-}
-
-.security-dialog [role="alert"] {
-  margin: 8px 0 12px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-negative) 35%, transparent);
-  border-radius: var(--radius-sm);
-  color: var(--color-negative);
-  background: color-mix(in srgb, var(--color-negative) 8%, transparent);
-}
-
-.login-verification-dialog form {
-  display: grid;
-  gap: 14px;
-}
-
-.login-verification-dialog form > .button {
-  justify-self: center;
-  min-width: 180px;
-  width: auto;
-}
-
-.login-verification-resend {
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.login-verification-dialog .login-verification-resend > .button {
-  min-width: 180px;
-  width: auto;
-}
-
-.login-verification-dialog .security-dialog-heading h2 {
-  margin: 0;
-}
-
-.login-verification-dialog [role="alert"] {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-negative) 35%, transparent);
-  border-radius: var(--radius-sm);
-  color: var(--color-negative);
-  background: color-mix(in srgb, var(--color-negative) 8%, transparent);
-}
-
-.verification-simulation-hint {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-accent-strong, var(--color-ink));
-  background: var(--color-surface-raised, var(--color-surface));
 }

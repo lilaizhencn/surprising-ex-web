@@ -4,6 +4,7 @@ import {
   createApiKey,
   issueSecurityChallenge,
   loadApiKeys,
+  loadMfaStatus,
   revokeApiKey,
   updateApiKeyIpAllowlist,
 } from "../../api/endpoints"
@@ -27,8 +28,18 @@ export function DeveloperApiPage() {
   const [message, setMessage] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)
   const refresh = () => {
-    void loadApiKeys().then(setKeys, (reason: unknown) => setError(readError(reason)))
+    setMfaStatusLoaded(false)
+    void Promise.all([loadApiKeys(), loadMfaStatus()])
+      .then(([apiKeys, mfaStatus]) => {
+        setKeys(apiKeys)
+        setMfaEnabled(mfaStatus["enabled"] === true)
+        setMfaStatusLoaded(true)
+        setError("")
+      })
+      .catch((reason: unknown) => setError(readError(reason)))
   }
   useEffect(refresh, [])
   const close = () => {
@@ -42,6 +53,8 @@ export function DeveloperApiPage() {
     setBusy(true)
     setMessage("")
     try {
+      if (!emailCode || (mfaEnabled && !totpCode))
+        throw new Error(t("Complete the required fields."))
       const addresses = allowlist
         .split(/[\s,]+/)
         .map((ip) => ip.trim())
@@ -236,6 +249,7 @@ export function DeveloperApiPage() {
             <Button
               tone="outline"
               loading={busy}
+              disabled={!mfaStatusLoaded}
               onClick={() => {
                 setBusy(true)
                 void issueSecurityChallenge("SECURITY_SETTINGS")
@@ -249,23 +263,22 @@ export function DeveloperApiPage() {
               {t("Send code")}
             </Button>
           </div>
-          <Field label={t("Authenticator code")}>
-            <input
-              inputMode="numeric"
-              value={totpCode}
-              onChange={(event) => setTotpCode(event.target.value)}
-            />
-          </Field>
+          {mfaEnabled ? (
+            <Field label={t("Authenticator code")}>
+              <input
+                inputMode="numeric"
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value)}
+              />
+            </Field>
+          ) : null}
           {message ? (
             <p className="form-message" role="status">
               {message}
             </p>
           ) : null}
           <div className="security-dialog-actions">
-            <Button tone="outline" onClick={close}>
-              {t("Cancel")}
-            </Button>
-            <Button loading={busy} onClick={() => void submit()}>
+            <Button loading={busy} disabled={!mfaStatusLoaded} onClick={() => void submit()}>
               {t("Confirm")}
             </Button>
           </div>

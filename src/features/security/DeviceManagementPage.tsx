@@ -7,6 +7,7 @@ import {
   loadDevices,
   loadLoginHistory,
   loadLoginIps,
+  loadMfaStatus,
   revokeDevice,
   revokeUserSession,
 } from "../../api/endpoints"
@@ -32,14 +33,19 @@ export function DeviceManagementPage() {
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)
   const refresh = () => {
+    setMfaStatusLoaded(false)
     setBusy(true)
-    void Promise.all([loadDevices(), loadLoginIps(), loadLoginHistory()])
+    void Promise.all([loadDevices(), loadLoginIps(), loadLoginHistory(), loadMfaStatus()])
       .then(
-        ([deviceRows, ipRows, history]) => {
+        ([deviceRows, ipRows, history, mfaStatus]) => {
           setDevices(deviceRows)
           setIps(ipRows)
           setLogins(history.logs)
+          setMfaEnabled(mfaStatus["enabled"] === true)
+          setMfaStatusLoaded(true)
           setError("")
         },
         (reason: unknown) => setError(readError(reason)),
@@ -62,8 +68,16 @@ export function DeviceManagementPage() {
         if (action.mode === "revoke") {
           if (action.value) await revokeDevice(action.value)
           else if (action.sessionId) await revokeUserSession(action.sessionId)
-        } else await changeDeviceBlock(action.value, action.mode === "block", emailCode, totpCode)
-      } else await changeIpBlock(action.value, action.mode === "block", emailCode, totpCode)
+        } else {
+          if (!emailCode || (mfaEnabled && !totpCode))
+            throw new Error(t("Complete the required fields."))
+          await changeDeviceBlock(action.value, action.mode === "block", emailCode, totpCode)
+        }
+      } else {
+        if (!emailCode || (mfaEnabled && !totpCode))
+          throw new Error(t("Complete the required fields."))
+        await changeIpBlock(action.value, action.mode === "block", emailCode, totpCode)
+      }
       close()
       refresh()
     } catch (reason) {
@@ -269,6 +283,7 @@ export function DeviceManagementPage() {
                 <Button
                   tone="outline"
                   loading={busy}
+                  disabled={!mfaStatusLoaded}
                   onClick={() => {
                     setBusy(true)
                     void issueSecurityChallenge("SECURITY_SETTINGS")
@@ -282,13 +297,15 @@ export function DeviceManagementPage() {
                   {t("Send code")}
                 </Button>
               </div>
-              <Field label={t("Authenticator code")}>
-                <input
-                  inputMode="numeric"
-                  value={totpCode}
-                  onChange={(event) => setTotpCode(event.target.value)}
-                />
-              </Field>
+              {mfaEnabled ? (
+                <Field label={t("Authenticator code")}>
+                  <input
+                    inputMode="numeric"
+                    value={totpCode}
+                    onChange={(event) => setTotpCode(event.target.value)}
+                  />
+                </Field>
+              ) : null}
             </>
           ) : null}
           {message ? (
@@ -297,10 +314,7 @@ export function DeviceManagementPage() {
             </p>
           ) : null}
           <div className="security-dialog-actions">
-            <Button tone="outline" onClick={close}>
-              {t("Cancel")}
-            </Button>
-            <Button loading={busy} onClick={() => void submit()}>
+            <Button loading={busy} disabled={!mfaStatusLoaded} onClick={() => void submit()}>
               {t("Confirm")}
             </Button>
           </div>

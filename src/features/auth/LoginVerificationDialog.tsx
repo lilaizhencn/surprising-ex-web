@@ -1,8 +1,8 @@
-import { X } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { ApiError } from "../../api/client"
 import type { LoginChallenge, LoginVerificationCodes } from "../../api/types"
 import { Button, Field } from "../../components/ui/Primitives"
+import { StandardDialog } from "../../components/ui/StandardDialog"
 import { t } from "../../i18n"
 
 export function verificationMessage(reason: unknown): string {
@@ -45,7 +45,6 @@ export function LoginVerificationDialog({
   readonly enrollment?: { secret: string; qr: string } | null
   readonly onCancel: () => void
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
   const [codes, setCodes] = useState<Partial<Record<"EMAIL" | "PHONE" | "TOTP", string>>>({})
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
@@ -53,16 +52,11 @@ export function LoginVerificationDialog({
   const [error, setError] = useState("")
   const [expired, setExpired] = useState(false)
   useEffect(() => {
-    const element = dialog.current
-    element?.showModal()
     const timeout = setTimeout(
       () => setExpired(true),
       Math.max(0, Date.parse(challenge.expiresAt) - Date.now()),
     )
-    return () => {
-      clearTimeout(timeout)
-      element?.close()
-    }
+    return () => clearTimeout(timeout)
   }, [challenge.expiresAt])
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -70,27 +64,13 @@ export function LoginVerificationDialog({
     return () => clearTimeout(timer)
   }, [resendCooldown])
   return (
-    <dialog
-      ref={dialog}
-      className="auth-error-dialog login-verification-dialog"
-      aria-labelledby="verification-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        if (!loading && !resending) onCancel()
-      }}
+    <StandardDialog
+      title={t("Security verification")}
+      subtitle={t("Enter every required code to complete verification.")}
+      onClose={onCancel}
+      closeDisabled={loading || resending}
+      className="login-verification-dialog"
     >
-      <div className="security-dialog-heading">
-        <h2 id="verification-title">{t("Security verification")}</h2>
-        <button
-          type="button"
-          aria-label={t("Close")}
-          onClick={onCancel}
-          disabled={loading || resending}
-        >
-          <X size={20} />
-        </button>
-      </div>
-      <p>{t("Enter every required code to complete verification.")}</p>
       {challenge.simulated ? (
         <p className="verification-simulation-hint" role="status">
           {t("Test environment: use 123456 for email or SMS verification.")}
@@ -190,6 +170,6 @@ export function LoginVerificationDialog({
           {t("Confirm")}
         </Button>
       </form>
-    </dialog>
+    </StandardDialog>
   )
 }

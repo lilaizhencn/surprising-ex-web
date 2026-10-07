@@ -1,8 +1,9 @@
-import { KeyRound, LockKeyhole, ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   changePassword,
   issueSecurityChallenge,
+  loadMfaStatus,
   loadSecurityScenes,
   updateSecurityScene,
 } from "../../api/endpoints"
@@ -16,6 +17,8 @@ type Action = { type: "password" } | { type: "scene"; scene: Scene }
 
 export function AccountSecurityPage() {
   const [scenes, setScenes] = useState<readonly Scene[]>([])
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)
   const [action, setAction] = useState<Action | null>(null)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -25,7 +28,15 @@ export function AccountSecurityPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const refresh = () => {
-    void loadSecurityScenes().then(setScenes, (reason: unknown) => setError(readError(reason)))
+    setMfaStatusLoaded(false)
+    void Promise.all([loadSecurityScenes(), loadMfaStatus()])
+      .then(([securityScenes, mfaStatus]) => {
+        setScenes(securityScenes)
+        setMfaEnabled(mfaStatus["enabled"] === true)
+        setMfaStatusLoaded(true)
+        setError("")
+      })
+      .catch((reason: unknown) => setError(readError(reason)))
   }
   useEffect(refresh, [])
   const close = () => {
@@ -46,11 +57,12 @@ export function AccountSecurityPage() {
     setMessage("")
     try {
       if (action.type === "password") {
-        if (!currentPassword || !newPassword || !emailCode)
+        if (!currentPassword || !newPassword || !emailCode || (mfaEnabled && !totpCode))
           throw new Error(t("Complete the required fields."))
         await changePassword(currentPassword, newPassword, emailCode, totpCode)
       } else {
-        if (!sceneCode || !emailCode) throw new Error(t("Complete the required fields."))
+        if (!sceneCode || !emailCode || (mfaEnabled && !totpCode))
+          throw new Error(t("Complete the required fields."))
         await updateSecurityScene(sceneCode, !enabled, emailCode, totpCode)
         refresh()
       }
@@ -81,28 +93,14 @@ export function AccountSecurityPage() {
           {message}
         </p>
       ) : null}
-      <section className="section-block">
-        <h2>{t("Password")}</h2>
-        <Panel className="security-status-row" dense>
-          <div>
-            <LockKeyhole size={22} />
-            <div>
-              <strong>{t("Login Password")}</strong>
-              <p>{t("Configured")}</p>
-            </div>
-          </div>
-          <Button
-            tone="outline"
-            onClick={() => {
-              setMessage("")
-              setAction({ type: "password" })
-            }}
-          >
-            {t("Change password")}
-          </Button>
-        </Panel>
-      </section>
-      <LoginVerificationSettings onChange={refresh} />
+      <LoginVerificationSettings
+        onChange={refresh}
+        passwordActionDisabled={!mfaStatusLoaded}
+        onChangePassword={() => {
+          setMessage("")
+          setAction({ type: "password" })
+        }}
+      />
       <section className="section-block">
         <h2>{t("Security preferences")}</h2>
         <p className="muted">{t("Choose when additional verification is required.")}</p>
@@ -111,28 +109,27 @@ export function AccountSecurityPage() {
             const code = String(value["sceneCode"] ?? value["code"] ?? "")
             const required = code === "WITHDRAWAL" || code === "API_WITHDRAWAL"
             return (
-              <Panel className="security-status-row" dense key={code}>
+              <Panel className="security-preference-card" key={code}>
                 <div>
-                  <KeyRound size={21} />
-                  <div>
-                    <strong>{t(sceneLabel(code))}</strong>
-                    <p>
-                      {t(
-                        required ? "Required" : value["enabled"] === true ? "Enabled" : "Disabled",
-                      )}
-                    </p>
-                  </div>
+                  <strong>{t(sceneLabel(code))}</strong>
+                  <p>
+                    {t(required ? "Required" : value["enabled"] === true ? "Enabled" : "Disabled")}
+                  </p>
                 </div>
-                <Button
-                  tone="outline"
-                  disabled={required}
+                <button
+                  type="button"
+                  className="security-toggle"
+                  role="switch"
+                  aria-checked={value["enabled"] === true}
+                  aria-label={t(sceneLabel(code))}
+                  disabled={required || !mfaStatusLoaded}
                   onClick={() => {
                     setMessage("")
                     setAction({ type: "scene", scene: value })
                   }}
                 >
-                  {t("Manage")}
-                </Button>
+                  <span />
+                </button>
               </Panel>
             )
           })}
@@ -180,6 +177,7 @@ export function AccountSecurityPage() {
             <Button
               tone="outline"
               loading={busy}
+              disabled={!mfaStatusLoaded}
               onClick={() => {
                 setBusy(true)
                 void issueSecurityChallenge(challenge)
@@ -193,23 +191,22 @@ export function AccountSecurityPage() {
               {t("Send code")}
             </Button>
           </div>
-          <Field label={t("Authenticator code")}>
-            <input
-              inputMode="numeric"
-              value={totpCode}
-              onChange={(event) => setTotpCode(event.target.value)}
-            />
-          </Field>
+          {mfaEnabled ? (
+            <Field label={t("Authenticator code")}>
+              <input
+                inputMode="numeric"
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value)}
+              />
+            </Field>
+          ) : null}
           {message ? (
             <p role="status" className="form-message">
               {message}
             </p>
           ) : null}
           <div className="security-dialog-actions">
-            <Button tone="outline" onClick={close}>
-              {t("Cancel")}
-            </Button>
-            <Button loading={busy} onClick={() => void submit()}>
+            <Button loading={busy} disabled={!mfaStatusLoaded} onClick={() => void submit()}>
               {t("Confirm")}
             </Button>
           </div>

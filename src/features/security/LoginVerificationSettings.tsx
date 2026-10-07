@@ -1,5 +1,6 @@
 import QRCode from "qrcode"
 import "./LoginVerificationSettings.css"
+import { Fingerprint, KeyRound, Mail, Smartphone } from "lucide-react"
 import { useEffect, useState } from "react"
 import { authApi } from "../../api/endpoints"
 import type { LoginChallenge } from "../../api/types"
@@ -10,8 +11,17 @@ import { SecurityActionDialog } from "./SecurityActionDialog"
 
 type Method = "EMAIL" | "PHONE" | "TOTP"
 type Setting = { type: Method; bound: boolean; enabled: boolean; destination: string | null }
-export function LoginVerificationSettings({ onChange }: { readonly onChange: () => void }) {
+export function LoginVerificationSettings({
+  onChange,
+  onChangePassword,
+  passwordActionDisabled = false,
+}: {
+  readonly onChange: () => void
+  readonly onChangePassword?: () => void
+  readonly passwordActionDisabled?: boolean
+}) {
   const [settings, setSettings] = useState<Setting[]>([])
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [editing, setEditing] = useState<{
     method: Method
     enabled: boolean
@@ -29,7 +39,10 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
   useEffect(() => {
     void authApi
       .loginMethods()
-      .then(setSettings)
+      .then((methods) => {
+        setSettings(methods)
+        setSettingsLoaded(true)
+      })
       .catch((reason) => setError(verificationMessage(reason)))
   }, [])
   const selectedSetting = settings.find((setting) => setting.type === editing?.method)
@@ -57,62 +70,74 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
     setCooldown(0)
     setError("")
   }
+  const beginEdit = (setting: Setting, changeBinding = false) => {
+    close()
+    setError("")
+    setEditing({
+      method: setting.type,
+      enabled: changeBinding || !setting.enabled,
+      changeBinding,
+    })
+  }
+  const renderSetting = (setting: Setting) => {
+    const title = methodTitle(setting.type)
+    const description = methodDescription(setting.type)
+    return (
+      <Panel key={setting.type} className="login-method-card">
+        <div className="login-method-heading">
+          {setting.type === "EMAIL" ? (
+            <Mail size={20} />
+          ) : setting.type === "PHONE" ? (
+            <Smartphone size={20} />
+          ) : (
+            <Fingerprint size={20} />
+          )}
+          <h3>{t(title)}</h3>
+        </div>
+        <p className="login-method-description">{t(description)}</p>
+        <p className="login-method-status">
+          <span>{setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")}</span>
+          <span aria-hidden="true">·</span>
+          <span>{t(setting.enabled ? "Enabled" : "Disabled")}</span>
+        </p>
+        <div className="login-method-actions">
+          <Button tone="outline" onClick={() => beginEdit(setting)}>
+            {t(setting.enabled ? "Disable" : setting.bound ? "Enable" : "Bind")}
+          </Button>
+          {setting.type !== "TOTP" && setting.bound ? (
+            <Button tone="ghost" onClick={() => beginEdit(setting, true)}>
+              {t("Change binding")}
+            </Button>
+          ) : null}
+        </div>
+      </Panel>
+    )
+  }
   return (
     <section className="section-block">
-      <h2>{t("Login verification methods")}</h2>
+      <h2>{t("Authentication methods")}</h2>
+      <p className="muted">{t("Configure your password and login verification methods.")}</p>
       {error && !editing ? <p role="alert">{error}</p> : null}
       <div className="security-grid">
-        {settings.map((setting) => (
-          <Panel key={setting.type} dense>
-            <h3>
-              {t(
-                setting.type === "EMAIL"
-                  ? "Email login verification"
-                  : setting.type === "PHONE"
-                    ? "SMS login verification"
-                    : "Google Authenticator",
-              )}
-            </h3>
-            <p>
-              {setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")} ·{" "}
-              {t(setting.enabled ? "Enabled" : "Disabled")}
+        {settings.filter((setting) => setting.type === "EMAIL").map(renderSetting)}
+        {settingsLoaded && onChangePassword ? (
+          <Panel className="login-method-card">
+            <div className="login-method-heading">
+              <KeyRound size={20} />
+              <h3>{t("Login Password")}</h3>
+            </div>
+            <p className="login-method-description">
+              {t("Keep your account secure with a strong password.")}
             </p>
-            <button
-              type="button"
-              aria-label={t(
-                setting.type === "EMAIL"
-                  ? "Email login verification"
-                  : setting.type === "PHONE"
-                    ? "SMS login verification"
-                    : "Google Authenticator",
-              )}
-              className="button button-outline"
-              onClick={() => {
-                close()
-                setError("")
-                setEditing({
-                  method: setting.type,
-                  enabled: !setting.enabled,
-                  changeBinding: false,
-                })
-              }}
-            >
-              {t(setting.enabled ? "Disable" : setting.bound ? "Enable" : "Bind")}
-            </button>
-            {setting.type !== "TOTP" && setting.bound ? (
-              <Button
-                tone="ghost"
-                onClick={() => {
-                  close()
-                  setError("")
-                  setEditing({ method: setting.type, enabled: true, changeBinding: true })
-                }}
-              >
-                {t(setting.bound ? "Change binding" : "Bind")}
+            <p className="login-method-status">{t("Configured")}</p>
+            <div className="login-method-actions">
+              <Button tone="outline" disabled={passwordActionDisabled} onClick={onChangePassword}>
+                {t("Change password")}
               </Button>
-            ) : null}
+            </div>
           </Panel>
-        ))}
+        ) : null}
+        {settings.filter((setting) => setting.type !== "EMAIL").map(renderSetting)}
       </div>
       {editing && (!challenge || stagedEmail) ? (
         <SecurityActionDialog
@@ -340,4 +365,16 @@ export function LoginVerificationSettings({ onChange }: { readonly onChange: () 
       ) : null}
     </section>
   )
+}
+
+function methodTitle(method: Method): string {
+  if (method === "EMAIL") return "Email login verification"
+  if (method === "PHONE") return "SMS login verification"
+  return "Google Authenticator"
+}
+
+function methodDescription(method: Method): string {
+  if (method === "EMAIL") return "Verify sign-ins with a code sent to your bound email."
+  if (method === "PHONE") return "Verify sign-ins with a code sent to your bound phone."
+  return "Use a time-based code from your authenticator app to verify sign-ins."
 }

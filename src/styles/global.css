@@ -958,7 +958,7 @@ button:disabled {
 }
 .security-status-row,
 .security-status-row > div,
-.security-dialog-heading,
+.standard-dialog-heading,
 .security-dialog-actions {
   display: flex;
   align-items: center;
@@ -974,45 +974,166 @@ button:disabled {
 }
 .security-preference-list {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.security-preference-card {
+  display: flex;
+  min-width: 0;
+  min-height: 88px;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
 }
-.security-dialog {
+.security-preference-card strong {
+  display: block;
+  line-height: 1.35;
+}
+.security-preference-card p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+}
+.security-toggle {
+  display: inline-flex;
+  width: 46px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-border-strong, var(--color-border));
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.security-toggle span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+  transition: transform 160ms ease;
+}
+.security-toggle[aria-checked="true"] {
+  background: var(--color-positive);
+}
+.security-toggle[aria-checked="true"] span {
+  transform: translateX(18px);
+}
+.security-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.security-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.standard-dialog {
   width: min(480px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow: auto;
-  padding: var(--space-6);
+  padding: 24px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-ink);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
 }
-.security-dialog::backdrop {
+.standard-dialog::backdrop {
   background: rgba(8, 16, 32, 0.65);
 }
-.security-dialog-heading {
-  margin-bottom: var(--space-5);
+.standard-dialog-heading {
+  margin-bottom: 8px;
 }
-.security-dialog-heading h2 {
+.standard-dialog-heading h2 {
   margin: 0;
+  font-size: 20px;
 }
-.security-dialog-heading button {
+.standard-dialog-heading button {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
   border: 0;
+  border-radius: 50%;
   background: transparent;
   color: inherit;
   cursor: pointer;
 }
-.security-dialog-code {
-  display: flex;
-  align-items: end;
-  gap: var(--space-2);
+.standard-dialog-heading button:hover:not(:disabled) {
+  background: var(--color-surface-raised);
 }
-.security-dialog-code .field {
-  flex: 1;
+.standard-dialog-heading button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.standard-dialog-subtitle {
+  margin: 0 0 20px;
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+.standard-dialog-content {
+  display: grid;
+  gap: 16px;
+}
+.standard-dialog-content > p {
+  margin: 0;
+  line-height: 1.5;
+}
+.security-dialog-code {
+  display: grid;
+  gap: 12px;
+}
+.security-dialog-code > .button {
+  justify-self: center;
+  min-width: 170px;
 }
 .security-dialog-actions {
-  justify-content: flex-end;
-  margin-top: var(--space-5);
+  justify-content: center;
+  margin-top: 8px;
+}
+.security-dialog-actions > .button {
+  min-width: 170px;
+}
+.security-action-dialog {
+  width: min(500px, calc(100vw - 32px));
+}
+.security-dialog [role="alert"] {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-negative) 35%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-negative);
+  background: color-mix(in srgb, var(--color-negative) 8%, transparent);
+}
+.login-verification-dialog {
+  width: min(500px, calc(100vw - 32px));
+}
+.login-verification-dialog form {
+  display: grid;
+  gap: 16px;
+}
+.login-verification-dialog form > .button {
+  justify-self: center;
+  min-width: 180px;
+  width: auto;
+}
+.login-verification-resend {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+.login-verification-dialog .login-verification-resend > .button {
+  min-width: 180px;
+  width: auto;
+}
+.verification-simulation-hint {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-strong, var(--color-ink));
+  background: var(--color-surface-raised, var(--color-surface));
 }
 .api-secret {
   display: block;
@@ -1956,8 +2077,57 @@ button:disabled {
 }
 .security-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-4);
+}
+.login-method-card {
+  display: flex;
+  min-width: 0;
+  min-height: 250px;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.login-method-heading {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-primary);
+}
+.login-method-heading h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-body-emphasis);
+}
+.login-method-description {
+  min-height: 42px;
+  margin: 0;
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+.login-method-status {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+}
+.login-method-status span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.login-method-actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+.login-method-actions > .button {
+  justify-content: center;
+  width: 100%;
 }
 .security-card {
   min-height: 190px;
@@ -2307,6 +2477,10 @@ button:disabled {
   .asset-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .security-grid,
+  .security-preference-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 560px) {
   .asset-product-grid {
@@ -2375,7 +2549,8 @@ button:disabled {
   .kyc-layout,
   .help-layout,
   .notification-grid,
-  .security-grid {
+  .security-grid,
+  .security-preference-list {
     grid-template-columns: 1fr;
   }
   .balance-actions {
@@ -3619,29 +3794,6 @@ body,
 }
 .book-price-button.negative {
   color: var(--color-negative);
-}
-
-.auth-error-dialog {
-  width: min(360px, calc(100vw - 32px));
-  padding: 24px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-.auth-error-dialog::backdrop {
-  background: rgb(0 0 0 / 45%);
-}
-.auth-error-dialog h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
-}
-.auth-error-dialog p {
-  margin: 0 0 24px;
-  font-size: 14px;
-}
-.auth-error-dialog .button {
-  width: 100%;
 }
 
 .auth-platform-logo {
