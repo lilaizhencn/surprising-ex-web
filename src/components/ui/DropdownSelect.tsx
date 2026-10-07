@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react"
 import {
   Children,
+  type CSSProperties,
   isValidElement,
   type OptionHTMLAttributes,
   type ReactNode,
@@ -35,7 +36,7 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
   const menuId = useId()
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 })
+  const [position, setPosition] = useState<CSSProperties>({ visibility: "hidden" })
 
   useEffect(() => {
     if (!open) return
@@ -45,9 +46,11 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
       const below = window.innerHeight - box.bottom - 8
       const above = box.top - 8
       const showAbove = below < 180 && above > below
-      const maxHeight = Math.max(100, Math.min(240, showAbove ? above : below))
+      const maxHeight = Math.max(0, Math.min(240, showAbove ? above - 4 : below - 4))
       setPosition({
-        top: showAbove ? box.top - maxHeight - 4 : box.bottom + 4,
+        top: showAbove ? undefined : box.bottom + 4,
+        bottom: showAbove ? window.innerHeight - box.top + 4 : undefined,
+        boxSizing: "border-box",
         left: Math.max(8, Math.min(box.left, window.innerWidth - box.width - 8)),
         width: box.width,
         maxHeight,
@@ -72,7 +75,7 @@ export function DropdownSelect({ value, onChange, children, "aria-label": ariaLa
   }, [open])
 
   const choose = (option: Option) => {
-    if (option.disabled) return
+    if (option.disabled || trigger.current?.matches(":disabled")) return
     onChange({ target: { value: option.value } })
     setOpen(false)
     trigger.current?.focus()

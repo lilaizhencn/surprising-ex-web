@@ -884,5 +884,22 @@
   "Minimum deposit": "最小充值金额",
   "Select asset": "选择币种",
   "No deposit history yet.": "暂无充值记录。",
-  "View file": "查看文件"
+  "View file": "查看文件",
+  "Identity document": "身份证件",
+  "Please select": "请选择",
+  "Select an identity document": "请选择身份证件",
+  "Driving licence": "驾驶证",
+  "Residence permit": "居留许可",
+  "Driving licence — front": "驾驶证正面",
+  "Driving licence — back": "驾驶证反面",
+  "Residence permit — front": "居留许可正面",
+  "Residence permit — back": "居留许可反面",
+  "Address proof type": "地址证明类型",
+  "Select an address proof": "请选择地址证明",
+  "Government residence certificate": "政府签发的居住证明",
+  "Separate from your identity document. Choose one recent document showing your name and residential address.": "地址证明与身份证件分开提交。请选择一份近期出具、载有您姓名及居住地址的证明。",
+  "Choose the applicant, verification level and required document types.": "请选择申请人类型、认证等级及所需的证明类型。",
+  "Select a date": "请选择日期",
+  "Year": "年份",
+  "Month": "月份"
 }

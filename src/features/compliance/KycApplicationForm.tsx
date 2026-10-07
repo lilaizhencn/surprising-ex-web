@@ -2,8 +2,10 @@ import { Check, FileCheck, Trash2, Upload, UserRound } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { submitKyc, uploadKycDocument } from "../../api/endpoints"
 import { type Country, deleteKycDraft, loadCountries } from "../../api/kyc"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
+import { KycDatePicker } from "./KycDatePicker"
 import "./KycApplicationForm.css"
 
 type Row = Readonly<Record<string, unknown>>
@@ -12,6 +14,7 @@ type Slot = {
   type: string
   title: string
   hint: string
+  key?: string
   example: "front" | "back" | "selfie" | "passport" | "bill" | "business"
 }
 export function KycApplicationForm({
@@ -24,10 +27,10 @@ export function KycApplicationForm({
   const locale = useLocale()
   const [countries, setCountries] = useState<Country[]>([])
   const [country, setCountry] = useState("")
-  const [type, setType] = useState("ID_CARD")
-  const [applicant, setApplicant] = useState("INDIVIDUAL")
-  const [level, setLevel] = useState("STANDARD")
-  const [proof, setProof] = useState("UTILITY_BILL")
+  const [type, setType] = useState("")
+  const [applicant, setApplicant] = useState("")
+  const [level, setLevel] = useState("")
+  const [proof, setProof] = useState("")
   const [expiry, setExpiry] = useState("")
   const [issued, setIssued] = useState("")
   const [files, setFiles] = useState<Record<string, UploadedDocument>>({})
@@ -66,18 +69,45 @@ export function KycApplicationForm({
             example: "selfie",
           },
         ]
-      : [
-          {
-            type: "PASSPORT",
-            title: "Passport — personal details page",
-            hint: "Upload the page with your portrait, full name, passport number and expiry date. Your passport must be valid.",
-            example: "passport",
-          },
-        ]
-  if (level !== "BASIC")
+      : type === "PASSPORT"
+        ? [
+            {
+              type: "PASSPORT",
+              title: "Passport — personal details page",
+              hint: "Upload the page with your portrait, full name, passport number and expiry date. Your passport must be valid.",
+              example: "passport",
+            },
+          ]
+        : type
+          ? [
+              {
+                type: `${type}_FRONT`,
+                title:
+                  type === "DRIVING_LICENSE"
+                    ? "Driving licence — front"
+                    : "Residence permit — front",
+                hint: "Show the portrait, full name and document number. Keep all four corners visible.",
+                example: "front",
+              },
+              {
+                type: `${type}_BACK`,
+                title:
+                  type === "DRIVING_LICENSE" ? "Driving licence — back" : "Residence permit — back",
+                hint: "Show the issuing authority and validity dates. Do not crop or cover any details.",
+                example: "back",
+              },
+            ]
+          : []
+  if (level && level !== "BASIC" && proof)
     slots.push({
       type: "ADDRESS_PROOF",
-      title: proof === "UTILITY_BILL" ? "Utility bill" : "Bank statement",
+      key: `ADDRESS_PROOF_${proof}`,
+      title:
+        proof === "UTILITY_BILL"
+          ? "Utility bill"
+          : proof === "BANK_STATEMENT"
+            ? "Bank statement"
+            : "Government residence certificate",
       hint: "Issued within the last three months. Show your full name, residential address, issuer and issue date on the same document.",
       example: "bill",
     })
@@ -88,7 +118,7 @@ export function KycApplicationForm({
       hint: "Show the full registered company name, registration number and issuing authority. Upload all relevant pages as one PDF.",
       example: "business",
     })
-  if (level === "ENHANCED" && type !== "ID_CARD")
+  if (type && level === "ENHANCED" && type !== "ID_CARD")
     slots.push({
       type: "FACE_IMAGE",
       title: "Face photograph",
@@ -108,6 +138,10 @@ export function KycApplicationForm({
       setError(t("Select a country or region."))
       return
     }
+    if (!type || !applicant || !level || (level !== "BASIC" && !proof)) {
+      setError(t("Choose the applicant, verification level and required document types."))
+      return
+    }
     if (!expiry || expiry < today) {
       setError(t("Your identity document must not be expired."))
       return
@@ -119,7 +153,7 @@ export function KycApplicationForm({
       setError(t("Address proof must be issued within the last three months."))
       return
     }
-    if (slots.some((slot) => !files[slot.type])) {
+    if (slots.some((slot) => !files[slot.key ?? slot.type])) {
       setError(t("Upload every required document before submitting."))
       return
     }
@@ -131,7 +165,7 @@ export function KycApplicationForm({
         country,
         documentType: type,
         provider,
-        documentIds: slots.map((slot) => files[slot.type]?.id),
+        documentIds: slots.map((slot) => files[slot.key ?? slot.type]?.id),
         documentExpiresOn: expiry,
         addressIssuedOn: level === "BASIC" ? null : issued,
         faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
@@ -142,6 +176,31 @@ export function KycApplicationForm({
     } finally {
       setBusy(false)
     }
+  }
+  function renderSlots(items: Slot[]) {
+    return items.length ? (
+      <div className="kyc-upload-slots">
+        {items.map((slot) => {
+          const key = slot.key ?? slot.type
+          return (
+            <DocumentSlot
+              key={key}
+              slot={slot}
+              file={files[key]}
+              onBusy={(delta) => setLoadingFiles((value) => value + delta)}
+              onChange={(file) =>
+                setFiles((current) => {
+                  const next = { ...current }
+                  if (file) next[key] = file
+                  else delete next[key]
+                  return next
+                })
+              }
+            />
+          )
+        })}
+      </div>
+    ) : null
   }
   return (
     <form
@@ -154,75 +213,43 @@ export function KycApplicationForm({
       <fieldset disabled={busy || loadingFiles > 0}>
         <div className="grid-2">
           <Field label={t("Country or region")}>
-            <select
-              required
+            <DropdownSelect
               value={country}
               onChange={(event) => setCountry(event.target.value)}
               aria-label={t("Country or region")}
             >
               <option value="">{t("Select a country or region.")}</option>
               {countries.map((row) => (
-                <option key={row.code} value={row.code}>
-                  {row.flag} {row.names[locale]}
-                </option>
+                <option
+                  key={row.code}
+                  value={row.code}
+                >{`${row.flag} ${row.names[locale]}`}</option>
               ))}
-            </select>
+            </DropdownSelect>
           </Field>
           <Field label={t("Applicant type")}>
-            <select value={applicant} onChange={(event) => setApplicant(event.target.value)}>
+            <DropdownSelect
+              value={applicant}
+              onChange={(event) => setApplicant(event.target.value)}
+              aria-label={t("Applicant type")}
+            >
+              <option value="">{t("Please select")}</option>
               <option value="INDIVIDUAL">{t("Individual")}</option>
               <option value="BUSINESS">{t("Business")}</option>
-            </select>
-          </Field>
-          <Field label={t("Document type")}>
-            <select
-              aria-label={t("Document type")}
-              value={type}
-              onChange={(event) => {
-                setType(event.target.value)
-                setExpiry("")
-              }}
-            >
-              <option value="ID_CARD">{t("Identity card")}</option>
-              <option value="PASSPORT">{t("Passport")}</option>
-            </select>
-          </Field>
-          <Field label={t("Document expiry date")}>
-            <input
-              required
-              type="date"
-              min={today}
-              value={expiry}
-              onChange={(event) => setExpiry(event.target.value)}
-            />
+            </DropdownSelect>
           </Field>
           <Field label={t("Verification level")}>
-            <select value={level} onChange={(event) => setLevel(event.target.value)}>
+            <DropdownSelect
+              value={level}
+              onChange={(event) => setLevel(event.target.value)}
+              aria-label={t("Verification level")}
+            >
+              <option value="">{t("Please select")}</option>
               <option value="BASIC">{t("Basic")}</option>
               <option value="STANDARD">{t("Standard")}</option>
               <option value="ENHANCED">{t("Enhanced")}</option>
-            </select>
+            </DropdownSelect>
           </Field>
-          {level !== "BASIC" ? (
-            <>
-              <Field label={t("Proof of address")}>
-                <select value={proof} onChange={(event) => setProof(event.target.value)}>
-                  <option value="UTILITY_BILL">{t("Utility bill")}</option>
-                  <option value="BANK_STATEMENT">{t("Bank statement")}</option>
-                </select>
-              </Field>
-              <Field label={t("Proof of address issue date")}>
-                <input
-                  required
-                  type="date"
-                  min={oldest.toISOString().slice(0, 10)}
-                  max={today}
-                  value={issued}
-                  onChange={(event) => setIssued(event.target.value)}
-                />
-              </Field>
-            </>
-          ) : null}
         </div>
         {countryError ? (
           <p role="alert">
@@ -232,24 +259,79 @@ export function KycApplicationForm({
             </button>
           </p>
         ) : null}
-        <div className="kyc-upload-slots">
-          {slots.map((slot) => (
-            <DocumentSlot
-              key={slot.type}
-              slot={slot}
-              file={files[slot.type]}
-              onBusy={(delta) => setLoadingFiles((value) => value + delta)}
-              onChange={(file) =>
-                setFiles((current) => {
-                  const next = { ...current }
-                  if (file) next[slot.type] = file
-                  else delete next[slot.type]
-                  return next
-                })
-              }
-            />
-          ))}
-        </div>
+        <section className="kyc-evidence-section">
+          <h2>{t("Identity document")}</h2>
+          <div className="grid-2">
+            <Field label={t("Document type")}>
+              <DropdownSelect
+                aria-label={t("Document type")}
+                value={type}
+                onChange={(event) => {
+                  setType(event.target.value)
+                  setExpiry("")
+                }}
+              >
+                <option value="">{t("Select an identity document")}</option>
+                <option value="ID_CARD">{t("Identity card")}</option>
+                <option value="PASSPORT">{t("Passport")}</option>
+                <option value="DRIVING_LICENSE">{t("Driving licence")}</option>
+                <option value="RESIDENCE_PERMIT">{t("Residence permit")}</option>
+              </DropdownSelect>
+            </Field>
+            {type ? (
+              <Field label={t("Document expiry date")}>
+                <KycDatePicker
+                  label={t("Document expiry date")}
+                  value={expiry}
+                  onChange={setExpiry}
+                  min={today}
+                />
+              </Field>
+            ) : null}
+          </div>
+          {renderSlots(slots.filter((slot) => slot.type !== "ADDRESS_PROOF"))}
+        </section>
+        {level && level !== "BASIC" ? (
+          <section className="kyc-evidence-section">
+            <h2>{t("Proof of address")}</h2>
+            <p className="kyc-section-hint">
+              {t(
+                "Separate from your identity document. Choose one recent document showing your name and residential address.",
+              )}
+            </p>
+            <div className="grid-2">
+              <Field label={t("Address proof type")}>
+                <DropdownSelect
+                  aria-label={t("Address proof type")}
+                  value={proof}
+                  onChange={(event) => {
+                    setProof(event.target.value)
+                    setIssued("")
+                  }}
+                >
+                  <option value="">{t("Select an address proof")}</option>
+                  <option value="UTILITY_BILL">{t("Utility bill")}</option>
+                  <option value="BANK_STATEMENT">{t("Bank statement")}</option>
+                  <option value="RESIDENCE_CERTIFICATE">
+                    {t("Government residence certificate")}
+                  </option>
+                </DropdownSelect>
+              </Field>
+              {proof ? (
+                <Field label={t("Proof of address issue date")}>
+                  <KycDatePicker
+                    label={t("Proof of address issue date")}
+                    value={issued}
+                    onChange={setIssued}
+                    min={oldest.toISOString().slice(0, 10)}
+                    max={today}
+                  />
+                </Field>
+              ) : null}
+            </div>
+            {renderSlots(slots.filter((slot) => slot.type === "ADDRESS_PROOF"))}
+          </section>
+        ) : null}
         {error ? (
           <p role="alert" className="inline-error">
             {error}
@@ -342,7 +424,11 @@ function DocumentSlot({
         <p>{t(slot.hint)}</p>
         {file ? (
           <div className="kyc-file-preview">
-            {preview ? <img src={preview} alt={t(slot.title)} /> : <FileCheck size={32} />}
+            {preview && file.file.type.startsWith("image/") ? (
+              <img src={preview} alt={t(slot.title)} />
+            ) : (
+              <FileCheck size={32} />
+            )}
             <span>
               <Check size={16} />
               {file.name}
