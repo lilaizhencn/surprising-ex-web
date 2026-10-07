@@ -105,8 +105,7 @@ export function LedgerPage() {
       ]
       rows.sort(
         (left, right) =>
-          Date.parse(String(right.createdAt ?? "")) -
-          Date.parse(String(left.createdAt ?? "")),
+          Date.parse(String(right.createdAt ?? "")) - Date.parse(String(left.createdAt ?? "")),
       )
       return { rows, nextCursor: null }
     }
