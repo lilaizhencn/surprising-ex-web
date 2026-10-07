@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import "./TradingAccountTables.css"
 import { cancelOrder, loadPositionRisk } from "../../api/endpoints"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
@@ -84,6 +85,25 @@ export function units(value: unknown, asset: string | undefined, scales: Props["
     return "—"
   }
 }
+/** Display-only rounding; keep account values and calculations in exact integer units. */
+export function marginAmount(
+  value: unknown,
+  asset: string | undefined,
+  scales: Props["assetScales"],
+) {
+  if (value == null || !asset || !scales[asset]) return "—"
+  try {
+    const amount = integer(value),
+      scale = integer(scales[asset])
+    if (scale <= 0n) return "—"
+    const absolute = amount < 0n ? -amount : amount
+    const cents = (absolute * 200n + scale) / (scale * 2n)
+    return `${amount < 0n && cents !== 0n ? "-" : ""}${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")} ${asset}`
+  } catch {
+    return "—"
+  }
+}
+
 export function timestamp(row: Row, key: "created" | "updated") {
   const raw = row[`${key}AtEpochMillis`] ?? row[`${key}At`]
   if (raw == null) return "—"
@@ -334,6 +354,16 @@ export function TradingAccountTables(props: Props) {
                         markPriceTicks: markTicks,
                         settleScaleUnits: assetScales[settle ?? ""],
                       })?.pnl
+                const positionMargin = marginAmount(
+                  position["positionMarginUnits"],
+                  settle,
+                  assetScales,
+                )
+                const maintenanceMargin = marginAmount(
+                  risk?.["maintenanceMarginUnits"],
+                  settle,
+                  assetScales,
+                )
                 const isLong = Number(position["signedQuantitySteps"]) > 0
                 const triggers = props.triggers.filter(
                   (row) => row.instrumentId === instrumentId && row.positionSide === side,
@@ -383,8 +413,16 @@ export function TradingAccountTables(props: Props) {
                       )}
                     </td>
                     <td>{units(position["realizedPnlUnits"], settle, assetScales)}</td>
-                    <td>{units(position["positionMarginUnits"], settle, assetScales)}</td>
-                    <td>{units(risk?.["maintenanceMarginUnits"], settle, assetScales)}</td>
+                    <td>
+                      <span className="position-margin-amount" title={positionMargin}>
+                        {positionMargin}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="position-margin-amount" title={maintenanceMargin}>
+                        {maintenanceMargin}
+                      </span>
+                    </td>
                     <td>
                       {risk?.["marginRatioPpm"] == null
                         ? "—"
@@ -434,7 +472,12 @@ export function TradingAccountTables(props: Props) {
                     "Status / Order ID",
                     "Actions",
                   ].map((label) => (
-                    <th key={label}>{t(label)}</th>
+                    <th
+                      key={label}
+                      className={label === "Actions" ? "trading-order-actions" : undefined}
+                    >
+                      {t(label)}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -526,7 +569,7 @@ function TradingOrderRow({
         <b>{t(statusLabels[status] ?? status)}</b>
         <small title={id}>{id}</small>
       </td>
-      <td>
+      <td className="trading-order-actions">
         {open && (
           <button
             className="compact-cancel"

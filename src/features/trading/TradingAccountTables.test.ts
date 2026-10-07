@@ -1,6 +1,6 @@
 import { expect, it } from "vitest"
 import type { Market } from "../../types/domain"
-import { fillProgress, orderStatus, price } from "./TradingAccountTables"
+import { fillProgress, marginAmount, orderStatus, price } from "./TradingAccountTables"
 
 it("distinguishes working, partially filled and terminal orders", () => {
   expect(orderStatus({ status: "OPEN", executedQuantitySteps: "0" })).toBe("ACCEPTED")
@@ -19,4 +19,18 @@ it("formats a fractional execution average at the instrument price precision", (
   const market = { quoteAsset: "USDT", priceTickUnits: "10000000", pricePrecision: 2 } as Market
   expect(price("103.333333333333333333", market, { USDT: "100000000" })).toBe("10.33")
   expect(price(null, market, { USDT: "100000000" })).toBe("—")
+})
+
+it("keeps margin display at exactly two decimals without floating point loss", () => {
+  const scales = { USDT: "100000000", BTC: "100000000" }
+  expect(marginAmount("150458849722", "USDT", scales)).toBe("1504.59 USDT")
+  expect(marginAmount("75532140000", "USDT", scales)).toBe("755.32 USDT")
+  expect(marginAmount("100000000", "USDT", scales)).toBe("1.00 USDT")
+  expect(marginAmount("100500000", "USDT", scales)).toBe("1.01 USDT")
+  expect(marginAmount("-100500000", "USDT", scales)).toBe("-1.01 USDT")
+  expect(marginAmount("1", "BTC", scales)).toBe("0.00 BTC")
+  expect(marginAmount("9223372036854775807", "USDT", scales)).toBe("92233720368.55 USDT")
+  expect(marginAmount(null, "USDT", scales)).toBe("—")
+  expect(marginAmount("invalid", "USDT", scales)).toBe("—")
+  expect(marginAmount("1", "USDT", {})).toBe("—")
 })
