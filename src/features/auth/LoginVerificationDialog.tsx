@@ -96,9 +96,9 @@ export function LoginVerificationDialog({
           setError("")
           void onVerify({
             challengeToken: challenge.challengeToken,
-            emailCode: codes["EMAIL"],
-            phoneCode: codes["PHONE"],
-            totpCode: codes["TOTP"],
+            emailCode: codes.EMAIL,
+            phoneCode: codes.PHONE,
+            totpCode: codes.TOTP,
           })
             .catch((reason: unknown) => setError(verificationMessage(reason)))
             .finally(() => setLoading(false))

@@ -280,11 +280,11 @@ export function DepositPage() {
                   </thead>
                   <tbody>
                     {history.rows.map((row, index) => (
-                      <tr key={String(row["id"] ?? index)}>
-                        <td>{String(row["assetSymbol"] ?? row["asset"] ?? assetCode)}</td>
-                        <td>{String(row["amount"] ?? "")}</td>
-                        <td>{String(row["status"] ?? "")}</td>
-                        <td>{String(row["createdAt"] ?? "")}</td>
+                      <tr key={String(row.id ?? index)}>
+                        <td>{String(row.assetSymbol ?? row.asset ?? assetCode)}</td>
+                        <td>{String(row.amount ?? "")}</td>
+                        <td>{String(row.status ?? "")}</td>
+                        <td>{String(row.createdAt ?? "")}</td>
                       </tr>
                     ))}
                   </tbody>

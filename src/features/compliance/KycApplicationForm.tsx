@@ -405,9 +405,9 @@ function DocumentSlot({
     onBusy(1)
     try {
       const result = await uploadKycDocument(slot.type, value)
-      if (typeof result["documentId"] !== "number") throw new Error(t("Document upload failed."))
+      if (typeof result.documentId !== "number") throw new Error(t("Document upload failed."))
       if (mounted.current) {
-        onChange({ id: result["documentId"], name: value.name, file: value })
+        onChange({ id: result.documentId, name: value.name, file: value })
       }
     } catch (reason) {
       if (mounted.current) setError(readError(reason))

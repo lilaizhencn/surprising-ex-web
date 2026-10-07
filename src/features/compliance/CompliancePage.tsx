@@ -157,7 +157,7 @@ function AuthenticatedKyc() {
               "Your documents have been submitted. We will update this page when the review is complete.",
             )}
           </p>
-          {provider?.["simulationEnabled"] === true ? (
+          {provider?.simulationEnabled === true ? (
             <div className="button-row">
               <Button loading={busy} onClick={() => void simulate("APPROVED")}>
                 {t("Simulate automatic approval")}
@@ -178,7 +178,7 @@ function AuthenticatedKyc() {
           <KycApplicationForm
             provider={text(provider, "provider")}
             onSubmitted={(response) => {
-              const saved = response["profile"]
+              const saved = response.profile
               setProfile(saved && typeof saved === "object" ? (saved as RecordRow) : response)
               setEditing(false)
               setError("")

@@ -86,8 +86,8 @@ export function LedgerPage() {
       ]
       rows.sort(
         (left, right) =>
-          Date.parse(String(right["createdAt"] ?? "")) -
-          Date.parse(String(left["createdAt"] ?? "")),
+          Date.parse(String(right.createdAt ?? "")) -
+          Date.parse(String(left.createdAt ?? "")),
       )
       return { rows, nextCursor: null }
     }
@@ -151,19 +151,19 @@ export function LedgerPage() {
       .finally(() => setLoading(false))
   }
   const visible = rows.filter((row) => {
-    const created = new Date(String(row["createdAt"] ?? row["updatedAt"] ?? ""))
+    const created = new Date(String(row.createdAt ?? row.updatedAt ?? ""))
     if (from && (!Number.isFinite(created.getTime()) || created.getTime() < (dateStart(from) ?? 0)))
       return false
     if (to && (!Number.isFinite(created.getTime()) || created.getTime() > (dateEnd(to) ?? 0)))
       return false
     if (
       asset &&
-      String(row["asset"] ?? row["currency"] ?? "").toUpperCase() !== asset.toUpperCase()
+      String(row.asset ?? row.currency ?? "").toUpperCase() !== asset.toUpperCase()
     )
       return false
     if (
       instrumentId &&
-      !String(row["instrumentId"] ?? "").includes(instrumentId.trim()) &&
+      !String(row.instrumentId ?? "").includes(instrumentId.trim()) &&
       category !== "funding-payment"
     )
       return false
