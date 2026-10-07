@@ -71,6 +71,11 @@ export function LoginVerificationDialog({
     >
       <h2 id="verification-title">{t("Security verification")}</h2>
       <p>{t("Enter every required code to complete verification.")}</p>
+      {challenge.simulated ? (
+        <p className="verification-simulation-hint" role="status">
+          {t("Test environment: use 123456 for email or SMS verification.")}
+        </p>
+      ) : null}
       {enrollment ? (
         <div className="authenticator-enrollment">
           <img

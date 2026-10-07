@@ -110,6 +110,11 @@ export const authApi = {
         }),
       ),
     ),
+  verifyLoginMethodPassword: (method: "EMAIL" | "PHONE" | "TOTP", currentPassword: string) =>
+    request(`/api/v1/security/login-verification/${method}/verify-password`, z.unknown(), {
+      method: "POST",
+      body: { currentPassword },
+    }),
   bindLoginMethod: (
     method: "EMAIL" | "PHONE" | "TOTP",
     currentPassword: string,
@@ -382,6 +387,29 @@ export function loadSecurityScenes() {
 
 export function loadMfaStatus() {
   return request("/api/v1/security/mfa", GenericObjectSchema)
+}
+
+export function loadMfaRecovery() {
+  return request("/api/v1/security/mfa/recovery", GenericObjectSchema.nullable())
+}
+
+export function issueMfaRecoveryChallenge(currentPassword: string) {
+  return request("/api/v1/security/mfa/recovery/challenge", GenericObjectSchema, {
+    method: "POST",
+    body: { currentPassword },
+  })
+}
+
+export function submitMfaRecovery(
+  challengeId: number,
+  currentPassword: string,
+  code: string,
+  reason: string,
+) {
+  return request("/api/v1/security/mfa/recovery", GenericObjectSchema, {
+    method: "POST",
+    body: { challengeId, currentPassword, code, reason },
+  })
 }
 
 export function changePassword(

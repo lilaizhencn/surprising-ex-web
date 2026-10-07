@@ -21,6 +21,7 @@ import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 import { LoginVerificationSettings } from "./LoginVerificationSettings"
+import { MfaRecoveryPanel } from "./MfaRecoveryPanel"
 
 type RecordRow = Readonly<Record<string, unknown>>
 
@@ -98,6 +99,13 @@ export function SecurityPage() {
           {message}
         </div>
       ) : null}
+      {withdrawalRestrictionActive(mfa) ? (
+        <Panel className="security-restriction-notice">
+          {t("Withdrawals are temporarily unavailable after a security change.")}{" "}
+          {t("Available after:")}{" "}
+          {new Date(String(mfa?.["withdrawalsRestrictedUntil"])).toLocaleString()}
+        </Panel>
+      ) : null}
       <section className="section-block">
         <h2>{t("Verification & Authentication")}</h2>
         <div className="security-grid">
@@ -111,6 +119,7 @@ export function SecurityPage() {
         </div>
       </section>
       <LoginVerificationSettings onChange={refresh} />
+      <MfaRecoveryPanel />
       {showPassword ? (
         <PasswordPanel
           onDone={(value) => {
@@ -742,6 +751,10 @@ function text(row: RecordRow | null | undefined, key: string): string {
 function booleanValue(row: RecordRow | null | undefined, key: string): boolean {
   const value = row?.[key]
   return value === true || value === "true"
+}
+function withdrawalRestrictionActive(row: RecordRow | null): boolean {
+  const until = row?.["withdrawalsRestrictedUntil"]
+  return typeof until === "string" && Date.parse(until) > Date.now()
 }
 function readError(reason: unknown): string {
   return reason instanceof Error

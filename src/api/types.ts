@@ -639,6 +639,7 @@ export const LoginChallengeSchema = z.object({
   requiresVerification: z.literal(true),
   challengeToken: z.string(),
   expiresAt: z.string(),
+  simulated: z.boolean().optional(),
   methods: z
     .array(
       z.object({ type: z.enum(["EMAIL", "PHONE", "TOTP"]), destination: z.string().nullable() }),
