@@ -7,7 +7,7 @@ import { t, useLocale } from "../../i18n"
 import "./KycApplicationForm.css"
 
 type Row = Readonly<Record<string, unknown>>
-type UploadedDocument = { id: number; name: string }
+type UploadedDocument = { id: number; name: string; file: File }
 type Slot = {
   type: string
   title: string
@@ -284,12 +284,15 @@ function DocumentSlot({
       mounted.current = false
     }
   }, [])
-  useEffect(
-    () => () => {
-      if (preview) URL.revokeObjectURL(preview)
-    },
-    [preview],
-  )
+  useEffect(() => {
+    if (!file) {
+      setPreview("")
+      return
+    }
+    const url = URL.createObjectURL(file.file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
   const upload = async (value: File) => {
     setError("")
     if (
@@ -306,8 +309,7 @@ function DocumentSlot({
       const result = await uploadKycDocument(slot.type, value)
       if (typeof result["documentId"] !== "number") throw new Error(t("Document upload failed."))
       if (mounted.current) {
-        onChange({ id: result["documentId"], name: value.name })
-        setPreview(value.type.startsWith("image/") ? URL.createObjectURL(value) : "")
+        onChange({ id: result["documentId"], name: value.name, file: value })
       }
     } catch (reason) {
       if (mounted.current) setError(readError(reason))
@@ -345,6 +347,11 @@ function DocumentSlot({
               <Check size={16} />
               {file.name}
             </span>
+            {preview ? (
+              <a href={preview} target="_blank" rel="noopener noreferrer">
+                {t("View file")}
+              </a>
+            ) : null}
             <Button
               tone="ghost"
               loading={busy}

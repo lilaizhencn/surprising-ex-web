@@ -883,5 +883,6 @@
   "Required confirmations": "所需确认数",
   "Minimum deposit": "最小充值金额",
   "Select asset": "选择币种",
-  "No deposit history yet.": "暂无充值记录。"
+  "No deposit history yet.": "暂无充值记录。",
+  "View file": "查看文件"
 }
