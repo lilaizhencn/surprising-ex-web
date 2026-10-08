@@ -5,13 +5,12 @@ import {
   changeIpBlock,
   issueSecurityChallenge,
   loadDevices,
-  loadLoginHistory,
   loadLoginIps,
   loadMfaStatus,
   revokeDevice,
   revokeUserSession,
 } from "../../api/endpoints"
-import type { ApiDeviceStatus, ApiIpStatus, ApiLoginHistoryEntry } from "../../api/types"
+import type { ApiDeviceStatus, ApiIpStatus } from "../../api/types"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { SecurityActionDialog } from "./SecurityActionDialog"
@@ -26,7 +25,6 @@ type Action = {
 export function DeviceManagementPage() {
   const [devices, setDevices] = useState<readonly ApiDeviceStatus[]>([])
   const [ips, setIps] = useState<readonly ApiIpStatus[]>([])
-  const [logins, setLogins] = useState<readonly ApiLoginHistoryEntry[]>([])
   const [action, setAction] = useState<Action | null>(null)
   const [emailCode, setEmailCode] = useState("")
   const [totpCode, setTotpCode] = useState("")
@@ -35,15 +33,15 @@ export function DeviceManagementPage() {
   const [busy, setBusy] = useState(false)
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)
+  const visibleIps = ips.filter((ip) => !isPrivateIp(ip.ipAddress))
   const refresh = () => {
     setMfaStatusLoaded(false)
     setBusy(true)
-    void Promise.all([loadDevices(), loadLoginIps(), loadLoginHistory(), loadMfaStatus()])
+    void Promise.all([loadDevices(), loadLoginIps(), loadMfaStatus()])
       .then(
-        ([deviceRows, ipRows, history, mfaStatus]) => {
+        ([deviceRows, ipRows, mfaStatus]) => {
           setDevices(deviceRows)
           setIps(ipRows)
-          setLogins(history.logs)
           setMfaEnabled(mfaStatus["enabled"] === true)
           setMfaStatusLoaded(true)
           setError("")
@@ -111,98 +109,75 @@ export function DeviceManagementPage() {
             {t("Refresh")}
           </Button>
         </div>
-        {devices.length ? (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t("Device")}</th>
-                  <th>{t("IP address")}</th>
-                  <th>{t("Last login")}</th>
-                  <th>{t("Status")}</th>
-                  <th>{t("Action")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {devices.map((device) => (
-                  <tr key={device.deviceId ?? `session-${device.sessionId}`}>
-                    <td>
-                      {device.userAgent || t("Unknown device")}
-                      {device.current ? (
-                        <small className="muted"> · {t("Current device")}</small>
-                      ) : null}
-                    </td>
-                    <td className="mono">{device.ipAddress ?? "—"}</td>
-                    <td>{formatDate(device.lastSeen)}</td>
-                    <td>
-                      {t(device.blocked ? "Blocked" : device.active ? "Active" : "Signed out")}
-                    </td>
-                    <td>
-                      <div className="inline-form">
-                        {device.active && !device.current ? (
-                          <Button
-                            tone="outline"
-                            onClick={() =>
-                              setAction({
-                                kind: "device",
-                                value: device.deviceId ?? "",
-                                mode: "revoke",
-                                sessionId: String(device.sessionId),
-                              })
-                            }
-                          >
-                            {t("Sign out")}
-                          </Button>
-                        ) : null}
-                        {device.deviceId && !device.current ? (
-                          <Button
-                            tone={device.blocked ? "outline" : "negative"}
-                            onClick={() =>
-                              setAction({
-                                kind: "device",
-                                value: device.deviceId ?? "",
-                                mode: device.blocked ? "unblock" : "block",
-                              })
-                            }
-                          >
-                            {t(device.blocked ? "Allow login" : "Block login")}
-                          </Button>
+        {devices.length || visibleIps.length ? (
+          <div className="device-management-list">
+            {devices.map((device) => {
+              const ip =
+                device.ipAddress && !isPrivateIp(device.ipAddress)
+                  ? visibleIps.find((item) => item.ipAddress === device.ipAddress)
+                  : undefined
+              return (
+                <article
+                  className="device-management-card"
+                  key={device.deviceId ?? `session-${device.sessionId}`}
+                >
+                  <div className="device-management-heading">
+                    <div className="device-management-identity">
+                      <MonitorSmartphone size={20} aria-hidden="true" />
+                      <div>
+                        <strong>{describeDevice(device.userAgent)}</strong>
+                        {device.current ? (
+                          <small className="muted">{t("Current device")}</small>
                         ) : null}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Panel>
-            <StateView kind={busy ? "loading" : "empty"} message={t("No devices yet.")} />
-          </Panel>
-        )}
-      </section>
-      <section className="section-block">
-        <h2>{t("Login IP addresses")}</h2>
-        {ips.length ? (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t("IP address")}</th>
-                  <th>{t("Logins")}</th>
-                  <th>{t("Last login")}</th>
-                  <th>{t("Status")}</th>
-                  <th>{t("Action")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ips.map((ip) => (
-                  <tr key={ip.ipAddress}>
-                    <td className="mono">{ip.ipAddress}</td>
-                    <td>{ip.loginCount}</td>
-                    <td>{formatDate(ip.lastSeen)}</td>
-                    <td>{t(ip.blocked ? "Blocked" : "Allowed")}</td>
-                    <td>
+                    </div>
+                    <span
+                      className={`device-status ${device.blocked ? "is-blocked" : device.active ? "is-active" : ""}`}
+                    >
+                      {t(device.blocked ? "Blocked" : device.active ? "Active" : "Signed out")}
+                    </span>
+                  </div>
+                  <div className="device-management-details">
+                    <div>
+                      <span>{t("IP address")}</span>
+                      <strong className="mono">{displayIp(device.ipAddress)}</strong>
+                    </div>
+                    <div>
+                      <span>{t("Last login")}</span>
+                      <strong>{formatDate(device.lastSeen)}</strong>
+                    </div>
+                  </div>
+                  <div className="device-management-actions">
+                    {device.active && !device.current ? (
+                      <Button
+                        tone="outline"
+                        onClick={() =>
+                          setAction({
+                            kind: "device",
+                            value: device.deviceId ?? "",
+                            mode: "revoke",
+                            sessionId: String(device.sessionId),
+                          })
+                        }
+                      >
+                        {t("Sign out")}
+                      </Button>
+                    ) : null}
+                    {device.deviceId && !device.current ? (
+                      <Button
+                        tone={device.blocked ? "outline" : "negative"}
+                        onClick={() =>
+                          setAction({
+                            kind: "device",
+                            value: device.deviceId ?? "",
+                            mode: device.blocked ? "unblock" : "block",
+                          })
+                        }
+                      >
+                        {t(device.blocked ? "Allow login" : "Block login")}
+                      </Button>
+                    ) : null}
+                    {ip ? (
                       <Button
                         tone={ip.blocked ? "outline" : "negative"}
                         onClick={() =>
@@ -215,46 +190,59 @@ export function DeviceManagementPage() {
                       >
                         <ShieldBan size={15} /> {t(ip.blocked ? "Allow IP" : "Block IP")}
                       </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
+            {visibleIps
+              .filter((ip) => !devices.some((device) => device.ipAddress === ip.ipAddress))
+              .map((ip) => (
+                <article className="device-management-card" key={`ip-${ip.ipAddress}`}>
+                  <div className="device-management-heading">
+                    <div className="device-management-identity">
+                      <ShieldBan size={20} aria-hidden="true" />
+                      <div>
+                        <strong>{t("Login IP addresses")}</strong>
+                        <small className="mono">{displayIp(ip.ipAddress)}</small>
+                      </div>
+                    </div>
+                    <span className={`device-status ${ip.blocked ? "is-blocked" : "is-active"}`}>
+                      {t(ip.blocked ? "Blocked" : "Allowed")}
+                    </span>
+                  </div>
+                  <div className="device-management-details">
+                    <div>
+                      <span>{t("Last login")}</span>
+                      <strong>{formatDate(ip.lastSeen)}</strong>
+                    </div>
+                    <div>
+                      <span>{t("Logins")}</span>
+                      <strong>{ip.loginCount}</strong>
+                    </div>
+                  </div>
+                  <div className="device-management-actions">
+                    <Button
+                      tone={ip.blocked ? "outline" : "negative"}
+                      onClick={() =>
+                        setAction({
+                          kind: "ip",
+                          value: ip.ipAddress,
+                          mode: ip.blocked ? "unblock" : "block",
+                        })
+                      }
+                    >
+                      <ShieldBan size={15} /> {t(ip.blocked ? "Allow IP" : "Block IP")}
+                    </Button>
+                  </div>
+                </article>
+              ))}
           </div>
         ) : (
           <Panel>
-            <StateView kind={busy ? "loading" : "empty"} message={t("No login IPs yet.")} />
+            <StateView kind={busy ? "loading" : "empty"} message={t("No devices yet.")} />
           </Panel>
         )}
-      </section>
-      <section className="section-block">
-        <h2>{t("Recent login attempts")}</h2>
-        {logins.length ? (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t("Time")}</th>
-                  <th>{t("Result")}</th>
-                  <th>{t("Reason")}</th>
-                  <th>{t("IP address")}</th>
-                  <th>{t("Device")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logins.map((entry) => (
-                  <tr key={String(entry.loginId)}>
-                    <td>{formatDate(entry.createdAt)}</td>
-                    <td>{entry.result}</td>
-                    <td>{entry.reason ?? "—"}</td>
-                    <td className="mono">{entry.ipAddress ?? "—"}</td>
-                    <td>{entry.userAgent ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
       </section>
       {action ? (
         <SecurityActionDialog
@@ -327,6 +315,55 @@ export function DeviceManagementPage() {
 function formatDate(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function displayIp(value: string | null): string {
+  if (!value) return "—"
+  return isPrivateIp(value) ? "—" : value
+}
+
+function isPrivateIp(value: string): boolean {
+  const normalized = value.toLowerCase()
+  if (
+    normalized === "::" ||
+    normalized === "::1" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:")
+  )
+    return true
+  if (normalized.startsWith("::ffff:")) return isPrivateIp(normalized.slice(7))
+  const octets = value.split(".").map(Number)
+  if (
+    octets.length !== 4 ||
+    octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  )
+    return false
+  const [first = 0, second = 0] = octets
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254) ||
+    (first === 100 && second >= 64 && second <= 127)
+  )
+}
+
+function describeDevice(userAgent: string | null): string {
+  const ua = userAgent ?? ""
+  if (/iPhone/i.test(ua)) return "iPhone"
+  if (/iPad/i.test(ua)) return "iPad"
+  if (/Android/i.test(ua)) {
+    const model = ua.match(/;\s*([^;()]+?)\s+Build\//i)?.[1]?.trim()
+    if (model && !/^(Android|Linux|K)$/i.test(model)) return model
+    return "Android device"
+  }
+  if (/Macintosh|Mac OS X/i.test(ua)) return "Mac"
+  if (/Windows NT/i.test(ua)) return "Windows PC"
+  if (/Linux/i.test(ua)) return "Linux PC"
+  return t("Unknown device")
 }
 function readError(reason: unknown): string {
   return reason instanceof Error ? reason.message : t("Request failed. Please try again later.")
