@@ -170,7 +170,8 @@ export function useRealtimeAssets(
     setHeld(next)
   }, [realtime.views, realtime.products, mappedMarkets])
   const result = useMemo(() => {
-    let ready = Boolean(session && fx && markets.length && realtime.products.length)
+    // Cash balances are usable once account snapshots arrive, even without a USD quote.
+    let ready = Boolean(session && realtime.products.length)
     const balances: Balance[] = []
     const prices = new Map<string, number>([["USDT", 1]])
     for (const m of mappedMarkets.filter(
@@ -221,7 +222,7 @@ export function useRealtimeAssets(
           ),
         }))
       const equity = accountEquity(view, productMarkets, product)
-      ready = ready && equity.complete
+      ready = ready && view.ready()
       for (const row of equity.balances) {
         const parsed = BalanceSchema.safeParse({ ...row, accountType: accountTypes[product] })
         if (!parsed.success) {
@@ -229,20 +230,20 @@ export function useRealtimeAssets(
           continue
         }
         const balance = mapBalance(parsed.data, scales)
+        if (balance.available === null || balance.locked === null) ready = false
         const scale = scales[balance.asset],
           price = prices.get(balance.asset)
         let usd: number | null = null
         try {
-          if (scale && price !== undefined && fx !== null)
+          if (equity.complete && scale && price !== undefined && fx !== null)
             usd =
               Number(signedUnitsToDecimal(integer(row["equityUnits"]).toString(), scale)) *
               price *
               fx
         } catch {
-          ready = false
+          usd = null
         }
         if (usd === null || !Number.isFinite(usd)) {
-          ready = false
           usd = null
         }
         balances.push({ ...balance, estimatedUsd: usd })
