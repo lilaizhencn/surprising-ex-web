@@ -3874,6 +3874,7 @@ body,
   color: var(--color-ink);
 }
 .device-management-table .ant-table-tbody > tr:hover > td {
+  /* biome-ignore lint/complexity/noImportantStyles: Override the Ant Design table hover background with the selected theme. */
   background: var(--color-surface-active) !important;
 }
 .device-management-table .ant-pagination {
