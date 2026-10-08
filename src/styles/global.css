@@ -848,13 +848,31 @@ button:disabled {
   font-weight: 600;
 }
 .account-sidebar-group-title {
+  width: 100%;
   display: flex;
   align-items: center;
+  text-align: left;
   gap: var(--space-4);
   min-height: 52px;
   padding: 0 var(--space-6);
   color: var(--color-ink);
+  font: inherit;
   font-weight: 600;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.account-sidebar-group-title > span {
+  flex: 1;
+}
+.account-sidebar-group-title > svg:last-child {
+  transition: transform 160ms ease;
+}
+.account-sidebar-group-title > svg:last-child.expanded {
+  transform: rotate(180deg);
+}
+.account-sidebar-children {
+  display: grid;
 }
 .account-sidebar nav a.account-sidebar-child {
   min-height: 42px;
@@ -2451,11 +2469,20 @@ button:disabled {
     padding: var(--space-2);
   }
   .account-sidebar-group {
-    display: flex;
+    display: grid;
     flex: none;
   }
   .account-sidebar-group-title {
+    min-width: 130px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0 var(--space-3);
+  }
+  .account-sidebar-group-title > svg:first-child {
     display: none;
+  }
+  .account-sidebar-children {
+    display: flex;
   }
   .account-sidebar nav a {
     min-width: 130px;

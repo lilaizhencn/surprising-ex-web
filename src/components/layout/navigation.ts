@@ -30,6 +30,8 @@ export const assetNavigation = [
   { label: "USD-M Delivery", href: "/assets?account=usd-delivery" },
   { label: "Coin-M Delivery", href: "/assets?account=coin-delivery" },
   { label: "Options", href: "/assets?account=options" },
+  { label: "Ledger", href: "/assets/ledger" },
+  { label: "Orders", href: "/orders" },
 ] as const
 
 export const securityNavigation = [
