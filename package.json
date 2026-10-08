@@ -15,6 +15,7 @@
   "dependencies": {
     "@daypicker/react": "^10.0.2",
     "@vitejs/plugin-react": "latest",
+    "antd": "^6.6.5",
     "ky": "latest",
     "lightweight-charts": "5.2.1",
     "lucide-react": "latest",
