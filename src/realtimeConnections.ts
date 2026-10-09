@@ -1,65 +1,62 @@
-import { parseRealtimeJson, type Subscription, subscriptionKey, type WsEnvelope } from "./realtime"
+import {
+  PRIVATE_CHANNELS,
+  parseRealtimeJson,
+  type Subscription,
+  subscriptionKey,
+  type WsEnvelope,
+} from "./realtime"
 import type { ProductLine } from "./types/domain"
 
-/** Connections are grouped by endpoint and kept below the server's 200-subscription limit. */
+/** One application transport; product/channel isolation lives in subscription metadata. */
 export class RealtimeConnections {
-  private readonly connections = new Map<string, Connection>()
+  private connection: Connection | null = null
+  private token: string | null
   private readonly resume = () => {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return
-    for (const connection of this.connections.values()) connection.checkLiveness()
+    this.connection?.checkLiveness()
   }
   constructor(
     private readonly endpoint: (product: ProductLine) => string,
-    private readonly token: string | null,
+    token: string | null,
     private readonly message: (event: WsEnvelope) => void,
     private readonly connectionState: (products: readonly ProductLine[], live: boolean) => void,
   ) {
+    this.token = token
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.resume)
     if (typeof window !== "undefined") window.addEventListener("pageshow", this.resume)
   }
+  updateToken(token: string | null) {
+    if (this.token === token) return
+    this.token = token
+    this.connection?.updateToken(token)
+  }
   update(subscriptions: readonly Subscription[]) {
-    const groups = new Map<string, Subscription[]>()
-    for (const s of subscriptions) {
-      const url = this.endpoint(s.productLine)
-      const group = groups.get(url) ?? []
-      group.push(s)
-      groups.set(url, group)
-    }
-    const batches = new Map<string, { url: string; subscriptions: Subscription[] }>()
-    for (const [url, group] of groups) {
-      const unique = [...new Map(group.map((s) => [subscriptionKey(s), s])).values()].sort((a, b) =>
-        subscriptionKey(a).localeCompare(subscriptionKey(b)),
+    const unique = [...new Map(subscriptions.map((s) => [subscriptionKey(s), s])).values()]
+    if (unique.length > 200)
+      throw new Error("Too many realtime subscriptions. Narrow the selected markets.")
+    if (!this.connection) {
+      const product = unique[0]?.productLine ?? "LINEAR_PERPETUAL"
+      this.connection = new Connection(
+        this.endpoint(product),
+        this.token,
+        this.message,
+        this.connectionState,
       )
-      for (let i = 0; i < unique.length; i += 180)
-        batches.set(`${url}#${i / 180}`, { url, subscriptions: unique.slice(i, i + 180) })
     }
-    for (const [key, connection] of this.connections) {
-      if (!batches.has(key)) {
-        connection.close()
-        this.connections.delete(key)
-      }
-    }
-    for (const [key, batch] of batches) {
-      let connection = this.connections.get(key)
-      if (!connection) {
-        connection = new Connection(batch.url, this.token, this.message, this.connectionState)
-        this.connections.set(key, connection)
-      }
-      connection.update(batch.subscriptions)
-    }
+    this.connection.update(unique)
   }
   refresh() {
-    for (const c of this.connections.values()) c.refresh()
+    this.connection?.refresh()
   }
   resubscribe(subscription: Subscription) {
-    for (const c of this.connections.values()) c.resubscribe(subscription)
+    this.connection?.resubscribe(subscription)
   }
   close() {
     if (typeof document !== "undefined")
       document.removeEventListener("visibilitychange", this.resume)
     if (typeof window !== "undefined") window.removeEventListener("pageshow", this.resume)
-    for (const c of this.connections.values()) c.close()
-    this.connections.clear()
+    this.connection?.close()
+    this.connection = null
   }
 }
 
@@ -68,6 +65,7 @@ class Connection {
   private desired = new Map<string, Subscription>()
   private installed = new Map<string, Subscription>()
   private authenticated = false
+  private awaitingAuthentication = false
   private closed = false
   private reconnect: ReturnType<typeof setTimeout> | undefined
   private heartbeat: ReturnType<typeof setInterval> | undefined
@@ -78,7 +76,7 @@ class Connection {
   private readonly depthProgress = new Map<string, { at: number; awaitingSnapshot: boolean }>()
   constructor(
     private readonly url: string,
-    private readonly token: string | null,
+    private token: string | null,
     private readonly message: (event: WsEnvelope) => void,
     private readonly state: (products: readonly ProductLine[], live: boolean) => void,
   ) {}
@@ -86,9 +84,31 @@ class Connection {
     return [...new Set([...this.desired.values()].map((s) => s.productLine))]
   }
   update(subscriptions: readonly Subscription[]) {
+    const previousProducts = new Set(this.products())
     this.desired = new Map(subscriptions.map((s) => [subscriptionKey(s), s]))
     if (!this.socket && !this.reconnect) this.connect()
+    const addedProducts = this.products().filter((product) => !previousProducts.has(product))
+    if (addedProducts.length && this.socket?.readyState === WebSocket.OPEN)
+      this.state(addedProducts, !this.token || this.authenticated)
     this.reconcile()
+  }
+  updateToken(token: string | null) {
+    if (this.token === token) return
+    const previous = this.token
+    this.token = token
+    this.authenticated = false
+    this.awaitingAuthentication = false
+    if (previous) {
+      // Retire the authenticated identity before logout, account change or token replacement.
+      if (this.socket) this.disconnect(this.socket)
+    } else if (this.socket?.readyState === WebSocket.OPEN && token) {
+      this.authenticate(this.socket)
+    }
+  }
+  private authenticate(socket: WebSocket) {
+    if (!this.token || this.awaitingAuthentication || this.authenticated) return
+    this.awaitingAuthentication = true
+    socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: this.token }))
   }
   private connect() {
     if (this.closed) return
@@ -98,19 +118,17 @@ class Connection {
     this.lastPingAt = Date.now()
     this.depthProgress.clear()
     this.heartbeat = setInterval(() => this.checkLiveness(), 1000)
-    this.authenticated = !this.token
+    this.authenticated = false
+    this.awaitingAuthentication = false
     this.installed.clear()
     this.state(this.products(), false)
     socket.onopen = () => {
       if (this.closed || this.socket !== socket) return
       this.attempt = 0
       this.lastReceivedAt = Date.now()
-      if (this.token)
-        socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: this.token }))
-      else {
-        this.state(this.products(), true)
-        this.reconcile()
-      }
+      if (this.token) this.authenticate(socket)
+      else this.state(this.products(), true)
+      this.reconcile()
     }
     socket.onmessage = (message) => {
       if (this.closed || this.socket !== socket) return
@@ -131,12 +149,25 @@ class Connection {
             progress.awaitingSnapshot = false
           }
         }
-        if (event.op === "authenticated") {
+        if (event.op === "authenticated" && this.awaitingAuthentication) {
+          this.awaitingAuthentication = false
           this.authenticated = true
           this.state(this.products(), true)
           this.reconcile()
         }
-        if (event.op === "error") this.state(this.products(), false)
+        if (event.op === "error") {
+          if (this.awaitingAuthentication) {
+            this.awaitingAuthentication = false
+            this.authenticated = false
+          }
+          this.state(this.products(), false)
+        }
+        if (
+          (event.userId != null || PRIVATE_CHANNELS.has(event.channel ?? "")) &&
+          event.op !== "authenticated" &&
+          !this.authenticated
+        )
+          return
         this.message(event)
       } catch {
         this.state(this.products(), false)
@@ -155,7 +186,7 @@ class Connection {
     }
     if (socket.readyState !== WebSocket.OPEN) return
     const now = Date.now()
-    if (this.authenticated) {
+    if (!this.token || this.authenticated) {
       for (const [key, progress] of this.depthProgress) {
         const deadline = progress.awaitingSnapshot ? 3000 : 10000
         const subscription = this.desired.get(key)
@@ -184,19 +215,24 @@ class Connection {
   }
   private reconcile() {
     const socket = this.socket
-    if (socket?.readyState !== WebSocket.OPEN || !this.authenticated) return
+    if (socket?.readyState !== WebSocket.OPEN) return
+    const allowed = new Map(
+      [...this.desired].filter(
+        ([, s]) => !PRIVATE_CHANNELS.has(s.channel) || (this.token && this.authenticated),
+      ),
+    )
     for (const [id, s] of this.installed)
-      if (!this.desired.has(id)) {
+      if (!allowed.has(id)) {
         socket.send(JSON.stringify({ op: "unsubscribe", id, ...s }))
         this.depthProgress.delete(id)
       }
-    for (const [id, s] of this.desired)
+    for (const [id, s] of allowed)
       if (!this.installed.has(id)) {
         socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
         if (s.channel === "depth")
           this.depthProgress.set(id, { at: Date.now(), awaitingSnapshot: true })
       }
-    this.installed = new Map(this.desired)
+    this.installed = allowed
   }
   resubscribe(subscription: Subscription) {
     const id = subscriptionKey(subscription)
@@ -205,7 +241,7 @@ class Connection {
       !this.desired.has(id) ||
       !this.installed.has(id) ||
       socket?.readyState !== WebSocket.OPEN ||
-      !this.authenticated
+      (PRIVATE_CHANNELS.has(subscription.channel) && !this.authenticated)
     )
       return
     socket.send(JSON.stringify({ op: "unsubscribe", id, ...subscription }))

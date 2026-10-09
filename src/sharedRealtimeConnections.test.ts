@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Subscription } from "./realtime"
-import { acquireRealtimeConnections } from "./sharedRealtimeConnections"
+import { acquireRealtimeConnections, retainRealtimeSession } from "./sharedRealtimeConnections"
 
 class Socket {
   static OPEN = 1
@@ -45,7 +45,9 @@ function socket(index = 0): Socket {
   return value
 }
 const handles: ReturnType<typeof acquireRealtimeConnections>[] = []
+const owners = new Map<typeof endpoint, ReturnType<typeof retainRealtimeSession>>()
 function acquire(token: string | null, message = vi.fn(), state = vi.fn(), route = endpoint) {
+  if (!owners.has(route)) owners.set(route, retainRealtimeSession(route, token))
   const handle = acquireRealtimeConnections(route, token, message, state)
   handles.push(handle)
   return handle
@@ -58,6 +60,8 @@ describe("shared page realtime transports", () => {
   })
   afterEach(() => {
     for (const handle of handles.splice(0)) handle.close()
+    for (const owner of owners.values()) owner.close()
+    owners.clear()
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
@@ -93,6 +97,8 @@ describe("shared page realtime transports", () => {
       "depth",
     ])
     b.close()
+    expect(ws.readyState).toBe(1)
+    owners.get(endpoint)?.close()
     expect(ws.readyState).toBe(3)
   })
   it("authenticates once and gives a late subscriber fresh depth and account baselines without resetting existing views", () => {
@@ -158,21 +164,61 @@ describe("shared page realtime transports", () => {
       }),
     )
   })
-  it("keeps user tokens and endpoint resolvers isolated and releases the pool after the last owner", () => {
-    const a = acquire("first")
-    a.update([trade])
-    socket().open()
-    const b = acquire("second")
+  it("shares public consumers with the application identity and drops stale private consumers on account change", () => {
+    const first = vi.fn(),
+      second = vi.fn(),
+      publicMessages = vi.fn()
+    const a = acquire("first", first)
+    const b = acquire(null, publicMessages)
+    a.update([trade, account])
     b.update([trade])
+    const ws = socket()
+    ws.open()
+    ws.receive({ op: "authenticated", userId: "1" })
+    expect(Socket.instances).toHaveLength(1)
+    expect(ws.sent.filter((c) => c["op"] === "authenticate")).toHaveLength(1)
+    const root = owners.get(endpoint)
+    if (!root) throw new Error("Expected application owner")
+    root.updateToken("second")
+    const c = acquire("second", second)
+    c.update([account])
+    expect(ws.readyState).toBe(3)
+    vi.advanceTimersByTime(1000)
+    const next = socket(1)
+    next.open()
+    next.receive({ op: "authenticated", userId: "2" })
+    const privateEvent = { op: "snapshot", userId: "2", productLine: "LINEAR_PERPETUAL", data: {} }
+    first.mockClear()
+    publicMessages.mockClear()
+    second.mockClear()
+    next.receive(privateEvent)
+    expect(first).not.toHaveBeenCalled()
+    expect(publicMessages).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledWith(privateEvent)
+    expect(Socket.instances.filter((s) => s.readyState === 1)).toHaveLength(1)
+  })
+  it("upgrades an anonymous socket once on login and removes private subscriptions on logout", () => {
+    const page = acquire(null)
+    page.update([trade])
+    const ws = socket()
+    ws.open()
+    const root = owners.get(endpoint)
+    if (!root) throw new Error("Expected application owner")
+    root.updateToken("login-token")
+    root.update([account])
+    expect(Socket.instances).toHaveLength(1)
+    expect(ws.sent.filter((c) => c["op"] === "authenticate")).toHaveLength(1)
+    expect(ws.sent.filter((c) => c["channel"] === "accountState")).toHaveLength(0)
+    ws.receive({ op: "authenticated", userId: "1" })
+    expect(ws.sent.at(-1)).toMatchObject({ op: "subscribe", channel: "accountState" })
+    root.updateToken(null)
+    expect(ws.readyState).toBe(3)
+    vi.advanceTimersByTime(1000)
     socket(1).open()
-    const c = acquire("first", vi.fn(), vi.fn(), () => "ws://other")
-    c.update([trade])
-    socket(2).open()
-    expect(Socket.instances).toHaveLength(3)
-    a.close()
-    const next = acquire("first")
-    next.update([trade])
-    expect(Socket.instances).toHaveLength(4)
+    expect(socket(1).sent).toEqual([
+      expect.objectContaining({ op: "subscribe", channel: "trades" }),
+    ])
+    expect(Socket.instances.filter((s) => s.readyState === 1)).toHaveLength(1)
   })
   it("retains the shared baseline and auth flow through reconnect", () => {
     const aState = vi.fn(),
@@ -201,11 +247,13 @@ describe("shared page realtime transports", () => {
     const a = acquire(null),
       b = acquire(null)
     a.update(Array.from({ length: 120 }, (_, i) => ({ ...trade, instrumentId: String(i) })))
-    b.update(Array.from({ length: 120 }, (_, i) => ({ ...trade, instrumentId: String(i + 120) })))
-    expect(Socket.instances).toHaveLength(2)
+    expect(() =>
+      b.update(
+        Array.from({ length: 120 }, (_, i) => ({ ...trade, instrumentId: String(i + 120) })),
+      ),
+    ).toThrow("Too many realtime subscriptions")
+    expect(Socket.instances).toHaveLength(1)
     socket().open()
-    socket(1).open()
-    expect(socket().sent.filter((c) => c["op"] === "subscribe")).toHaveLength(180)
-    expect(socket(1).sent.filter((c) => c["op"] === "subscribe")).toHaveLength(60)
+    expect(socket().sent.filter((c) => c["op"] === "subscribe")).toHaveLength(120)
   })
 })

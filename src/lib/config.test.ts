@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest"
-import { productWebSocketUrl } from "./config"
+import { applicationWebSocketUrl, config } from "./config"
 
-describe("product WebSocket routing", () => {
-  it("opens separate endpoints for spot and perpetual on the same API host", () => {
-    const base = "wss://ex-api.tokdou.com/ws/v1"
-    expect(productWebSocketUrl(base, "SPOT")).toBe(`${base}?productLine=SPOT`)
-    expect(productWebSocketUrl(base, "LINEAR_PERPETUAL")).toBe(
-      `${base}?productLine=LINEAR_PERPETUAL`,
+describe("application WebSocket routing", () => {
+  it("uses one gateway endpoint for all product-scoped subscriptions", () => {
+    expect(config.wsBaseUrlForProductLine("SPOT")).toBe(
+      config.wsBaseUrlForProductLine("LINEAR_PERPETUAL"),
+    )
+    expect(applicationWebSocketUrl("wss://ex-api.tokdou.com/ws/v1?productLine=SPOT")).toBe(
+      "wss://ex-api.tokdou.com/ws/v1",
     )
   })
-
-  it("preserves configured paths and replaces an old selector", () => {
-    expect(productWebSocketUrl("ws://localhost:9194/ws/v1?x=1&productLine=OPTION", "SPOT")).toBe(
-      "ws://localhost:9194/ws/v1?x=1&productLine=SPOT",
+  it("preserves configured paths and other parameters", () => {
+    expect(applicationWebSocketUrl("ws://localhost:9194/ws/v1?x=1&productLine=OPTION")).toBe(
+      "ws://localhost:9194/ws/v1?x=1",
     )
-    expect(productWebSocketUrl("", "SPOT")).toBe("")
+    expect(applicationWebSocketUrl("")).toBe("")
   })
 })

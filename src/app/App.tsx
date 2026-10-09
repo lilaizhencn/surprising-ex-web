@@ -3,6 +3,7 @@ import { refreshStoredSession } from "../api/client"
 import { AppShell } from "../components/layout/AppShell"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
+import { useRealtimeApplication } from "../hooks/useRealtimeApplication"
 import { t, useLocale } from "../i18n"
 import { loadSession, saveSession, sessionAccessExpired, useSession } from "../state/session"
 
@@ -55,6 +56,7 @@ const TradePage = lazy(() =>
 )
 
 export function App() {
+  useRealtimeApplication(useSession())
   return (
     <Suspense
       fallback={

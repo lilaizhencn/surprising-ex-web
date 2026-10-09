@@ -9,16 +9,16 @@ function defaultWebSocketBaseUrl(_productLine: ProductLine = "LINEAR_PERPETUAL")
 export const config = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "",
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl(),
-  wsBaseUrlForProductLine: (productLine: ProductLine) =>
-    productWebSocketUrl(import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl(), productLine),
+  wsBaseUrlForProductLine: (_productLine: ProductLine) =>
+    applicationWebSocketUrl(import.meta.env.VITE_WS_BASE_URL || defaultWebSocketBaseUrl()),
   demoDataEnabled: import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === "true",
 } as const
 
-/** The edge uses this selector before the WebSocket upgrade; frames cannot change its backend. */
-export function productWebSocketUrl(baseUrl: string, productLine: ProductLine): string {
+/** Gateway routes product-scoped subscriptions on one WebSocket. Credentials travel in authenticate. */
+export function applicationWebSocketUrl(baseUrl: string): string {
   if (!baseUrl) return ""
   const url = new URL(baseUrl)
-  url.searchParams.set("productLine", productLine)
+  url.searchParams.delete("productLine")
   return url.toString()
 }
 

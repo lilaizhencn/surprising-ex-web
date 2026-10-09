@@ -1,11 +1,12 @@
 import type { Subscription, WsEnvelope } from "./realtime"
-import { subscriptionKey } from "./realtime"
+import { PRIVATE_CHANNELS, subscriptionKey } from "./realtime"
 import { RealtimeConnections } from "./realtimeConnections"
 import type { ProductLine } from "./types/domain"
 
 type Endpoint = (product: ProductLine) => string
 type Consumer = {
   subscriptions: readonly Subscription[]
+  token: string | null
   message: (event: WsEnvelope) => void
   state: (products: readonly ProductLine[], live: boolean) => void
 }
@@ -14,9 +15,34 @@ export type RealtimeConnectionHandle = Pick<
   "update" | "refresh" | "resubscribe" | "close"
 >
 
-// One transport owner per endpoint resolver and login token. Components retain
-// their own books/account views; this registry only owns subscription lifetimes.
-const sessions = new WeakMap<Endpoint, Map<string | null, SharedRealtimeSession>>()
+// Application session owns authentication; pages only retain subscription lifetimes.
+const sessions = new WeakMap<Endpoint, SharedRealtimeSession>()
+
+export function retainRealtimeSession(endpoint: Endpoint, token: string | null) {
+  if (sessions.has(endpoint)) throw new Error("Realtime application session already exists")
+  const session = new SharedRealtimeSession(endpoint, token, () => sessions.delete(endpoint))
+  sessions.set(endpoint, session)
+  let owner = session.attach(
+    token,
+    () => {},
+    () => {},
+  )
+  return {
+    updateToken: (next: string | null) => {
+      owner.update([])
+      session.updateToken(next)
+      const nextOwner = session.attach(
+        next,
+        () => {},
+        () => {},
+      )
+      owner.close()
+      owner = nextOwner
+    },
+    update: (subscriptions: readonly Subscription[]) => owner.update(subscriptions),
+    close: () => session.close(),
+  }
+}
 
 export function acquireRealtimeConnections(
   endpoint: Endpoint,
@@ -24,35 +50,33 @@ export function acquireRealtimeConnections(
   message: Consumer["message"],
   state: Consumer["state"],
 ): RealtimeConnectionHandle {
-  let identities = sessions.get(endpoint)
-  if (!identities) {
-    identities = new Map()
-    sessions.set(endpoint, identities)
-  }
-  let session = identities.get(token)
-  if (!session) {
-    session = new SharedRealtimeSession(endpoint, token, () => identities.delete(token))
-    identities.set(token, session)
-  }
-  return session.attach(message, state)
+  const session = sessions.get(endpoint)
+  if (!session) throw new Error("Realtime application session is not mounted")
+  return session.attach(token, message, state)
 }
 
 class SharedRealtimeSession {
   private readonly consumers = new Set<Consumer>()
   private readonly live = new Map<ProductLine, boolean>()
   private readonly transport: RealtimeConnections
+  private closed = false
 
   constructor(
     endpoint: Endpoint,
-    token: string | null,
+    private token: string | null,
     private readonly dispose: () => void,
   ) {
     this.transport = new RealtimeConnections(
       endpoint,
       token,
       (event) => {
+        if (this.closed) return
         for (const consumer of this.consumers) {
-          if (accepts(consumer.subscriptions, event)) consumer.message(event)
+          if (
+            (event.userId == null || (consumer.token === this.token && this.token !== null)) &&
+            accepts(consumer.subscriptions, event)
+          )
+            consumer.message(event)
         }
       },
       (products, connected) => {
@@ -67,13 +91,32 @@ class SharedRealtimeSession {
     )
   }
 
-  attach(message: Consumer["message"], state: Consumer["state"]): RealtimeConnectionHandle {
-    const consumer: Consumer = { subscriptions: [], message, state }
+  close() {
+    if (this.closed) return
+    this.closed = true
+    this.transport.close()
+    this.consumers.clear()
+    this.dispose()
+  }
+
+  updateToken(token: string | null) {
+    if (this.token === token) return
+    this.token = token
+    this.transport.updateToken(token)
+    this.reconcile()
+  }
+
+  attach(
+    token: string | null,
+    message: Consumer["message"],
+    state: Consumer["state"],
+  ): RealtimeConnectionHandle {
+    const consumer: Consumer = { subscriptions: [], token, message, state }
     this.consumers.add(consumer)
     let closed = false
     return {
       update: (subscriptions) => {
-        if (closed) return
+        if (closed || this.closed) return
         const previous = new Set(consumer.subscriptions.map(subscriptionKey))
         const previousProducts = new Set(consumer.subscriptions.map((s) => s.productLine))
         const shared = new Set(
@@ -81,8 +124,14 @@ class SharedRealtimeSession {
             .filter((other) => other !== consumer)
             .flatMap((other) => other.subscriptions.map(subscriptionKey)),
         )
+        const previousSubscriptions = consumer.subscriptions
         consumer.subscriptions = subscriptions
-        this.reconcile()
+        try {
+          this.reconcile()
+        } catch (error) {
+          consumer.subscriptions = previousSubscriptions
+          throw error
+        }
         // Joining an already live transport needs its state and a fresh private/
         // depth baseline. Do not reset existing views on ordinary plan updates.
         for (const product of new Set(subscriptions.map((s) => s.productLine))) {
@@ -100,7 +149,7 @@ class SharedRealtimeSession {
         }
       },
       refresh: () => {
-        if (closed) return
+        if (closed || this.closed) return
         for (const subscription of consumer.subscriptions)
           if (subscription.channel === "accountState") this.transport.resubscribe(subscription)
       },
@@ -112,20 +161,25 @@ class SharedRealtimeSession {
           this.transport.resubscribe(subscription)
       },
       close: () => {
-        if (closed) return
+        if (closed || this.closed) return
         closed = true
         this.consumers.delete(consumer)
         if (this.consumers.size) this.reconcile()
-        else {
-          this.transport.close()
-          this.dispose()
-        }
+        else this.close()
       },
     }
   }
 
   private reconcile() {
-    this.transport.update([...this.consumers].flatMap((consumer) => consumer.subscriptions))
+    this.transport.update(
+      [...this.consumers].flatMap((consumer) =>
+        consumer.subscriptions.filter(
+          (subscription) =>
+            !PRIVATE_CHANNELS.has(subscription.channel) ||
+            (consumer.token === this.token && this.token !== null),
+        ),
+      ),
+    )
   }
 }
 

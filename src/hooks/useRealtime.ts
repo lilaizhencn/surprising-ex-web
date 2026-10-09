@@ -88,7 +88,12 @@ export function useRealtimeFeed(
   useEffect(() => {
     // The key tracks the structural plan, not the newly allocated array identity.
     void key
-    connections.current?.update([...desired.current, ...privateDesired.current])
+    try {
+      connections.current?.update([...desired.current, ...privateDesired.current])
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Realtime subscription unavailable")
+      setState("degraded")
+    }
     const active = new Set(desired.current.map(subscriptionKey))
     for (const k of latest.current.keys()) if (!active.has(k)) latest.current.delete(k)
   }, [key])

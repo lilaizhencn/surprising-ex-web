@@ -7,13 +7,11 @@
 - `mapCandle` 将历史接口的 `updatedAt` 和实时快照的聚合 `eventTime` 映射为同一更新时间；`TradePage.mergeCandleSnapshot` 拒绝较旧快照覆盖较新数据，处理历史请求晚于实时推送返回的情况。刷新、重复推送、切换周期与合约不重复计量。
 - 断连期间显示最后已收到的累计值；不根据本地成交列表推测漏收数量。重新订阅后由服务端完整快照恢复。
 
-公共行情和私有状态分开连接，并分别按 `wsBaseUrlForProductLine` 配置的地址分组；多个产品配置相同地址时复用连接。私有连接发送 `authenticate`，收到 `authenticated` 后才订阅；令牌不放进 WebSocket URL。重新连接、换用户或更新令牌会重新建立私有快照基线。
+整个应用只使用一条 `/ws/v1` WebSocket，由 `App` 中的 `useRealtimeApplication` 持有。首页、行情、交易、资产和订单页面共用连接；产品线、币对和周期仍由每条订阅及事件中的 `productLine/instrumentId/period` 隔离。页面卸载只释放自己的订阅，不关闭应用连接。URL 不携带 token 或产品线选择器。
 
-Public and private streams use separate connections, grouped by configured product endpoint. Private subscriptions wait for authentication. Reconnects and session changes establish a fresh account baseline.
+公共订阅不需要认证。存在登录 token 时发送一次 `authenticate`；收到 `authenticated` 后才安装私有订阅，用户身份由服务端决定。匿名连接登录时直接升级为认证连接；退出、切换账户或更新 token 时先关闭旧身份连接，再重连认证，旧回调和旧账户订阅立即失效。每次断线重连重新认证一次并恢复快照。认证失败仍保留公共行情，禁止私有订阅，不重复重试无效 token。
 
-每个连接最多分配 180 项订阅，预留服务器 200 项上限的余量；资产折算只订阅账户涉及资产的现货价格。
-
-Each connection carries at most 180 subscriptions, below the server's 200 limit. Asset conversion subscribes only to the spot prices needed by the accounts.
+应用根据启用产品线订阅本用户的私有频道；页面保留自己的私有视图和恢复基线，不增加第二份账户权威缓存。相同订阅按引用计数合并，最后一个消费者离开才退订。所有页面订阅合计上限为服务器规定的 200 项；超限明确报错，不额外开连接或悄悄丢弃订阅。
 
 - 行情页面只展示 SPOT；现货成交用于最新价，`bookTicker` 用于资产折算。交易页面订阅当前产品与交易对的 `depth`、`candles`、`trades`，衍生品额外订阅 `mark`、`index`，永续额外订阅 `funding`。切换页面、产品、交易对或周期会差量退订和订阅。
 - 登录后订阅六产品的 `accountState`、`orders`、`triggerOrders`、`positions`、`positionRisk`、`executionReports`。省略私有 instrumentId 表示本用户该产品的所有交易对；用户身份由服务器认证决定。已取消 `matches`。

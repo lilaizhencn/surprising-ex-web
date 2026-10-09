@@ -73,7 +73,10 @@ describe("realtime connection lifecycle", () => {
     const ws = socket()
     ws.open()
     expect(Socket.instances).toHaveLength(1)
-    expect(ws.sent).toEqual([{ op: "authenticate", id: "auth", token: "secret" }])
+    expect(ws.sent).toEqual([
+      { op: "authenticate", id: "auth", token: "secret" },
+      expect.objectContaining({ op: "subscribe", channel: "trades" }),
+    ])
     ws.receive({ op: "authenticated" })
     expect(ws.sent.filter((command) => command["op"] === "subscribe")).toEqual(
       expect.arrayContaining([
@@ -115,16 +118,17 @@ describe("realtime connection lifecycle", () => {
     ])
     for (const ws of Socket.instances) ws.open()
     const target = Socket.instances.find((ws) => ws.url.endsWith("/LINEAR_PERPETUAL"))
-    const other = Socket.instances.find((ws) => ws.url.endsWith("/INVERSE_PERPETUAL"))
-    if (!target || !other) throw new Error("Expected isolated sockets")
+    if (!target) throw new Error("Expected shared socket")
+    expect(Socket.instances).toHaveLength(1)
     target.sent = []
-    other.sent = []
     manager.resubscribe(depth)
     expect(target.sent).toEqual([
       expect.objectContaining({ ...depth, op: "unsubscribe" }),
       expect.objectContaining({ ...depth, op: "subscribe" }),
     ])
-    expect(other.sent).toEqual([])
+    expect(target.sent.some((command) => command["productLine"] === "INVERSE_PERPETUAL")).toBe(
+      false,
+    )
     manager.resubscribe({ ...depth, instrumentId: "ETH-USDT" })
     expect(target.sent).toHaveLength(2)
     target.close()
@@ -132,7 +136,7 @@ describe("realtime connection lifecycle", () => {
     vi.advanceTimersByTime(1000)
     const replacement = Socket.instances.at(-1)
     replacement?.open()
-    expect(replacement?.sent.filter((c) => c["op"] === "subscribe")).toHaveLength(2)
+    expect(replacement?.sent.filter((c) => c["op"] === "subscribe")).toHaveLength(3)
     manager.close()
   })
   it("replaces a silent socket even when close never arrives and restores subscriptions", () => {
@@ -248,22 +252,39 @@ describe("realtime connection lifecycle", () => {
     expect(socket().readyState).toBe(3)
     manager.close()
   })
-  it("isolates endpoints and splits large public plans below the server limit", () => {
-    const manager = new RealtimeConnections((p) => `ws://fixture/${p}`, null, vi.fn(), vi.fn())
-    const plan: Subscription[] = Array.from({ length: 401 }, (_, n) => ({
+  it("keeps one socket across product switches, refuses an oversized plan and retains the app connection with no page subscribers", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    const plan: Subscription[] = Array.from({ length: 200 }, (_, n) => ({
       channel: "trades",
       productLine: "SPOT",
       instrumentId: `ASSET-${n}`,
     }))
-    manager.update([...plan, { channel: "mark", productLine: "OPTION", instrumentId: "BTC" }])
-    for (const ws of Socket.instances) ws.open()
-    expect(Socket.instances).toHaveLength(4)
-    expect(Socket.instances.map((ws) => ws.sent.length)).toEqual([180, 180, 41, 1])
-    for (const ws of Socket.instances)
-      expect(new Set(ws.sent.map((c) => c["productLine"])).size).toBe(1)
+    manager.update(plan)
+    socket().open()
+    expect(Socket.instances).toHaveLength(1)
+    expect(socket().sent).toHaveLength(200)
+    expect(() =>
+      manager.update([...plan, { channel: "mark", productLine: "OPTION", instrumentId: "BTC" }]),
+    ).toThrow("Too many realtime subscriptions")
+    expect(Socket.instances).toHaveLength(1)
+    manager.update([{ channel: "mark", productLine: "OPTION", instrumentId: "BTC" }])
+    expect(Socket.instances).toHaveLength(1)
+    expect(socket().sent.at(-1)).toMatchObject({ op: "subscribe", productLine: "OPTION" })
     manager.update([])
-    expect(Socket.instances.every((ws) => ws.readyState === 3)).toBe(true)
-    vi.advanceTimersByTime(60000)
-    expect(Socket.instances).toHaveLength(4)
+    expect(socket().readyState).toBe(1)
+    manager.close()
+    expect(socket().readyState).toBe(3)
+  })
+  it("keeps public subscriptions after authentication rejection and never installs private ones", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", "invalid", vi.fn(), vi.fn())
+    manager.update([publicTrade, account])
+    socket().open()
+    socket().receive({ op: "error", error: "Sign in required" })
+    manager.update([publicTrade, account, order])
+    expect(socket().sent.filter((c) => c["op"] === "authenticate")).toHaveLength(1)
+    expect(socket().sent.filter((c) => c["op"] === "subscribe")).toEqual([
+      expect.objectContaining({ channel: "trades" }),
+    ])
+    manager.close()
   })
 })
