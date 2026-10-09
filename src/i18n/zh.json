@@ -1,4 +1,8 @@
 {
+  "Price scale": "价格轴",
+  "Zoom price out": "缩小价格轴",
+  "Zoom price in": "放大价格轴",
+  "Auto scale": "自适应",
   "Log In": "登录",
   "Enter your email or phone": "请输入邮箱或手机号",
   "Sign-in failed": "登录失败",

@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest"
 import type { Candle } from "../../types/domain"
-import { prepareChartCandles } from "./PriceChart"
+import { prepareChartCandles, zoomPriceRange } from "./PriceChart"
+
+describe("zoomPriceRange", () => {
+  it("zooms a BTC price viewport around its center without changing candle data", () => {
+    expect(zoomPriceRange({ from: 80_000, to: 82_000 }, 0.5, 0.1)).toEqual({
+      from: 80_500,
+      to: 81_500,
+    })
+    expect(zoomPriceRange({ from: 80_000, to: 82_000 }, 2, 0.1)).toEqual({
+      from: 79_000,
+      to: 83_000,
+    })
+  })
+
+  it("keeps at least two instrument ticks visible for small prices", () => {
+    const range = zoomPriceRange({ from: 0.00003, to: 0.000031 }, 0.001, 0.00000001)
+    expect(range).not.toBeNull()
+    expect((range?.to ?? 0) - (range?.from ?? 0)).toBeCloseTo(0.00000002, 12)
+  })
+
+  it("keeps zooming out near zero in a positive finite range", () => {
+    expect(zoomPriceRange({ from: 1, to: 3 }, 4, 0.1)).toEqual({ from: 0, to: 8 })
+    expect(zoomPriceRange({ from: 1, to: 3 }, Number.MAX_VALUE, 0.1)).toBeNull()
+  })
+
+  it("ignores invalid or unavailable price ranges", () => {
+    expect(zoomPriceRange({ from: 2, to: 1 }, 0.5, 0.1)).toBeNull()
+    expect(zoomPriceRange({ from: 1, to: Number.NaN }, 0.5, 0.1)).toBeNull()
+    expect(zoomPriceRange({ from: 1, to: 2 }, 0, 0.1)).toBeNull()
+    expect(zoomPriceRange({ from: 1, to: 2 }, 0.5, 0)).toBeNull()
+  })
+})
 
 describe("prepareChartCandles", () => {
   it("uses the latest update when a period has duplicate timestamps", () => {

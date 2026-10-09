@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react"
 import { t } from "../../i18n"
 import { formatPrice as displayPrice } from "../../lib/format"
 import type { Candle } from "../../types/domain"
+import "./PriceChart.css"
 
 const otherPrice = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 })
 const candleTime = new Intl.DateTimeFormat(undefined, {
@@ -30,6 +31,30 @@ const periodMs: Record<string, number> = {
   "1h": 3_600_000,
   "4h": 14_400_000,
   "1d": 86_400_000,
+}
+
+/** Manual vertical zoom changes only the viewport, never candle prices or the trading tick. */
+export function zoomPriceRange(
+  range: { from: number; to: number },
+  factor: number,
+  minMove: number,
+): { from: number; to: number } | null {
+  if (
+    ![range.from, range.to, factor, minMove].every(Number.isFinite) ||
+    range.to <= range.from ||
+    factor <= 0 ||
+    minMove <= 0
+  )
+    return null
+  const center = range.from + (range.to - range.from) / 2
+  const span = Math.max(
+    (range.to - range.from) * factor,
+    minMove * 2,
+    Math.abs(center) * Number.EPSILON * 4,
+  )
+  const from = Math.max(0, center - span / 2)
+  const to = from + span
+  return Number.isFinite(to) && to > from ? { from, to } : null
 }
 
 export function prepareChartCandles(
@@ -134,6 +159,13 @@ export function PriceChart({
   const hovered = valid.find((bar) => Math.floor(Date.parse(bar.time) / 1000) === hoveredTime)
   const displayed = hovered ?? latest
   const formatPrice = (price: number) => displayPrice(price, pricePrecision)
+  const zoomPrice = (factor: number) => {
+    const scale = candleRef.current?.priceScale()
+    const range = scale?.getVisibleRange()
+    if (!scale || !range) return
+    const next = zoomPriceRange(range, factor, priceStep > 0 ? priceStep : 10 ** -pricePrecision)
+    if (next) scale.setVisibleRange(next)
+  }
 
   useEffect(() => {
     const element = containerRef.current
@@ -167,7 +199,7 @@ export function PriceChart({
         },
       },
       grid: { vertLines: { color: initial.grid }, horzLines: { color: initial.grid } },
-      rightPriceScale: { borderColor: initial.border },
+      rightPriceScale: { borderColor: initial.border, autoScale: true },
       localization: {
         timeFormatter: (time: Time) =>
           typeof time === "number" ? candleTime.format(time * 1000) : String(time),
@@ -212,8 +244,11 @@ export function PriceChart({
     )
     chart.panes()[0]?.setStretchFactor(0.76)
     chart.panes()[1]?.setStretchFactor(0.24)
-    // Keep genuine highs/lows while reducing vertical stretch in sparse local markets.
-    price.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 } })
+    // Auto-fit visible highs/lows; use more of the pane for small price movements.
+    price.priceScale().applyOptions({
+      scaleMargins: { top: 0.08, bottom: 0.08 },
+      tickMarkDensity: 2,
+    })
     volume.priceScale().applyOptions({
       visible: true,
       borderVisible: true,
@@ -359,41 +394,70 @@ export function PriceChart({
 
   return (
     <div className="price-chart">
-      <div className="chart-info">
-        <div className="chart-info-time">
-          <strong>
-            {period} {t("Candles")}
-          </strong>
-          <span>
-            {displayed
-              ? `${hovered ? t("Selected") : t("Latest")} ${candleTime.format(Date.parse(displayed.time))}`
-              : t("Waiting for trades")}
-          </span>
-        </div>
-        {displayed ? (
-          <div className="chart-ohlc">
+      <div className="chart-heading">
+        <div className="chart-info">
+          <div className="chart-info-time">
+            <strong>
+              {period} {t("Candles")}
+            </strong>
             <span>
-              {" "}
-              {t("Open")} <b>{formatPrice(displayed.open)}</b>
-            </span>
-            <span>
-              {" "}
-              {t("High")} <b>{formatPrice(displayed.high)}</b>
-            </span>
-            <span>
-              {" "}
-              {t("Low")} <b>{formatPrice(displayed.low)}</b>
-            </span>
-            <span>
-              {" "}
-              {t("Close")} <b>{formatPrice(displayed.close)}</b>
-            </span>
-            <span>
-              {" "}
-              {t("Volume")} <b>{otherPrice.format(displayed.volume)}</b>
+              {displayed
+                ? `${hovered ? t("Selected") : t("Latest")} ${candleTime.format(Date.parse(displayed.time))}`
+                : t("Waiting for trades")}
             </span>
           </div>
-        ) : null}
+          {displayed ? (
+            <div className="chart-ohlc">
+              <span>
+                {" "}
+                {t("Open")} <b>{formatPrice(displayed.open)}</b>
+              </span>
+              <span>
+                {" "}
+                {t("High")} <b>{formatPrice(displayed.high)}</b>
+              </span>
+              <span>
+                {" "}
+                {t("Low")} <b>{formatPrice(displayed.low)}</b>
+              </span>
+              <span>
+                {" "}
+                {t("Close")} <b>{formatPrice(displayed.close)}</b>
+              </span>
+              <span>
+                {" "}
+                {t("Volume")} <b>{otherPrice.format(displayed.volume)}</b>
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <fieldset className="chart-scale-controls" aria-label={t("Price scale")}>
+          <button
+            type="button"
+            aria-label={t("Zoom price out")}
+            title={t("Zoom price out")}
+            disabled={!latest}
+            onClick={() => zoomPrice(1.5)}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            aria-label={t("Zoom price in")}
+            title={t("Zoom price in")}
+            disabled={!latest}
+            onClick={() => zoomPrice(1 / 1.5)}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            disabled={!latest}
+            onClick={() => candleRef.current?.priceScale().setAutoScale(true)}
+          >
+            {t("Auto scale")}
+          </button>
+        </fieldset>
       </div>
       <div
         ref={containerRef}
