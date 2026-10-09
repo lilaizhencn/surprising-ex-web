@@ -51,6 +51,7 @@ export function mapMarket(raw: ApiMarket): Market {
 }
 
 export function mapCandle(raw: ApiCandle): Candle {
+  const updatedAt = raw.updatedAt ?? raw.eventTime
   return {
     time: new Date(raw.openTime).toISOString(),
     open: numeric(raw.openPrice) ?? 0,
@@ -58,6 +59,7 @@ export function mapCandle(raw: ApiCandle): Candle {
     low: numeric(raw.lowPrice) ?? 0,
     close: numeric(raw.closePrice) ?? 0,
     volume: numeric(raw.baseVolume) ?? 0,
+    ...(updatedAt ? { updatedAt } : {}),
   }
 }
 

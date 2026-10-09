@@ -60,6 +60,7 @@ export type Candle = {
   readonly low: number
   readonly close: number
   readonly volume: number
+  readonly updatedAt?: string
 }
 
 export type Balance = {

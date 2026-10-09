@@ -1,0 +1,577 @@
+{
+  "date": "2026-10-09",
+  "baseCommit": "4ac3aa98d4df60b272e837655c27ef4a06a63909",
+  "diagnosis": [
+    "Trade tape uses contract counts for derivatives while candle baseVolume uses base assets.",
+    "Candle lastSequence and trade coreSequence are unrelated sequence domains; comparison made cumulative local volume persist."
+  ],
+  "solution": "Only authoritative candles snapshots update chart OHLC and cumulative base volume; trades update latest quote and tape. Compare historical updatedAt and realtime aggregation eventTime to prevent older snapshots replacing newer data.",
+  "tests": {
+    "files": 25,
+    "passed": 141,
+    "failed": 0,
+    "lintCleanSourcePassed": true,
+    "buildCleanSourcePassed": true,
+    "dirtyWorktreeLintPassed": false,
+    "dirtyWorktreeLintNote": "Pre-existing changes in other UI modules cause lint errors; the clean committed baseline plus this isolated fix passes."
+  },
+  "liveMarketProbe": {
+    "durationStart": "2026-10-09T03:45:09.109Z",
+    "durationEnd": "2026-10-09T03:46:29.090Z",
+    "events": 393,
+    "errors": [],
+    "correlatedTradeToAggregateEmissionLatency": {
+      "604": {
+        "samples": 65,
+        "p50Ms": 100.0,
+        "p95Ms": 284.0,
+        "maxMs": 456.0
+      },
+      "653": {
+        "samples": 65,
+        "p50Ms": 94.0,
+        "p95Ms": 304.0,
+        "maxMs": 533.0
+      },
+      "866": {
+        "samples": 65,
+        "p50Ms": 102.0,
+        "p95Ms": 233.0,
+        "maxMs": 545.0
+      }
+    },
+    "closedBarConsistency": [
+      {
+        "instrumentId": "604",
+        "live": {
+          "baseVolume": 1.86,
+          "tradeCount": 54,
+          "lastTradeId": "LINEAR_PERPETUAL:13643564480:16392152:7531099979420334635:0",
+          "eventTime": "2026-10-09T03:45:59.983Z"
+        },
+        "history": {
+          "baseVolume": 1.86,
+          "tradeCount": 54,
+          "lastTradeId": "LINEAR_PERPETUAL:13643564480:16392152:7531099979420334635:0",
+          "updatedAt": "2026-10-09T03:45:59.983Z"
+        },
+        "match": true
+      },
+      {
+        "instrumentId": "653",
+        "live": {
+          "baseVolume": 1.98,
+          "tradeCount": 53,
+          "lastTradeId": "LINEAR_PERPETUAL:13643524128:16392100:5327127119050275646:0",
+          "eventTime": "2026-10-09T03:45:59.281Z"
+        },
+        "history": {
+          "baseVolume": 1.98,
+          "tradeCount": 53,
+          "lastTradeId": "LINEAR_PERPETUAL:13643524128:16392100:5327127119050275646:0",
+          "updatedAt": "2026-10-09T03:45:59.281Z"
+        },
+        "match": true
+      },
+      {
+        "instrumentId": "866",
+        "live": {
+          "baseVolume": 1.81,
+          "tradeCount": 53,
+          "lastTradeId": "LINEAR_PERPETUAL:13643532576:16392111:8052610501402960125:0",
+          "eventTime": "2026-10-09T03:45:59.414Z"
+        },
+        "history": {
+          "baseVolume": 1.81,
+          "tradeCount": 53,
+          "lastTradeId": "LINEAR_PERPETUAL:13643532576:16392111:8052610501402960125:0",
+          "updatedAt": "2026-10-09T03:45:59.414Z"
+        },
+        "match": true
+      }
+    ]
+  },
+  "browserLive": {
+    "errors": [],
+    "desktop": [
+      {
+        "at": 1791518005322,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 0.83,
+        "displayedVolume": 0.83,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 1,
+        "receiveAgeMs": 1022
+      },
+      {
+        "at": 1791518006327,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 0.84,
+        "displayedVolume": 0.84,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 2,
+        "receiveAgeMs": 725
+      },
+      {
+        "at": 1791518007332,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 0.87,
+        "displayedVolume": 0.87,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 3,
+        "receiveAgeMs": 682
+      },
+      {
+        "at": 1791518008336,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 0.94,
+        "displayedVolume": 0.94,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 4,
+        "receiveAgeMs": 171
+      },
+      {
+        "at": 1791518009341,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.01,
+        "displayedVolume": 1.01,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 5,
+        "receiveAgeMs": 459
+      },
+      {
+        "at": 1791518010345,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.04,
+        "displayedVolume": 1.04,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 6,
+        "receiveAgeMs": 433
+      },
+      {
+        "at": 1791518011349,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.07,
+        "displayedVolume": 1.07,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 7,
+        "receiveAgeMs": 349
+      },
+      {
+        "at": 1791518012355,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.07,
+        "displayedVolume": 1.07,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 7,
+        "receiveAgeMs": 1355
+      },
+      {
+        "at": 1791518013362,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.08,
+        "displayedVolume": 1.08,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 8,
+        "receiveAgeMs": 1006
+      },
+      {
+        "at": 1791518014389,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.13,
+        "displayedVolume": 1.13,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 10,
+        "receiveAgeMs": 39
+      },
+      {
+        "at": 1791518015394,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.13,
+        "displayedVolume": 1.13,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 10,
+        "receiveAgeMs": 1044
+      },
+      {
+        "at": 1791518016406,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.19,
+        "displayedVolume": 1.19,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 11,
+        "receiveAgeMs": 853
+      },
+      {
+        "at": 1791518017413,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.2,
+        "displayedVolume": 1.2,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 12,
+        "receiveAgeMs": 746
+      },
+      {
+        "at": 1791518018418,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.27,
+        "displayedVolume": 1.27,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 13,
+        "receiveAgeMs": 544
+      },
+      {
+        "at": 1791518019424,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.32,
+        "displayedVolume": 1.32,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 14,
+        "receiveAgeMs": 467
+      },
+      {
+        "at": 1791518020429,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.39,
+        "displayedVolume": 1.39,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 15,
+        "receiveAgeMs": 449
+      },
+      {
+        "at": 1791518021442,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.43,
+        "displayedVolume": 1.43,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82317.9
+        ],
+        "messages": 16,
+        "receiveAgeMs": 190
+      },
+      {
+        "at": 1791518022448,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.45,
+        "displayedVolume": 1.45,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 17,
+        "receiveAgeMs": 297
+      },
+      {
+        "at": 1791518023474,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.48,
+        "displayedVolume": 1.48,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 18,
+        "receiveAgeMs": 41
+      },
+      {
+        "at": 1791518024478,
+        "openTime": "2026-10-09T03:53:00Z",
+        "expectedVolume": 1.53,
+        "displayedVolume": 1.53,
+        "volumeMatches": true,
+        "prices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "expectedPrices": [
+          82294.7,
+          82318,
+          82294.6,
+          82318
+        ],
+        "messages": 19,
+        "receiveAgeMs": 74
+      }
+    ],
+    "mobile": {
+      "volume": " Volume (BTC) 1.6",
+      "canvasCount": 11,
+      "chartWidth": 390
+    },
+    "checks": {
+      "allVolumeMatches": true,
+      "updates": 18,
+      "allPricesMatch": true
+    }
+  },
+  "browserReplay": {
+    "checks": [
+      "100-contract trade does not inflate base-asset volume",
+      "Open candle price and cumulative volume update together",
+      "Repeated cumulative candle does not double-count",
+      "Older aggregate cannot overwrite newer volume",
+      "Same candle volume remains 11.25 after reload",
+      "1m updates do not enter selected 5m chart",
+      "Minute rollover starts new cumulative volume at 0.07",
+      "Instrument 653 isolates other instruments candle volume",
+      "Instrument 866 isolates other instruments candle volume",
+      "Mobile layout keeps authoritative volume"
+    ],
+    "errors": [],
+    "pass": true
+  },
+  "browserConditions": {
+    "assets": "Locally built clean source served through Playwright routing under the production origin",
+    "marketData": "Live production API and WebSocket for browserLive; controlled candle/trade fixtures for browserReplay",
+    "desktop": [
+      1440,
+      1000
+    ],
+    "mobile": [
+      390,
+      844
+    ],
+    "renderSynchronization": "Wait for a paint before comparing an arriving frame to DOM. Initial sampling caught a frame 6ms after arrival before paint; synchronized rerun passed.",
+    "fixtureClock": "Fixed Date.now for deterministic bucket rollover; timers still run."
+  },
+  "sourcePatchSha256": "5ed6399d53f2caea3ed4853b775e67dd862fe975c1fdbf6dae7ebb5d2446460b",
+  "evidenceSha256": {
+    "probe.json": "d929e79013ad04740b9fad986b2608e0b1c07c5a4bedf0f0b52483f118f369af",
+    "browser-live.json": "d74cb01c874ae02f3060014e6275bb3f994497032640e7642d79b65e4fc291c9",
+    "browser-replay.json": "0199cf21d52172eece49fd6e84b7d535fad3d0804e8ad5b45bd5cff4dbdb6307",
+    "tests.log": "649621a1640a726cc6877c6a55f14960799a5c635f101bb1bab30096d7505ae1",
+    "lint.log": "88a8e0b52a373bc1f709953d7378658bbee84381c35a3089983cdc7c2f3cb676",
+    "build.log": "b872450b47492f430c9d6acf574f190932ac90fc92f4ed7ee701c95d6a9cdf2b"
+  },
+  "deployment": {
+    "cloudflareAuthenticated": false,
+    "publishedVerified": false
+  },
+  "cleanup": {
+    "temporaryDirectory": "/private/tmp/surprising-candle-volume-20261009",
+    "removed": false,
+    "previewStopped": false
+  }
+}

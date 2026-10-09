@@ -1,45 +1,70 @@
-import { expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import { mapCandle } from "../../api/mappers"
+import { CandleSchema } from "../../api/types"
 import { prepareChartCandles } from "../../components/trading/PriceChart"
-import { applyTradeToCandles } from "./TradePage"
+import type { Candle } from "../../types/domain"
+import { mergeCandleSnapshot } from "./TradePage"
 
-it("updates the same candle when history omits fractional seconds", () => {
-  const history = [
-    { time: "2026-09-26T13:30:00Z", open: 100, high: 102, low: 99, close: 101, volume: 3 },
-  ]
-  const next = applyTradeToCandles(history, Date.parse("2026-09-26T13:37:00Z"), 900000, 103, 0.25)
-  expect(next).toEqual([
-    { time: "2026-09-26T13:30:00.000Z", open: 100, high: 103, low: 99, close: 103, volume: 3.25 },
-  ])
-  expect(prepareChartCandles(next).at(-1)?.close).toBe(103)
+const snapshot: Candle = {
+  time: "2026-09-26T13:30:00.000Z",
+  open: 100,
+  high: 102,
+  low: 99,
+  close: 101,
+  volume: 10.25,
+  updatedAt: "2026-09-26T13:30:10Z",
+}
+
+it("replaces an inflated local volume with the authoritative aggregate", () => {
+  const live = { ...snapshot, close: 103, high: 103, volume: 110.25 }
+  expect(mergeCandleSnapshot(snapshot, live)).toEqual(snapshot)
 })
 
-it("creates the next candle with the new trade and preserves the closed candle", () => {
-  const history = [
-    { time: "2026-09-26T13:30:00.000Z", open: 100, high: 103, low: 99, close: 103, volume: 3.25 },
-  ]
-  const next = applyTradeToCandles(history, Date.parse("2026-09-26T13:45:00Z"), 900000, 104, 0.5)
-  expect(next).toHaveLength(2)
-  expect(next[0]).toEqual(history[0])
-  expect(next[1]).toEqual({
-    time: "2026-09-26T13:45:00.000Z",
-    open: 104,
-    high: 104,
-    low: 104,
-    close: 104,
-    volume: 0.5,
+it("does not add a cumulative snapshot twice", () => {
+  const first = mergeCandleSnapshot(snapshot, undefined)
+  expect(mergeCandleSnapshot(snapshot, first)).toEqual(snapshot)
+})
+
+it("keeps a newer WebSocket aggregate when an older history request completes", () => {
+  const newer = { ...snapshot, volume: 11, updatedAt: "2026-09-26T13:30:12Z" }
+  expect(mergeCandleSnapshot(snapshot, newer)).toEqual(newer)
+  expect(mergeCandleSnapshot(newer, snapshot)).toEqual(newer)
+})
+
+it("compares timestamps as instants rather than differently formatted strings", () => {
+  const newer = { ...snapshot, volume: 11, updatedAt: "2026-09-26T13:30:10.001Z" }
+  expect(mergeCandleSnapshot(snapshot, newer)).toEqual(newer)
+})
+
+const apiSnapshot = {
+  openTime: snapshot.time,
+  openPrice: 100,
+  highPrice: 102,
+  lowPrice: 99,
+  closePrice: 101,
+  baseVolume: 10.25,
+}
+
+describe.each(["1m", "5m", "15m", "1h", "4h", "1d"])("%s candle snapshots", (period) => {
+  it("shows the same base volume from realtime updates and refreshed history", () => {
+    const live = mapCandle(
+      CandleSchema.parse({ ...apiSnapshot, period, eventTime: snapshot.updatedAt }),
+    )
+    const refreshed = mapCandle(
+      CandleSchema.parse({ ...apiSnapshot, period, updatedAt: snapshot.updatedAt }),
+    )
+    expect(live).toEqual(refreshed)
+    expect(mergeCandleSnapshot(refreshed, live).volume).toBe(10.25)
+    expect(prepareChartCandles([live]).at(-1)?.volume).toBe(10.25)
   })
 })
 
+it("uses history updatedAt and realtime eventTime as the same aggregation watermark", () => {
+  const live = mapCandle({ ...apiSnapshot, baseVolume: 11, eventTime: "2026-09-26T13:30:12Z" })
+  const history = mapCandle({ ...apiSnapshot, updatedAt: "2026-09-26T13:30:10Z" })
+  expect(mergeCandleSnapshot(history, live)).toEqual(live)
+})
+
 it("normalizes historical timestamps at the API boundary", () => {
-  expect(
-    mapCandle({
-      openTime: "2026-09-26T13:30:00Z",
-      openPrice: 100,
-      highPrice: 100,
-      lowPrice: 100,
-      closePrice: 100,
-      baseVolume: 1,
-    }).time,
-  ).toBe("2026-09-26T13:30:00.000Z")
+  expect(mapCandle({ ...apiSnapshot, openTime: "2026-09-26T13:30:00Z" }).time).toBe(snapshot.time)
 })

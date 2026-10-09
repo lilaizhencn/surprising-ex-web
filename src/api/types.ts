@@ -162,6 +162,8 @@ export const CandleSchema = z
     closePrice: NumericSchema,
     baseVolume: NumericSchema.optional(),
     quoteVolume: NumericSchema.optional(),
+    updatedAt: z.string().optional(),
+    eventTime: z.string().optional(),
   })
   .passthrough()
 

@@ -1,5 +1,12 @@
 # 实时订阅 / Realtime subscriptions
 
+## K 线与成交量的权威来源（2026-10-09）
+
+- 最新未收盘 K 线的 OHLC 和基础币累计成交量都由 `candles` 实时完整快照更新；图表价格、成交量柱和成交量文字使用同一份数据。`trades` 继续即时更新最新成交价和成交列表，不向 K 线累计成交量加量。
+- 合约逐笔成交数量是张数，K 线 `baseVolume` 是基础币数量，不能直接相加；K 线 `lastSequence` 与逐笔 `coreSequence` 也属于不同序号范围，不能用于相互判断新旧。
+- `mapCandle` 将历史接口的 `updatedAt` 和实时快照的聚合 `eventTime` 映射为同一更新时间；`TradePage.mergeCandleSnapshot` 拒绝较旧快照覆盖较新数据，处理历史请求晚于实时推送返回的情况。刷新、重复推送、切换周期与合约不重复计量。
+- 断连期间显示最后已收到的累计值；不根据本地成交列表推测漏收数量。重新订阅后由服务端完整快照恢复。
+
 公共行情和私有状态分开连接，并分别按 `wsBaseUrlForProductLine` 配置的地址分组；多个产品配置相同地址时复用连接。私有连接发送 `authenticate`，收到 `authenticated` 后才订阅；令牌不放进 WebSocket URL。重新连接、换用户或更新令牌会重新建立私有快照基线。
 
 Public and private streams use separate connections, grouped by configured product endpoint. Private subscriptions wait for authentication. Reconnects and session changes establish a fresh account baseline.

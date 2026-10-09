@@ -137,40 +137,16 @@ const productKeyAliases: Readonly<Record<string, string>> = {
 }
 
 type Level = ApiOrderBookLevel
-const chartPeriodMs: Readonly<Record<string, number>> = {
-  "1m": 60_000,
-  "5m": 300_000,
-  "15m": 900_000,
-  "1h": 3_600_000,
-  "4h": 14_400_000,
-  "1d": 86_400_000,
-}
-function periodMillisecondsForChart(period: string): number {
-  return chartPeriodMs[period] ?? 60_000
-}
-export function applyTradeToCandles(
-  rows: readonly Candle[],
-  time: number,
-  interval: number,
-  price: number,
-  quantity: number,
-): readonly Candle[] {
-  const bucketTime = Math.floor(time / interval) * interval
-  const bucket = new Date(bucketTime).toISOString()
-  const previous = rows.find((row) => Date.parse(row.time) === bucketTime)
-  const next: Candle = previous
-    ? {
-        ...previous,
-        time: bucket,
-        high: Math.max(previous.high, price),
-        low: Math.min(previous.low, price),
-        close: price,
-        volume: previous.volume + quantity,
-      }
-    : { time: bucket, open: price, high: price, low: price, close: price, volume: quantity }
-  return [...rows.filter((row) => Date.parse(row.time) !== bucketTime), next]
-    .sort((left, right) => left.time.localeCompare(right.time))
-    .slice(-120)
+export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined): Candle {
+  // History can finish after a newer WebSocket aggregate. Both carry the server's
+  // aggregation time; quantities from the trade tape never enter this cumulative volume.
+  if (
+    live?.updatedAt &&
+    snapshot.updatedAt &&
+    Date.parse(live.updatedAt) > Date.parse(snapshot.updatedAt)
+  )
+    return live
+  return snapshot
 }
 
 export function TradePage({ productKey }: { readonly productKey: string }) {
@@ -202,12 +178,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const processedEvents = useRef(new Set<string>())
   const marketGeneration = useRef(0)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
-  const latestTradeRef = useRef<{
-    instrumentId: string
-    bucket: string
-    price: number
-    sequence: number
-  } | null>(null)
+  const latestTradeInstrumentRef = useRef<string | null>(null)
   const [optionQuote, setOptionQuote] = useState<ApiOptionQuote | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [triggerOrders, setTriggerOrders] = useState<readonly ApiTriggerOrder[]>([])
@@ -663,11 +634,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           if (generation !== marketGeneration.current) return
           const history = rows.map(mapCandle)
           const latestCandle = history.at(-1)
-          if (latestCandle && latestTradeRef.current?.instrumentId !== current.instrumentId)
+          if (latestCandle && latestTradeInstrumentRef.current !== current.instrumentId)
             updateMarketQuote(current.instrumentId, latestCandle.close)
           setCandles((live) => {
             const byTime = new Map(history.map((candle) => [candle.time, candle]))
-            for (const candle of live) byTime.set(candle.time, candle)
+            for (const candle of live) {
+              const snapshot = byTime.get(candle.time)
+              byTime.set(candle.time, snapshot ? mergeCandleSnapshot(snapshot, candle) : candle)
+            }
             return [...byTime.values()]
               .sort((left, right) => left.time.localeCompare(right.time))
               .slice(-120)
@@ -706,13 +680,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   useEffect(() => {
     setRecentTrades([])
-    latestTradeRef.current = null
+    latestTradeInstrumentRef.current = null
     if (!current?.instrumentId || !assetScales[current.quoteAsset]) return
     let cancelled = false
     void loadRecentTrades(current.instrumentId, view.line)
       .then((history) => {
         if (cancelled) return
-        if (latestTradeRef.current?.instrumentId !== current.instrumentId) {
+        if (latestTradeInstrumentRef.current !== current.instrumentId) {
           updateMarketQuote(
             current.instrumentId,
             marketPriceFromRecord(history[0] ?? {}, current, assetScales),
@@ -859,27 +833,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         const candlePeriod = text(data, "period") || text(event, "period")
         if (candlePeriod && candlePeriod !== period) return
         const next = mapCandle(candle.data)
-        const liveTrade = latestTradeRef.current
-        const candleSequence = numberValue(candle.data, "lastSequence")
-        const olderThanLiveTrade =
-          liveTrade?.instrumentId === current.instrumentId &&
-          liveTrade.bucket === next.time &&
-          candleSequence !== null &&
-          candleSequence < liveTrade.sequence
-        if (!olderThanLiveTrade && (!liveTrade || next.time >= liveTrade.bucket))
+        if (latestTradeInstrumentRef.current !== current.instrumentId)
           updateMarketQuote(current.instrumentId, next.close)
         setCandles((rows) => {
           const live = rows.find((row) => row.time === next.time)
-          const resolved =
-            olderThanLiveTrade && liveTrade
-              ? {
-                  ...next,
-                  high: Math.max(next.high, live?.high ?? liveTrade.price),
-                  low: Math.min(next.low, live?.low ?? liveTrade.price),
-                  close: live?.close ?? liveTrade.price,
-                  volume: Math.max(next.volume, live?.volume ?? 0),
-                }
-              : next
+          const resolved = mergeCandleSnapshot(next, live)
           return [...rows.filter((row) => row.time !== next.time), resolved]
             .sort((left, right) => left.time.localeCompare(right.time))
             .slice(-120)
@@ -905,33 +863,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           current.instrumentId,
           marketPriceFromRecord(nextTrade, current, assetScales),
         )
-        const tradePrice = numberValue(nextTrade, "price")
-        const tradeQuantity = numberValue(nextTrade, "quantity")
-        const tradeTime = Date.parse(event.eventTime ?? "")
-        if (tradePrice !== null && tradePrice > 0 && Number.isFinite(tradeTime)) {
-          const tradeSequence = numberValue(data, "sequence") ?? numberValue(data, "coreSequence")
-          if (tradeSequence !== null) {
-            latestTradeRef.current = {
-              instrumentId: current.instrumentId,
-              bucket: new Date(
-                Math.floor(tradeTime / periodMillisecondsForChart(period)) *
-                  periodMillisecondsForChart(period),
-              ).toISOString(),
-              price: tradePrice,
-              sequence: tradeSequence,
-            }
-          }
-          const quantity = Math.max(tradeQuantity ?? 0, 0)
-          setCandles((rows) =>
-            applyTradeToCandles(
-              rows,
-              tradeTime,
-              periodMillisecondsForChart(period),
-              tradePrice,
-              quantity,
-            ),
-          )
-        }
+        latestTradeInstrumentRef.current = current.instrumentId
         return
       }
       if (channel === "funding") {
