@@ -2,7 +2,7 @@ import ky, { type Options } from "ky"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import { saveSession } from "../state/session"
-import { quoteUnsafeJsonIntegers, request } from "./client"
+import { ApiError, quoteUnsafeJsonIntegers, request, requestBlob } from "./client"
 
 vi.mock("ky", () => ({ default: vi.fn() }))
 
@@ -23,6 +23,47 @@ describe("gateway JSON integer decoding", () => {
       price: 8.5,
       label: "id 1286349972006421045",
     })
+  })
+})
+
+describe("public request failures", () => {
+  it("maps business rejection and retains structured diagnostics for JSON and downloads", async () => {
+    browserStorage()
+    const payload = {
+      code: "LEVERAGE_UPDATE_BLOCKED",
+      message: "INVALID_COMMAND: Aeron order command rejected",
+    }
+    vi.mocked(ky).mockImplementation((async () => json(payload, 409)) as unknown as typeof ky)
+    for (const operation of [
+      () => request("/private", z.unknown()),
+      () => requestBlob("/download"),
+    ]) {
+      try {
+        await operation()
+        throw Error("Expected rejection")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).message).toContain("Close positions")
+        expect((error as ApiError).payload).toEqual(payload)
+      }
+    }
+  })
+
+  it("treats a lost mutation response as unknown and never retries it automatically", async () => {
+    browserStorage()
+    vi.mocked(ky).mockRejectedValue(new Error("Aeron internal timeout"))
+    await expect(request("/private", z.unknown(), { method: "POST", body: {} })).rejects.toThrow(
+      "result is not yet confirmed",
+    )
+    expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
+  })
+
+  it("preserves cancellation so retired requests do not show an error", async () => {
+    browserStorage()
+    const error = new Error("cancelled")
+    error.name = "AbortError"
+    vi.mocked(ky).mockRejectedValue(error)
+    await expect(request("/private", z.unknown())).rejects.toBe(error)
   })
 })
 

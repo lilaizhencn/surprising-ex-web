@@ -17,6 +17,7 @@ import {
   placeOrder,
   placeTriggerOrder,
 } from "../../api/endpoints"
+import { apiErrorMessage } from "../../api/errors"
 import { mapCandle, mapMarket } from "../../api/mappers"
 import type {
   ApiBalance,
@@ -78,6 +79,7 @@ import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
+import { ReferencePrice } from "./ReferencePrice"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
@@ -1174,9 +1176,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           const response = await placeTriggerOrder(leg, view.line)
           if (response.status !== "PENDING" && response.status !== "TRIGGERING") {
             setSubmitState("error")
-            notify(
-              response.rejectReason ?? `${t("Trigger order not accepted")}: ${response.status}`,
-            )
+            notify(apiErrorMessage({ code: response.rejectReason }, 409))
             return
           }
           notify(`${t("Trigger order accepted")}: ${response.status}`)
@@ -1205,7 +1205,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         )
         if (response.status === "REJECTED") {
           setSubmitState("error")
-          notify(response.rejectReason ?? t("Order rejected."))
+          notify(apiErrorMessage({ code: response.rejectReason }, 409))
           return
         }
         if (
@@ -1429,11 +1429,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <div>
                 <small>{t("Mark price")}</small>
                 <strong className="mono">
-                  <Price
-                    value={numberValue(markPrice, "markPrice")}
-                    dollar={isDollarQuote(current?.quoteAsset)}
-                    pricePrecision={priceDisplayPrecision(current, assetScales)}
-                  />
+                  <ReferencePrice
+                    eventTime={markPrice?.["eventTime"]}
+                    connected={realtime.state === "live"}
+                  >
+                    <Price
+                      value={numberValue(markPrice, "markPrice")}
+                      dollar={isDollarQuote(current?.quoteAsset)}
+                      pricePrecision={priceDisplayPrecision(current, assetScales)}
+                    />
+                  </ReferencePrice>
                 </strong>
               </div>
               <div>
@@ -1445,11 +1450,16 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   />
                 </div>
                 <strong className="mono">
-                  <Price
-                    value={numberValue(indexPrice, "indexPrice")}
-                    dollar={isDollarQuote(current?.quoteAsset)}
-                    pricePrecision={priceDisplayPrecision(current, assetScales)}
-                  />
+                  <ReferencePrice
+                    eventTime={indexPrice?.["eventTime"]}
+                    connected={realtime.state === "live"}
+                  >
+                    <Price
+                      value={numberValue(indexPrice, "indexPrice")}
+                      dollar={isDollarQuote(current?.quoteAsset)}
+                      pricePrecision={priceDisplayPrecision(current, assetScales)}
+                    />
+                  </ReferencePrice>
                 </strong>
               </div>
               <div>

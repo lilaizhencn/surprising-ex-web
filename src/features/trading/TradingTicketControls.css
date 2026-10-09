@@ -1,0 +1,26 @@
+.leverage-dialog .leverage-slider-label {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.leverage-dialog input[type="range"] {
+  padding: 0;
+  height: 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.leverage-dialog input[type="range"]:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.leverage-slider-limits {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}

@@ -4,6 +4,7 @@ import { loadLeverageSetting, updateLeverageSetting } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { t } from "../../i18n"
 import type { ProductLine } from "../../types/domain"
+import "./TradingTicketControls.css"
 
 export type LeverageSettings = Readonly<{
   leveragePpm: number
@@ -65,6 +66,10 @@ export function TradingTicketControls({
     const ppm = Number(draft) * 1_000_000
     if (!Number.isSafeInteger(ppm) || ppm < 1_000_000 || ppm > setting.maxLeveragePpm) {
       setMessage(t("Please enter leverage within the allowed range."))
+      return
+    }
+    if (ppm === setting.leveragePpm) {
+      dialog.current?.close()
       return
     }
     setSaving(true)
@@ -175,6 +180,27 @@ export function TradingTicketControls({
                 disabled={saving}
                 onChange={(event) => setDraft(event.target.value)}
               />
+            </label>
+            <label className="leverage-slider-label">
+              <span>{t("Drag to adjust leverage")}</span>
+              <input
+                type="range"
+                aria-label={t("Leverage slider")}
+                aria-valuetext={`${Number(draft) || 1}×`}
+                min="1"
+                max={setting.maxLeveragePpm / 1_000_000}
+                step="0.01"
+                value={Math.min(
+                  setting.maxLeveragePpm / 1_000_000,
+                  Math.max(1, Number(draft) || 1),
+                )}
+                disabled={saving}
+                onChange={(event) => setDraft(event.target.value)}
+              />
+              <span className="leverage-slider-limits" aria-hidden="true">
+                <span>1×</span>
+                <span>{setting.maxLeveragePpm / 1_000_000}×</span>
+              </span>
             </label>
             <div className="leverage-presets">
               {[1, 2, 3, 5, 10, 20, 30, 50, 100]

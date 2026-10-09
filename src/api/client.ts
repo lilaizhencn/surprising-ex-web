@@ -4,6 +4,7 @@ import { t } from "../i18n"
 import { config } from "../lib/config"
 import { loadSession, saveSession, sessionAccessExpired } from "../state/session"
 import type { ProductLine } from "../types/domain"
+import { apiErrorMessage } from "./errors"
 import type { AuthSession } from "./types"
 import { AuthSessionSchema } from "./types"
 
@@ -112,7 +113,7 @@ export async function request<T>(
     requestOptions.body = isFormData ? options.body : JSON.stringify(options.body)
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
-  const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
+  const response = await send(path, requestOptions)
   const raw = await response.text()
   const payload = parseResponse(raw)
 
@@ -135,13 +136,17 @@ export async function request<T>(
     saveSession(null)
 
   if (!response.ok)
-    throw new ApiError(readableMessage(payload, response.status), response.status, payload)
+    throw new ApiError(
+      apiErrorMessage(payload, response.status, method !== "GET"),
+      response.status,
+      payload,
+    )
   if (response.status === 204) return schema.parse(null)
 
   const result = schema.safeParse(payload)
   if (!result.success) {
     throw new ApiError(
-      t("API response does not match the expected format."),
+      t("The service returned an unexpected response. Please refresh and try again."),
       response.status,
       result.error.flatten(),
     )
@@ -172,7 +177,7 @@ export async function requestBlob(
     throwHttpErrors: false,
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
-  const response = await ky(`${config.apiBaseUrl}${path}`, requestOptions)
+  const response = await send(path, requestOptions)
   if (
     response.status === 401 &&
     allowRefresh &&
@@ -191,7 +196,12 @@ export async function requestBlob(
     saveSession(null)
   if (!response.ok) {
     const raw = await response.text()
-    throw new ApiError(readableMessage(parseResponse(raw), response.status), response.status)
+    const payload = parseResponse(raw)
+    throw new ApiError(
+      apiErrorMessage(payload, response.status, method !== "GET"),
+      response.status,
+      payload,
+    )
   }
   return response.blob()
 }
@@ -257,19 +267,18 @@ export function quoteUnsafeJsonIntegers(raw: string): string {
   return output
 }
 
-function readableMessage(payload: unknown, status: number): string {
-  if (typeof payload === "string" && payload.trimStart().startsWith("<")) {
-    return t("API returned HTML. Check the API address and gateway route.")
+async function send(path: string, options: Options): Promise<Response> {
+  try {
+    return await ky(`${config.apiBaseUrl}${path}`, options)
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error
+    throw new ApiError(
+      options.method === "GET"
+        ? t("Unable to connect. Check your network and try again.")
+        : t(
+            "The result is not yet confirmed. Check your orders or settings before submitting again.",
+          ),
+      0,
+    )
   }
-  if (isRecord(payload)) {
-    for (const key of ["detail", "message", "error", "errorMessage"]) {
-      const value = payload[key]
-      if (typeof value === "string" && value.trim()) return value
-    }
-  }
-  return `${t("Request failed")} (HTTP ${status}).`
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
