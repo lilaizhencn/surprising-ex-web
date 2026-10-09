@@ -31,6 +31,11 @@ class Socket {
 }
 const account: Subscription = { productLine: "SPOT", channel: "accountState" }
 const order: Subscription = { productLine: "SPOT", channel: "orders" }
+const publicTrade: Subscription = {
+  productLine: "SPOT",
+  channel: "trades",
+  instrumentId: "BTC-USDT",
+}
 function socket(index = 0): Socket {
   const value = Socket.instances[index]
   if (!value) throw new Error("Expected socket")
@@ -60,6 +65,23 @@ describe("realtime connection lifecycle", () => {
     manager.refresh()
     expect(ws.sent.slice(-2).map((c) => c["op"])).toEqual(["unsubscribe", "subscribe"])
     expect(ws.sent.at(-1)).toMatchObject({ channel: "accountState" })
+    manager.close()
+  })
+  it("uses the same authenticated socket for public market and private account channels", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", "secret", vi.fn(), vi.fn())
+    manager.update([publicTrade, account, order])
+    const ws = socket()
+    ws.open()
+    expect(Socket.instances).toHaveLength(1)
+    expect(ws.sent).toEqual([{ op: "authenticate", id: "auth", token: "secret" }])
+    ws.receive({ op: "authenticated" })
+    expect(ws.sent.filter((command) => command["op"] === "subscribe")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ op: "subscribe", channel: "trades", instrumentId: "BTC-USDT" }),
+        expect.objectContaining({ op: "subscribe", channel: "accountState" }),
+        expect.objectContaining({ op: "subscribe", channel: "orders" }),
+      ]),
+    )
     manager.close()
   })
   it("reconnects with a new auth baseline and ignores callbacks from the retired socket", () => {

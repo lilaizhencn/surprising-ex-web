@@ -122,6 +122,42 @@ describe("shared page realtime transports", () => {
     expect(first).toHaveBeenCalledWith(baseline)
     expect(second).toHaveBeenCalledWith(baseline)
   })
+  it("keeps pair quotes, current market and private channels on one authenticated trading transport", () => {
+    const feed = acquire("trade-session")
+    const eth = { ...trade, instrumentId: "653" }
+    const sol = { ...trade, instrumentId: "866" }
+    feed.update([trade, depth, index, trade, eth, sol])
+    const ws = socket()
+    ws.open()
+    ws.receive({ op: "authenticated" })
+    feed.update([trade, depth, index, trade, eth, sol, account])
+    expect(Socket.instances).toHaveLength(1)
+    expect(ws.sent.filter((c) => c["op"] === "authenticate")).toHaveLength(1)
+    expect(
+      ws.sent.filter((c) => c["op"] === "subscribe" && c["channel"] === "trades"),
+    ).toHaveLength(3)
+    feed.update([trade, eth, sol, { ...eth, channel: "depth" }, account])
+    expect(Socket.instances).toHaveLength(1)
+    expect(
+      ws.sent.filter((c) => c["op"] === "unsubscribe" && c["channel"] === "accountState"),
+    ).toHaveLength(0)
+    ws.onclose?.()
+    vi.advanceTimersByTime(1000)
+    const replacement = socket(1)
+    replacement.open()
+    replacement.receive({ op: "authenticated" })
+    expect(Socket.instances.filter((connection) => connection.readyState === 1)).toHaveLength(1)
+    expect(
+      replacement.sent.filter((c) => c["op"] === "subscribe" && c["channel"] === "trades"),
+    ).toHaveLength(3)
+    expect(replacement.sent).toContainEqual(
+      expect.objectContaining({
+        op: "subscribe",
+        channel: "accountState",
+        productLine: "LINEAR_PERPETUAL",
+      }),
+    )
+  })
   it("keeps user tokens and endpoint resolvers isolated and releases the pool after the last owner", () => {
     const a = acquire("first")
     a.update([trade])

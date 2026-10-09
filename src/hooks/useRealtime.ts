@@ -53,6 +53,7 @@ export function useRealtime(
     0,
     true,
     productLine,
+    instrumentId,
   )
 }
 
@@ -62,6 +63,7 @@ export function useRealtimeFeed(
   publishInterval = 100,
   retainTrades = true,
   privateProductLine?: ProductLine,
+  retainTradeInstrumentId?: string,
 ) {
   const [products, setProducts] = useState<readonly ProductLine[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -70,10 +72,12 @@ export function useRealtimeFeed(
   const [events, setEvents] = useState<readonly WsEnvelope[]>([])
   const [views, setViews] = useState<Readonly<Partial<Record<ProductLine, PrivateView>>>>({})
   const [revision, setRevision] = useState(0)
-  const publicConnections = useRef<RealtimeConnectionHandle | null>(null)
-  const privateConnections = useRef<RealtimeConnectionHandle | null>(null)
+  const connections = useRef<RealtimeConnectionHandle | null>(null)
   const desired = useRef(subscriptions)
   desired.current = subscriptions
+  const privateDesired = useRef<readonly Subscription[]>([])
+  const retainedInstrument = useRef(retainTradeInstrumentId)
+  retainedInstrument.current = retainTradeInstrumentId
   const key = subscriptions.map(subscriptionKey).sort().join("|")
   const latest = useRef(new Map<string, WsEnvelope>())
   const depthViewSerial = useRef(0)
@@ -84,7 +88,7 @@ export function useRealtimeFeed(
   useEffect(() => {
     // The key tracks the structural plan, not the newly allocated array identity.
     void key
-    publicConnections.current?.update(desired.current)
+    connections.current?.update([...desired.current, ...privateDesired.current])
     const active = new Set(desired.current.map(subscriptionKey))
     for (const k of latest.current.keys()) if (!active.has(k)) latest.current.delete(k)
   }, [key])
@@ -97,6 +101,7 @@ export function useRealtimeFeed(
     let privateEvents: WsEnvelope[] = []
     let privateDirty = true
     const publicLive = new Map<ProductLine, boolean>()
+    privateDesired.current = []
     // Only the feed owns recovery-in-progress; it ends at the replacement WS snapshot.
     const awaitingDepthSnapshot = new Set<string>()
     latest.current.clear()
@@ -122,11 +127,54 @@ export function useRealtimeFeed(
         cancelPublish = () => cancelAnimationFrame(frame)
       }
     }
-    const publicManager = acquireRealtimeConnections(
+    const stateHandler = (connectedProducts: readonly ProductLine[], live: boolean) => {
+      if (closed) return
+      for (const p of connectedProducts) {
+        publicLive.set(p, live)
+        if (!live)
+          for (const k of latest.current.keys()) {
+            if (k.startsWith(`${p}:`)) latest.current.delete(k)
+          }
+        if (accessToken && userId) {
+          privateDirty = true
+          if (live) current[p] = new PrivateView()
+          else if (current[p]) current[p].status = "STALE"
+        }
+      }
+      setState([...publicLive.values()].every(Boolean) ? "live" : "degraded")
+      publish()
+    }
+    const manager = acquireRealtimeConnections(
       config.wsBaseUrlForProductLine,
       accessToken,
       (raw) => {
-        if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
+        if (closed || raw.op === "authenticated") return
+        if (
+          accessToken &&
+          userId &&
+          String(raw.userId) === userId &&
+          (raw.op === "snapshot" || PRIVATE_CHANNELS.has(raw.channel ?? "")) &&
+          raw.productLine
+        ) {
+          current[raw.productLine] ??= new PrivateView()
+          if (current[raw.productLine]?.apply(raw)) {
+            privateDirty = true
+            publish()
+          }
+        }
+        if (
+          accessToken &&
+          userId &&
+          String(raw.userId) === userId &&
+          raw.op === "event" &&
+          ["executionReports", "orders"].includes(raw.channel ?? "")
+        ) {
+          const next = unwrapEvent(raw)
+          privateEvents = [next, ...privateEvents.filter((e) => e.id !== next.id)].slice(0, 80)
+          publish()
+        }
+        if (raw.op !== "event" || !raw.productLine || !raw.channel) return
+        if (PRIVATE_CHANNELS.has(raw.channel)) return
         let event = unwrapEvent(raw)
         const key = [raw.productLine, raw.channel, raw.instrumentId ?? "*", raw.period ?? ""].join(
           ":",
@@ -153,81 +201,37 @@ export function useRealtimeFeed(
           event = { ...book, id: `${book.id}:book:${++depthViewSerial.current}` }
         } else if (!newerPublicEvent(event, latest.current.get(key))) return
         latest.current.set(key, event)
-        if (retainTrades && event.channel === "trades") tape = [event, ...tape].slice(0, 256)
+        if (
+          retainTrades &&
+          event.channel === "trades" &&
+          (!retainedInstrument.current || event.instrumentId === retainedInstrument.current)
+        )
+          tape = [event, ...tape].slice(0, 256)
         receivedAt = new Date().toISOString()
         publish()
       },
-      (products, live) => {
-        if (closed) return
-        for (const p of products) {
-          publicLive.set(p, live)
-          if (!live)
-            for (const k of latest.current.keys())
-              if (k.startsWith(p + ":")) latest.current.delete(k)
-        }
-        setState([...publicLive.values()].every(Boolean) ? "live" : "degraded")
-        publish()
-      },
+      stateHandler,
     )
     const recoverDepth = (subscription: Subscription) => {
       const key = subscriptionKey(subscription)
       awaitingDepthSnapshot.add(key)
       latest.current.delete(key)
-      publicManager.resubscribe(subscription)
+      manager.resubscribe(subscription)
     }
-    publicConnections.current = publicManager
-    publicManager.update(desired.current)
-    const privateManager =
-      accessToken && userId
-        ? acquireRealtimeConnections(
-            config.wsBaseUrlForProductLine,
-            accessToken,
-            (event) => {
-              if (closed || String(event.userId) !== userId || !event.productLine) return
-              if (event.op === "snapshot" || PRIVATE_CHANNELS.has(event.channel ?? "")) {
-                current[event.productLine] ??= new PrivateView()
-                if (current[event.productLine]?.apply(event)) {
-                  privateDirty = true
-                  publish()
-                }
-              }
-              if (
-                event.op === "event" &&
-                ["executionReports", "orders"].includes(event.channel ?? "")
-              ) {
-                const next = unwrapEvent(event)
-                privateEvents = [next, ...privateEvents.filter((e) => e.id !== next.id)].slice(
-                  0,
-                  80,
-                )
-                publish()
-              }
-            },
-            (products, live) => {
-              if (closed) return
-              privateDirty = true
-              for (const p of products) {
-                if (live) current[p] = new PrivateView()
-                else if (current[p]) current[p].status = "STALE"
-              }
-              publish()
-            },
-          )
-        : null
-    privateConnections.current = privateManager
-    if (privateManager)
+    connections.current = manager
+    manager.update([...desired.current, ...privateDesired.current])
+    if (accessToken && userId)
       void loadRuntimeProducts()
         .then((enabled) => {
           if (closed) return
           setProducts(enabled)
           setError(null)
-          privateManager?.update(
-            privateSubscriptions(
-              privateProductLine
-                ? enabled.filter((productLine) => productLine === privateProductLine)
-                : enabled,
-            ),
+          privateDesired.current = privateSubscriptions(
+            privateProductLine
+              ? enabled.filter((productLine) => productLine === privateProductLine)
+              : enabled,
           )
+          manager.update([...desired.current, ...privateDesired.current])
         })
         .catch((reason: unknown) => {
           if (closed) return
@@ -238,8 +242,7 @@ export function useRealtimeFeed(
     return () => {
       closed = true
       cancelPublish?.()
-      publicManager.close()
-      privateManager?.close()
+      manager.close()
     }
   }, [accessToken, userId, identity, publishInterval, retainTrades, privateProductLine])
   return {
@@ -250,6 +253,6 @@ export function useRealtimeFeed(
     events: owner === identity ? events : EMPTY_EVENTS,
     views: owner === identity ? views : EMPTY_VIEWS,
     revision,
-    refresh: () => privateConnections.current?.refresh(),
+    refresh: () => connections.current?.refresh(),
   }
 }

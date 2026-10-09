@@ -49,7 +49,7 @@ import {
   SearchField,
   StateView,
 } from "../../components/ui/Primitives"
-import { useRealtime, useRealtimeFeed } from "../../hooks/useRealtime"
+import { useRealtime } from "../../hooks/useRealtime"
 import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config, storageKeys } from "../../lib/config"
@@ -380,17 +380,38 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setTicketAction("CLOSE")
     if (triggerCloseSide) setSide(triggerCloseSide)
   }, [orderType, triggerCloseSide])
-  const realtime = useRealtime(session, current?.instrumentId ?? "", view.line, period)
-  const pairFeed = useRealtimeFeed(
-    null,
+  const realtime = useRealtime(
+    session,
+    current?.instrumentId ?? "",
+    view.line,
+    period,
     markets.map((market) => ({
       channel: "trades",
       instrumentId: market.instrumentId,
       productLine: view.line,
     })),
-    1000,
-    false,
   )
+  const pairEvents = useMemo(() => {
+    const byInstrument = new Map<string, WsEnvelope>()
+    for (const event of realtime.events) {
+      if (
+        event.channel === "trades" &&
+        event.productLine === view.line &&
+        event.instrumentId &&
+        !byInstrument.has(event.instrumentId)
+      )
+        byInstrument.set(event.instrumentId, event)
+    }
+    return [...byInstrument.values()]
+  }, [realtime.events, view.line])
+  const pairEventsRef = useRef(pairEvents)
+  pairEventsRef.current = pairEvents
+  const [displayedPairEvents, setDisplayedPairEvents] = useState(pairEvents)
+  useEffect(() => {
+    setDisplayedPairEvents(pairEventsRef.current)
+    const timer = window.setInterval(() => setDisplayedPairEvents(pairEventsRef.current), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
   const displayedDayStats = useMemo(() => {
     if (!current) return null
     const close = marketQuotes[current.instrumentId] ?? current.price
@@ -1278,7 +1299,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <PairMarketList
                     markets={markets}
                     productLine={view.line}
-                    events={pairFeed.events}
+                    events={displayedPairEvents}
                     quotes={marketQuotes}
                     selectedSymbol={current?.instrumentId}
                     search={pairSearch}
