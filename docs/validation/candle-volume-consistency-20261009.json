@@ -567,11 +567,423 @@
   },
   "deployment": {
     "cloudflareAuthenticated": false,
-    "publishedVerified": false
+    "publishedVerified": true,
+    "commit": "d81f15d1132975d80c4f732faaaee21e9a9e90d5",
+    "url": "https://ex.tokdou.com",
+    "publicArtifacts": [
+      {
+        "path": "index.html",
+        "expected": "32add4959e9228719d0261e37e53442adb08bce5b3d23cf191a3dfbbf3db3804",
+        "actual": "32add4959e9228719d0261e37e53442adb08bce5b3d23cf191a3dfbbf3db3804",
+        "match": true
+      },
+      {
+        "path": "assets/index-FkdzgMTT.js",
+        "expected": "001fdeb70807895105163a876a4bae908dbe9e45cec9123fbbd92ce0c4ba6e97",
+        "actual": "001fdeb70807895105163a876a4bae908dbe9e45cec9123fbbd92ce0c4ba6e97",
+        "match": true
+      },
+      {
+        "path": "assets/Primitives-EhcwrLlR.js",
+        "expected": "874460742c16e8a7df817f41d9e42ec3775842756d9bb994bc204a2265461a19",
+        "actual": "874460742c16e8a7df817f41d9e42ec3775842756d9bb994bc204a2265461a19",
+        "match": true
+      },
+      {
+        "path": "assets/domain-DRqmytfU.js",
+        "expected": "06ebeae7eee3cac50b49f8987f7630481fa41239d866e7d6067c16219353b7f2",
+        "actual": "06ebeae7eee3cac50b49f8987f7630481fa41239d866e7d6067c16219353b7f2",
+        "match": true
+      },
+      {
+        "path": "assets/TradePage-DhAYEVzq.js",
+        "expected": "a11d9545c6d347c7709e12b139b23f8b23cf1239e9f9b4f7ec8444db27fe8ba3",
+        "actual": "a11d9545c6d347c7709e12b139b23f8b23cf1239e9f9b4f7ec8444db27fe8ba3",
+        "match": true
+      },
+      {
+        "path": "assets/TradePage-Dhmo7Idw.css",
+        "expected": "d0d7825ef19ec43ddbab8f479b56fdddb62e75dfe343879eecb81b9f8b0e40d2",
+        "actual": "d0d7825ef19ec43ddbab8f479b56fdddb62e75dfe343879eecb81b9f8b0e40d2",
+        "match": true
+      },
+      {
+        "path": "assets/index-CsH61w_R.css",
+        "expected": "b703f134f0ed315a6d9aea5b9015bc078f6a81ac1c39cf4bfb451bed9e78e882",
+        "actual": "b703f134f0ed315a6d9aea5b9015bc078f6a81ac1c39cf4bfb451bed9e78e882",
+        "match": true
+      }
+    ],
+    "ci": "https://github.com/lilaizhencn/surprising-ex-web/actions/runs/37881625787",
+    "ciConclusion": "success",
+    "method": "Public resources changed after git push; no Cloudflare CLI publish was performed.",
+    "backupArtifact": "/var/backups/surprising/deploy-20261009-f974fa21/user-web-d81f15d.tar.gz",
+    "backupArtifactSha256": "8452ba12e8ef5d7515ff3977b302b84a48ed8138cdb79e4f309142ae134da378"
   },
   "cleanup": {
     "temporaryDirectory": "/private/tmp/surprising-candle-volume-20261009",
-    "removed": false,
-    "previewStopped": false
+    "removed": true,
+    "previewStopped": true,
+    "remoteJfrRemoved": true,
+    "evidenceArchiveVerified": true
+  },
+  "liveHigherPeriodBackendFix": {
+    "commit": "a59563d729375539961820c1a3bb182ae0175739",
+    "backendValidation": "surprising-ex/docs/validation/candle-live-periods-20261009.json",
+    "deployment": {
+      "release": "a59563d7",
+      "releasePath": "/opt/surprising-ex-20261009-live-candles-a59563d7",
+      "moduleVersions": {
+        "core": "f974fa21; source identical at c79d572b",
+        "gateway": "f974fa21; source identical at c79d572b",
+        "price": "f974fa21; source identical at c79d572b",
+        "derivatives-lifecycle": "f974fa21; source identical at c79d572b",
+        "maker": "f974fa21; source identical at c79d572b",
+        "realtime": "a59563d7"
+      },
+      "changedArtifact": "surprising-realtime/surprising-realtime-provider/target/surprising-realtime-provider-1.0.0-SNAPSHOT-exec.jar",
+      "artifactSha256": "0f5ce86cb8538eaee2f928d9f5a5cca6a9838ac39f3cd4ce9159ef6e82c5dbbc",
+      "remoteTests": [
+        {
+          "name": "com.surprising.candlestick.provider.config.CandlestickLiveRollupTopologyTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.surprising.candlestick.provider.config.CandlestickRollupTopologyTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.surprising.candlestick.provider.aggregation.CandleRollupAccumulatorTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.surprising.candlestick.provider.service.CandleQueryServiceTest",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.surprising.candlestick.provider.config.CandlestickStreamConfigurationTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.surprising.candlestick.provider.service.CandleHotCacheTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "pidsBefore": {
+        "core-node0": 2268566,
+        "gateway": 2268770,
+        "price": 2268965,
+        "realtime": 2271965,
+        "derivatives-lifecycle": 2269882,
+        "maker": 2272277
+      },
+      "pidsAfter": {
+        "core-node0": 2268566,
+        "gateway": 2268770,
+        "price": 2268965,
+        "realtime": 2282585,
+        "derivatives-lifecycle": 2269882,
+        "maker": 2272277
+      },
+      "health": {
+        "9094": {
+          "groups": [
+            "liveness",
+            "readiness"
+          ],
+          "status": "UP"
+        },
+        "9082": {
+          "groups": [
+            "liveness",
+            "readiness"
+          ],
+          "status": "UP"
+        },
+        "9095": {
+          "groups": [
+            "liveness",
+            "readiness"
+          ],
+          "status": "UP"
+        },
+        "9087": {
+          "groups": [
+            "liveness",
+            "readiness"
+          ],
+          "status": "UP"
+        },
+        "9096": {
+          "groups": [
+            "liveness",
+            "readiness"
+          ],
+          "status": "UP"
+        }
+      },
+      "checkpointBefore": {
+        "logPosition": 13714570624,
+        "tradeSequence": 205123,
+        "sha256": "7d3e044191003aae2af518740a2f81d13e5d43183aa1955ff325ebe46bd29264"
+      },
+      "checkpointAfter": {
+        "logPosition": 13714570624,
+        "tradeSequence": 205123,
+        "sha256": "7d3e044191003aae2af518740a2f81d13e5d43183aa1955ff325ebe46bd29264"
+      },
+      "completedAt": "2026-10-09T04:19:50Z"
+    },
+    "browserAllPeriods": {
+      "publicSite": true,
+      "startedAt": "2026-10-09T04:22:55.930Z",
+      "completedAt": "2026-10-09T04:25:12.101Z",
+      "errors": [],
+      "pass": true,
+      "actualSeriesChecked": [
+        "Candlestick",
+        "Histogram"
+      ],
+      "periods": {
+        "15m": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        },
+        "5m": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        },
+        "1m": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        },
+        "1h": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        },
+        "4h": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        },
+        "1d": {
+          "updates": 10,
+          "samples": 10,
+          "pass": true
+        }
+      },
+      "mobile": {
+        "width": 390,
+        "volume": "360.96"
+      }
+    },
+    "browserReload": {
+      "pass": true,
+      "reload": {
+        "sameBucket": true,
+        "beforeVolume": 11.67,
+        "afterVolume": 11.93,
+        "newerWatermark": true,
+        "pass": true
+      }
+    },
+    "publicMarketProbe": {
+      "start": "2026-10-09T04:24:38.947Z",
+      "end": "2026-10-09T04:25:36.403Z",
+      "events": 793,
+      "httpResponses": 18,
+      "httpAll200": true,
+      "protocolErrors": [],
+      "instrumentPeriodCombinations": 18,
+      "allContinuousUpdatesPassed": true,
+      "closedConsistency": [
+        {
+          "instrumentId": "604",
+          "period": "1m",
+          "openTime": "2026-10-09T04:24:00Z",
+          "liveVolume": 2.17,
+          "historyVolume": 2.17,
+          "liveTrades": 54,
+          "historyTrades": 54,
+          "pass": true
+        },
+        {
+          "instrumentId": "604",
+          "period": "5m",
+          "openTime": "2026-10-09T04:15:00Z",
+          "historyVolume": 9.23,
+          "minuteSumVolume": "9.23",
+          "historyTrades": 225,
+          "minuteSumTrades": 225,
+          "pass": true
+        },
+        {
+          "instrumentId": "604",
+          "period": "15m",
+          "openTime": "2026-10-09T04:00:00Z",
+          "historyVolume": 28.41,
+          "minuteSumVolume": "28.41",
+          "historyTrades": 739,
+          "minuteSumTrades": 739,
+          "pass": true
+        },
+        {
+          "instrumentId": "604",
+          "period": "1h",
+          "openTime": "2026-10-09T03:00:00Z",
+          "historyVolume": 91.5,
+          "minuteSumVolume": "91.50",
+          "historyTrades": 2395,
+          "minuteSumTrades": 2395,
+          "pass": true
+        },
+        {
+          "instrumentId": "604",
+          "period": "4h",
+          "openTime": "2026-10-09T00:00:00Z",
+          "historyVolume": 314.22,
+          "minuteSumVolume": "314.22",
+          "historyTrades": 8185,
+          "minuteSumTrades": 8185,
+          "pass": true
+        },
+        {
+          "instrumentId": "653",
+          "period": "1m",
+          "openTime": "2026-10-09T04:24:00Z",
+          "liveVolume": 2.02,
+          "historyVolume": 2.02,
+          "liveTrades": 54,
+          "historyTrades": 54,
+          "pass": true
+        },
+        {
+          "instrumentId": "653",
+          "period": "5m",
+          "openTime": "2026-10-09T04:15:00Z",
+          "historyVolume": 9.14,
+          "minuteSumVolume": "9.14",
+          "historyTrades": 223,
+          "minuteSumTrades": 223,
+          "pass": true
+        },
+        {
+          "instrumentId": "653",
+          "period": "15m",
+          "openTime": "2026-10-09T04:00:00Z",
+          "historyVolume": 28.66,
+          "minuteSumVolume": "28.66",
+          "historyTrades": 736,
+          "minuteSumTrades": 736,
+          "pass": true
+        },
+        {
+          "instrumentId": "653",
+          "period": "1h",
+          "openTime": "2026-10-09T03:00:00Z",
+          "historyVolume": 93.47,
+          "minuteSumVolume": "93.47",
+          "historyTrades": 2397,
+          "minuteSumTrades": 2397,
+          "pass": true
+        },
+        {
+          "instrumentId": "653",
+          "period": "4h",
+          "openTime": "2026-10-09T00:00:00Z",
+          "historyVolume": 315.34,
+          "minuteSumVolume": "315.34",
+          "historyTrades": 8185,
+          "minuteSumTrades": 8185,
+          "pass": true
+        },
+        {
+          "instrumentId": "866",
+          "period": "1m",
+          "openTime": "2026-10-09T04:24:00Z",
+          "liveVolume": 2.09,
+          "historyVolume": 2.09,
+          "liveTrades": 53,
+          "historyTrades": 53,
+          "pass": true
+        },
+        {
+          "instrumentId": "866",
+          "period": "5m",
+          "openTime": "2026-10-09T04:15:00Z",
+          "historyVolume": 7.68,
+          "minuteSumVolume": "7.68",
+          "historyTrades": 224,
+          "minuteSumTrades": 224,
+          "pass": true
+        },
+        {
+          "instrumentId": "866",
+          "period": "15m",
+          "openTime": "2026-10-09T04:00:00Z",
+          "historyVolume": 28.83,
+          "minuteSumVolume": "28.83",
+          "historyTrades": 740,
+          "minuteSumTrades": 740,
+          "pass": true
+        },
+        {
+          "instrumentId": "866",
+          "period": "1h",
+          "openTime": "2026-10-09T03:00:00Z",
+          "historyVolume": 93.65,
+          "minuteSumVolume": "93.65",
+          "historyTrades": 2402,
+          "minuteSumTrades": 2402,
+          "pass": true
+        },
+        {
+          "instrumentId": "866",
+          "period": "4h",
+          "openTime": "2026-10-09T00:00:00Z",
+          "historyVolume": 317.72,
+          "minuteSumVolume": "317.72",
+          "historyTrades": 8198,
+          "minuteSumTrades": 8198,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    "initialFailures": {
+      "preStopArtifactGuard": "Maven -am also repackaged dependency executable; guard rejected before any service stopped. Retained all non-Realtime deployed executables and reverified.",
+      "firstBrowser": "Six-second observation had two revisions; no passing claim.",
+      "secondBrowser": "5m assertion timed out during checkpoint catch-up, incoming late previous-bucket revisions while current bucket still lacked trades. Six periods rerun after catch-up passed.",
+      "priorCoverage": "Earlier frontend public continuous-update check used only 1m; it did not establish all larger periods updating."
+    },
+    "knownLatency": "Existing Streams commit interval 1s, minute and rollup topic feedback adds transaction visibility waits. Correlated lastTradeId receive difference, not end-to-end latency; detailed P95/max in probe. No zero-delay claim.",
+    "evidenceArchive": {
+      "serverPath": "/var/backups/surprising/deploy-20261009-f974fa21/live-candles-evidence.tar.gz",
+      "bytes": 1745200,
+      "sha256": "08f383eec8bff4a192845bef6e8605d6320c71f5db6c4d582897f1fabf4ad848",
+      "fileCount": 47
+    }
   }
 }
