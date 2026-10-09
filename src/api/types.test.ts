@@ -58,6 +58,35 @@ describe("gateway financial response schemas", () => {
     ).toBe(true)
   })
 
+  it("keeps committed final rates when old prediction components were not retained", () => {
+    const rate = {
+      instrumentId: "604",
+      sequence: "123456",
+      fundingRatePpm: "100",
+      premiumRatePpm: null,
+      interestRatePpm: null,
+      fundingIntervalHours: null,
+      fundingTime: "2026-10-08T16:00:00Z",
+      eventTime: "2026-10-08T16:00:01Z",
+      status: "FINAL",
+    }
+    const page = {
+      count: 1,
+      rates: [rate],
+      nextCursor: null,
+      hasMore: false,
+      sort: "eventTime.desc",
+      limit: 100,
+    }
+    const parsed = FundingRatePageSchema.parse(page)
+    expect(parsed.rates[0]?.fundingRatePpm).toBe("100")
+    expect(parsed.rates[0]?.premiumRatePpm).toBeNull()
+    expect(
+      FundingRatePageSchema.safeParse({ ...page, rates: [{ ...rate, fundingRatePpm: null }] })
+        .success,
+    ).toBe(false)
+  })
+
   it("rejects a ledger row without its accounting fields", () => {
     expect(AccountLedgerEntrySchema.safeParse({ entryId: 1, asset: "USDT" }).success).toBe(false)
   })

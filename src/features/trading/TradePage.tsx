@@ -3075,7 +3075,9 @@ function FundingMarketHistory({
                 <tr key={`${row.sequence}-${index}`}>
                   <td>{row.fundingTime || "—"}</td>
                   <td className="mono">{fundingRate(row)}</td>
-                  <td className="mono">{ppmText(row.premiumRatePpm)}</td>
+                  <td className="mono">
+                    {row.premiumRatePpm == null ? t("Unavailable") : ppmText(row.premiumRatePpm)}
+                  </td>
                   <td>{row.status || "—"}</td>
                 </tr>
               ))}

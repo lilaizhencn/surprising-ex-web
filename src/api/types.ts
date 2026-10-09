@@ -363,10 +363,10 @@ export const FundingRateSchema = z
     instrumentId: z.string(),
     sequence: IdentifierSchema,
     fundingRatePpm: IdentifierSchema,
-    premiumRatePpm: IdentifierSchema,
-    interestRatePpm: IdentifierSchema,
+    premiumRatePpm: IdentifierSchema.nullable(),
+    interestRatePpm: IdentifierSchema.nullable(),
     fundingTime: z.string(),
-    fundingIntervalHours: z.number(),
+    fundingIntervalHours: z.number().nullable(),
     status: z.string(),
     eventTime: z.string(),
   })
