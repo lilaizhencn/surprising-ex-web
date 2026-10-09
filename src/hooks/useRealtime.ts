@@ -12,8 +12,11 @@ import {
   unwrapEvent,
   type WsEnvelope,
 } from "../realtime"
-import { RealtimeConnections } from "../realtimeConnections"
 import { applyDepthEvent } from "../realtimeDepth"
+import {
+  acquireRealtimeConnections,
+  type RealtimeConnectionHandle,
+} from "../sharedRealtimeConnections"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
@@ -67,8 +70,8 @@ export function useRealtimeFeed(
   const [events, setEvents] = useState<readonly WsEnvelope[]>([])
   const [views, setViews] = useState<Readonly<Partial<Record<ProductLine, PrivateView>>>>({})
   const [revision, setRevision] = useState(0)
-  const publicConnections = useRef<RealtimeConnections | null>(null)
-  const privateConnections = useRef<RealtimeConnections | null>(null)
+  const publicConnections = useRef<RealtimeConnectionHandle | null>(null)
+  const privateConnections = useRef<RealtimeConnectionHandle | null>(null)
   const desired = useRef(subscriptions)
   desired.current = subscriptions
   const key = subscriptions.map(subscriptionKey).sort().join("|")
@@ -119,9 +122,9 @@ export function useRealtimeFeed(
         cancelPublish = () => cancelAnimationFrame(frame)
       }
     }
-    const publicManager = new RealtimeConnections(
+    const publicManager = acquireRealtimeConnections(
       config.wsBaseUrlForProductLine,
-      null,
+      accessToken,
       (raw) => {
         if (closed || raw.op !== "event" || !raw.productLine || !raw.channel) return
         let event = unwrapEvent(raw)
@@ -176,7 +179,7 @@ export function useRealtimeFeed(
     publicManager.update(desired.current)
     const privateManager =
       accessToken && userId
-        ? new RealtimeConnections(
+        ? acquireRealtimeConnections(
             config.wsBaseUrlForProductLine,
             accessToken,
             (event) => {
