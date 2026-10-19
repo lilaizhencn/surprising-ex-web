@@ -88,6 +88,7 @@ import {
 import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
+import { OptionMarketPanel } from "./OptionMarketPanel"
 import {
   contractOpeningCapacity,
   deliveryFee,
@@ -1672,7 +1673,18 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         </header>
         <main className="trade-main">
           {view.line === PRODUCT_LINES.option ? (
-            <OptionDetails market={current} scales={assetScales} />
+            <>
+              <OptionDetails market={current} scales={assetScales} />
+              {current ? (
+                <OptionMarketPanel
+                  key={current.instrumentId}
+                  market={current}
+                  markets={markets}
+                  scales={assetScales}
+                  onSelect={selectPair}
+                />
+              ) : null}
+            </>
           ) : null}
           {view.key === "delivery-futures" || view.key === "coin-m-delivery" ? (
             <DeliveryDetails market={current} scales={assetScales} />
@@ -3114,7 +3126,6 @@ function OptionDetails({
         <Detail label={t("Exercise")} value={market?.optionExerciseStyle ?? "—"} />
         <Detail label={t("Settlement")} value={market?.settlementMethod ?? "—"} />
       </div>
-      <p className="muted contract-help">{t("Greeks quote is unavailable.")}</p>
     </Panel>
   )
 }

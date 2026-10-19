@@ -6,6 +6,14 @@ export function LanguagePicker() {
   return (
     <div className="language-picker">
       <DropdownSelect
+        renderOption={(option) => (
+          <>
+            <span className="language-label-full">{option.label}</span>
+            <span className="language-label-compact" aria-hidden="true">
+              {option.value === "zh" ? "中文" : "EN"}
+            </span>
+          </>
+        )}
         value={locale}
         aria-label={t("Language")}
         onChange={(event) => setLocale(event.target.value === "zh" ? "zh" : "en")}

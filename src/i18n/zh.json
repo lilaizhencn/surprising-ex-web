@@ -1079,5 +1079,20 @@
   "Seller margin": "卖方保证金",
   "Assessed from current option risk when submitted": "提交时按当前期权风险校验",
   "Greeks quote is unavailable.": "Greeks 报价暂不可用。",
-  "No settlement cash movements.": "暂无结算现金变动。"
+  "No settlement cash movements.": "暂无结算现金变动。",
+  "Option market reference": "期权行情与参考估值",
+  "Underlying index": "标的指数",
+  "Same-expiry forward": "同到期远期价",
+  "Premium quote": "权利金报价",
+  "Intrinsic value": "内在价值",
+  "Forward Delta": "远期 Delta",
+  "Forward Gamma": "远期 Gamma",
+  "Vega / 1% volatility": "Vega / 波动率变动1%",
+  "Theta / day": "Theta / 天",
+  "Black-76 reference; zero discount rate; per 1 underlying unit.": "Black-76 参考值；零贴现；每1单位标的。",
+  "This quote has no implied volatility under the reference model.": "当前报价无法在参考模型下求得隐含波动率。",
+  "Option reference is unavailable or stale.": "参考报价暂不可用或已过期。",
+  "Same-expiry option chain": "同到期期权链",
+  "No matching option contracts.": "暂无匹配的期权合约。",
+  "As of": "报价时间"
 }

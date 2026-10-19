@@ -4277,3 +4277,75 @@ body,
 .ticket-summary--option > span:nth-child(even) {
   text-align: right;
 }
+
+.option-market-panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.option-market-panel .contract-detail {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.option-chain-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(56px, 0.65fr) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+.option-chain-row > span {
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.option-chain-heading {
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+}
+.option-chain-contract {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.option-chain-contract[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.option-chain-contract small {
+  color: var(--color-ink-muted);
+}
+
+.language-label-compact {
+  display: none;
+}
+@media (max-width: 380px) {
+  .top-nav .language-picker {
+    width: 64px;
+    min-width: 0;
+  }
+  .top-nav .language-label-full {
+    display: none;
+  }
+  .top-nav .language-label-compact {
+    display: inline;
+  }
+  .top-nav .nav-actions {
+    gap: 0;
+  }
+  .top-nav .nav-actions .icon-button,
+  .top-nav .nav-account,
+  .top-nav .mobile-nav-toggle {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+  }
+}

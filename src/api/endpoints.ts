@@ -1631,7 +1631,7 @@ export async function loadEffectiveTradingFee(
   userId: string | number,
   instrumentId: string,
   productLine: ProductLine,
-  instrumentChangeId?: string,
+  changeId?: string,
 ) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
   const fee = await request(
@@ -1643,11 +1643,11 @@ export async function loadEffectiveTradingFee(
   )
   if (
     productLine === "SPOT" &&
-    (instrumentChangeId == null ||
+    (changeId == null ||
       String(fee["userId"]) !== String(userId) ||
       fee["productLine"] !== productLine ||
       String(fee["instrumentId"]) !== instrumentId ||
-      String(fee["instrumentChangeId"]) !== instrumentChangeId ||
+      String(fee["changeId"]) !== changeId ||
       typeof fee["takerFeeRatePpm"] !== "number" ||
       !Number.isSafeInteger(fee["takerFeeRatePpm"]) ||
       Math.abs(fee["takerFeeRatePpm"]) > 1000000)

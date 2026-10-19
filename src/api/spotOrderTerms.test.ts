@@ -14,7 +14,7 @@ it("requires fees for the current user, product and instrument revision", async 
     userId: 1,
     productLine: "SPOT",
     instrumentId: "2",
-    instrumentChangeId: "3",
+    changeId: "3",
     takerFeeRatePpm: 1000,
   }
   send.mockResolvedValue(fee)
@@ -23,7 +23,9 @@ it("requires fees for the current user, product and instrument revision", async 
     { userId: 2 },
     { productLine: "OPTION" },
     { instrumentId: "4" },
-    { instrumentChangeId: "4" },
+    { changeId: "4" },
+    { changeId: undefined },
+    { changeId: undefined, instrumentChangeId: "3" },
     { takerFeeRatePpm: undefined },
     { takerFeeRatePpm: 1000001 },
   ]) {

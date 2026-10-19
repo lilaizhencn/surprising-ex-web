@@ -206,3 +206,12 @@ OPTION 票据移除杠杆入口，按合约张数、乘数及资产精度展示�
 移除不存在的 options/quote 调用和对应未实现 DTO，元数据展示真实标的身份、到期、行权价、CALL/PUT、欧式/现金规则；没有可信 Greeks 服务时明确显示不可用。行权现金入口为 `/assets/ledger?category=option-exercise&productLine=OPTION`，查询既有产品账本 OPTION_EXERCISE，手机卡片保留金额、余额、合约 ID 与参考号。后台需先部署价格单位换算和行权分类修复，并按需执行旧分类迁移，详见后端 README。
 
 实际单节点 OPTION FUSED、真实做市/HTTP/WS 下验证了单次写入、丢回包刷新恢复、CALL/PUT 六组到期、买卖双方 ±4 USDT 行权、CLOSED 禁止下单。检查 320/390/1440px、深浅主题，修复票据长文案金额重叠。尚未实现 Greeks/IV 定价；未进行生产部署、iOS/Android 真机测试或其余产品本轮实栈验收。[验证和清理记录](docs/validation/option-trading-20261020.json)。
+
+
+### 期权行情与参考估值、公开手续费版本（2026-10-20 后续）
+
+两端已接入 realtime 的期权参考接口 `/api/v1/gateway/candlestick/options/quote`，展示真实权利金、标的指数、同到期远期价及零贴现 Black-76 参考 IV/远期 Delta/Gamma/Vega/每日 Theta。模型与每1单位标的的口径明确显示，缺失/过期/越界不造数；它不替代账户风险或结算。HALT 中有新鲜源数据的未到期合约仍可查询，下单限制保持独立。
+
+期权链现在可直接切换 CALL/PUT，按标的身份、精确到期时刻及币种分组，使用整数行权价并保留同价多合约。Web 补齐320px已登录页头、语言菜单与主题交互。另修复公开有效手续费的版本名：返回 changeId，与公开合约精度版本一致，client 不再依赖被网关删除的 instrumentChangeId；Web 现货费用版本校验同步使用公开 changeId，缺失或旧字段仍拒绝。未放开脱敏、未添加猜测费率。
+
+发布需配套 realtime、gateway 与两端；本轮没有 SQL 或 Core 资金/撮合/协议变更。参考模型仅为明确的零贴现欧式现金模型，不提供完整利率曲线或组合 Greeks；原生设备安装及其他产品本轮实栈不在验收范围。[验证与清理记录](docs/validation/option-market-reference-20261020.json)。
