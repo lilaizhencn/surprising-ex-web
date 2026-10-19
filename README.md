@@ -242,6 +242,24 @@ U 本位交割的独立条件单、原子 OCO 与单笔撤销在发送前保存�
 保护单仅在未到期 TRADING 可提交，SETTLING 保留直接 reduce-only 平仓与原结果查询。
 票据展示实际 MARK/LAST/INDEX 触发规则、可平数量和触发成交时费用，去除保护票据中的开仓额度估算。
 
-scripts/linear-delivery-protection-fused-live.mjs 使用 LINEAR_PROTECTION_LIVE_FIXTURE、LINEAR_PROTECTION_PHASE、
-LINEAR_PROTECTION_PLAYWRIGHT_MODULE、LINEAR_PROTECTION_CHROMIUM，验证 TRADING 与 SETTLING 两阶段。
+scripts/delivery-protection-fused-live.mjs 使用 DELIVERY_PROTECTION_LIVE_FIXTURE、DELIVERY_PROTECTION_PHASE、
+DELIVERY_PROTECTION_PRODUCT=LINEAR_DELIVERY、DELIVERY_PROTECTION_PLAYWRIGHT_MODULE、DELIVERY_PROTECTION_CHROMIUM，验证 TRADING 与 SETTLING 两阶段。
 需既有 gateway 条件单回执接口及 realtime 导出，无新 SQL；记录见 docs/validation/linear-delivery-protection-20261020.json。
+
+
+### 币本位交割条件单与原结果恢复（2026-10-20）
+
+币本位交割的独立条件单、原子 OCO 和单笔撤销与 U 本位交割/期权共用原身份持久恢复。
+API 明确带 INVERSE_DELIVERY，断网或回包身份/状态不匹配时保留原请求，刷新后仅 GET realtime 原回执。
+报价币触发价格与 BTC 可用资产展示分开；保护票据只显示可平数量与触发成交时费用，不显示开仓额度。
+
+scripts/delivery-protection-fused-live.mjs 为两类交割共用实栈脚本，以 DELIVERY_PROTECTION_PRODUCT 选择唯一产品，
+搭配 DELIVERY_PROTECTION_LIVE_FIXTURE、DELIVERY_PROTECTION_PHASE=TRADING|SETTLING、
+DELIVERY_PROTECTION_PLAYWRIGHT_MODULE、DELIVERY_PROTECTION_CHROMIUM；重用原条件单的中断续查另用 DELIVERY_PROTECTION_RESUME_SINGLE_ID。
+不放开 SETTLING 新条件单；直接减仓与原结果查询继续可用。需既有 gateway 回执接口与 realtime 导出，无新 SQL。
+实测与清理见 docs/validation/inverse-delivery-protection-20261020.json。
+
+只读行情脚本 scripts/inverse-delivery-market-live.mjs 使用 INVERSE_MARKET_LIVE_ROOT 及上述浏览器环境参数，
+检查重启后 4h 图表和 24h 分钟口径在 1440/320px、深浅色下的真实累计成交量。
+realtime 修正报价面值换算、SETTLING/CLOSED 成交接收和冷启动当前周期查询；旧分钟投影需按后端文档受控重建，
+本轮未操作线上数据，查询继续走 realtime。

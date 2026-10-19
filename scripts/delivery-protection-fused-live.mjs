@@ -3,8 +3,12 @@ import fs from "node:fs"
 import path from "node:path"
 import { execFileSync } from "node:child_process"
 
-const fixturePath = process.env.LINEAR_PROTECTION_LIVE_FIXTURE, phase = process.env.LINEAR_PROTECTION_PHASE
-assert(fixturePath?.startsWith("/tmp/surprising-linear-delivery-fused-"))
+const product = process.env.DELIVERY_PROTECTION_PRODUCT
+assert(["LINEAR_DELIVERY", "INVERSE_DELIVERY"].includes(product))
+const prefix = product === "INVERSE_DELIVERY" ? "/tmp/surprising-inverse-delivery-fused-" : "/tmp/surprising-linear-delivery-fused-"
+const productKey = product === "INVERSE_DELIVERY" ? "coin-m-delivery" : "delivery-futures"
+const fixturePath = process.env.DELIVERY_PROTECTION_LIVE_FIXTURE, phase = process.env.DELIVERY_PROTECTION_PHASE
+assert(fixturePath?.startsWith(prefix))
 assert(["TRADING", "SETTLING"].includes(phase))
 const root = path.dirname(fixturePath), deadline = Date.now() + 180000
 let fixture
@@ -13,16 +17,16 @@ while (true) {
   catch (e) { if (e.code !== "ENOENT" && !(e instanceof SyntaxError)) throw e }
   assert(Date.now()<deadline,"bounded delivery protection fixture wait");await new Promise(resolve=>setTimeout(resolve,100))
 }
-assert.equal(fixture.productLine,"LINEAR_DELIVERY")
+assert.equal(fixture.productLine,product)
 const pid = Number(fs.readFileSync(`${root}/runtime/${fixture.runId}/pids/realtime.pid`,"utf8").trim())
 assert(execFileSync("ps",["-p",String(pid),"-o","args="],{encoding:"utf8"}).includes(`-Dsurprising.launcher.identity=${fixture.runId}/realtime`))
-const {chromium} = await import(process.env.LINEAR_PROTECTION_PLAYWRIGHT_MODULE || "playwright-core")
-const browser = await chromium.launch({headless:true,...(process.env.LINEAR_PROTECTION_CHROMIUM?{executablePath:process.env.LINEAR_PROTECTION_CHROMIUM}:{})})
-const resumeSingleId = process.env.LINEAR_PROTECTION_RESUME_SINGLE_ID
+const {chromium} = await import(process.env.DELIVERY_PROTECTION_PLAYWRIGHT_MODULE || "playwright-core")
+const browser = await chromium.launch({headless:true,...(process.env.DELIVERY_PROTECTION_CHROMIUM?{executablePath:process.env.DELIVERY_PROTECTION_CHROMIUM}:{})})
+const resumeSingleId = process.env.DELIVERY_PROTECTION_RESUME_SINGLE_ID
 const requests=resumeSingleId?JSON.parse(fs.readFileSync(`${root}/delivery-protection-web-requests.json`,"utf8")):[], errors=[];let page,paused=false,triggerIds=[]
 if(resumeSingleId){
   assert.equal(phase,"TRADING");assert.equal(requests.length,1);assert.equal(requests[0].kind,"single")
-  const response=await fetch(`http://127.0.0.1:9094/api/v1/gateway/trading-trigger/${resumeSingleId}?userId=${fixture.userId}`,{headers:{Authorization:`Bearer ${fixture.accessToken}`,"X-User-Id":String(fixture.userId),"X-Product-Line":"LINEAR_DELIVERY"}})
+  const response=await fetch(`http://127.0.0.1:9094/api/v1/gateway/trading-trigger/${resumeSingleId}?userId=${fixture.userId}`,{headers:{Authorization:`Bearer ${fixture.accessToken}`,"X-User-Id":String(fixture.userId),"X-Product-Line":product}})
   assert.equal(response.status,200);const original=JSON.parse(await response.text())
   assert.equal(original.clientTriggerOrderId,requests[0].body.clientTriggerOrderId);assert.equal(String(original.userId),String(fixture.userId));assert.equal(String(original.instrumentId),String(fixture.instrumentId))
   triggerIds.push(resumeSingleId)
@@ -48,7 +52,7 @@ async function ticket(oco=false) {
   await page.getByRole("option",{name:"Last traded price",exact:true}).click()
   const text=await page.locator(".trade-ticket").textContent()
   assert(text.includes("Triggers when last traded price ≤ trigger price"));assert(!text.includes("Est. max long"))
-  assert((await page.locator(".ticket-summary").innerText()).includes("At execution"))
+  assert((await page.locator(".ticket-summary").innerText()).includes("At execution"));assert((await page.locator(".ticket-summary").innerText()).includes(product==="INVERSE_DELIVERY"?"BTC":"USDT"))
   assert((await page.locator(".ticket-summary").innerText()).includes("Available to close long"))
 }
 async function row(id) {await page.getByRole("tab",{name:"TP & SL",exact:true}).click();const value=page.getByRole("row").filter({has:page.getByText(`#${id}`,{exact:true})});await value.waitFor();return value}
@@ -64,7 +68,7 @@ try {
     }
   },{session:fixture.session,restored})
   page=await context.newPage();page.on("pageerror",e=>errors.push(String(e)));page.setDefaultTimeout(20000)
-  await page.goto(`http://127.0.0.1:5173/trade/delivery-futures?instrumentId=${fixture.instrumentId}`)
+  await page.goto(`http://127.0.0.1:5173/trade/${productKey}?instrumentId=${fixture.instrumentId}`)
   if(phase==="SETTLING") {
     let writes=0;await page.route("**/api/**",route=>{if(route.request().method()!=="GET")writes++;assert.equal(route.request().method(),"GET");return route.continue()})
     await page.getByRole("button",{name:"Check cancellation result",exact:true}).waitFor();await resolve("Check cancellation result")
@@ -75,14 +79,14 @@ try {
     await page.getByLabel("Order quantity",{exact:true}).fill("1")
     assert(await page.getByRole("button",{name:"Close long",exact:true}).isEnabled())
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.equal(writes,0);assert.deepEqual(errors,[])
-    fs.writeFileSync(`${root}/delivery-protection-web-settling-evidence.json`,JSON.stringify({productLine:"LINEAR_DELIVERY",phase,writes:0,priorCancellationRestored:true,newSingleDisabled:true,newOcoDisabled:true,directCloseEnabled:true,width:320,pageErrors:errors},null,2))
-    console.log("LINEAR_DELIVERY_PROTECTION_WEB_SETTLING_PASS triggerDisabled=singleAndOco priorCancelRestored=true directCloseEnabled=true writes=0 width320")
+    fs.writeFileSync(`${root}/delivery-protection-web-settling-evidence.json`,JSON.stringify({productLine:product,phase,settlementAsset:product==="INVERSE_DELIVERY"?"BTC":"USDT",writes:0,priorCancellationRestored:true,newSingleDisabled:true,newOcoDisabled:true,directCloseEnabled:true,width:320,pageErrors:errors},null,2))
+    console.log(`${product}_PROTECTION_WEB_SETTLING_PASS triggerDisabled=singleAndOco priorCancelRestored=true directCloseEnabled=true writes=0 width320`)
   } else {
     let singleId=resumeSingleId, cancelDrop=true
     await page.route("**/api/v1/gateway/trading-trigger",async route=>{
       assert.equal(route.request().method(),"POST");const body=route.request().postDataJSON(),stored=await pendingRows();assert.equal(stored.length,1)
-      assert.equal(stored[0].productLine,"LINEAR_DELIVERY");assert.equal(stored[0].clientTriggerOrderId,body.clientTriggerOrderId)
-      requests.push({kind:"single",body,pending:stored[0]});saveRequests();pause()
+      assert.equal(stored[0].productLine,product);assert.equal(stored[0].clientTriggerOrderId,body.clientTriggerOrderId)
+      assert.equal(String(body.triggerPriceTicks),"400000");assert.equal(body.priceSource,"LAST");requests.push({kind:"single",body,pending:stored[0]});saveRequests();pause()
       const response=await route.fetch();assert.equal(response.status(),200);singleId=String(parse(await response.text()).triggerOrderId);triggerIds.push(singleId);await route.abort("failed")
     })
     await page.route("**/api/v1/gateway/trading-trigger/cancel",async route=>{
@@ -101,19 +105,19 @@ try {
     resume();await resolve("Check cancellation result",true)
     await page.route("**/api/v1/gateway/trading-trigger/batch",async route=>{
       const body=route.request().postDataJSON(),stored=await pendingRows();assert.equal(body.atomic,true);assert.equal(body.orders.length,2);assert.equal(stored[0].ocoTakeProfitClientId,body.orders[0].clientTriggerOrderId)
-      assert.equal(stored[0].productLine,"LINEAR_DELIVERY");requests.push({kind:"oco",body,pending:stored[0]});saveRequests()
+      assert.equal(stored[0].productLine,product);requests.push({kind:"oco",body,pending:stored[0]});saveRequests()
       const response=await route.fetch();assert.equal(response.status(),200);const value=parse(await response.text());assert.equal(value.completed,2)
       triggerIds.push(...value.results.map(v=>String(v.order.triggerOrderId)));await route.abort("failed")
     })
     await ticket(true);await page.getByRole("button",{name:"Trigger rules",exact:true}).hover()
-    await page.locator(".trade-ticket").screenshot({path:`${root}/delivery-protection-web-desktop.png`})
-    await page.setViewportSize({width:320,height:1300});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
-    await page.locator(".trade-ticket").screenshot({path:`${root}/delivery-protection-web-mobile.png`})
+    await page.locator(".trade-ticket").screenshot({path:`${root}/delivery-protection-web-desktop.png`});await page.mouse.move(0,0);await page.screenshot({path:`${root}/delivery-protection-web-desktop-viewport.png`,fullPage:true})
+    await page.mouse.move(0,0);await page.setViewportSize({width:320,height:1300});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+    await page.locator(".trade-ticket").screenshot({path:`${root}/delivery-protection-web-mobile.png`});await page.screenshot({path:`${root}/delivery-protection-web-mobile-viewport.png`,fullPage:true})
     await page.getByRole("button",{name:/^Set TP\/SL pair/}).click();await page.getByRole("button",{name:"Check order result",exact:true}).waitFor();await resolve("Check order result",true)
     for(const id of triggerIds.slice(1)){const value=await row(id);await value.getByRole("button",{name:"Revoke",exact:true}).click();await page.waitForFunction(()=>!Object.keys(localStorage).some(k=>k.startsWith("surprising-ex.pending-command:")))}
     assert.equal(requests.length,5);assert.deepEqual(errors,[])
-    fs.writeFileSync(`${root}/delivery-protection-web-evidence.json`,JSON.stringify({productLine:"LINEAR_DELIVERY",phase,triggerIds,posts:5,singlePosts:1,cancelPosts:3,ocoPosts:1,pausedUnknown:2,reloadRecovered:3,noMixedOpeningEstimate:true,feesAtExecution:true,source:"LAST",widths:[1440,320],pageErrors:errors},null,2))
-    console.log("LINEAR_DELIVERY_PROTECTION_WEB_PASS single=1 oco=1 cancel=3 pausedUnknown=2 reloadRecovered=3 source=LAST feesAtExecution=true widths=1440,320")
+    fs.writeFileSync(`${root}/delivery-protection-web-evidence.json`,JSON.stringify({productLine:product,phase,settlementAsset:product==="INVERSE_DELIVERY"?"BTC":"USDT",triggerIds,posts:5,singlePosts:1,cancelPosts:3,ocoPosts:1,pausedUnknown:2,reloadRecovered:3,noMixedOpeningEstimate:true,feesAtExecution:true,source:"LAST",widths:[1440,320],pageErrors:errors},null,2))
+    console.log(`${product}_PROTECTION_WEB_PASS single=1 oco=1 cancel=3 pausedUnknown=2 reloadRecovered=3 source=LAST feesAtExecution=true widths=1440,320`)
   }
 } catch(error){if(page){await page.screenshot({path:`${root}/delivery-protection-web-${phase}-failure.png`,fullPage:true});fs.writeFileSync(`${root}/delivery-protection-web-${phase}-failure.txt`,await page.locator("body").innerText())}throw error}
 finally {resume();await browser.close()}

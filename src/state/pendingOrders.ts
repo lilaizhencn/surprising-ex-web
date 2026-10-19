@@ -32,7 +32,7 @@ export const tracksSingleOrderIntent = (line: ProductLine) =>
   line === "SPOT" || line === "LINEAR_DELIVERY" || line === "INVERSE_DELIVERY" || line === "OPTION"
 
 export const tracksTriggerIntent = (line: ProductLine) =>
-  line === "OPTION" || line === "LINEAR_DELIVERY"
+  line === "OPTION" || line === "LINEAR_DELIVERY" || line === "INVERSE_DELIVERY"
 
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
