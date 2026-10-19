@@ -277,7 +277,7 @@ export function OrdersPage() {
             {t(
               pending.cancelPlan
                 ? "Cancellation results are pending. Check and continue the original request."
-                : pending.cancelOrderId
+                : pending.cancelOrderId || pending.cancelTriggerOrderId
                   ? "Cancellation result is pending. Do not send it again."
                   : "Order result is pending. Do not submit it again.",
             )}
@@ -309,7 +309,7 @@ export function OrdersPage() {
                         ? result === "confirmed"
                           ? "Amendment processing confirmed. Check both order states."
                           : "Amendment was rejected. Check the original order state."
-                        : original.cancelOrderId
+                        : original.cancelOrderId || original.cancelTriggerOrderId
                           ? result === "confirmed"
                             ? "Cancellation processing confirmed. Check the latest order state."
                             : "Cancellation was rejected. Check the latest order state."
@@ -332,7 +332,7 @@ export function OrdersPage() {
                 ? "Check and continue cancellations"
                 : pending.amendRequestId
                   ? "Check amendment result"
-                  : pending.cancelOrderId
+                  : pending.cancelOrderId || pending.cancelTriggerOrderId
                     ? "Check cancellation result"
                     : "Check order result",
             )}
@@ -732,13 +732,18 @@ function TriggerTable({
               <td>
                 <Button
                   tone="negative"
-                  disabled={!session || text(row, "status") !== "PENDING"}
+                  disabled={
+                    !session ||
+                    readPendingCommand(String(session.user.userId)) !== null ||
+                    text(row, "status") !== "PENDING"
+                  }
                   onClick={() => {
                     if (!session || !window.confirm("Cancel this conditional order?")) return
                     void cancelTriggerOrder(
                       session.user.userId,
                       text(row, "triggerOrderId"),
                       productLine,
+                      text(row, "instrumentId"),
                     ).then(
                       () => onDone(t("Trigger order cancellation requested.")),
                       (reason: unknown) => onDone(readError(reason)),

@@ -224,3 +224,13 @@ client 期权“高级委托 → 条件单”补齐 TP/SL 双腿 OCO，支持选
 Web 同步保存 OPTION OCO 原身份并复用结果确认入口。TP/SL 票据不显示普通开仓权利金，费用标记为“触发成交时计算”。后端新增只读 oco-submission 查询，复用现有回执表及 realtime exporter，不访问在线 Core。本轮无新 SQL 或 Core 交易/资金模型变更，发布需配套 gateway 与两端，并确保此前回执迁移和导出已就绪。
 
 实际仅运行 OPTION 单节点 FUSED：Web 双腿一次提交、丢响应刷新恢复后撤销；client 双腿一次提交、暂停 realtime 后未知、恢复并重建读取原结果，止盈腿触发限价平仓且另一腿撤销。当前及前一次隔离账户持仓/冻结归零、资金差额0。320px 深浅色及停牌费用文案验证通过；其他产品、独立条件单恢复、原生设备和生产发布仍需继续。[验证与清理记录](docs/validation/option-protection-20261020.json)。
+
+
+### 期权独立条件单与原撤销恢复
+
+OPTION 的独立条件单和单笔撤销现在与普通委托、OCO 一样，在唯一 POST 前保存原身份。
+刷新后通过已有结果确认入口 GET realtime 回执；响应丢失、未知或不匹配不会释放请求锁，也不会自动重发。
+交易页及订单页撤销使用原 instrumentId 和 triggerOrderId，忙碌/待确认时交易页禁用再次撤销。
+发布需匹配 gateway 两个新只读入口，保留此前回执迁移及 realtime 导出，无新 SQL。
+接口见 docs/api/options.md，隔离实栈脚本 scripts/option-single-trigger-fused-live.mjs 使用 OPTION_SINGLE_LIVE_FIXTURE、
+OPTION_SINGLE_PLAYWRIGHT_MODULE、OPTION_SINGLE_CHROMIUM；证据见 docs/validation/option-single-trigger-20261020.json。

@@ -859,6 +859,30 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
 
 /** Resolve original submissions and cancellations from realtime-owned views only. */
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
+  if (pending.clientTriggerOrderId || pending.cancelTriggerOrderId) {
+    const query = new URLSearchParams({ userId: pending.userId })
+    if (pending.clientTriggerOrderId)
+      query.set("clientTriggerOrderId", pending.clientTriggerOrderId)
+    const path = pending.cancelTriggerOrderId
+      ? `cancellations/${encodeURIComponent(pending.cancelTriggerOrderId)}`
+      : "submission"
+    const receipt = await request(
+      `/api/v1/gateway/trading-trigger/${path}?${query}`,
+      GenericObjectSchema,
+      { productLine: pending.productLine, expectedUserId: pending.userId, retry: 0 },
+    )
+    if (
+      typeof receipt["commandId"] !== "string" ||
+      !receipt["commandId"] ||
+      (pending.commandId && receipt["commandId"] !== pending.commandId)
+    )
+      throw new Error("Trigger receipt identity mismatch")
+    if (receipt["outcome"] === "TERMINAL" && typeof receipt["code"] === "string" && receipt["code"])
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+    if (receipt["outcome"] === "RESULT_UNKNOWN" && receipt["code"] === "RESULT_UNKNOWN")
+      return "pending"
+    throw new Error("Trigger receipt is unavailable")
+  }
   if (pending.ocoTakeProfitClientId && pending.ocoStopLossClientId) {
     const query = new URLSearchParams({
       userId: pending.userId,
@@ -1298,6 +1322,22 @@ export function placeTriggerOrder(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ): Promise<ApiTriggerOrder> {
+  if (productLine === "OPTION") {
+    const intent: PendingOrderCommand = {
+      userId: String(body["userId"]),
+      productLine,
+      instrumentId: String(body["instrumentId"] ?? ""),
+      clientTriggerOrderId: String(body["clientTriggerOrderId"] ?? ""),
+    }
+    if (
+      !/^[1-9]\d*$/.test(intent.userId) ||
+      !intent.instrumentId ||
+      !intent.clientTriggerOrderId ||
+      intent.clientTriggerOrderId.length > 64
+    )
+      return Promise.reject(new Error("Trigger request identities are required"))
+    return submitOptionTrigger(intent, "/api/v1/gateway/trading-trigger", body)
+  }
   return request("/api/v1/gateway/trading-trigger", TriggerOrderSchema, {
     method: "POST",
     productLine,
@@ -1324,13 +1364,77 @@ export function cancelTriggerOrder(
   userId: string | number,
   triggerOrderId: string | number,
   productLine: ProductLine,
+  instrumentId?: string,
 ): Promise<ApiTriggerOrder> {
+  if (productLine === "OPTION") {
+    const intent: PendingOrderCommand = {
+      userId: String(userId),
+      productLine,
+      instrumentId: instrumentId ?? "",
+      cancelTriggerOrderId: String(triggerOrderId),
+    }
+    if (
+      !/^[1-9]\d*$/.test(intent.userId) ||
+      !/^[1-9]\d*$/.test(String(triggerOrderId)) ||
+      !intent.instrumentId
+    )
+      return Promise.reject(new Error("Trigger cancellation identities are required"))
+    return submitOptionTrigger(intent, "/api/v1/gateway/trading-trigger/cancel", {
+      userId,
+      triggerOrderId,
+    })
+  }
   return request("/api/v1/gateway/trading-trigger/cancel", TriggerOrderSchema, {
     method: "POST",
     productLine,
     idempotencyKey: `cancel-trigger-${triggerOrderId}`,
     body: { userId, triggerOrderId },
   })
+}
+
+/** Save the original OPTION trigger request before its sole POST. Resolution is GET only. */
+async function submitOptionTrigger(
+  intent: PendingOrderCommand,
+  path: string,
+  body: Readonly<Record<string, unknown>>,
+): Promise<ApiTriggerOrder> {
+  const existing = readPendingCommand(intent.userId)
+  if (existing) throw new PendingTradingCommand(existing.commandId)
+  try {
+    savePendingCommand(intent)
+  } catch {
+    throw new Error(t("Cannot save order recovery details. No order was sent."))
+  }
+  try {
+    const order = await request(path, TriggerOrderSchema, {
+      method: "POST",
+      productLine: intent.productLine,
+      expectedUserId: intent.userId,
+      retry: 0,
+      body,
+    })
+    if (
+      !/^[1-9]\d*$/.test(String(order.triggerOrderId)) ||
+      !["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"].includes(
+        order.status,
+      ) ||
+      String(order.userId) !== intent.userId ||
+      order.instrumentId !== intent.instrumentId ||
+      (intent.clientTriggerOrderId && order.clientTriggerOrderId !== intent.clientTriggerOrderId) ||
+      (intent.cancelTriggerOrderId &&
+        (String(order.triggerOrderId) !== intent.cancelTriggerOrderId ||
+          order.status !== "CANCELED"))
+    )
+      throw new Error("Trigger response identity mismatch")
+    clearPendingCommand(intent)
+    return order
+  } catch (reason) {
+    if (isDefinitiveOrderRejection(reason)) {
+      clearPendingCommand(intent)
+      throw reason
+    }
+    throw new PendingTradingCommand(intent.commandId)
+  }
 }
 
 export async function placeBatchTriggerOrders(

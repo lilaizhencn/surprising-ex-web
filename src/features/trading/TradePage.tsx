@@ -1834,6 +1834,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 <Panel dense className="trade-orders-panel">
                   <TriggerOrders
                     rows={triggerOrders}
+                    pending={pendingForUser}
                     productLine={view.line}
                     userId={session?.user.userId}
                     market={current}
@@ -2462,7 +2463,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     ? "Check and continue cancellations"
                     : pendingCommand?.amendRequestId
                       ? "Check amendment result"
-                      : pendingCommand?.cancelOrderId
+                      : pendingCommand?.cancelOrderId || pendingCommand?.cancelTriggerOrderId
                         ? "Check cancellation result"
                         : "Check order result",
                 )}
@@ -2912,6 +2913,7 @@ function marketPriceFromRecord(
 
 function TriggerOrders({
   rows,
+  pending,
   productLine,
   userId,
   market,
@@ -2919,6 +2921,7 @@ function TriggerOrders({
   onDone,
 }: {
   readonly rows: readonly ApiTriggerOrder[]
+  readonly pending: boolean
   readonly productLine: ProductLine
   readonly userId: string | number | undefined
   readonly market: Market | null
@@ -2951,6 +2954,7 @@ function TriggerOrders({
             {rows.map((row) => (
               <TriggerOrderRow
                 key={String(row.triggerOrderId)}
+                pending={pending}
                 row={row}
                 productLine={productLine}
                 userId={userId}
@@ -2968,6 +2972,7 @@ function TriggerOrders({
 
 function TriggerOrderRow({
   row,
+  pending,
   productLine,
   userId,
   market,
@@ -2975,6 +2980,7 @@ function TriggerOrderRow({
   onDone,
 }: {
   readonly row: ApiTriggerOrder
+  readonly pending: boolean
   readonly productLine: ProductLine
   readonly userId: string | number | undefined
   readonly market: Market | null
@@ -3013,7 +3019,7 @@ function TriggerOrderRow({
           type="button"
           className="compact-cancel"
           aria-busy={loading}
-          disabled={loading || userId === undefined || row.status !== "PENDING"}
+          disabled={loading || pending || userId === undefined || row.status !== "PENDING"}
           onClick={() => {
             if (
               userId === undefined ||
@@ -3021,7 +3027,7 @@ function TriggerOrderRow({
             )
               return
             setLoading(true)
-            void cancelTriggerOrder(userId, row.triggerOrderId, productLine)
+            void cancelTriggerOrder(userId, row.triggerOrderId, productLine, row.instrumentId)
               .then(
                 () => onDone(t("Trigger order cancellation requested.")),
                 (reason: unknown) => onDone(readError(reason)),

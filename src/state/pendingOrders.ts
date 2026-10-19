@@ -24,6 +24,8 @@ export type PendingOrderCommand = {
   readonly cancelPlan?: CancellationPlan
   readonly ocoTakeProfitClientId?: string
   readonly ocoStopLossClientId?: string
+  readonly clientTriggerOrderId?: string
+  readonly cancelTriggerOrderId?: string
 }
 
 export const tracksSingleOrderIntent = (line: ProductLine) =>
@@ -32,7 +34,7 @@ export const tracksSingleOrderIntent = (line: ProductLine) =>
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
 const key = (pending: PendingOrderCommand) =>
-  `${prefix(pending.userId)}:${pending.ocoTakeProfitClientId ? `oco-${pending.ocoTakeProfitClientId}` : pending.cancelPlan ? `cancel-plan-${pending.cancelPlan.id}` : pending.amendRequestId ? `amend-${pending.amendRequestId}` : pending.cancelOrderId ? `cancel-${pending.cancelOrderId}` : (pending.clientOrderId ?? pending.commandId)}`
+  `${prefix(pending.userId)}:${pending.clientTriggerOrderId ? `trigger-${pending.clientTriggerOrderId}` : pending.cancelTriggerOrderId ? `trigger-cancel-${pending.cancelTriggerOrderId}` : pending.ocoTakeProfitClientId ? `oco-${pending.ocoTakeProfitClientId}` : pending.cancelPlan ? `cancel-plan-${pending.cancelPlan.id}` : pending.amendRequestId ? `amend-${pending.amendRequestId}` : pending.cancelOrderId ? `cancel-${pending.cancelOrderId}` : (pending.clientOrderId ?? pending.commandId)}`
 
 export function readPendingCommand(userId: string): PendingOrderCommand | null {
   try {
@@ -53,6 +55,13 @@ export function readPendingCommand(userId: string): PendingOrderCommand | null {
         value?.userId === userId &&
         Object.values(PRODUCT_LINES).includes(value.productLine) &&
         (value.cancelPlan != null ||
+          (value.productLine === "OPTION" &&
+            typeof value.instrumentId === "string" &&
+            value.instrumentId.length > 0 &&
+            ((typeof value.clientTriggerOrderId === "string" &&
+              value.clientTriggerOrderId.length > 0) ||
+              (typeof value.cancelTriggerOrderId === "string" &&
+                /^[1-9]\d*$/.test(value.cancelTriggerOrderId)))) ||
           (value.productLine === "OPTION" &&
             typeof value.instrumentId === "string" &&
             value.instrumentId.length > 0 &&
