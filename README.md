@@ -140,7 +140,7 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 `state/pendingOrders.ts` 管理的持久记录；存储失败就停止发送。传输中断、超时、服务端异常或响应
 无法解析时保留待确认状态，阻止另一笔下单。收到明确拒绝或完整订单响应后才移除该请求的记录。
 
-“查询委托结果”优先调用 `GET /api/v1/gateway/trading/by-client-order-id`，读取 realtime 活动视图或
+本节原先通过 `GET /api/v1/gateway/trading/by-client-order-id` 恢复 realtime 活动视图或
 已提交终态投影。只接受用户、请求号和交易对一致且订单号有效的结果。404、视图不可用或响应
 不匹配都不能证明原订单未被受理；有 commandId 时保留既有回执查询，但查询自身的 NOT_ACCEPTED
 不再解除锁定。恢复只发 GET，不自动重发 POST。不同用户和请求各存一条记录，跨标签页变更同步。
@@ -150,6 +150,12 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 响应中断、刷新恢复、404 保留锁定、成交终态解锁，每组仅有一条 POST。详见
 [验证记录](docs/validation/spot-order-response-loss-20261019.json)。
 
-本轮补齐的是已受理订单的响应丢失恢复。若请求从未到达服务端，或回执已过保留期且没有订单投影，
+本节最初补齐已受理订单的响应丢失恢复，后续无订单实体的拒单恢复见下节。若请求从未到达服务端，
 目前仍保留待确认，尚需服务端的负确认机制；不能据此声称断网恢复已全部完成。
 普通现货下单以外的写入、原生真机及真实 FUSED 做市联调未纳入本轮。
+
+## 无订单实体的已提交拒单恢复（2026-10-19）
+
+恢复顺序更新为先读 `GET /api/v1/gateway/trading/submission` 的 realtime 已提交回执，再在明确 RESULT_UNKNOWN 时读 by-client-order-id。TERMINAL 必须匹配原用户、产品、clientOrderId、instrumentId 及已知 commandId；命令成功或明确拒绝才解除待确认。拒单没有订单记录、订单视图尚未初始化或 Core 短期缓存已淘汰时，也可用已提交回执恢复。未知或不可用保持锁定，不重新下单。历史只有 commandId 的记录继续调用 commands，后端同样读 realtime 投影。
+
+发布前必须先完成后端迁移、realtime 更新和历史回补，再更新 gateway 与两端；回执不存在不能证明请求从未到达。172 项测试、lint/build 通过，1440/390px 深浅色浏览器验证 POST 响应中断、刷新、未知结果锁定、无订单实体的已提交拒单解锁；每组只有一条 POST，无页面异常或横向溢出。数据为受控 API/WS，未部署或连接完整 FUSED 服务。详见 [验证记录](docs/validation/committed-command-results-20261019.json)。

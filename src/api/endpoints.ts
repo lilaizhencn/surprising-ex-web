@@ -880,6 +880,35 @@ export async function checkOrderSubmission(pending: PendingOrderCommand) {
       userId: pending.userId,
       clientOrderId: pending.clientOrderId,
     })
+    const receipt = await request(
+      `/api/v1/gateway/trading/submission?${query}`,
+      GenericObjectSchema,
+      {
+        productLine: pending.productLine,
+        expectedUserId: pending.userId,
+        retry: 0,
+      },
+    )
+    if (
+      String(receipt["userId"]) !== pending.userId ||
+      receipt["productLine"] !== pending.productLine ||
+      receipt["clientOrderId"] !== pending.clientOrderId
+    )
+      throw new Error("Submission receipt identity mismatch")
+    if (receipt["outcome"] === "TERMINAL") {
+      if (
+        receipt["instrumentId"] !== pending.instrumentId ||
+        typeof receipt["commandId"] !== "string" ||
+        !receipt["commandId"] ||
+        (pending.commandId && receipt["commandId"] !== pending.commandId) ||
+        typeof receipt["code"] !== "string" ||
+        !receipt["code"]
+      )
+        throw new Error("Submission receipt identity mismatch")
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+    }
+    if (receipt["outcome"] !== "RESULT_UNKNOWN" || receipt["code"] !== "RESULT_UNKNOWN")
+      throw new Error("Invalid submission receipt")
     try {
       const value = await request(
         `/api/v1/gateway/trading/by-client-order-id?${query}`,
@@ -903,6 +932,7 @@ export async function checkOrderSubmission(pending: PendingOrderCommand) {
     } catch (reason) {
       if (!(reason instanceof ApiError) || reason.status !== 404) throw reason
     }
+    return "pending"
   }
   if (pending.commandId) {
     const receipt = await loadTradingCommand(pending.commandId, pending.productLine, pending.userId)

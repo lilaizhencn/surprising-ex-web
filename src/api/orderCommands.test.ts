@@ -134,7 +134,15 @@ describe("spot command receipts", () => {
   })
   for (const status of ["FILLED", "CANCELED", "ACCEPTED", "REJECTED"]) {
     it(`recovers ${status} by the original client ID from realtime without resending`, async () => {
-      send.mockResolvedValue({ ...intent, orderId: "9007199254740993", status })
+      send
+        .mockResolvedValueOnce({
+          ...intent,
+          instrumentId: null,
+          commandId: "known",
+          outcome: "RESULT_UNKNOWN",
+          code: "RESULT_UNKNOWN",
+        })
+        .mockResolvedValueOnce({ ...intent, orderId: "9007199254740993", status })
       await expect(checkOrderSubmission(intent)).resolves.toBe(
         status === "REJECTED" ? "rejected" : "confirmed",
       )
@@ -143,11 +151,19 @@ describe("spot command receipts", () => {
         expect.anything(),
         { productLine: "SPOT", retry: 0, expectedUserId: "1" },
       )
-      expect(send).toHaveBeenCalledTimes(1)
+      expect(send).toHaveBeenCalledTimes(2)
     })
   }
   it("does not infer a rejected order from an absent projection or a rejected receipt lookup", async () => {
-    send.mockRejectedValueOnce(new ApiError("not found", 404))
+    send
+      .mockResolvedValueOnce({
+        ...intent,
+        instrumentId: null,
+        commandId: "known",
+        outcome: "RESULT_UNKNOWN",
+        code: "RESULT_UNKNOWN",
+      })
+      .mockRejectedValueOnce(new ApiError("not found", 404))
     await expect(checkOrderSubmission(intent)).resolves.toBe("pending")
     send.mockResolvedValue({
       commandId: "known",
@@ -157,6 +173,38 @@ describe("spot command receipts", () => {
     await expect(
       checkOrderSubmission({ userId: "1", productLine: "SPOT", commandId: "known" }),
     ).resolves.toBe("pending")
+  })
+  it("recovers a committed rejection without an order and without relying on Core retention", async () => {
+    send.mockResolvedValueOnce({
+      ...intent,
+      commandId: "known",
+      outcome: "TERMINAL",
+      code: "ORDER_NOT_FOUND",
+    })
+    await expect(checkOrderSubmission(intent)).resolves.toBe("rejected")
+    expect(send).toHaveBeenLastCalledWith(
+      "/api/v1/gateway/trading/submission?userId=1&clientOrderId=spot-1",
+      expect.anything(),
+      { productLine: "SPOT", expectedUserId: "1", retry: 0 },
+    )
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+  it("does not use another product or instrument's committed rejection", async () => {
+    for (const mismatch of [
+      { productLine: "OPTION" },
+      { instrumentId: "2" },
+      { userId: "2" },
+      { commandId: "" },
+    ]) {
+      send.mockReset().mockResolvedValueOnce({
+        ...intent,
+        commandId: "known",
+        outcome: "TERMINAL",
+        code: "ORDER_NOT_FOUND",
+        ...mismatch,
+      })
+      await expect(checkOrderSubmission(intent)).rejects.toThrow("identity mismatch")
+    }
   })
   it("rejects another user's projection and never falls back to Core on view unavailability", async () => {
     send.mockResolvedValue({ ...intent, userId: 2, orderId: "1", status: "FILLED" })
