@@ -14,7 +14,6 @@ import {
   loadFundingSettlement,
   loadMarket,
   loadMarkets,
-  loadOptionQuote,
   loadOrderPriceProtection,
   loadRecentTrades,
   PendingTradingCommand,
@@ -28,7 +27,6 @@ import type {
   ApiBalance,
   ApiFundingPayment,
   ApiFundingRate,
-  ApiOptionQuote,
   ApiOrder,
   ApiOrderBook,
   ApiOrderBookLevel,
@@ -93,6 +91,7 @@ import { marketQuantitySpec } from "./marketQuantity"
 import {
   contractOpeningCapacity,
   deliveryFee,
+  optionPremiumTerms,
   orderPositionSide,
   spotFeeReserve,
   spotOrderQuantity,
@@ -173,6 +172,7 @@ export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined):
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
   const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
+  const optionProduct = view.line === PRODUCT_LINES.option
   const deliveryProduct =
     view.line === PRODUCT_LINES.usdMDelivery || view.line === PRODUCT_LINES.coinMDelivery
   const fundingProduct =
@@ -208,7 +208,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const marketGeneration = useRef(0)
   const [recentTrades, setRecentTrades] = useState<readonly Record<string, unknown>[]>([])
   const latestTradeInstrumentRef = useRef<string | null>(null)
-  const [optionQuote, setOptionQuote] = useState<ApiOptionQuote | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [triggerOrders, setTriggerOrders] = useState<readonly ApiTriggerOrder[]>([])
   const [balances, setBalances] = useState<readonly ApiBalance[]>([])
@@ -391,7 +390,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const openingCapacity = (direction: OrderSide) => {
     if (deliveryProduct && current?.status !== "TRADING") return "0"
     if (!current || !leverageSetting || !userFees) return ""
-    const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
+    const bboActive = orderType === "LIMIT" && useBbo
+    const sameSide = bboActive && bboPriceMode.startsWith("SAME_SIDE_")
+    const levels = (direction === "BUY") !== sameSide ? book?.asks : book?.bids
+    const level = levels?.[bboActive && bboPriceMode.endsWith("_5") ? 4 : 0]
     return (
       contractOpeningCapacity({
         market: current,
@@ -460,7 +462,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       closingTicket && activeTriggerPosition
         ? (closeSideForPosition(activeTriggerPosition) ?? side)
         : side
-    const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
+    const bboActive = orderType === "LIMIT" && useBbo
+    const sameSide = bboActive && bboPriceMode.startsWith("SAME_SIDE_")
+    const levels = (direction === "BUY") !== sameSide ? book?.asks : book?.bids
+    const level = levels?.[bboActive && bboPriceMode.endsWith("_5") ? 4 : 0]
     const reference =
       orderType === "LIMIT" && !useBbo ? price : level ? String(levelPrice(level)) : ""
     const fee = deliveryFee(
@@ -471,6 +476,22 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       numberValue(userFees, "takerFeeRatePpm"),
     )
     return fee === null ? "—" : `${fee} ${current.settleAsset ?? current.quoteAsset}`
+  }
+  const optionTerms = (direction: OrderSide) => {
+    if (!current || !optionProduct) return null
+    const bboActive = orderType === "LIMIT" && useBbo
+    const sameSide = bboActive && bboPriceMode.startsWith("SAME_SIDE_")
+    const levels = (direction === "BUY") !== sameSide ? book?.asks : book?.bids
+    const level = levels?.[bboActive && bboPriceMode.endsWith("_5") ? 4 : 0]
+    const reference =
+      orderType === "LIMIT" && !useBbo ? price : level ? String(levelPrice(level)) : ""
+    return optionPremiumTerms(
+      current,
+      assetScales,
+      reference,
+      quantity,
+      numberValue(userFees, "takerFeeRatePpm"),
+    )
   }
   let closePercentage = 0
   if (closingTicket && activeTriggerPosition && current) {
@@ -727,7 +748,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
         if (
-          deliveryProduct &&
+          (deliveryProduct || optionProduct) &&
           requested &&
           !productMarkets.some((market) => market.instrumentId === requested)
         ) {
@@ -769,7 +790,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       window.clearInterval(timer)
       controller.abort()
     }
-  }, [view.line, deliveryProduct])
+  }, [view.line, deliveryProduct, optionProduct])
   useEffect(() => {
     if (!current || price) return
     const quote = marketQuotes[current.instrumentId] ?? current.price
@@ -791,7 +812,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (!current) return
     setPrice("")
     setCandles([])
-    setOptionQuote(null)
     setTriggerOrders([])
     const generation = ++marketGeneration.current
     const loadHistory = () => {
@@ -819,12 +839,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         })
     }
     loadHistory()
-    if (view.line === PRODUCT_LINES.option)
-      void loadOptionQuote(current.instrumentId)
-        .then((quote) => {
-          if (generation === marketGeneration.current) setOptionQuote(quote)
-        })
-        .catch(() => {})
+
     return () => {
       marketGeneration.current++
     }
@@ -1092,6 +1107,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (
       view.line !== PRODUCT_LINES.spot &&
       orderType !== "STOP" &&
+      !optionProduct &&
       !(deliveryProduct && closingTicket) &&
       !leverageSetting
     ) {
@@ -1656,7 +1672,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         </header>
         <main className="trade-main">
           {view.line === PRODUCT_LINES.option ? (
-            <OptionDetails market={current} quote={optionQuote} />
+            <OptionDetails market={current} scales={assetScales} />
           ) : null}
           {view.key === "delivery-futures" || view.key === "coin-m-delivery" ? (
             <DeliveryDetails market={current} scales={assetScales} />
@@ -1964,21 +1980,38 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </button>
             ))}
           </div>
-          {view.line !== PRODUCT_LINES.spot && current && (
-            <TradingTicketControls
-              key={`${view.line}:${current.instrumentId}:${session?.user.userId ?? "guest"}`}
-              userId={session?.user.userId}
-              instrumentId={current.instrumentId}
-              productLine={view.line}
-              canChangeLeverage={!(deliveryProduct && current?.status !== "TRADING")}
-              onMarginModeChange={
-                deliveryProduct
-                  ? (marginMode) => setOrderSettings((previous) => ({ ...previous, marginMode }))
-                  : undefined
+          {optionProduct ? (
+            <DropdownSelect
+              aria-label={t("Margin mode")}
+              value={orderSettings.marginMode}
+              onChange={(event) =>
+                setOrderSettings((previous) => ({
+                  ...previous,
+                  marginMode: event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS",
+                }))
               }
-              marginMode={orderSettings.marginMode}
-              onChange={handleLeverageChange}
-            />
+            >
+              <option value="CROSS">{t("Cross")}</option>
+              <option value="ISOLATED">{t("Isolated")}</option>
+            </DropdownSelect>
+          ) : (
+            view.line !== PRODUCT_LINES.spot &&
+            current && (
+              <TradingTicketControls
+                key={`${view.line}:${current.instrumentId}:${session?.user.userId ?? "guest"}`}
+                userId={session?.user.userId}
+                instrumentId={current.instrumentId}
+                productLine={view.line}
+                canChangeLeverage={!(deliveryProduct && current?.status !== "TRADING")}
+                onMarginModeChange={
+                  deliveryProduct
+                    ? (marginMode) => setOrderSettings((previous) => ({ ...previous, marginMode }))
+                    : undefined
+                }
+                marginMode={orderSettings.marginMode}
+                onChange={handleLeverageChange}
+              />
+            )
           )}
           <div className="order-type-tabs">
             {(triggerSupported
@@ -2307,29 +2340,45 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               <span>{closingTicket ? `${closePercentage}%` : "100%"}</span>
             </div>
           ) : null}
-          <div className="ticket-summary">
+          <div className={`ticket-summary${optionProduct ? " ticket-summary--option" : ""}`}>
             <span>{t("Available")}</span>
             <span className="mono">
               {session
-                ? `${deliveryProduct ? (balanceAmount(balance, assetScales) ?? "—") : displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
+                ? `${deliveryProduct || optionProduct ? (balanceAmount(balance, assetScales) ?? "—") : displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
                 : t("Login required")}
             </span>
+            {optionProduct && current ? (
+              <>
+                <span>{t("Buy premium and fee")}</span>
+                <span className="mono">
+                  {optionTerms("BUY")?.buyDebit ?? "—"} {current.settleAsset}
+                </span>
+                <span>{t("Sell premium after fee")}</span>
+                <span className="mono">
+                  {optionTerms("SELL")?.sellCredit ?? "—"} {current.settleAsset}
+                </span>
+                <span>{t("Seller margin")}</span>
+                <span>{t("Assessed from current option risk when submitted")}</span>
+              </>
+            ) : null}
             <span>
               {t(view.line === PRODUCT_LINES.spot && side === "BUY" ? "Fee reserve" : "Est. fee")}
             </span>
             <span className="mono">
               {view.line === PRODUCT_LINES.spot && current
                 ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
-                : deliveryProduct
-                  ? deliveryFeeEstimate()
-                  : estimatedFee(
-                      current,
-                      price,
-                      quantity,
-                      numberValue(userFees, "takerFeeRatePpm"),
-                    )}
+                : optionProduct
+                  ? `${optionTerms(side)?.fee ?? "—"} ${current?.settleAsset ?? ""}`
+                  : deliveryProduct
+                    ? deliveryFeeEstimate()
+                    : estimatedFee(
+                        current,
+                        price,
+                        quantity,
+                        numberValue(userFees, "takerFeeRatePpm"),
+                      )}
             </span>
-            {deliveryProduct && closingTicket ? (
+            {(deliveryProduct || optionProduct) && closingTicket ? (
               <>
                 <span>{t("Available to close short")}</span>
                 <span className="mono">
@@ -2341,7 +2390,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 </span>
               </>
             ) : (
-              view.line !== PRODUCT_LINES.spot && (
+              view.line !== PRODUCT_LINES.spot &&
+              !optionProduct && (
                 <>
                   <span
                     title={t(
@@ -2422,7 +2472,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 onClick={() => void submit("BUY")}
               >
                 {session
-                  ? t(ticketAction === "OPEN" ? "Open long" : "Close short")
+                  ? t(
+                      optionProduct
+                        ? ticketAction === "OPEN"
+                          ? "Buy option"
+                          : "Buy to close"
+                        : ticketAction === "OPEN"
+                          ? "Open long"
+                          : "Close short",
+                    )
                   : t("Log in to trade")}
               </Button>
               <Button
@@ -2436,7 +2494,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 onClick={() => void submit("SELL")}
               >
                 {session
-                  ? t(ticketAction === "OPEN" ? "Open short" : "Close long")
+                  ? t(
+                      optionProduct
+                        ? ticketAction === "OPEN"
+                          ? "Sell option"
+                          : "Sell to close"
+                        : ticketAction === "OPEN"
+                          ? "Open short"
+                          : "Close long",
+                    )
                   : t("Log in to trade")}
               </Button>
             </div>
@@ -3017,52 +3083,40 @@ function formatTriggerOrderQuantity(
 
 function OptionDetails({
   market,
-  quote,
+  scales,
 }: {
   readonly market: Market | null
-  readonly quote: ApiOptionQuote | null
+  readonly scales: Readonly<Record<string, string>>
 }) {
   return (
     <Panel dense className="contract-details">
       <div className="panel-heading">
         <h2>{t("Option contract")}</h2>
-        <Badge tone="info">{t("Backend fields")}</Badge>
+        <a className="route-link" href="/assets/ledger?category=option-exercise&productLine=OPTION">
+          {t("Option exercise cash ledger")}
+        </a>
       </div>
       <div className="contract-detail-grid">
         <Detail
           label={t("Underlying")}
-          value={market?.underlyingInstrumentId ?? market?.baseAsset ?? "—"}
+          value={market ? `${market.baseAsset} · ${market.underlyingInstrumentId ?? "—"}` : "—"}
         />
         <Detail label={t("Expiry")} value={formatDate(market?.expiryTime)} />
-        <Detail label={t("Strike (units)")} value={market?.strikePriceUnits?.toString() ?? "—"} />
+        <Detail
+          label={t("Strike price")}
+          value={
+            market?.strikePriceUnits && scales[market.quoteAsset]
+              ? `${unitsToDecimal(market.strikePriceUnits, scales[market.quoteAsset] ?? "")} ${market.quoteAsset}`
+              : "—"
+          }
+        />
         <Detail label={t("Call / Put")} value={market?.optionType ?? "—"} />
         <Detail label={t("Exercise")} value={market?.optionExerciseStyle ?? "—"} />
         <Detail label={t("Settlement")} value={market?.settlementMethod ?? "—"} />
-        <Detail
-          label={t("Implied volatility")}
-          value={quote ? `${formatNumeric(Number(quote.impliedVolatility) * 100)}%` : "Unavailable"}
-        />
-        <Detail
-          label={t("Greeks")}
-          value={
-            quote
-              ? `Δ ${formatNumeric(quote.delta)} · Γ ${formatNumeric(quote.gamma)}`
-              : "Unavailable"
-          }
-        />
       </div>
-      <p className="muted contract-help">
-        {quote
-          ? `Quote as of ${formatDate(quote.asOf)} · Θ ${formatNumeric(quote.thetaPerYear)} · Vega ${formatNumeric(quote.vega)} · Rho ${formatNumeric(quote.rho)}`
-          : "Fresh option quote is unavailable; no placeholder risk values are generated."}
-      </p>
+      <p className="muted contract-help">{t("Greeks quote is unavailable.")}</p>
     </Panel>
   )
-}
-
-function formatNumeric(value: string | number): string {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed.toFixed(6) : "—"
 }
 
 function DeliveryDetails({

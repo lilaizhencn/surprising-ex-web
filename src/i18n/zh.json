@@ -1068,5 +1068,16 @@
   "Balance after": "变动后余额",
   "This contract has ended. View historical records.": "合约已结束，可查看历史记录。",
   "Contract metadata is unavailable. Refresh to retry.": "合约资料暂不可用，请刷新重试。",
-  "No delivery cash movements.": "暂无交割现金变动。"
+  "No delivery cash movements.": "暂无交割现金变动。",
+  "Buy option": "买入期权",
+  "Sell option": "卖出期权",
+  "Option exercise cash ledger": "期权行权现金流水",
+  "Option exercise": "期权行权",
+  "Strike price": "行权价",
+  "Buy premium and fee": "买入权利金及费用",
+  "Sell premium after fee": "卖出权利金扣除费用",
+  "Seller margin": "卖方保证金",
+  "Assessed from current option risk when submitted": "提交时按当前期权风险校验",
+  "Greeks quote is unavailable.": "Greeks 报价暂不可用。",
+  "No settlement cash movements.": "暂无结算现金变动。"
 }

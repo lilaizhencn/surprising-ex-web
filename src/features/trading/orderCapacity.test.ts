@@ -3,6 +3,7 @@ import type { Market } from "../../types/domain"
 import {
   contractOpeningCapacity,
   deliveryFee,
+  optionPremiumTerms,
   orderPositionSide,
   spotAmendmentTerms,
   spotFeeReserve,
@@ -301,5 +302,56 @@ describe("inverse delivery settlement-asset estimates", () => {
       }),
     ).toBe("1")
     expect(contractOpeningCapacity({ ...params, availableUnits: 9007199254740992 })).toBeNull()
+  })
+})
+
+describe("option full premium and fees", () => {
+  const option = {
+    productLine: "OPTION",
+    quoteAsset: "USDT",
+    settleAsset: "USDT",
+    priceTickUnits: "10000000",
+    notionalMultiplierUnits: "10000",
+  } as Market
+  it("uses full contract premium, independently of leverage", () => {
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000", "2", 500)).toEqual({
+      premium: "10",
+      fee: "0.005",
+      buyDebit: "10.005",
+      sellCredit: "9.995",
+    })
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000", "2", -200)).toEqual({
+      premium: "10",
+      fee: "-0.002",
+      buyDebit: "9.998",
+      sellCredit: "10.002",
+    })
+  })
+  it("keeps exact 18-digit asset precision and rounds a fee up in asset units", () => {
+    const precise = { ...option, priceTickUnits: "1", notionalMultiplierUnits: "1" }
+    expect(
+      optionPremiumTerms(precise, { USDT: "1000000000000000000" }, "0.009007199254740993", "1", 1),
+    ).toEqual({
+      premium: "0.009007199254740993",
+      fee: "0.000000009007199255",
+      buyDebit: "0.009007208261940248",
+      sellCredit: "0.009007190247541738",
+    })
+  })
+  it("rejects fractional contracts, missing precision and unsafe metadata", () => {
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000", "0.5", 500)).toBeNull()
+    expect(optionPremiumTerms(option, {}, "5000", "1", 500)).toBeNull()
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000", "1", null)).toBeNull()
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000", "1", 1000001)).toBeNull()
+    expect(optionPremiumTerms(option, { USDT: "100000000" }, "5000.01", "1", 500)).toBeNull()
+    expect(
+      optionPremiumTerms(
+        { ...option, productLine: "SPOT" },
+        { USDT: "100000000" },
+        "5000",
+        "1",
+        500,
+      ),
+    ).toBeNull()
   })
 })

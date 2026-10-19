@@ -347,3 +347,42 @@ export function spotAmendmentTerms(
     throw new Error("Change the price or replacement quantity.")
   return { priceTicks, quantitySteps }
 }
+
+/** Option premium is paid in full; it is not divided by account leverage. */
+export function optionPremiumTerms(
+  market: Market,
+  scales: Readonly<Record<string, string>>,
+  price: string,
+  quantity: string,
+  rate: number | null,
+) {
+  try {
+    if (
+      market.productLine !== "OPTION" ||
+      rate == null ||
+      !Number.isSafeInteger(rate) ||
+      Math.abs(rate) > 1000000
+    )
+      return null
+    const ticks = BigInt(
+      decimalToStepUnits(price, market.priceTickUnits ?? "", scales[market.quoteAsset] ?? ""),
+    )
+    const contracts = BigInt(decimalToStepUnits(quantity, "1", "1"))
+    const multiplier = BigInt(market.notionalMultiplierUnits ?? "")
+    const scale = scales[market.settleAsset ?? ""] ?? ""
+    if (ticks <= 0n || contracts <= 0n || multiplier <= 0n || !/^10*$/.test(scale)) return null
+    const premium = ticks * contracts * multiplier
+    if (premium > 9223372036854775807n) return null
+    const fee = ((premium * BigInt(Math.abs(rate)) + 999999n) / 1000000n) * (rate < 0 ? -1n : 1n)
+    const display = (value: bigint) =>
+      `${value < 0n ? "-" : ""}${stepUnitsToDecimal((value < 0n ? -value : value).toString(), "1", scale)}`
+    return {
+      premium: display(premium),
+      fee: display(fee),
+      buyDebit: display(premium + fee),
+      sellCredit: display(premium - fee),
+    }
+  } catch {
+    return null
+  }
+}

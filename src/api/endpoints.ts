@@ -24,7 +24,6 @@ import type {
   ApiFundingPayment,
   ApiFundingRate,
   ApiMarket,
-  ApiOptionQuote,
   ApiOrder,
   ApiProductTransferRecord,
   ApiProductTransferResponse,
@@ -54,7 +53,6 @@ import {
   LoginHistoryPageSchema,
   MarketListSchema,
   MarketSchema,
-  OptionQuoteSchema,
   OrderBookSchema,
   OrderListSchema,
   OrderSubmissionSchema,
@@ -1467,11 +1465,6 @@ export async function loadLatestTrade(instrumentId: string, productLine: Product
   return request(`/api/v1/gateway/trading-market/latest-trade?${query}`, GenericObjectSchema, {
     productLine,
   })
-}
-
-export function loadOptionQuote(instrumentId: string): Promise<ApiOptionQuote> {
-  const query = new URLSearchParams({ instrumentId }).toString()
-  return request(`/api/v1/options/quote?${query}`, OptionQuoteSchema)
 }
 
 export function loadTicker24h(instrumentId: string, productLine: ProductLine) {

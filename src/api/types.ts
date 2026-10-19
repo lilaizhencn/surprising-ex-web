@@ -129,26 +129,6 @@ export const MarketSchema = z
   })
   .passthrough()
 
-export const OptionQuoteSchema = z
-  .object({
-    instrumentId: z.string(),
-    underlyingInstrumentId: z.string(),
-    optionType: z.enum(["CALL", "PUT"]),
-    expiryTime: z.string(),
-    asOf: z.string(),
-    underlyingPrice: NumericSchema,
-    optionPrice: NumericSchema,
-    strikePrice: NumericSchema,
-    timeToExpiryYears: NumericSchema,
-    impliedVolatility: NumericSchema,
-    delta: NumericSchema,
-    gamma: NumericSchema,
-    thetaPerYear: NumericSchema,
-    vega: NumericSchema,
-    rho: NumericSchema,
-  })
-  .passthrough()
-
 export const MarketListSchema = z
   .object({
     instruments: z.array(MarketSchema).optional(),
@@ -624,7 +604,6 @@ export type ApiDeviceStatus = z.infer<typeof DeviceStatusSchema>
 export type ApiIpStatus = z.infer<typeof IpStatusSchema>
 export type ApiLoginHistoryEntry = z.infer<typeof LoginHistoryEntrySchema>
 export type ApiMarket = z.infer<typeof MarketSchema>
-export type ApiOptionQuote = z.infer<typeof OptionQuoteSchema>
 export type ApiCandle = z.infer<typeof CandleSchema>
 export type ApiBalance = z.infer<typeof BalanceSchema>
 export type ApiOrder = z.infer<typeof OrderSchema>

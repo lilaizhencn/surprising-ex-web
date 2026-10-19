@@ -197,3 +197,12 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 交割现金记录：交易页提供“交割现金流水”入口，使用产品账户流水查询，固定 DELIVERY_SETTLEMENT 类型并显示合约编号、实际现金变化和变动后余额。已结束的 U 本位/币本位交割合约按 URL 中明确的 instrumentId 读取历史元数据，保留查询页面并禁止新下单及杠杆修改；默认目录仍隐藏已结束合约。交割页不请求或展示永续资金费。流水中的金额/余额按币种精度从整数字符串显示。零现金变动不生成交割现金流水，不能据此判断未执行结算。
 
 币本位交割使用整数分数计算 BTC 名义价值和保证金成本，手续费遵循 Core 的名义价值 HALF_UP 与费用向上取整规则；面值按报价币种精度展示。交割票据显示精确币种余额，手机端交割流水使用卡片，直接呈现金额、变动后余额和合约编号。Web 单笔请求恢复同时覆盖两条交割产品线。实际单产品线 FUSED、响应丢失和到期测试记录见 docs/validation/inverse-delivery-trading-20261020.json。
+
+
+### 期权全额权利金与行权现金记录（2026-10-20）
+
+OPTION 票据移除杠杆入口，按合约张数、乘数及资产精度展示全额权利金和手续费；卖方保证金交由真实期权风险核定。BBO 使用选择的买卖侧及档位。期权只允许未到期 TRADING 下单，响应不明时保存原身份，刷新后只 GET realtime 原回执。CLOSED 合约可按明确 ID 保留查询。
+
+移除不存在的 options/quote 调用和对应未实现 DTO，元数据展示真实标的身份、到期、行权价、CALL/PUT、欧式/现金规则；没有可信 Greeks 服务时明确显示不可用。行权现金入口为 `/assets/ledger?category=option-exercise&productLine=OPTION`，查询既有产品账本 OPTION_EXERCISE，手机卡片保留金额、余额、合约 ID 与参考号。后台需先部署价格单位换算和行权分类修复，并按需执行旧分类迁移，详见后端 README。
+
+实际单节点 OPTION FUSED、真实做市/HTTP/WS 下验证了单次写入、丢回包刷新恢复、CALL/PUT 六组到期、买卖双方 ±4 USDT 行权、CLOSED 禁止下单。检查 320/390/1440px、深浅主题，修复票据长文案金额重叠。尚未实现 Greeks/IV 定价；未进行生产部署、iOS/Android 真机测试或其余产品本轮实栈验收。[验证和清理记录](docs/validation/option-trading-20261020.json)。

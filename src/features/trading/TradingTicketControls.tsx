@@ -39,7 +39,7 @@ export function TradingTicketControls({
   const dialog = useRef<HTMLDialogElement>(null)
   const mounted = useRef(true)
   useEffect(() => {
-    if (productLine === "LINEAR_DELIVERY") setMode(marginMode)
+    setMode(marginMode)
   }, [marginMode, productLine])
   useEffect(() => {
     mounted.current = true

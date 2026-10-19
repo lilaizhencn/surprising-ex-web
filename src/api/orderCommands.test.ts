@@ -479,8 +479,8 @@ describe("spot amendment recovery", () => {
   })
 })
 
-it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY"] as const)(
-  "%s saves a delivery submission before the network and retains a lost reply",
+it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
+  "%s saves an expiring contract submission before the network and retains a lost reply",
   async (line) => {
     let savedBeforeSend: unknown
     send.mockImplementation(async () => {
@@ -494,8 +494,8 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY"] as const)(
   },
 )
 
-it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY"] as const)(
-  "%s recovers the original delivery cancellation with GET and blocks duplicate writes",
+it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
+  "%s recovers the original expiring contract cancellation with GET and blocks duplicate writes",
   async (line) => {
     saveSession({
       accessToken: "test",
@@ -534,8 +534,8 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY"] as const)(
   },
 )
 
-it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY"] as const)(
-  "%s sends no delivery order when its recovery record cannot be stored",
+it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
+  "%s sends no expiring contract order when its recovery record cannot be stored",
   async (line) => {
     vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
       throw new Error("quota")

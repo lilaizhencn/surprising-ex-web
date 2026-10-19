@@ -18,3 +18,15 @@ it("does not enable another product through the delivery status policy", () => {
   for (const line of ["SPOT", "LINEAR_PERPETUAL", "INVERSE_PERPETUAL", "OPTION"])
     expect(canSubmitTradingOrder(market("SETTLING", line), true)).toBe(false)
 })
+
+it("requires an unexpired TRADING option and never enables reductions during exercise", () => {
+  const now = Date.parse("2030-01-01T00:00:00Z")
+  const option = { ...market("TRADING", "OPTION"), expiryTime: "2030-01-01T01:00:00Z" }
+  expect(canSubmitTradingOrder(option, false, now)).toBe(true)
+  expect(canSubmitTradingOrder(option, true, now)).toBe(true)
+  expect(canSubmitTradingOrder(option, true, now + 3600000)).toBe(false)
+  expect(canSubmitTradingOrder({ ...option, expiryTime: undefined }, false, now)).toBe(false)
+  expect(canSubmitTradingOrder({ ...option, expiryTime: "invalid" }, false, now)).toBe(false)
+  for (const status of ["PRE_TRADING", "HALT", "SETTLING", "CLOSED"])
+    expect(canSubmitTradingOrder({ ...option, status }, true, now)).toBe(false)
+})

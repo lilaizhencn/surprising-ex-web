@@ -4264,3 +4264,16 @@ body,
     gap: 12px;
   }
 }
+
+.ticket-summary--option {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: start;
+}
+.ticket-summary--option > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ticket-summary--option > span:nth-child(even) {
+  text-align: right;
+}
