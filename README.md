@@ -185,3 +185,11 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 先按后端说明执行 `20261019-cancel-batch-results.sql`、更新 realtime 并按需使用新的独立 `.command-repair` checkpoint 回补旧批次，再发布 gateway，最后发布两端。未部署完整 FUSED 实栈；其他产品、旧直接聚合端点与批量下单/改单仍需逐项验收。见 [验证记录](docs/validation/spot-bulk-cancellation-20261019.json)。
 
 现货 FUSED 实链路补充：`scripts/spot-fused-live.mjs` 在真实 HTTP/WS、持续做市下执行两组 51 笔目标，覆盖 1440px 深色和 390px 浅色。真实暂停所属 realtime 后回执为 202；恢复并刷新后只发送后续批次，各组 50 成功/1 已结束，计划之后新增的委托保留。测试只丢弃首批已送达后的响应，不伪造数据。运行需 backend `SixProductLineContractLiveTest` 的显式交接 fixture、所属 realtime PID 文件、已有 Playwright/Chromium，并使用允许的本地 5173 端口。完整步骤见后端 `docs/realtime-command-results.md`，本仓库 [实测证据](docs/validation/spot-fused-clients-20261019.json)。
+
+### U 本位交割结算中减仓（2026-10-19）
+
+`TradePage` 在 LINEAR_DELIVERY 的 SETTLING 状态禁用开仓和新 TP/SL，允许按实际持仓直接平仓；数量、方向和保证金模式校验沿用已有订单容量逻辑。下单与单笔撤单在发送前保存原身份，断响应或刷新后只查询 realtime 原回执，保持待确认期间不重复提交；保存失败不发送。
+
+需先发布 gateway 的结算中合约公开查询修复，沿用此前命令回执迁移/导出。可选实栈消费者为 `scripts/linear-delivery-fused-live.mjs`，使用后端四分钟交接 fixture 和所属 realtime PID；完整启动方式见后端 `docs/realtime-command-results.md`。本轮范围是结算中直接减仓与单笔写入恢复，实际到期结算、其他产品及其余批量操作仍需继续验证。
+
+后续实测同时修复了后端 SETTLING 指数源停止及杠杆 GET 仍读 Core 的问题。Web 在结算中禁用杠杆调整、直接平仓不再依赖开仓设置，平仓额度与预估手续费按实际合约张数和资产单位显示。验证记录见 [U 本位交割实测](docs/validation/linear-delivery-trading-20261019.json)。

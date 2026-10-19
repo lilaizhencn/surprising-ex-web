@@ -19,12 +19,16 @@ export function TradingTicketControls({
   productLine,
   marginMode,
   onChange,
+  canChangeLeverage = true,
+  onMarginModeChange,
 }: {
   readonly userId: string | number | undefined
   readonly instrumentId: string
   readonly productLine: ProductLine
   readonly marginMode: "CROSS" | "ISOLATED"
   readonly onChange: (value: LeverageSettings | null) => void
+  readonly canChangeLeverage?: boolean
+  readonly onMarginModeChange?: ((mode: "CROSS" | "ISOLATED") => void) | undefined
 }) {
   const [mode, setMode] = useState(marginMode)
   const [setting, setSetting] = useState<LeverageSettings | null>(null)
@@ -34,6 +38,9 @@ export function TradingTicketControls({
   const [reload, setReload] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
   const mounted = useRef(true)
+  useEffect(() => {
+    if (productLine === "LINEAR_DELIVERY") setMode(marginMode)
+  }, [marginMode, productLine])
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -62,7 +69,7 @@ export function TradingTicketControls({
     }
   }, [userId, instrumentId, productLine, mode, onChange, reload])
   const save = async () => {
-    if (!userId || !setting) return
+    if (!userId || !setting || !canChangeLeverage) return
     const ppm = Number(draft) * 1_000_000
     if (!Number.isSafeInteger(ppm) || ppm < 1_000_000 || ppm > setting.maxLeveragePpm) {
       setMessage(t("Please enter leverage within the allowed range."))
@@ -102,7 +109,11 @@ export function TradingTicketControls({
           aria-label={t("Margin mode")}
           value={mode}
           onChange={(event) => {
-            if (!saving) setMode(event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS")
+            if (!saving) {
+              const next = event.target.value === "ISOLATED" ? "ISOLATED" : "CROSS"
+              setMode(next)
+              onMarginModeChange?.(next)
+            }
           }}
         >
           <option value="CROSS">{t("Cross")}</option>
@@ -110,7 +121,7 @@ export function TradingTicketControls({
         </DropdownSelect>
         <button
           type="button"
-          disabled={saving}
+          disabled={saving || !canChangeLeverage}
           aria-label={t("Adjust leverage")}
           onClick={() => {
             setDraft(setting ? String(setting.leveragePpm / 1_000_000) : "")

@@ -1058,5 +1058,9 @@
   "Check and continue cancellations": "确认并继续撤单",
   "Cancel all open orders for the current pair?": "撤销当前交易对的全部委托？",
   "Order IDs for batch cancel (comma separated, up to 50)": "批量撤单编号（逗号分隔，最多 50 笔）",
-  "Succeeded": "成功"
+  "Succeeded": "成功",
+  "This contract is settling. Only direct reduce-only orders are allowed.": "合约结算中，仅允许直接减仓。",
+  "This contract is settling. Open orders are disabled; close or cancel existing orders.": "合约结算中，禁止新开仓；可平仓、撤单并查看现有订单。",
+  "Available to close short": "可平空仓",
+  "Available to close long": "可平多仓"
 }

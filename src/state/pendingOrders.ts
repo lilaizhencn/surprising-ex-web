@@ -24,6 +24,9 @@ export type PendingOrderCommand = {
   readonly cancelPlan?: CancellationPlan
 }
 
+export const tracksSingleOrderIntent = (line: ProductLine) =>
+  line === "SPOT" || line === "LINEAR_DELIVERY"
+
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
 const key = (pending: PendingOrderCommand) =>
@@ -49,10 +52,10 @@ export function readPendingCommand(userId: string): PendingOrderCommand | null {
         Object.values(PRODUCT_LINES).includes(value.productLine) &&
         (value.cancelPlan != null ||
           (typeof value.commandId === "string" && value.commandId.length > 0) ||
-          (value.productLine === "SPOT" &&
+          (tracksSingleOrderIntent(value.productLine) &&
             typeof value.cancelOrderId === "string" &&
             /^[1-9]\d*$/.test(value.cancelOrderId)) ||
-          (value.productLine === "SPOT" &&
+          (tracksSingleOrderIntent(value.productLine) &&
             typeof value.clientOrderId === "string" &&
             value.clientOrderId.length > 0 &&
             typeof value.instrumentId === "string" &&

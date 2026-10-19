@@ -90,6 +90,7 @@ import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import {
+  linearDeliveryFee,
   linearOpeningCapacity,
   orderPositionSide,
   spotFeeReserve,
@@ -101,6 +102,7 @@ import { mergeRecentTrades } from "./recentTrades"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
+import { canSubmitTradingOrder } from "./tradingAvailability"
 import {
   closeSideForPosition,
   positionPercentageSteps,
@@ -372,6 +374,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (setting) setOrderSettings((previous) => ({ ...previous, marginMode: setting.marginMode }))
   }, [])
   const openingCapacity = (direction: OrderSide) => {
+    if (current?.productLine === PRODUCT_LINES.usdMDelivery && current.status !== "TRADING")
+      return "0"
     if (!current || !leverageSetting || !userFees) return ""
     const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
     return (
@@ -423,6 +427,37 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     [current?.instrumentId, orderSettings, positions],
   )
   const closingTicket = view.line !== PRODUCT_LINES.spot && ticketAction === "CLOSE"
+  const closingCapacity = (direction: OrderSide) => {
+    if (!session || !current) return "—"
+    const position = selectTriggerPosition(
+      positions,
+      current.instrumentId,
+      orderSettings.marginMode,
+      orderSettings.positionMode,
+      orderPositionSide(orderSettings.positionMode, "CLOSE", direction),
+    )
+    return position && closeSideForPosition(position) === direction
+      ? positionPercentageSteps(signedPositionSteps(position), 100).toString()
+      : "0"
+  }
+  const deliveryFeeEstimate = () => {
+    if (!current) return "—"
+    const direction =
+      closingTicket && activeTriggerPosition
+        ? (closeSideForPosition(activeTriggerPosition) ?? side)
+        : side
+    const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
+    const reference =
+      orderType === "LIMIT" && !useBbo ? price : level ? String(levelPrice(level)) : ""
+    const fee = linearDeliveryFee(
+      current,
+      assetScales,
+      reference,
+      quantity,
+      numberValue(userFees, "takerFeeRatePpm"),
+    )
+    return fee === null ? "—" : `${fee} ${current.settleAsset ?? current.quoteAsset}`
+  }
   let closePercentage = 0
   if (closingTicket && activeTriggerPosition && current) {
     try {
@@ -981,9 +1016,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       notify(t("Order result is pending. Do not submit it again."))
       return
     }
-    if (current?.status !== "TRADING") {
+    if (!canSubmitTradingOrder(current, orderType !== "STOP" && closingTicket)) {
       setSubmitState("error")
-      notify(t("Trading is not enabled for this contract."))
+      notify(
+        t(
+          current?.productLine === "LINEAR_DELIVERY" && current.status === "SETTLING"
+            ? "This contract is settling. Only direct reduce-only orders are allowed."
+            : "Trading is not enabled for this contract.",
+        ),
+      )
       return
     }
     if (!session) {
@@ -1026,7 +1067,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       notify(t("Trigger orders require a valid trigger price."))
       return
     }
-    if (view.line !== PRODUCT_LINES.spot && orderType !== "STOP" && !leverageSetting) {
+    if (
+      view.line !== PRODUCT_LINES.spot &&
+      orderType !== "STOP" &&
+      !(view.line === PRODUCT_LINES.usdMDelivery && closingTicket) &&
+      !leverageSetting
+    ) {
       setSubmitState("error")
       notify(t("Wait for account leverage settings before submitting."))
       return
@@ -1899,6 +1945,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               userId={session?.user.userId}
               instrumentId={current.instrumentId}
               productLine={view.line}
+              canChangeLeverage={
+                !(view.line === PRODUCT_LINES.usdMDelivery && current.status === "SETTLING")
+              }
+              onMarginModeChange={
+                view.line === PRODUCT_LINES.usdMDelivery
+                  ? (marginMode) => setOrderSettings((previous) => ({ ...previous, marginMode }))
+                  : undefined
+              }
               marginMode={orderSettings.marginMode}
               onChange={handleLeverageChange}
             />
@@ -2243,25 +2297,45 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <span className="mono">
               {view.line === PRODUCT_LINES.spot && current
                 ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
-                : estimatedFee(current, price, quantity, numberValue(userFees, "takerFeeRatePpm"))}
+                : view.line === PRODUCT_LINES.usdMDelivery
+                  ? deliveryFeeEstimate()
+                  : estimatedFee(
+                      current,
+                      price,
+                      quantity,
+                      numberValue(userFees, "takerFeeRatePpm"),
+                    )}
             </span>
-            {view.line !== PRODUCT_LINES.spot && (
+            {view.line === PRODUCT_LINES.usdMDelivery && closingTicket ? (
               <>
-                <span
-                  title={t(
-                    "Estimate based on available margin, leverage, fees and position limits; final admission is checked by the matching service.",
-                  )}
-                >
-                  {t("Est. max long")}
-                </span>
+                <span>{t("Available to close short")}</span>
                 <span className="mono">
-                  {formatTradeQuantity(openingCapacity("BUY"))} {t("Contracts")}
+                  {closingCapacity("BUY")} {t("Contracts")}
                 </span>
-                <span>{t("Est. max short")}</span>
+                <span>{t("Available to close long")}</span>
                 <span className="mono">
-                  {formatTradeQuantity(openingCapacity("SELL"))} {t("Contracts")}
+                  {closingCapacity("SELL")} {t("Contracts")}
                 </span>
               </>
+            ) : (
+              view.line !== PRODUCT_LINES.spot && (
+                <>
+                  <span
+                    title={t(
+                      "Estimate based on available margin, leverage, fees and position limits; final admission is checked by the matching service.",
+                    )}
+                  >
+                    {t("Est. max long")}
+                  </span>
+                  <span className="mono">
+                    {formatTradeQuantity(openingCapacity("BUY"))} {t("Contracts")}
+                  </span>
+                  <span>{t("Est. max short")}</span>
+                  <span className="mono">
+                    {formatTradeQuantity(openingCapacity("SELL"))} {t("Contracts")}
+                  </span>
+                </>
+              )
             )}
             <span>{t("Maker / Taker fee")}</span>
             <span className="mono">
@@ -2273,9 +2347,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {current && current.status !== "TRADING" && (
             <p role="status">
               {t(
-                current.status === "PRE_TRADING"
-                  ? "This contract is listed. Trading will open soon."
-                  : "Trading is paused for this contract.",
+                current.productLine === "LINEAR_DELIVERY" && current.status === "SETTLING"
+                  ? "This contract is settling. Open orders are disabled; close or cancel existing orders."
+                  : current.status === "PRE_TRADING"
+                    ? "This contract is listed. Trading will open soon."
+                    : "Trading is paused for this contract.",
               )}
             </p>
           )}
@@ -2315,7 +2391,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 loading={submitState === "loading"}
                 disabled={
                   pendingForUser ||
-                  current?.status !== "TRADING" ||
+                  !canSubmitTradingOrder(current, closingTicket) ||
                   (closingTicket && triggerCloseSide !== "BUY")
                 }
                 onClick={() => void submit("BUY")}
@@ -2329,7 +2405,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 loading={submitState === "loading"}
                 disabled={
                   pendingForUser ||
-                  current?.status !== "TRADING" ||
+                  !canSubmitTradingOrder(current, closingTicket) ||
                   (closingTicket && triggerCloseSide !== "SELL")
                 }
                 onClick={() => void submit("SELL")}
@@ -2343,7 +2419,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <Button
               tone={side === "BUY" ? "positive" : "negative"}
               loading={submitState === "loading"}
-              disabled={pendingForUser || current?.status !== "TRADING"}
+              disabled={pendingForUser || !canSubmitTradingOrder(current, false)}
               onClick={() => void submit(orderType === "STOP" ? (triggerCloseSide ?? side) : side)}
             >
               {session && orderType === "STOP"

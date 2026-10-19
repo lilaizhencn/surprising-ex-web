@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Market } from "../../types/domain"
 import {
+  linearDeliveryFee,
   linearOpeningCapacity,
   orderPositionSide,
   spotAmendmentTerms,
@@ -9,6 +10,39 @@ import {
   spotReferenceTicks,
 } from "./orderCapacity"
 import { parseSetting } from "./TradingTicketControls"
+
+describe("linear delivery fee units", () => {
+  const delivery = {
+    productLine: "LINEAR_DELIVERY",
+    quoteAsset: "USDT",
+    settleAsset: "USDT",
+    priceTickUnits: "10000000",
+    notionalMultiplierUnits: "10000",
+  } as Market
+  it("uses contracts and notional multiplier rather than treating a contract as a whole BTC", () => {
+    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 500)).toBe("0.025")
+    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "2", 500)).toBe("0.05")
+    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 0)).toBe("0")
+  })
+  it("honors asset scales and rounds fee units upward", () => {
+    const small = { ...delivery, priceTickUnits: "1", notionalMultiplierUnits: "1" }
+    expect(linearDeliveryFee(small, { USDT: "1000000" }, "0.000001", "1", 1)).toBe("0.000001")
+  })
+  it("does not invent a fee when precision, reference or whole-contract quantity is missing", () => {
+    expect(linearDeliveryFee(delivery, {}, "50000", "1", 500)).toBeNull()
+    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "", "1", 500)).toBeNull()
+    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "0.5", 500)).toBeNull()
+    expect(
+      linearDeliveryFee(
+        { ...delivery, productLine: "OPTION" },
+        { USDT: "100000000" },
+        "50000",
+        "1",
+        500,
+      ),
+    ).toBeNull()
+  })
+})
 
 const market: Market = {
   symbol: "BTC-USDT",

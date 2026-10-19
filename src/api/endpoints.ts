@@ -12,6 +12,7 @@ import {
   type PendingOrderCommand,
   readPendingCommand,
   savePendingCommand,
+  tracksSingleOrderIntent,
 } from "../state/pendingOrders"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
@@ -1006,15 +1007,14 @@ export async function placeOrder(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
-  const intent: PendingOrderCommand | null =
-    productLine === "SPOT"
-      ? {
-          userId: String(body["userId"] ?? ""),
-          productLine,
-          clientOrderId: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
-          instrumentId: String(body["instrumentId"] ?? ""),
-        }
-      : null
+  const intent: PendingOrderCommand | null = tracksSingleOrderIntent(productLine)
+    ? {
+        userId: String(body["userId"] ?? ""),
+        productLine,
+        clientOrderId: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
+        instrumentId: String(body["instrumentId"] ?? ""),
+      }
+    : null
   if (intent) {
     if (!intent.userId || !intent.clientOrderId || !intent.instrumentId)
       throw new Error("Order identity is required")
@@ -1406,8 +1406,9 @@ export async function cancelOrder(_symbol: string, orderId: string, productLine:
   if (!/^[1-9]\d*$/.test(orderId)) throw new Error("Invalid order ID")
   const pendingMessage = t("Cancellation result is pending. Do not send it again.")
   const userId = String(session.user.userId)
-  const intent: PendingOrderCommand | null =
-    productLine === "SPOT" ? { userId, productLine, cancelOrderId: orderId } : null
+  const intent: PendingOrderCommand | null = tracksSingleOrderIntent(productLine)
+    ? { userId, productLine, cancelOrderId: orderId }
+    : null
   if (intent) {
     const existing = readPendingCommand(userId)
     if (existing) throw new PendingTradingCommand(existing.commandId)

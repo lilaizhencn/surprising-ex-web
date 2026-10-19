@@ -122,6 +122,43 @@ export function spotOrderQuantity({
   }
 }
 
+/** Linear delivery notional uses exchange ticks × contracts × notional multiplier in settlement units. */
+export function linearDeliveryFee(
+  market: Market,
+  scales: Readonly<Record<string, string>>,
+  referencePrice: string,
+  quantity: string,
+  rate: number | null,
+): string | null {
+  try {
+    if (
+      market.productLine !== "LINEAR_DELIVERY" ||
+      rate === null ||
+      !Number.isSafeInteger(rate) ||
+      rate < 0 ||
+      rate > 1_000_000
+    )
+      return null
+    const ticks = BigInt(
+      decimalToStepUnits(
+        referencePrice,
+        market.priceTickUnits ?? "",
+        scales[market.quoteAsset] ?? "",
+      ),
+    )
+    const contracts = BigInt(decimalToStepUnits(quantity, "1", "1"))
+    const multiplier = BigInt(market.notionalMultiplierUnits ?? "")
+    if (ticks <= 0n || contracts <= 0n || multiplier <= 0n) return null
+    return stepUnitsToDecimal(
+      ((ticks * contracts * multiplier * BigInt(rate) + 999999n) / 1000000n).toString(),
+      "1",
+      scales[market.settleAsset ?? market.quoteAsset] ?? "",
+    )
+  } catch {
+    return null
+  }
+}
+
 export function spotFeeReserve(
   market: Market,
   scales: Readonly<Record<string, string>>,

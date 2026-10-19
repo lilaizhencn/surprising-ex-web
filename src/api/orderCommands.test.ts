@@ -478,3 +478,58 @@ describe("spot amendment recovery", () => {
     )
   })
 })
+
+it("saves a linear delivery submission before the network and retains a lost reply", async () => {
+  send.mockImplementation(async () => {
+    expect(readPendingCommand("1")?.productLine).toBe("LINEAR_DELIVERY")
+    throw new TypeError("connection closed before receiving command ID")
+  })
+  await expect(placeOrder(body, "LINEAR_DELIVERY")).rejects.toBeInstanceOf(PendingTradingCommand)
+  expect(readPendingCommand("1")?.clientOrderId).toBe("spot-1")
+  expect(send).toHaveBeenCalledTimes(1)
+})
+
+it("recovers the original linear delivery cancellation with GET and blocks duplicate writes", async () => {
+  saveSession({
+    accessToken: "test",
+    refreshToken: "test",
+    user: { userId: 1, username: "delivery", email: "", status: "ACTIVE" },
+  })
+  const pending = {
+    userId: "1",
+    productLine: "LINEAR_DELIVERY" as const,
+    cancelOrderId: "9007199254740993",
+  }
+  send.mockImplementation(async () => {
+    expect(readPendingCommand("1")).toEqual(pending)
+    throw new TypeError("lost cancellation reply")
+  })
+  await expect(cancelOrder("73", pending.cancelOrderId, "LINEAR_DELIVERY")).rejects.toBeInstanceOf(
+    PendingTradingCommand,
+  )
+  await expect(cancelOrder("73", "92", "LINEAR_DELIVERY")).rejects.toBeInstanceOf(
+    PendingTradingCommand,
+  )
+  await expect(placeOrder(body, "LINEAR_DELIVERY")).rejects.toBeInstanceOf(PendingTradingCommand)
+  expect(send).toHaveBeenCalledTimes(1)
+  send.mockResolvedValue({
+    outcome: "TERMINAL",
+    code: "NONE",
+    prospectiveOrderIds: [pending.cancelOrderId],
+    commandId: "cancel-delivery",
+  })
+  expect(await checkOrderSubmission(pending)).toBe("confirmed")
+  expect(send).toHaveBeenLastCalledWith(
+    `/api/v1/gateway/trading/cancellations/${pending.cancelOrderId}?userId=1`,
+    expect.anything(),
+    { productLine: "LINEAR_DELIVERY", expectedUserId: "1", retry: 0 },
+  )
+})
+
+it("sends no linear delivery order when its recovery record cannot be stored", async () => {
+  vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+    throw new Error("quota")
+  })
+  await expect(placeOrder(body, "LINEAR_DELIVERY")).rejects.toThrow("No order was sent")
+  expect(send).not.toHaveBeenCalled()
+})
