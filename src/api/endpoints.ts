@@ -853,7 +853,7 @@ export class PendingTradingCommand extends ApiError {
 
 export function loadTradingCommand(commandId: string, productLine: ProductLine) {
   return request(
-    `/api/v1/gateway/trading-orders/commands/${encodeURIComponent(commandId)}`,
+    `/api/v1/gateway/trading/commands/${encodeURIComponent(commandId)}`,
     GenericObjectSchema,
     { productLine, retry: 0 },
   )

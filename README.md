@@ -104,6 +104,12 @@ U 本位永续按 `contractMultiplierPpm / 1_000_000` 将合约步长换算为�
 placeOrder 显式识别 MATCHING_PENDING/RESULT_UNKNOWN，页面以“结果待确认”提示并锁定新单，
 保存用户、产品和 commandId 至当前标签页 sessionStorage。刷新或切换页面后恢复同一用户的待确认状态；
 “查询委托结果”只读取原命令、原产品，不重发下单。确认终态后才解除锁定并刷新账户状态。
+
+恢复查询统一使用用户入口 `GET /api/v1/gateway/trading/commands/{commandId}`，与后端回执的
+commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不能用于用户查询。本轮修正了
+两端硬编码路径，并在真实 FUSED 现货服务中验证回执地址可查询原命令；Web lint/build 和
+151 项测试通过。用户界面直接连接真实做市服务的完整验收仍未执行。
+
 这是已获得命令回执的恢复路径；没有收到 commandId 的网络中断、余额百分比精度及真实现货全链路
 仍待后续验收。本轮未调试永续、交割或期权，也未部署线上。
 

@@ -49,7 +49,7 @@ describe("spot command receipts", () => {
     send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE" })
     await loadTradingCommand("command/1", "SPOT")
     expect(send).toHaveBeenCalledWith(
-      "/api/v1/gateway/trading-orders/commands/command%2F1",
+      "/api/v1/gateway/trading/commands/command%2F1",
       expect.anything(),
       { productLine: "SPOT", retry: 0 },
     )
