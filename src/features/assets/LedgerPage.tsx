@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   loadAccountLedgerPage,
   loadAssetScales,
@@ -23,6 +23,7 @@ import { units } from "../trading/TradingAccountTables"
 type Category =
   | "funding-ledger"
   | "product-ledger"
+  | "delivery-ledger"
   | "transfer"
   | "deposit"
   | "withdrawal"
@@ -33,6 +34,7 @@ type Category =
 type Row = Readonly<Record<string, unknown>> & {
   amount?: unknown
   amountUnits?: unknown
+  balanceAfterUnits?: unknown
   createdAt?: unknown
   entryId?: unknown
   id?: unknown
@@ -53,8 +55,18 @@ type Row = Readonly<Record<string, unknown>> & {
 
 export function LedgerPage() {
   const session = useSession()
-  const [category, setCategory] = useState<Category>("funding-ledger")
-  const [line, setLine] = useState<ProductLine>(PRODUCT_LINES.spot)
+  const requestVersion = useRef(0)
+  const [initial] = useState(() => new URLSearchParams(window.location.search))
+  const [category, setCategory] = useState<Category>(() =>
+    initial.get("category") === "delivery-ledger" ? "delivery-ledger" : "funding-ledger",
+  )
+  const [line, setLine] = useState<ProductLine>(() =>
+    initial.get("category") === "delivery-ledger"
+      ? initial.get("productLine") === PRODUCT_LINES.coinMDelivery
+        ? PRODUCT_LINES.coinMDelivery
+        : PRODUCT_LINES.usdMDelivery
+      : PRODUCT_LINES.spot,
+  )
   const [asset, setAsset] = useState("")
   const [instrumentId, setInstrumentId] = useState("")
   const [referenceType, setReferenceType] = useState("")
@@ -92,8 +104,13 @@ export function LedgerPage() {
       const page = await loadAccountLedgerPage(asset, referenceType, cursor)
       return { rows: page.entries, nextCursor: page.nextCursor }
     }
-    if (category === "product-ledger") {
-      const page = await loadProductLedgerPage(line, asset, referenceType, cursor)
+    if (category === "product-ledger" || category === "delivery-ledger") {
+      const page = await loadProductLedgerPage(
+        line,
+        asset,
+        category === "delivery-ledger" ? "DELIVERY_SETTLEMENT" : referenceType,
+        cursor,
+      )
       return { rows: page.entries, nextCursor: page.nextCursor }
     }
     if (category === "transfer") {
@@ -137,6 +154,7 @@ export function LedgerPage() {
     return { rows: result, nextCursor: null }
   }
   useEffect(() => {
+    ++requestVersion.current
     if (!session) return
     let active = true
     setLoading(true)
@@ -170,20 +188,28 @@ export function LedgerPage() {
     }
   }, [session, category, line, revision])
   const loadMore = () => {
-    if (!nextCursor) return
+    if (!nextCursor || loading) return
+    const version = requestVersion.current
     setLoading(true)
     void fetchPage(nextCursor)
       .then(
         (page) => {
+          if (version !== requestVersion.current) return
           setRows((current) => [...current, ...page.rows])
           setNextCursor(page.nextCursor)
         },
-        (reason: unknown) =>
-          setError(
-            reason instanceof Error ? reason.message : t("Request failed. Please try again later."),
-          ),
+        (reason: unknown) => {
+          if (version === requestVersion.current)
+            setError(
+              reason instanceof Error
+                ? reason.message
+                : t("Request failed. Please try again later."),
+            )
+        },
       )
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (version === requestVersion.current) setLoading(false)
+      })
   }
   const visible = rows.filter((row) => {
     const created = new Date(String(row.createdAt ?? row.updatedAt ?? ""))
@@ -235,7 +261,20 @@ export function LedgerPage() {
               aria-label={t("Record type")}
               value={category}
               onChange={(event) => {
-                setCategory(event.target.value as Category)
+                const next = event.target.value as Category
+                setCategory(next)
+                if (
+                  next === "delivery-ledger" &&
+                  line !== PRODUCT_LINES.usdMDelivery &&
+                  line !== PRODUCT_LINES.coinMDelivery
+                )
+                  setLine(PRODUCT_LINES.usdMDelivery)
+                if (
+                  next === "funding-payment" &&
+                  line !== PRODUCT_LINES.usdMPerpetual &&
+                  line !== PRODUCT_LINES.coinMPerpetual
+                )
+                  setLine(PRODUCT_LINES.usdMPerpetual)
                 setReferenceType("")
                 setStatus("")
                 setInstrumentId("")
@@ -243,6 +282,7 @@ export function LedgerPage() {
             >
               <option value="funding-ledger">{t("Funding account ledger")}</option>
               <option value="product-ledger">{t("Product account ledger")}</option>
+              <option value="delivery-ledger">{t("Delivery cash ledger")}</option>
               <option value="transfer">{t("Internal transfers")}</option>
               <option value="deposit">{t("Deposits")}</option>
               <option value="withdrawal">{t("Withdrawals")}</option>
@@ -259,11 +299,21 @@ export function LedgerPage() {
                 value={line}
                 onChange={(event) => setLine(event.target.value as ProductLine)}
               >
-                {(Object.values(PRODUCT_LINES) as ProductLine[]).map((value) => (
-                  <option key={value} value={value}>
-                    {t(productLineLabels[value])}
-                  </option>
-                ))}
+                {(Object.values(PRODUCT_LINES) as ProductLine[])
+                  .filter((value) =>
+                    category === "delivery-ledger"
+                      ? value === PRODUCT_LINES.usdMDelivery ||
+                        value === PRODUCT_LINES.coinMDelivery
+                      : category === "funding-payment"
+                        ? value === PRODUCT_LINES.usdMPerpetual ||
+                          value === PRODUCT_LINES.coinMPerpetual
+                        : true,
+                  )
+                  .map((value) => (
+                    <option key={value} value={value}>
+                      {t(productLineLabels[value])}
+                    </option>
+                  ))}
               </DropdownSelect>
             </Field>
           ) : null}
@@ -390,6 +440,8 @@ export function LedgerPage() {
                 <th>{t("Asset")}</th>
                 <th>{t("Amount")}</th>
                 {showStatus ? <th>{t("Status")}</th> : null}
+                {category === "delivery-ledger" ? <th>{t("Instrument ID")}</th> : null}
+                {category === "delivery-ledger" ? <th>{t("Balance after")}</th> : null}
                 <th>{t("Reference")}</th>
               </tr>
             </thead>
@@ -416,6 +468,14 @@ export function LedgerPage() {
                       : String(row.amount ?? row.quantitySteps ?? "—")}
                   </td>
                   {showStatus ? <td>{t(statusLabel(String(row.status ?? "")))}</td> : null}
+                  {category === "delivery-ledger" ? (
+                    <td className="mono">{String(row.instrumentId ?? "—")}</td>
+                  ) : null}
+                  {category === "delivery-ledger" ? (
+                    <td className="mono">
+                      {units(row.balanceAfterUnits, String(row.asset ?? ""), assetScales)}
+                    </td>
+                  ) : null}
                   <td className="mono">
                     {String(
                       row.referenceId ??
@@ -430,6 +490,18 @@ export function LedgerPage() {
             </tbody>
           </table>
         </div>
+      ) : null}
+      {!loading && !error && visible.length === 0 ? (
+        <Panel>
+          <StateView
+            kind="empty"
+            message={t(
+              category === "delivery-ledger"
+                ? "No delivery cash movements."
+                : "No records match these filters.",
+            )}
+          />
+        </Panel>
       ) : null}
       {nextCursor ? (
         <div className="ledger-load-more">
@@ -454,6 +526,7 @@ function todayDate(): string {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 function referenceTypeLabel(value: string): string {
+  if (value === "DELIVERY_SETTLEMENT") return "Delivery settlement"
   return value
     .replaceAll("_", " ")
     .toLowerCase()

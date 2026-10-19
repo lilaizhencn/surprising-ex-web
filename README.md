@@ -193,3 +193,5 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 需先发布 price 的结算中指数源修复与 gateway 的合约公开查询、realtime 杠杆读取修复，沿用此前命令回执迁移/导出。可选实栈消费者为 `scripts/linear-delivery-fused-live.mjs`，使用后端四分钟交接 fixture 和所属 realtime PID；完整启动方式见后端 `docs/realtime-command-results.md`。本轮范围是结算中直接减仓与单笔写入恢复，实际到期结算、其他产品及其余批量操作仍需继续验证。
 
 后续实测同时修复了后端 SETTLING 指数源停止及杠杆 GET 仍读 Core 的问题。Web 在结算中禁用杠杆调整、直接平仓不再依赖开仓设置，平仓额度与预估手续费按实际合约张数和资产单位显示。验证记录见 [U 本位交割实测](docs/validation/linear-delivery-trading-20261019.json)。
+
+交割现金记录：交易页提供“交割现金流水”入口，使用产品账户流水查询，固定 DELIVERY_SETTLEMENT 类型并显示合约编号、实际现金变化和变动后余额。已结束的 U 本位交割合约按 URL 中明确的 instrumentId 读取历史元数据，保留查询页面并禁止新下单及杠杆修改；默认目录仍隐藏已结束合约。交割页不请求或展示永续资金费。流水中的金额/余额按币种精度从整数字符串显示。零现金变动不生成交割现金流水，不能据此判断未执行结算。

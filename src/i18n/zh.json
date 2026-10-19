@@ -848,7 +848,7 @@
   "Internal transfers": "内部转账",
   "Deposits": "充值",
   "Funding payments": "资金费流水",
-  "Instrument ID": "合约 ID",
+  "Instrument ID": "合约编号",
   "Reference type": "关联类型",
   "ID, reason, address...": "ID、原因、地址等",
   "Enter an instrument ID to load funding payments.": "请输入合约 ID 查询资金费流水。",
@@ -1062,5 +1062,11 @@
   "This contract is settling. Only direct reduce-only orders are allowed.": "合约结算中，仅允许直接减仓。",
   "This contract is settling. Open orders are disabled; close or cancel existing orders.": "合约结算中，禁止新开仓；可平仓、撤单并查看现有订单。",
   "Available to close short": "可平空仓",
-  "Available to close long": "可平多仓"
+  "Available to close long": "可平多仓",
+  "Delivery cash ledger": "交割现金流水",
+  "Delivery settlement": "交割结算",
+  "Balance after": "变动后余额",
+  "This contract has ended. View historical records.": "合约已结束，可查看历史记录。",
+  "Contract metadata is unavailable. Refresh to retry.": "合约资料暂不可用，请刷新重试。",
+  "No delivery cash movements.": "暂无交割现金变动。"
 }

@@ -12,6 +12,7 @@ import {
   loadFundingRate,
   loadFundingRateHistory,
   loadFundingSettlement,
+  loadMarket,
   loadMarkets,
   loadOptionQuote,
   loadOrderPriceProtection,
@@ -172,10 +173,16 @@ export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined):
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
   const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
+  const fundingProduct =
+    view.line === PRODUCT_LINES.usdMPerpetual || view.line === PRODUCT_LINES.coinMPerpetual
   const session = useSession()
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [candles, setCandles] = useState<readonly Candle[]>([])
   const [selected, setSelected] = useState<string>("")
+  const selectedMarketRef = useRef("")
+  useEffect(() => {
+    selectedMarketRef.current = selected
+  }, [selected])
   const [pairSearch, setPairSearch] = useState("")
   const [pairTab, setPairTab] = useState<"all" | "favorites">("all")
   const [pairOpen, setPairOpen] = useState(false)
@@ -227,6 +234,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [accountTab, setAccountTab] = useState<
     "positions" | "triggers" | "fundingMarket" | "fundingPayments" | "settings"
   >("positions")
+  useEffect(() => {
+    if (!fundingProduct)
+      setAccountTab((tab) =>
+        tab === "fundingMarket" || tab === "fundingPayments" ? "positions" : tab,
+      )
+  }, [fundingProduct])
   const [price, setPrice] = useState("")
   const [triggerPrice, setTriggerPrice] = useState("")
   const [protectionMode, setProtectionMode] = useState<"SINGLE" | "OCO">("SINGLE")
@@ -699,6 +712,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setError(null)
     setMarkets([])
     setSelected("")
+    selectedMarketRef.current = ""
     let pending = false
     const refreshMarkets = async () => {
       if (pending) return
@@ -706,10 +720,30 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       try {
         const rows = await loadMarkets(view.line, controller.signal, true)
         if (controller.signal.aborted) return
+        const routeRequested = new URLSearchParams(window.location.search).get("instrumentId")
+        const requested = routeRequested ?? selectedMarketRef.current
         const productMarkets = rows
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
-        const requested = new URLSearchParams(window.location.search).get("instrumentId")
+        if (
+          view.line === PRODUCT_LINES.usdMDelivery &&
+          requested &&
+          !productMarkets.some((market) => market.instrumentId === requested)
+        ) {
+          const historical = mapMarket(await loadMarket(requested, view.line))
+          if (
+            historical.productLine !== view.line ||
+            historical.instrumentId !== requested ||
+            historical.status !== "CLOSED"
+          )
+            throw new Error(t("Contract metadata is unavailable. Refresh to retry."))
+          productMarkets.push(historical)
+        }
+        if (
+          controller.signal.aborted ||
+          routeRequested !== new URLSearchParams(window.location.search).get("instrumentId")
+        )
+          return
         setSelected((previous) =>
           productMarkets.some((market) => market.instrumentId === previous)
             ? previous
@@ -832,7 +866,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [current?.instrumentId, assetScales, updateMarketQuote, view.line])
 
   useEffect(() => {
-    if (!current || view.line === PRODUCT_LINES.spot || view.line === PRODUCT_LINES.option) {
+    if (!current || !fundingProduct) {
       setFunding(null)
       return
     }
@@ -849,19 +883,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [current?.instrumentId, view.line])
+  }, [current?.instrumentId, view.line, fundingProduct])
 
   useEffect(() => {
     setFundingHistory([])
     setFundingSettlement(null)
     setFundingMarketError("")
-    if (
-      !current ||
-      accountTab !== "fundingMarket" ||
-      view.line === PRODUCT_LINES.spot ||
-      view.line === PRODUCT_LINES.option
-    )
-      return
+    if (!current || accountTab !== "fundingMarket" || !fundingProduct) return
     let cancelled = false
     void loadFundingRateHistory(current.instrumentId, view.line)
       .then((history) => {
@@ -891,19 +919,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [accountTab, current?.instrumentId, view.line])
+  }, [accountTab, current?.instrumentId, view.line, fundingProduct])
 
   useEffect(() => {
     setFundingPayments([])
     setFundingPaymentsError("")
-    if (
-      !current ||
-      !session ||
-      accountTab !== "fundingPayments" ||
-      view.line === PRODUCT_LINES.spot ||
-      view.line === PRODUCT_LINES.option
-    )
-      return
+    if (!current || !session || accountTab !== "fundingPayments" || !fundingProduct) return
     let cancelled = false
     void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
       .then((rows) => {
@@ -917,7 +938,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [accountTab, current?.instrumentId, session?.user.userId, view.line])
+  }, [accountTab, current?.instrumentId, session?.user.userId, view.line, fundingProduct])
 
   useEffect(() => {
     if (!current) return
@@ -1620,12 +1641,15 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   {formatTradeQuantity(openInterestQuantity)}
                 </strong>
               </div>
-              <div className="funding-summary">
-                <small>{t("Funding / Next funding")}</small>
-                <strong className="mono">
-                  <span className="positive">{fundingRate(funding)}</span> · {fundingTime(funding)}
-                </strong>
-              </div>
+              {fundingProduct && (
+                <div className="funding-summary">
+                  <small>{t("Funding / Next funding")}</small>
+                  <strong className="mono">
+                    <span className="positive">{fundingRate(funding)}</span> ·{" "}
+                    {fundingTime(funding)}
+                  </strong>
+                </div>
+              )}
             </>
           ) : null}
         </header>
@@ -1691,7 +1715,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   {t("TP & SL")}{" "}
                 </button>
               ) : null}
-              {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+              {fundingProduct ? (
                 <>
                   <button
                     type="button"
@@ -1792,7 +1816,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   />
                 </Panel>
               ) : null}
-              {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
+              {fundingProduct ? (
                 <>
                   {accountTab === "fundingMarket" ? (
                     <FundingMarketHistory
@@ -1946,7 +1970,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               instrumentId={current.instrumentId}
               productLine={view.line}
               canChangeLeverage={
-                !(view.line === PRODUCT_LINES.usdMDelivery && current.status === "SETTLING")
+                !(view.line === PRODUCT_LINES.usdMDelivery && current.status !== "TRADING")
               }
               onMarginModeChange={
                 view.line === PRODUCT_LINES.usdMDelivery
@@ -2349,9 +2373,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               {t(
                 current.productLine === "LINEAR_DELIVERY" && current.status === "SETTLING"
                   ? "This contract is settling. Open orders are disabled; close or cancel existing orders."
-                  : current.status === "PRE_TRADING"
-                    ? "This contract is listed. Trading will open soon."
-                    : "Trading is paused for this contract.",
+                  : current.status === "CLOSED"
+                    ? "This contract has ended. View historical records."
+                    : current.status === "PRE_TRADING"
+                      ? "This contract is listed. Trading will open soon."
+                      : "Trading is paused for this contract.",
               )}
             </p>
           )}
@@ -3045,7 +3071,12 @@ function DeliveryDetails({ market }: { readonly market: Market | null }) {
     <Panel dense className="contract-details">
       <div className="panel-heading">
         <h2>{t("Delivery contract")}</h2>
-        <Badge tone="info">{t("Backend fields")}</Badge>
+        <a
+          className="route-link"
+          href={`/assets/ledger?category=delivery-ledger&productLine=${market?.productLine ?? PRODUCT_LINES.usdMDelivery}`}
+        >
+          {t("Delivery cash ledger")}
+        </a>
       </div>
       <div className="contract-detail-grid">
         <Detail label={t("Contract value")} value={market?.contractValueAsset ?? "—"} />
