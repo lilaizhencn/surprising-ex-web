@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { clearPendingCommand, readPendingCommand, savePendingCommand } from "../state/pendingOrders"
+import { saveSession } from "../state/session"
 import { ApiError, request } from "./client"
 import {
+  cancelOrder,
   checkOrderSubmission,
   loadTradingCommand,
   PendingTradingCommand,
@@ -230,5 +232,128 @@ describe("spot command receipts", () => {
     )
     expect(readPendingCommand("3")?.commandId).toBe("old")
     expect(window.sessionStorage.getItem("surprising-ex.pending-command:3")).toBeNull()
+  })
+})
+
+describe("spot cancellation recovery", () => {
+  it("never reports an unresolved cancellation receipt as success", async () => {
+    send.mockResolvedValue({
+      commandId: "cancel-1",
+      outcome: "RESULT_UNKNOWN",
+      code: "RESULT_UNKNOWN",
+      result: null,
+    })
+    await expect(cancelOrder("1", "91", "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+  })
+
+  const orderId = "9007199254740993"
+  const intent = { userId: "1", productLine: "SPOT" as const, cancelOrderId: orderId }
+  beforeEach(() =>
+    saveSession({
+      accessToken: "test",
+      refreshToken: "test",
+      user: { userId: 1, username: "spot", email: "", status: "ACTIVE" },
+    }),
+  )
+  for (const outcome of ["MATCHING_PENDING", "RESULT_UNKNOWN"]) {
+    it(`persists before the cancellation and treats ${outcome} as pending`, async () => {
+      send.mockImplementation(async () => {
+        expect(readPendingCommand("1")).toEqual(intent)
+        return { commandId: "cancel-1", outcome, code: outcome }
+      })
+      await expect(cancelOrder("1", orderId, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+      expect(readPendingCommand("1")).toEqual({ ...intent, commandId: "cancel-1" })
+      expect(send).toHaveBeenCalledTimes(1)
+    })
+  }
+  it("keeps a lost response durable and blocks duplicate cancellation and new spot orders", async () => {
+    send.mockRejectedValue(new TypeError("response lost"))
+    await expect(cancelOrder("1", orderId, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(readPendingCommand("1")).toEqual(intent)
+    await expect(cancelOrder("1", "92", "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    await expect(placeOrder(body, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+  it("never sends a cancellation when durable storage fails", async () => {
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw Error("quota")
+    })
+    await expect(cancelOrder("1", orderId, "SPOT")).rejects.toThrow("No cancellation was sent")
+    expect(send).not.toHaveBeenCalled()
+  })
+  it("accepts only the matching terminal order and preserves its exact ID", async () => {
+    send.mockResolvedValue({
+      commandId: "cancel-1",
+      outcome: "TERMINAL",
+      code: "NONE",
+      result: { orderId, status: "CANCELED" },
+    })
+    expect((await cancelOrder("1", orderId, "SPOT")).orderId).toBe(orderId)
+    expect(readPendingCommand("1")).toBeNull()
+    expect(send).toHaveBeenCalledWith(
+      "/api/v1/gateway/trading/cancel",
+      expect.anything(),
+      expect.objectContaining({ expectedUserId: "1", body: { userId: 1, orderId } }),
+    )
+  })
+  it("keeps malformed and mismatched replies pending but clears definitive refusal", async () => {
+    for (const response of [
+      {},
+      {
+        commandId: "c",
+        outcome: "TERMINAL",
+        code: "NONE",
+        result: { orderId: "92", status: "CANCELED" },
+      },
+    ]) {
+      send.mockResolvedValue(response)
+      await expect(cancelOrder("1", orderId, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+      expect(readPendingCommand("1")).toEqual(intent)
+      clearPendingCommand(intent)
+    }
+    send.mockRejectedValue(new ApiError("validation", 400))
+    await expect(cancelOrder("1", orderId, "SPOT")).rejects.toThrow("validation")
+    expect(readPendingCommand("1")).toBeNull()
+    send.mockResolvedValue({ commandId: "c", outcome: "TERMINAL", code: "ORDER_NOT_FOUND" })
+    await expect(cancelOrder("1", orderId, "SPOT")).rejects.toBeInstanceOf(ApiError)
+    expect(readPendingCommand("1")).toBeNull()
+  })
+  it("recovers only the original committed cancellation by GET without inspecting order existence", async () => {
+    const receipt = {
+      commandId: "cancel-1",
+      prospectiveOrderIds: [orderId],
+      outcome: "RESULT_UNKNOWN",
+      code: "RESULT_UNKNOWN",
+    }
+    send.mockResolvedValue(receipt)
+    expect(await checkOrderSubmission(intent)).toBe("pending")
+    send.mockResolvedValue({ ...receipt, outcome: "TERMINAL", code: "NONE" })
+    expect(await checkOrderSubmission(intent)).toBe("confirmed")
+    send.mockResolvedValue({ ...receipt, outcome: "TERMINAL", code: "ORDER_NOT_FOUND" })
+    expect(await checkOrderSubmission(intent)).toBe("rejected")
+    expect(send).toHaveBeenLastCalledWith(
+      `/api/v1/gateway/trading/cancellations/${orderId}?userId=1`,
+      expect.anything(),
+      { productLine: "SPOT", expectedUserId: "1", retry: 0 },
+    )
+    expect(send).toHaveBeenCalledTimes(3)
+  })
+  it("does not clear an unresolved cancellation for a different receipt or unavailable query", async () => {
+    for (const bad of [
+      { prospectiveOrderIds: ["92"] },
+      { commandId: "different" },
+      { outcome: "NOT_ACCEPTED" },
+    ]) {
+      send.mockResolvedValue({
+        commandId: "cancel-1",
+        prospectiveOrderIds: [orderId],
+        outcome: "TERMINAL",
+        code: "NONE",
+        ...bad,
+      })
+      await expect(checkOrderSubmission({ ...intent, commandId: "cancel-1" })).rejects.toThrow()
+    }
+    send.mockRejectedValue(new ApiError("unavailable", 503))
+    await expect(checkOrderSubmission(intent)).rejects.toThrow("unavailable")
   })
 })

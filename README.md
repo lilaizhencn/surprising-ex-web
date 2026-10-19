@@ -159,3 +159,11 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 恢复顺序更新为先读 `GET /api/v1/gateway/trading/submission` 的 realtime 已提交回执，再在明确 RESULT_UNKNOWN 时读 by-client-order-id。TERMINAL 必须匹配原用户、产品、clientOrderId、instrumentId 及已知 commandId；命令成功或明确拒绝才解除待确认。拒单没有订单记录、订单视图尚未初始化或 Core 短期缓存已淘汰时，也可用已提交回执恢复。未知或不可用保持锁定，不重新下单。历史只有 commandId 的记录继续调用 commands，后端同样读 realtime 投影。
 
 发布前必须先完成后端迁移、realtime 更新和历史回补，再更新 gateway 与两端；回执不存在不能证明请求从未到达。172 项测试、lint/build 通过，1440/390px 深浅色浏览器验证 POST 响应中断、刷新、未知结果锁定、无订单实体的已提交拒单解锁；每组只有一条 POST，无页面异常或横向溢出。数据为受控 API/WS，未部署或连接完整 FUSED 服务。详见 [验证记录](docs/validation/committed-command-results-20261019.json)。
+
+## 现货撤单的待确认与恢复（2026-10-19）
+
+`api/endpoints.ts.cancelOrder` 发送现货 POST 前将用户、产品、cancelOrderId 保存到原 pending 集合；存储失败不发送。202/MATCHING_PENDING/RESULT_UNKNOWN、断网、异常响应或订单号不匹配都不能提示撤单成功；只有匹配的终态响应或 realtime 已提交回执才确认结果。刷新后查询 `GET /api/v1/gateway/trading/cancellations/{orderId}`，校验原订单与已知命令号，未知和不可用保持锁定，不重复 POST。
+
+交易页与订单页同步锁定单笔撤单，并提供查询入口；原产品的结果按原身份查询，恢复后刷新 realtime 账户视图。先更新支持该查询的 gateway，前提为上一轮回执表与 realtime 导出/历史回补已完成。请求从未提交到 Core 时仍需负确认，批量/改单等写入尚未纳入此恢复路径。
+
+181 项测试、lint/build 通过。旧版将 RESULT_UNKNOWN 当成成功已在回归中复现；受控 API/WS 浏览器检查交易页、订单页的 1440/390px 深浅主题八组：发送前保存、丢响应、刷新、未决锁定、终态解锁，64 位订单号完整，每组只有一条 POST，无 JS 异常或横向溢出。未部署或连接完整 FUSED 栈，见 [验证记录](docs/validation/spot-cancel-recovery-20261019.json)。

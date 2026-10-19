@@ -1281,9 +1281,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setPendingCommand(readPendingCommand(pending.userId))
         notify(
           t(
-            result === "confirmed"
-              ? "Order processing confirmed. Check the latest account state."
-              : "Order was not accepted. Check your order state.",
+            pending.cancelOrderId
+              ? result === "confirmed"
+                ? "Cancellation processing confirmed. Check the latest order state."
+                : "Cancellation was rejected. Check the latest order state."
+              : result === "confirmed"
+                ? "Order processing confirmed. Check the latest account state."
+                : "Order was not accepted. Check your order state.",
           ),
         )
         realtime.refresh()
@@ -1701,6 +1705,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     leverageSetting={leverageSetting}
                     events={realtime.events}
                     loggedIn={!!session}
+                    commandPending={pendingForUser}
                     userId={session?.user.userId}
                     onNotice={(message, failed) => {
                       setSubmitState(failed ? "error" : "success")
@@ -2264,7 +2269,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 loading={submitState === "loading"}
                 onClick={() => void checkPendingCommand()}
               >
-                {t("Check order result")}
+                {t(
+                  pendingCommand?.cancelOrderId
+                    ? "Check cancellation result"
+                    : "Check order result",
+                )}
               </Button>
             </div>
           )}

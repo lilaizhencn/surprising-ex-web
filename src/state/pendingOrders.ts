@@ -7,12 +7,13 @@ export type PendingOrderCommand = {
   readonly commandId?: string
   readonly clientOrderId?: string
   readonly instrumentId?: string
+  readonly cancelOrderId?: string
 }
 
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
 const key = (pending: PendingOrderCommand) =>
-  `${prefix(pending.userId)}:${pending.clientOrderId ?? pending.commandId}`
+  `${prefix(pending.userId)}:${pending.cancelOrderId ? `cancel-${pending.cancelOrderId}` : (pending.clientOrderId ?? pending.commandId)}`
 
 export function readPendingCommand(userId: string): PendingOrderCommand | null {
   try {
@@ -33,6 +34,9 @@ export function readPendingCommand(userId: string): PendingOrderCommand | null {
         value?.userId === userId &&
         Object.values(PRODUCT_LINES).includes(value.productLine) &&
         ((typeof value.commandId === "string" && value.commandId.length > 0) ||
+          (value.productLine === "SPOT" &&
+            typeof value.cancelOrderId === "string" &&
+            /^[1-9]\d*$/.test(value.cancelOrderId)) ||
           (value.productLine === "SPOT" &&
             typeof value.clientOrderId === "string" &&
             value.clientOrderId.length > 0 &&

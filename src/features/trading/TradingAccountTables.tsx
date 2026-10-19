@@ -28,6 +28,7 @@ type Props = {
   readonly leverageSetting?: LeverageSettings | null
   readonly events: readonly WsEnvelope[]
   readonly loggedIn: boolean
+  readonly commandPending?: boolean
   readonly userId: string | number | undefined
   readonly onNotice: (message: string, failed: boolean) => void
 }
@@ -286,7 +287,7 @@ export function TradingAccountTables(props: Props) {
           <button
             type="button"
             className="button button-negative"
-            disabled={cancelingAll || orderRows.length === 0}
+            disabled={props.commandPending || cancelingAll || orderRows.length === 0}
             onClick={() => {
               if (!window.confirm(t("Cancel all open orders for this product line?"))) return
               setCancelingAll(true)
@@ -516,6 +517,7 @@ export function TradingAccountTables(props: Props) {
                     market={marketFor(field(row, "instrumentId"))}
                     scales={assetScales}
                     productLine={productLine}
+                    commandPending={props.commandPending ?? false}
                     onNotice={onNotice}
                   />
                 ))}
@@ -536,12 +538,14 @@ function TradingOrderRow({
   scales,
   productLine,
   onNotice,
+  commandPending,
 }: {
   readonly row: Row
   readonly market: Market | undefined
   readonly scales: Props["assetScales"]
   readonly productLine: ProductLine
   readonly onNotice: Props["onNotice"]
+  readonly commandPending?: boolean
 }) {
   const [canceling, setCanceling] = useState(false)
   const status = orderStatus(row),
@@ -601,7 +605,7 @@ function TradingOrderRow({
           <button
             className="compact-cancel"
             type="button"
-            disabled={canceling}
+            disabled={commandPending || canceling}
             onClick={() => {
               setCanceling(true)
               void cancelOrder(field(row, "instrumentId"), id, productLine)

@@ -852,8 +852,11 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
 }
 
 export class PendingTradingCommand extends ApiError {
-  constructor(readonly commandId?: string) {
-    super(t("Order result is pending. Do not submit it again."), 202)
+  constructor(
+    readonly commandId?: string,
+    message = t("Order result is pending. Do not submit it again."),
+  ) {
+    super(message, 202)
   }
 }
 
@@ -873,8 +876,29 @@ export function isDefinitiveOrderRejection(reason: unknown): boolean {
   )
 }
 
-/** Order existence comes from realtime; a failed receipt lookup never proves rejection. */
+/** Resolve original submissions and cancellations from realtime-owned views only. */
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
+  if (pending.cancelOrderId) {
+    const receipt = await request(
+      `/api/v1/gateway/trading/cancellations/${encodeURIComponent(pending.cancelOrderId)}?userId=${encodeURIComponent(pending.userId)}`,
+      GenericObjectSchema,
+      { productLine: pending.productLine, expectedUserId: pending.userId, retry: 0 },
+    )
+    if (
+      typeof receipt["commandId"] !== "string" ||
+      !receipt["commandId"] ||
+      (pending.commandId && receipt["commandId"] !== pending.commandId) ||
+      !Array.isArray(receipt["prospectiveOrderIds"]) ||
+      receipt["prospectiveOrderIds"].length !== 1 ||
+      String(receipt["prospectiveOrderIds"][0]) !== pending.cancelOrderId
+    )
+      throw new Error(t("Cancellation details do not match. Check the original order again."))
+    if (receipt["outcome"] === "TERMINAL" && typeof receipt["code"] === "string" && receipt["code"])
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+    if (receipt["outcome"] === "RESULT_UNKNOWN" && receipt["code"] === "RESULT_UNKNOWN")
+      return "pending"
+    throw new Error(t("Cancellation result is unavailable. Please check again."))
+  }
   if (pending.clientOrderId && pending.instrumentId) {
     const query = new URLSearchParams({
       userId: pending.userId,
@@ -1277,15 +1301,58 @@ export async function loadMyTrades(
     : (response.trades ?? response.fills ?? response.items ?? [])
 }
 
-export function cancelOrder(_symbol: string, orderId: string, productLine: ProductLine) {
+export async function cancelOrder(_symbol: string, orderId: string, productLine: ProductLine) {
   const session = loadSession()
-  if (!session) return Promise.reject(new Error(t("Please sign in before canceling orders.")))
-  return request(`/api/v1/gateway/trading/cancel`, GenericObjectSchema, {
-    method: "POST",
-    productLine,
-    idempotencyKey: `cancel-${orderId}`,
-    body: { userId: session.user.userId, orderId },
-  })
+  if (!session) throw new Error(t("Please sign in before canceling orders."))
+  if (!/^[1-9]\d*$/.test(orderId)) throw new Error("Invalid order ID")
+  const pendingMessage = t("Cancellation result is pending. Do not send it again.")
+  const userId = String(session.user.userId)
+  const intent: PendingOrderCommand | null =
+    productLine === "SPOT" ? { userId, productLine, cancelOrderId: orderId } : null
+  if (intent) {
+    const existing = readPendingCommand(userId)
+    if (existing) throw new PendingTradingCommand(existing.commandId)
+    try {
+      savePendingCommand(intent)
+    } catch {
+      throw new Error(t("Cannot save cancellation recovery details. No cancellation was sent."))
+    }
+  }
+  try {
+    const response = await request(`/api/v1/gateway/trading/cancel`, GenericObjectSchema, {
+      method: "POST",
+      productLine,
+      expectedUserId: userId,
+      idempotencyKey: `cancel-${orderId}`,
+      body: { userId: session.user.userId, orderId },
+    })
+    if (["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"]))) {
+      if (intent && typeof response["commandId"] === "string" && response["commandId"])
+        savePendingCommand({ ...intent, commandId: response["commandId"] })
+      throw new PendingTradingCommand(
+        typeof response["commandId"] === "string" ? response["commandId"] : undefined,
+        pendingMessage,
+      )
+    }
+    const order = OrderSubmissionSchema.safeParse(response)
+    if (
+      response["outcome"] !== "TERMINAL" ||
+      response["code"] !== "NONE" ||
+      !order.success ||
+      String(order.data.orderId) !== orderId
+    )
+      throw new ApiError(apiErrorMessage(response, 409), 502, response)
+    if (intent) clearPendingCommand(intent)
+    return order.data
+  } catch (reason) {
+    if (!intent) throw reason
+    if (isDefinitiveOrderRejection(reason)) {
+      clearPendingCommand(intent)
+      throw reason
+    }
+    if (reason instanceof PendingTradingCommand) throw reason
+    throw new PendingTradingCommand(readPendingCommand(userId)?.commandId, pendingMessage)
+  }
 }
 
 export function loadOrderBook(instrumentId: string, productLine: ProductLine, depth = 50) {

@@ -10,6 +10,7 @@ import {
   cancelOpenTriggerOrders,
   cancelOrder,
   cancelTriggerOrder,
+  checkOrderSubmission,
   closePosition,
   loadAccountLedger,
   loadAssetScales,
@@ -31,6 +32,11 @@ import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { AssetIcon, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { t } from "../../i18n"
+import {
+  clearPendingCommand,
+  pendingOrderChanged,
+  readPendingCommand,
+} from "../../state/pendingOrders"
 import { loadSession, useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
@@ -61,6 +67,21 @@ type Tab =
 
 export function OrdersPage() {
   const session = useSession()
+  const [pending, setPending] = useState(() =>
+    readPendingCommand(String(session?.user.userId ?? "")),
+  )
+  const [checking, setChecking] = useState(false)
+  useEffect(() => {
+    const update = () => setPending(readPendingCommand(String(session?.user.userId ?? "")))
+    update()
+    window.addEventListener("storage", update)
+    window.addEventListener(pendingOrderChanged, update)
+    return () => {
+      window.removeEventListener("storage", update)
+      window.removeEventListener(pendingOrderChanged, update)
+    }
+  }, [session?.user.userId])
+  const commandPending = pending !== null && pending.userId === String(session?.user.userId ?? "")
   const [tab, setTab] = useState<Tab>("open")
   const [productLine, setProductLine] = useState<ProductLine>(PRODUCT_LINES.spot)
   const [instrumentId, setInstrumentId] = useState("")
@@ -240,6 +261,50 @@ export function OrdersPage() {
           {actionMessage}
         </div>
       ) : null}
+      {commandPending && (
+        <div className="form-message" role="status">
+          <p>
+            {t(
+              pending.cancelOrderId
+                ? "Cancellation result is pending. Do not send it again."
+                : "Order result is pending. Do not submit it again.",
+            )}
+          </p>
+          <Button
+            disabled={checking}
+            onClick={() => {
+              if (!pending) return
+              const original = pending
+              setChecking(true)
+              void checkOrderSubmission(original)
+                .then((result) => {
+                  if (String(loadSession()?.user.userId ?? "") !== original.userId) return
+                  if (result === "pending") return
+                  clearPendingCommand(original)
+                  setActionMessage(
+                    t(
+                      original.cancelOrderId
+                        ? result === "confirmed"
+                          ? "Cancellation processing confirmed. Check the latest order state."
+                          : "Cancellation was rejected. Check the latest order state."
+                        : result === "confirmed"
+                          ? "Order processing confirmed. Check the latest account state."
+                          : "Order was not accepted. Check your order state.",
+                    ),
+                  )
+                  realtime.refresh()
+                })
+                .catch((reason: unknown) => {
+                  if (String(loadSession()?.user.userId ?? "") === original.userId)
+                    setActionMessage(readError(reason))
+                })
+                .finally(() => setChecking(false))
+            }}
+          >
+            {t(pending.cancelOrderId ? "Check cancellation result" : "Check order result")}
+          </Button>
+        </div>
+      )}
       <div className="history-actions">
         <div className="inline-form">
           <input
@@ -250,7 +315,7 @@ export function OrdersPage() {
           />
           <Button
             tone="outline"
-            disabled={!session || tab !== "open"}
+            disabled={commandPending || !session || tab !== "open"}
             onClick={() => {
               if (!session) return
               const countdownMs = Math.max(0, Math.min(120000, Number(countdown) || 0))
@@ -582,6 +647,7 @@ export function OrdersPage() {
           />
         ) : (
           <OrderTable
+            commandPending={commandPending}
             rows={displayRows}
             canCancel={tab === "open"}
             productLine={productLine}
@@ -1100,6 +1166,7 @@ function labelFor(value: string): string {
 }
 
 function OrderTable({
+  commandPending,
   rows,
   canCancel,
   productLine,
@@ -1107,6 +1174,7 @@ function OrderTable({
 }: {
   readonly rows: readonly RecordRow[]
   readonly canCancel: boolean
+  readonly commandPending: boolean
   readonly productLine: ProductLine
   readonly onDone: (message: string) => void
 }) {
@@ -1134,6 +1202,7 @@ function OrderTable({
               key={text(row, "orderId") || String(index)}
               row={row}
               canCancel={canCancel}
+              commandPending={commandPending}
               productLine={productLine}
               onDone={onDone}
             />
@@ -1144,6 +1213,7 @@ function OrderTable({
   )
 }
 function OrderRow({
+  commandPending,
   row,
   canCancel,
   productLine,
@@ -1151,6 +1221,7 @@ function OrderRow({
 }: {
   readonly row: RecordRow
   readonly canCancel: boolean
+  readonly commandPending: boolean
   readonly productLine: ProductLine
   readonly onDone: (message: string) => void
 }) {
@@ -1178,7 +1249,7 @@ function OrderRow({
           <Button
             tone="negative"
             loading={busy}
-            disabled={!orderId}
+            disabled={commandPending || !orderId}
             onClick={() => {
               if (!orderId || !window.confirm(t("Cancel this order?"))) return
               setBusy(true)

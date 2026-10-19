@@ -1015,5 +1015,12 @@
   "Order result is pending. Do not submit it again.": "委托结果待确认，请勿重复提交。",
   "Order processing confirmed. Check the latest account state.": "委托处理结果已确认，请查看最新账户状态。",
   "Order was not accepted. Check your order state.": "委托未被接受，请检查订单状态。",
-  "Check order result": "查询委托结果"
+  "Check order result": "查询委托结果",
+  "Cannot save cancellation recovery details. No cancellation was sent.": "无法保存撤单恢复资料，未发送撤单。",
+  "Check cancellation result": "查询撤单结果",
+  "Cancellation processing confirmed. Check the latest order state.": "撤单处理结果已确认，请查看最新订单状态。",
+  "Cancellation was rejected. Check the latest order state.": "撤单请求被拒绝，请查看最新订单状态。",
+  "Cancellation result is pending. Do not send it again.": "撤单结果待确认，请勿重复提交。",
+  "Cancellation details do not match. Check the original order again.": "撤单资料不匹配，请重新查询原订单。",
+  "Cancellation result is unavailable. Please check again.": "暂时无法确认撤单结果，请重新查询。"
 }
