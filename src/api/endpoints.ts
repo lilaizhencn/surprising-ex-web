@@ -1,3 +1,10 @@
+export { continueCancellationPlan } from "./cancellation"
+
+import { cancelSpotBatchOrders, cancelSpotOpenOrders } from "./cancellation"
+import { isDefinitiveOrderRejection, PendingTradingCommand } from "./tradingCommand"
+
+export { isDefinitiveOrderRejection, PendingTradingCommand } from "./tradingCommand"
+
 import { z } from "zod"
 import { t } from "../i18n"
 import {
@@ -851,31 +858,6 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
   )
 }
 
-export class PendingTradingCommand extends ApiError {
-  constructor(
-    readonly commandId?: string,
-    message = t("Order result is pending. Do not submit it again."),
-  ) {
-    super(message, 202)
-  }
-}
-
-export function isDefinitiveOrderRejection(reason: unknown): boolean {
-  if (!(reason instanceof ApiError)) return false
-  const receipt = GenericObjectSchema.safeParse(reason.payload)
-  if (
-    receipt.success &&
-    typeof receipt.data["commandId"] === "string" &&
-    typeof receipt.data["code"] === "string" &&
-    (receipt.data["outcome"] === "NOT_ACCEPTED" ||
-      (receipt.data["outcome"] === "TERMINAL" && receipt.data["code"] !== "NONE"))
-  )
-    return true
-  return (
-    reason.status >= 400 && reason.status < 500 && ![408, 409, 425, 429].includes(reason.status)
-  )
-}
-
 /** Resolve original submissions and cancellations from realtime-owned views only. */
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
   if (pending.amendRequestId) {
@@ -1222,6 +1204,7 @@ export function cancelOpenOrders(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
+  if (productLine === "SPOT") return cancelSpotOpenOrders(body)
   return request("/api/v1/gateway/trading/cancel-open", GenericObjectSchema, {
     method: "POST",
     productLine,
@@ -1233,6 +1216,7 @@ export function cancelBatchOrders(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
+  if (productLine === "SPOT") return cancelSpotBatchOrders(body)
   return request("/api/v1/gateway/trading/batch-cancel", GenericObjectSchema, {
     method: "POST",
     productLine,

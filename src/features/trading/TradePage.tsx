@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client"
 import {
   cancelTriggerOrder,
   checkOrderSubmission,
+  continueCancellationPlan,
   loadAssetScales,
   loadCandles,
   loadEffectiveTradingFee,
@@ -1272,8 +1273,19 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const checkPendingCommand = async () => {
     if (!pendingCommand || !pendingForUser || submitState === "loading") return
     const pending = pendingCommand
+    let settledState: "idle" | "error" = "idle"
+    setError(null)
     setSubmitState("loading")
     try {
+      if (pending.cancelPlan) {
+        const result = await continueCancellationPlan(pending)
+        if (String(loadSession()?.user.userId ?? "") !== pending.userId) return
+        setPendingCommand(readPendingCommand(pending.userId))
+        if (result.failed) settledState = "error"
+        notify(result.message)
+        realtime.refresh()
+        return
+      }
       const result = await checkOrderSubmission(pending)
       if (String(loadSession()?.user.userId ?? "") !== pending.userId) return
       if (result !== "pending") {
@@ -1297,9 +1309,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         realtime.refresh()
       } else notify(t("Order result is pending. Do not submit it again."))
     } catch (reason) {
+      settledState = "error"
       notify(readError(reason))
     } finally {
-      setSubmitState("idle")
+      setSubmitState(settledState)
     }
   }
   const refresh = () => {
@@ -2268,17 +2281,25 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           )}
           {pendingForUser && (
             <div role="status">
-              <p>{t("Order result is pending. Do not submit it again.")}</p>
+              <p>
+                {t(
+                  pendingCommand?.cancelPlan
+                    ? "Cancellation results are pending. Check and continue the original request."
+                    : "Order result is pending. Do not submit it again.",
+                )}
+              </p>
               <Button
                 loading={submitState === "loading"}
                 onClick={() => void checkPendingCommand()}
               >
                 {t(
-                  pendingCommand?.amendRequestId
-                    ? "Check amendment result"
-                    : pendingCommand?.cancelOrderId
-                      ? "Check cancellation result"
-                      : "Check order result",
+                  pendingCommand?.cancelPlan
+                    ? "Check and continue cancellations"
+                    : pendingCommand?.amendRequestId
+                      ? "Check amendment result"
+                      : pendingCommand?.cancelOrderId
+                        ? "Check cancellation result"
+                        : "Check order result",
                 )}
               </Button>
             </div>

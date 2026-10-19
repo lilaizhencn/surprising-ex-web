@@ -175,3 +175,11 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 `api/endpoints.ts.amendOrder` 显式发送后端必填的 clientRequestId，并在 POST 前持久保存请求号、原订单、新客户订单号、交易对和产品；存储失败不发送。只有匹配的已撤原单与有效新单才确认即时响应，异常、空响应及未决回执保持锁定。刷新后只查 realtime 的 `/api/v1/gateway/trading/amendments`，不重发 POST，不用新单是否存在推断原改单结果。高级操作的单笔改单也使用同一身份契约。
 
 188 项测试、lint/build 通过；旧代码把 RESULT_UNKNOWN 当作成功已复现。八组浏览器检查覆盖交易页/订单页、1440/390px、深浅主题，验证原剩余数量、步长校验、发送前保存、64 位订单号、断响应/刷新和只读恢复；每组一条 POST、两次 GET，页面和弹窗均无横向溢出。先发布新 gateway，且此前 realtime 回执迁移/导出/历史回补已完成。本轮为受控 API/WS，没有部署或验收完整 FUSED 实栈；批量操作和其他产品仍待继续。见 [记录](docs/validation/spot-amendment-20261019.json)。
+
+### 现货全部与批量撤单（2026-10-19）
+
+交易页按“仅当前交易对”选择范围，`api/cancellation.ts` 从 realtime 获取一次完整固定目标，不受列表分页和 1000 笔上限影响；订单页高级操作显式携带后端必填 `batchKey`。发送前持久保存全部 ID、批次键与发送断点，每批最多 50 笔；按逐项结果显示成功、失败及失败订单，不把顶层 NONE 当作全成功。无法读取当前交易对时禁用当前对全部撤单。
+
+响应未知或刷新后，交易页/订单页显示“确认并继续撤单”。该操作 GET 查询已发送批次，确认后继续原计划尚未发送的批次；不重发原批，不把新订单加入原计划。存储失败不发送、查询异常/回执不匹配不解锁，同账户多标签使用 Web Locks 串行执行；不支持锁的浏览器明确拒绝发送。账户切换保留原账户断点。
+
+先按后端说明执行 `20261019-cancel-batch-results.sql`、更新 realtime 并按需使用新的独立 `.command-repair` checkpoint 回补旧批次，再发布 gateway，最后发布两端。未部署完整 FUSED 实栈；其他产品、旧直接聚合端点与批量下单/改单仍需逐项验收。见 [验证记录](docs/validation/spot-bulk-cancellation-20261019.json)。

@@ -1,0 +1,1404 @@
+{
+  "date": "2026-10-19",
+  "scope": "SPOT fixed-target bulk cancellation and resumable unissued batches",
+  "releaseOrder": [
+    "apply 20261019-cancel-batch-results.sql after the prior receipt-table migration",
+    "upgrade realtime; for historical batch receipts create a NEW independent .command-repair checkpoint and backfill retained log prefix to a fixed bound",
+    "verify target batch facts then publish gateway",
+    "publish Web/client; do not reset live exporter or republish Kafka"
+  ],
+  "limits": [
+    "SPOT UI only; shared identity/plan services tested across the six product enum values.",
+    "Controlled browser API/WS and real loopback client HTTP are not a full FUSED deployment. No native iOS/Android installation in this round.",
+    "Missing commit facts retain unknown state. A request which never reached Core cannot be inferred rejected.",
+    "Existing direct server cancel-open aggregation and client low-level direct helper, algo/trigger bulk paths, batch place/amend and other product UIs remain outside this round.",
+    "Web requires Web Locks; unsupported browsers send no cancellation. Current account/order views remain authoritative after a receipt is confirmed."
+  ],
+  "cleanup": {
+    "status": "complete; owned database dropped, Vite stopped, browser exited, owned temporary logs/scripts/screenshots and selected test reports removed after digest archive",
+    "ownedDatabase": "surprising_bulk_3961793428",
+    "ownedVitePid": 13783,
+    "ownedVitePort": 5197,
+    "browserContexts": "all eight closed; Chromium process exited",
+    "paths": [
+      "/tmp/surprising-bulk-backend-final.log",
+      "/tmp/surprising-bulk-backend-green.log",
+      "/tmp/surprising-bulk-backend.log",
+      "/tmp/surprising-bulk-browser-error.png",
+      "/tmp/surprising-bulk-browser-error.txt",
+      "/tmp/surprising-bulk-browser.json",
+      "/tmp/surprising-bulk-browser.log",
+      "/tmp/surprising-bulk-browser.mjs",
+      "/tmp/surprising-bulk-client-all-tests.log",
+      "/tmp/surprising-bulk-client-analyze.log",
+      "/tmp/surprising-bulk-client-fix.log",
+      "/tmp/surprising-bulk-client-format.log",
+      "/tmp/surprising-bulk-client-red.log",
+      "/tmp/surprising-bulk-client-test.log",
+      "/tmp/surprising-bulk-compile.log",
+      "/tmp/surprising-bulk-gateway-final.log",
+      "/tmp/surprising-bulk-gateway-green.log",
+      "/tmp/surprising-bulk-migration.log",
+      "/tmp/surprising-bulk-orders-1440-dark.png",
+      "/tmp/surprising-bulk-orders-1440-light.png",
+      "/tmp/surprising-bulk-orders-390-dark.png",
+      "/tmp/surprising-bulk-orders-390-light.png",
+      "/tmp/surprising-bulk-owned-db",
+      "/tmp/surprising-bulk-package.log",
+      "/tmp/surprising-bulk-report-cleanup.json",
+      "/tmp/surprising-bulk-reports.json",
+      "/tmp/surprising-bulk-trade-1440-dark.png",
+      "/tmp/surprising-bulk-trade-1440-light.png",
+      "/tmp/surprising-bulk-trade-390-dark.png",
+      "/tmp/surprising-bulk-trade-390-light.png",
+      "/tmp/surprising-bulk-vite.log",
+      "/tmp/surprising-bulk-web-all-tests.log",
+      "/tmp/surprising-bulk-web-build.log",
+      "/tmp/surprising-bulk-web-final-build.log",
+      "/tmp/surprising-bulk-web-final-format.log",
+      "/tmp/surprising-bulk-web-final-lint.log",
+      "/tmp/surprising-bulk-web-final-tests.log",
+      "/tmp/surprising-bulk-web-format.log",
+      "/tmp/surprising-bulk-web-last-build.log",
+      "/tmp/surprising-bulk-web-last-format.log",
+      "/tmp/surprising-bulk-web-last-lint.log",
+      "/tmp/surprising-bulk-web-last-tests.log",
+      "/tmp/surprising-bulk-web-lint.log",
+      "/tmp/surprising-bulk-web-test.log",
+      "/tmp/surprising-bulk-web-type.log",
+      "/tmp/surprising-bulk-web-ui-format.log"
+    ],
+    "preserved": [
+      "system PostgreSQL process and all other databases",
+      "unrelated social project processes/tests",
+      "dependency caches/build dependencies and existing .codegraph metadata"
+    ],
+    "generatedReportsRemoved": [
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-aeron-core/surprising-aeron-service/target/surefire-reports/TEST-com.surprising.aeron.service.orchestration.CommittedTradeReplayTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-aeron-core/surprising-aeron-service/target/surefire-reports/com.surprising.aeron.service.orchestration.CommittedTradeReplayTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-aeron-core/surprising-aeron-service/target/surefire-reports/TEST-com.surprising.aeron.service.orchestration.CoreSpotAssetUnitsTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-aeron-core/surprising-aeron-service/target/surefire-reports/com.surprising.aeron.service.orchestration.CoreSpotAssetUnitsTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/TEST-com.surprising.realtime.provider.export.ExportBatchTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/com.surprising.realtime.provider.export.ExportBatchTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/TEST-com.surprising.realtime.provider.export.CommittedFundingRepairIntegrationTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/com.surprising.realtime.provider.export.CommittedFundingRepairIntegrationTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/TEST-com.surprising.realtime.provider.export.CommittedTradeExportIntegrationTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/com.surprising.realtime.provider.export.CommittedTradeExportIntegrationTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/TEST-com.surprising.realtime.provider.export.CommittedOrderProjectionPostgresTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-realtime/surprising-realtime-provider/target/surefire-reports/com.surprising.realtime.provider.export.CommittedOrderProjectionPostgresTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.repository.CommittedCommandResultQueryPostgresTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/com.surprising.trading.order.repository.CommittedCommandResultQueryPostgresTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.controller.OrderControllerTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/com.surprising.trading.order.controller.OrderControllerTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.service.OrderServiceTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/com.surprising.trading.order.service.OrderServiceTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/TEST-com.surprising.gateway.provider.local.LocalBusinessApiTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/com.surprising.gateway.provider.local.LocalBusinessApiTest.txt",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.service.AeronOrderCommandServiceTest.xml",
+      "/Users/atomex/Desktop/surprising/surprising-ex/surprising-gateway/target/surefire-reports/com.surprising.trading.order.service.AeronOrderCommandServiceTest.txt"
+    ]
+  },
+  "verification": {
+    "tests": 204,
+    "failures": 0,
+    "lint": "npm run lint exit 0; existing informational literal-key hints retained",
+    "build": "npm run build exit 0; existing large-chunk notice retained",
+    "browser": "Eight real Chromium cases with controlled REST/WS: trade/spot and orders, 1440/390px, dark/light. Response aborted after persisted issued marker; unknown GET keeps lock; terminal GET confirms same key/targets; only unsent chunk POSTs. No horizontal overflow or page errors.",
+    "scenarios": [
+      "120 fixed 64-bit targets -> 50/50/20, unique keys, partial counts",
+      "cold storage restore and no target re-fetch",
+      "persistence failure before intent, issued marker, command ID and confirmed prefix",
+      "malformed/mismatched/lookup400/503 receipt keeps issued request locked",
+      "GET409 full terminal rejection returns per-item failure",
+      "account isolation, Web Locks serialization, empty or wrong scope, unsupported lock sends nothing"
+    ],
+    "browserCases": [
+      {
+        "path": "/trade/spot",
+        "width": 1440,
+        "theme": "dark",
+        "posts": [
+          {
+            "batchKey": "cancel-4b03941c-543e-4662-94ca-b77fc1971791",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740995"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740996"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740997"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740998"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740999"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741000"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741001"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741002"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741003"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741004"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741005"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741006"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741007"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741008"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741009"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741010"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741011"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741012"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741013"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741014"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741015"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741016"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741017"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741018"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741019"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741020"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741021"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741022"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741023"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741024"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741025"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741026"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741027"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741028"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741029"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741030"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741031"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741032"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741033"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741034"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741035"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741036"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741037"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741038"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741039"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741040"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741041"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741042"
+              }
+            ]
+          },
+          {
+            "batchKey": "cancel-566f4e64-72b4-4e88-8657-b503444d8724",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254741043"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-4b03941c-543e-4662-94ca-b77fc1971791"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-4b03941c-543e-4662-94ca-b77fc1971791"
+          }
+        ],
+        "plans": [
+          {
+            "userId": "1",
+            "instrumentId": "1"
+          }
+        ],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/trade/spot",
+        "width": 1440,
+        "theme": "light",
+        "posts": [
+          {
+            "batchKey": "cancel-52665593-eb40-4e90-9cc8-df8300e48453",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740995"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740996"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740997"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740998"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740999"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741000"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741001"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741002"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741003"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741004"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741005"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741006"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741007"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741008"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741009"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741010"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741011"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741012"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741013"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741014"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741015"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741016"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741017"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741018"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741019"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741020"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741021"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741022"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741023"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741024"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741025"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741026"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741027"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741028"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741029"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741030"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741031"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741032"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741033"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741034"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741035"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741036"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741037"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741038"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741039"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741040"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741041"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741042"
+              }
+            ]
+          },
+          {
+            "batchKey": "cancel-eaa9be2d-80ff-47d9-872a-0ed25db57c76",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254741043"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-52665593-eb40-4e90-9cc8-df8300e48453"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-52665593-eb40-4e90-9cc8-df8300e48453"
+          }
+        ],
+        "plans": [
+          {
+            "userId": "1",
+            "instrumentId": "1"
+          }
+        ],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/trade/spot",
+        "width": 390,
+        "theme": "dark",
+        "posts": [
+          {
+            "batchKey": "cancel-7e83f3b1-c3fb-4a70-825a-6c501be9a022",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740995"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740996"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740997"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740998"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740999"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741000"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741001"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741002"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741003"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741004"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741005"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741006"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741007"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741008"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741009"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741010"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741011"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741012"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741013"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741014"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741015"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741016"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741017"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741018"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741019"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741020"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741021"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741022"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741023"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741024"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741025"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741026"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741027"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741028"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741029"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741030"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741031"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741032"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741033"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741034"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741035"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741036"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741037"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741038"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741039"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741040"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741041"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741042"
+              }
+            ]
+          },
+          {
+            "batchKey": "cancel-7bdc9f2a-f717-489c-9a32-6f80e3f56438",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254741043"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-7e83f3b1-c3fb-4a70-825a-6c501be9a022"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-7e83f3b1-c3fb-4a70-825a-6c501be9a022"
+          }
+        ],
+        "plans": [
+          {
+            "userId": "1",
+            "instrumentId": "1"
+          }
+        ],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/trade/spot",
+        "width": 390,
+        "theme": "light",
+        "posts": [
+          {
+            "batchKey": "cancel-1ae1ab6b-5b60-4143-a77e-0b8c53222fcf",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740995"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740996"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740997"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740998"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740999"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741000"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741001"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741002"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741003"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741004"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741005"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741006"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741007"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741008"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741009"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741010"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741011"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741012"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741013"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741014"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741015"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741016"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741017"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741018"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741019"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741020"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741021"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741022"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741023"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741024"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741025"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741026"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741027"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741028"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741029"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741030"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741031"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741032"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741033"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741034"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741035"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741036"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741037"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741038"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741039"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741040"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741041"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254741042"
+              }
+            ]
+          },
+          {
+            "batchKey": "cancel-9fe63626-856d-46e3-80ad-f3e050dfa03a",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254741043"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-1ae1ab6b-5b60-4143-a77e-0b8c53222fcf"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-1ae1ab6b-5b60-4143-a77e-0b8c53222fcf"
+          }
+        ],
+        "plans": [
+          {
+            "userId": "1",
+            "instrumentId": "1"
+          }
+        ],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/orders",
+        "width": 1440,
+        "theme": "dark",
+        "posts": [
+          {
+            "batchKey": "cancel-4fea056f-25c7-47eb-b504-96c423244ee9",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-4fea056f-25c7-47eb-b504-96c423244ee9"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-4fea056f-25c7-47eb-b504-96c423244ee9"
+          }
+        ],
+        "plans": [],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/orders",
+        "width": 1440,
+        "theme": "light",
+        "posts": [
+          {
+            "batchKey": "cancel-4184fd9a-7fbf-448c-b870-3dc6e9ef0256",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-4184fd9a-7fbf-448c-b870-3dc6e9ef0256"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-4184fd9a-7fbf-448c-b870-3dc6e9ef0256"
+          }
+        ],
+        "plans": [],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/orders",
+        "width": 390,
+        "theme": "dark",
+        "posts": [
+          {
+            "batchKey": "cancel-f7603727-5fe2-4b7c-b314-406d09bd5684",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-f7603727-5fe2-4b7c-b314-406d09bd5684"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-f7603727-5fe2-4b7c-b314-406d09bd5684"
+          }
+        ],
+        "plans": [],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      },
+      {
+        "path": "/orders",
+        "width": 390,
+        "theme": "light",
+        "posts": [
+          {
+            "batchKey": "cancel-2fcf674e-07d5-4b79-8828-1a2a278e7a71",
+            "orders": [
+              {
+                "userId": "1",
+                "orderId": "9007199254740993"
+              },
+              {
+                "userId": "1",
+                "orderId": "9007199254740994"
+              }
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "userId": "1",
+            "batchKey": "cancel-2fcf674e-07d5-4b79-8828-1a2a278e7a71"
+          },
+          {
+            "userId": "1",
+            "batchKey": "cancel-2fcf674e-07d5-4b79-8828-1a2a278e7a71"
+          }
+        ],
+        "plans": [],
+        "unknownRemainedLocked": true,
+        "confirmedUnlocked": true,
+        "overflow": false,
+        "errors": []
+      }
+    ],
+    "visualInspection": [
+      "Final mobile dark trade screenshot: partial result uses updated red toast, no contradictory pending toast or reload prompt.",
+      "Final mobile light orders screenshot: advanced controls and full 64-bit IDs fit page; partial counts visible."
+    ],
+    "newBoundaries": "cancellation.ts owns persisted fixed-target operation and Web Locks. tradingCommand.ts holds the existing shared receipt/error contract to avoid a circular import; no generic execution framework."
+  },
+  "artifacts": {
+    "surprising-bulk-browser-error.png": {
+      "historicalPath": "/tmp/surprising-bulk-browser-error.png",
+      "sha256": "718bb32e38137a5d17caa7ccb4f94062900e621bd9c25951f5ed7da26fcf8231",
+      "bytes": 118032,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-browser-error.txt": {
+      "historicalPath": "/tmp/surprising-bulk-browser-error.txt",
+      "sha256": "26d2cf1ac9a559c2d35ea3f4912516e21ead535e964ca73b60f2b649b4a0c301",
+      "bytes": 885,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-browser.json": {
+      "historicalPath": "/tmp/surprising-bulk-browser.json",
+      "sha256": "ecb651681e0a45419ab87714cf3279ca36f1b6b5bd36c94fa5623536366c19d4",
+      "bytes": 25198,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-browser.log": {
+      "historicalPath": "/tmp/surprising-bulk-browser.log",
+      "sha256": "ef78878c7754d3022beb76a505fe9c23abe43e801a950176af49839dda91d656",
+      "bytes": 35566,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-browser.mjs": {
+      "historicalPath": "/tmp/surprising-bulk-browser.mjs",
+      "sha256": "bd54a0372773597815665fa37656daaddfd8916cca1917089b68c3df223d83df",
+      "bytes": 8098,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-orders-1440-dark.png": {
+      "historicalPath": "/tmp/surprising-bulk-orders-1440-dark.png",
+      "sha256": "5ccd26fb04445bf143fc6ba6f7a1a35345539740501955c18e96dacd55b5eaee",
+      "bytes": 146211,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-orders-1440-light.png": {
+      "historicalPath": "/tmp/surprising-bulk-orders-1440-light.png",
+      "sha256": "13b1b5964364a9c16bff0306ed943447a929ded52c3b5a6185056a3812c13954",
+      "bytes": 145132,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-orders-390-dark.png": {
+      "historicalPath": "/tmp/surprising-bulk-orders-390-dark.png",
+      "sha256": "4d380166c17665a97eac5f259503c802f9d814b124ad09bb983e019f97dd5c97",
+      "bytes": 107668,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-orders-390-light.png": {
+      "historicalPath": "/tmp/surprising-bulk-orders-390-light.png",
+      "sha256": "1489bf3be4b2bf2c6bf600e80b43eefe9ba18aeb157e5fed24a8ec0155068d7c",
+      "bytes": 105851,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-trade-1440-dark.png": {
+      "historicalPath": "/tmp/surprising-bulk-trade-1440-dark.png",
+      "sha256": "5cc21d0b6b4a5613a0580fba2252260247b9def82fcd95ae0bfb4f479fee823c",
+      "bytes": 117308,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-trade-1440-light.png": {
+      "historicalPath": "/tmp/surprising-bulk-trade-1440-light.png",
+      "sha256": "60bc687b484826e5da69f4821832d3aebfd97865a2a9f6f126c7240ec970f568",
+      "bytes": 116425,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-trade-390-dark.png": {
+      "historicalPath": "/tmp/surprising-bulk-trade-390-dark.png",
+      "sha256": "b32195911583d40dc48696aa2b1cee7a7d89b421f8acbe905af52356f779e5cf",
+      "bytes": 93292,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-trade-390-light.png": {
+      "historicalPath": "/tmp/surprising-bulk-trade-390-light.png",
+      "sha256": "2e4e2d695cd883c783248b760d42451e6aaa1389c7956870a2c961a1560a2624",
+      "bytes": 92403,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-vite.log": {
+      "historicalPath": "/tmp/surprising-bulk-vite.log",
+      "sha256": "2608fbf13cc86616c8fa7a0b6733a6fc615bd3118bf6dd9a07adca51f23a5fd2",
+      "bytes": 464,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-all-tests.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-all-tests.log",
+      "sha256": "90bd16568a2e8db20bb9e18c16af7a2e0dc0126fc8a38fcad476dd98935990d9",
+      "bytes": 288,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-build.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-build.log",
+      "sha256": "3972094c3eb77389c541b17f2edeba976ff214b1cbfc37d5e5f0fa4dd1fb39e2",
+      "bytes": 3274,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-final-build.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-final-build.log",
+      "sha256": "e4a5c791ec6572c1e2aa009a1d2f108b5318112fcb71833714921b0a87fb5968",
+      "bytes": 3274,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-final-format.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-final-format.log",
+      "sha256": "c54f7bb8a6a883d2b117950d739fc0a31e994f2423bc3ad6ed3b8d44a42035a2",
+      "bytes": 14573,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-final-lint.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-final-lint.log",
+      "sha256": "5691bf0474f97d57c4d8190d6c7eee21c68fbf9afb40f0ad5a2c8954148d24fd",
+      "bytes": 19253,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-final-tests.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-final-tests.log",
+      "sha256": "f01b9d7d93b93d3fb5852e818a8d57f7c980b5715849220c2bbea97c5156da8d",
+      "bytes": 288,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-format.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-format.log",
+      "sha256": "caf0355ff13c675a4b7840464b347f0165fd9a30b8368505607b8524c2465200",
+      "bytes": 38,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-last-build.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-last-build.log",
+      "sha256": "2da18fb6df971fc68e1b56f79c7644c359c9ddab348bf77ff9c29c9c9bb137dd",
+      "bytes": 3274,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-last-format.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-last-format.log",
+      "sha256": "7c219dcf1c888aae29e8de95f9dd964b1c2d144933725ef10ae16ee21316b3bb",
+      "bytes": 10843,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-last-lint.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-last-lint.log",
+      "sha256": "445ae55276304e3fdcd5b14ef20692b3f8c167af4454c9cc96f2ab138cba04f1",
+      "bytes": 19253,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-last-tests.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-last-tests.log",
+      "sha256": "d5dcaaf331cfd9ea584f5e527bc6d8a19c477911b35d3d7217d1c1ef31cc7292",
+      "bytes": 288,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-lint.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-lint.log",
+      "sha256": "ea503a1210c505124740d9fe3c786265c1c61d08620a591808ad6d07c47cb290",
+      "bytes": 19253,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-test.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-test.log",
+      "sha256": "d11439148337e920c18c23f3069256ad4482d732c158e3bc967b9514c3f3e892",
+      "bytes": 236,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-type.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-type.log",
+      "sha256": "28151c3ea8607c70d336e2411d9d846f0256865ee60b5ed04f089f44b9aaca8a",
+      "bytes": 62,
+      "status": "archived digest; owned temporary file removed after validation"
+    },
+    "surprising-bulk-web-ui-format.log": {
+      "historicalPath": "/tmp/surprising-bulk-web-ui-format.log",
+      "sha256": "6f34ca5768e8a6c9743583dfbf6e0a92a5340c5ab43afd007c337942a9c86c22",
+      "bytes": 10847,
+      "status": "archived digest; owned temporary file removed after validation"
+    }
+  },
+  "backendCommit": "888f58d6d12f9dedd936fdbd8a04eb7df664e7f8"
+}

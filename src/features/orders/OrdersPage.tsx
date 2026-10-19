@@ -12,6 +12,7 @@ import {
   cancelTriggerOrder,
   checkOrderSubmission,
   closePosition,
+  continueCancellationPlan,
   loadAccountLedger,
   loadAssetScales,
   loadMarkets,
@@ -215,8 +216,16 @@ export function OrdersPage() {
     setLoading(true)
     setActionMessage("")
     try {
-      await operation()
-      setActionMessage(success)
+      const result = await operation()
+      if (String(loadSession()?.user.userId ?? "") !== String(session?.user.userId ?? "")) return
+      setActionMessage(
+        result &&
+          typeof result === "object" &&
+          "message" in result &&
+          typeof result.message === "string"
+          ? result.message
+          : success,
+      )
       load()
     } catch (reason: unknown) {
       setActionMessage(readError(reason))
@@ -266,9 +275,11 @@ export function OrdersPage() {
         <div className="form-message" role="status">
           <p>
             {t(
-              pending.cancelOrderId
-                ? "Cancellation result is pending. Do not send it again."
-                : "Order result is pending. Do not submit it again.",
+              pending.cancelPlan
+                ? "Cancellation results are pending. Check and continue the original request."
+                : pending.cancelOrderId
+                  ? "Cancellation result is pending. Do not send it again."
+                  : "Order result is pending. Do not submit it again.",
             )}
           </p>
           <Button
@@ -277,8 +288,18 @@ export function OrdersPage() {
               if (!pending) return
               const original = pending
               setChecking(true)
-              void checkOrderSubmission(original)
+              const task = original.cancelPlan
+                ? continueCancellationPlan(original).then((result) => {
+                    if (String(loadSession()?.user.userId ?? "") === original.userId) {
+                      setActionMessage(result.message)
+                      realtime.refresh()
+                    }
+                    return "handled" as const
+                  })
+                : checkOrderSubmission(original)
+              void task
                 .then((result) => {
+                  if (result === "handled") return
                   if (String(loadSession()?.user.userId ?? "") !== original.userId) return
                   if (result === "pending") return
                   clearPendingCommand(original)
@@ -307,11 +328,13 @@ export function OrdersPage() {
             }}
           >
             {t(
-              pending.amendRequestId
-                ? "Check amendment result"
-                : pending.cancelOrderId
-                  ? "Check cancellation result"
-                  : "Check order result",
+              pending.cancelPlan
+                ? "Check and continue cancellations"
+                : pending.amendRequestId
+                  ? "Check amendment result"
+                  : pending.cancelOrderId
+                    ? "Check cancellation result"
+                    : "Check order result",
             )}
           </Button>
         </div>
@@ -448,7 +471,7 @@ export function OrdersPage() {
                     value={market.instrumentId}
                     data-search={market.symbol}
                   >
-                    {market.symbol} · {market.instrumentId}
+                    {`${market.symbol} · ${market.instrumentId}`}
                   </option>
                 ))}
               </DropdownSelect>
@@ -789,8 +812,16 @@ function AdvancedTradingActions({
     }
     setBusy(true)
     try {
-      await operation()
-      onDone(success)
+      const result = await operation()
+      if (String(loadSession()?.user.userId ?? "") !== String(session.user.userId)) return
+      onDone(
+        result &&
+          typeof result === "object" &&
+          "message" in result &&
+          typeof result.message === "string"
+          ? result.message
+          : success,
+      )
     } catch (reason: unknown) {
       onDone(readError(reason))
     } finally {
@@ -834,7 +865,7 @@ function AdvancedTradingActions({
             inputMode="numeric"
           />
         </Field>
-        <Field label={t("Order IDs for batch cancel (integers)")}>
+        <Field label={t("Order IDs for batch cancel (comma separated, up to 50)")}>
           <input
             value={batchOrderIds}
             onChange={(event) => setBatchOrderIds(event.target.value)}

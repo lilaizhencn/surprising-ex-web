@@ -12,6 +12,7 @@ import {
   type Row,
   type WsEnvelope,
 } from "../../realtime"
+import { loadSession } from "../../state/session"
 import type { Market, ProductLine } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
 import { SpotAmendOrderButton } from "./SpotAmendOrderButton"
@@ -288,9 +289,24 @@ export function TradingAccountTables(props: Props) {
           <button
             type="button"
             className="button button-negative"
-            disabled={props.commandPending || cancelingAll || orderRows.length === 0}
+            disabled={
+              props.commandPending ||
+              cancelingAll ||
+              orderRows.length === 0 ||
+              (onlyCurrent && !market?.instrumentId)
+            }
             onClick={() => {
-              if (!window.confirm(t("Cancel all open orders for this product line?"))) return
+              if (onlyCurrent && !market?.instrumentId) return
+              if (
+                !window.confirm(
+                  t(
+                    onlyCurrent
+                      ? "Cancel all open orders for the current pair?"
+                      : "Cancel all open orders for this product line?",
+                  ),
+                )
+              )
+                return
               setCancelingAll(true)
               void cancelOpenOrders(
                 {
@@ -301,8 +317,24 @@ export function TradingAccountTables(props: Props) {
                 productLine,
               )
                 .then(
-                  () => onNotice(t("Batch cancellation requested."), false),
-                  () => onNotice(t("Order service unavailable. Please retry later."), true),
+                  (result) => {
+                    if (String(loadSession()?.user.userId ?? "") !== String(userId)) return
+                    onNotice(
+                      typeof result["message"] === "string"
+                        ? result["message"]
+                        : t("Batch cancellation requested."),
+                      Number(result["failed"] ?? 0) > 0,
+                    )
+                  },
+                  (reason) => {
+                    if (String(loadSession()?.user.userId ?? "") === String(userId))
+                      onNotice(
+                        reason instanceof Error
+                          ? reason.message
+                          : t("Order service unavailable. Please retry later."),
+                        true,
+                      )
+                  },
                 )
                 .finally(() => setCancelingAll(false))
             }}
