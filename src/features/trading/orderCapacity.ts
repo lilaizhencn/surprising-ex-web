@@ -122,8 +122,30 @@ export function spotOrderQuantity({
   }
 }
 
-/** Linear delivery notional uses exchange ticks × contracts × notional multiplier in settlement units. */
-export function linearDeliveryFee(
+/** The Core notional formulas in settlement-asset units, kept as an exact fraction until rounding. */
+function contractNotional(
+  market: Market,
+  scales: Readonly<Record<string, string>>,
+  referencePrice: string,
+) {
+  const tick = BigInt(market.priceTickUnits ?? "")
+  const ticks = BigInt(
+    decimalToStepUnits(referencePrice, tick.toString(), scales[market.quoteAsset] ?? ""),
+  )
+  const multiplier = BigInt(market.notionalMultiplierUnits ?? "")
+  if (ticks <= 0n || tick <= 0n || multiplier <= 0n) throw new Error("Invalid contract notional")
+  if (market.productLine === "INVERSE_DELIVERY") {
+    const settleScale = BigInt(scales[market.settleAsset ?? ""] ?? "")
+    if (settleScale <= 0n) throw new Error("Missing settlement precision")
+    return { numerator: multiplier * settleScale, denominator: ticks * tick }
+  }
+  if (market.productLine !== "LINEAR_DELIVERY" && market.productLine !== "LINEAR_PERPETUAL")
+    throw new Error("Unsupported contract")
+  return { numerator: ticks * multiplier, denominator: 1n }
+}
+
+/** Uses the Core's HALF_UP notional and upward fee rounding; derivatives are whole contracts. */
+export function deliveryFee(
   market: Market,
   scales: Readonly<Record<string, string>>,
   referencePrice: string,
@@ -132,25 +154,19 @@ export function linearDeliveryFee(
 ): string | null {
   try {
     if (
-      market.productLine !== "LINEAR_DELIVERY" ||
+      !["LINEAR_DELIVERY", "INVERSE_DELIVERY"].includes(market.productLine) ||
       rate === null ||
       !Number.isSafeInteger(rate) ||
       rate < 0 ||
       rate > 1_000_000
     )
       return null
-    const ticks = BigInt(
-      decimalToStepUnits(
-        referencePrice,
-        market.priceTickUnits ?? "",
-        scales[market.quoteAsset] ?? "",
-      ),
-    )
     const contracts = BigInt(decimalToStepUnits(quantity, "1", "1"))
-    const multiplier = BigInt(market.notionalMultiplierUnits ?? "")
-    if (ticks <= 0n || contracts <= 0n || multiplier <= 0n) return null
+    if (contracts <= 0n) return null
+    const { numerator, denominator } = contractNotional(market, scales, referencePrice)
+    const notional = (numerator * contracts * 2n + denominator) / (denominator * 2n)
     return stepUnitsToDecimal(
-      ((ticks * contracts * multiplier * BigInt(rate) + 999999n) / 1000000n).toString(),
+      ((notional * BigInt(rate) + 999999n) / 1000000n).toString(),
       "1",
       scales[market.settleAsset ?? market.quoteAsset] ?? "",
     )
@@ -190,8 +206,8 @@ export function spotFeeReserve(
   }
 }
 
-// Conservative display estimate for linear contracts; Core remains the order admission authority.
-export function linearOpeningCapacity({
+// Conservative display estimate; Core remains the order admission authority.
+export function contractOpeningCapacity({
   market,
   scales,
   availableUnits,
@@ -212,27 +228,32 @@ export function linearOpeningCapacity({
   orders: readonly Record<string, unknown>[]
   side: OrderSide
 }): string | null {
-  if (!["LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine)) return null
+  if (!["LINEAR_PERPETUAL", "LINEAR_DELIVERY", "INVERSE_DELIVERY"].includes(market.productLine))
+    return null
   try {
     if (availableUnits == null || !marginRatePpm || feeRatePpm == null) return null
-    const multiplier = BigInt(market.notionalMultiplierUnits ?? "")
-    const ticks = BigInt(
-      decimalToStepUnits(
-        referencePrice,
-        market.priceTickUnits ?? "",
-        scales[market.quoteAsset] ?? "",
-      ),
+    if (
+      (typeof availableUnits === "number" && !Number.isSafeInteger(availableUnits)) ||
+      !Number.isSafeInteger(marginRatePpm) ||
+      !Number.isSafeInteger(feeRatePpm) ||
+      marginRatePpm <= 0 ||
+      marginRatePpm > 1000000 ||
+      Math.abs(feeRatePpm) > 1000000
     )
-    const notional = ticks * multiplier
-    if (notional <= 0n || marginRatePpm <= 0 || !Number.isSafeInteger(feeRatePpm)) return null
-    const ceilPpm = (rate: number) => (notional * BigInt(rate) + 999999n) / 1000000n
-    const cost = ceilPpm(marginRatePpm) + ceilPpm(Math.max(0, feeRatePpm))
+      return null
+    const { numerator, denominator } = contractNotional(market, scales, referencePrice)
+    const ceilPpm = (rate: number) =>
+      (numerator * BigInt(rate) + denominator * 1000000n - 1n) / (denominator * 1000000n)
+    const roundedNotional = (numerator * 2n + denominator) / (denominator * 2n)
+    const cost =
+      ceilPpm(marginRatePpm) +
+      (roundedNotional * BigInt(Math.max(0, feeRatePpm)) + 999999n) / 1000000n
     if (cost <= 0n) return null
     const funds = BigInt(availableUnits)
     let steps = funds > 0n ? funds / cost : 0n
     const maxPosition = BigInt(market.maxPositionNotionalUnits ?? "")
     const oiFloor = BigInt(market.userOpenInterestLimitFloorUnits ?? "")
-    const cap = (maxPosition < oiFloor ? maxPosition : oiFloor) / notional
+    const cap = ((maxPosition < oiFloor ? maxPosition : oiFloor) * denominator) / numerator
     let used = 0n
     for (const position of positions) {
       if (position["instrumentId"] !== market.instrumentId) continue

@@ -91,8 +91,8 @@ import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import {
-  linearDeliveryFee,
-  linearOpeningCapacity,
+  contractOpeningCapacity,
+  deliveryFee,
   orderPositionSide,
   spotFeeReserve,
   spotOrderQuantity,
@@ -173,6 +173,8 @@ export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined):
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
   const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
+  const deliveryProduct =
+    view.line === PRODUCT_LINES.usdMDelivery || view.line === PRODUCT_LINES.coinMDelivery
   const fundingProduct =
     view.line === PRODUCT_LINES.usdMPerpetual || view.line === PRODUCT_LINES.coinMPerpetual
   const session = useSession()
@@ -387,12 +389,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (setting) setOrderSettings((previous) => ({ ...previous, marginMode: setting.marginMode }))
   }, [])
   const openingCapacity = (direction: OrderSide) => {
-    if (current?.productLine === PRODUCT_LINES.usdMDelivery && current.status !== "TRADING")
-      return "0"
+    if (deliveryProduct && current?.status !== "TRADING") return "0"
     if (!current || !leverageSetting || !userFees) return ""
     const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
     return (
-      linearOpeningCapacity({
+      contractOpeningCapacity({
         market: current,
         scales: assetScales,
         availableUnits: balance?.availableUnits,
@@ -462,7 +463,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const level = direction === "BUY" ? book?.asks?.[0] : book?.bids?.[0]
     const reference =
       orderType === "LIMIT" && !useBbo ? price : level ? String(levelPrice(level)) : ""
-    const fee = linearDeliveryFee(
+    const fee = deliveryFee(
       current,
       assetScales,
       reference,
@@ -726,7 +727,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           .map(mapMarket)
           .filter((market) => market.productLine === view.line)
         if (
-          view.line === PRODUCT_LINES.usdMDelivery &&
+          deliveryProduct &&
           requested &&
           !productMarkets.some((market) => market.instrumentId === requested)
         ) {
@@ -768,7 +769,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       window.clearInterval(timer)
       controller.abort()
     }
-  }, [view.line])
+  }, [view.line, deliveryProduct])
   useEffect(() => {
     if (!current || price) return
     const quote = marketQuotes[current.instrumentId] ?? current.price
@@ -1041,7 +1042,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setSubmitState("error")
       notify(
         t(
-          current?.productLine === "LINEAR_DELIVERY" && current.status === "SETTLING"
+          deliveryProduct && current?.status === "SETTLING"
             ? "This contract is settling. Only direct reduce-only orders are allowed."
             : "Trading is not enabled for this contract.",
         ),
@@ -1091,7 +1092,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     if (
       view.line !== PRODUCT_LINES.spot &&
       orderType !== "STOP" &&
-      !(view.line === PRODUCT_LINES.usdMDelivery && closingTicket) &&
+      !(deliveryProduct && closingTicket) &&
       !leverageSetting
     ) {
       setSubmitState("error")
@@ -1658,7 +1659,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <OptionDetails market={current} quote={optionQuote} />
           ) : null}
           {view.key === "delivery-futures" || view.key === "coin-m-delivery" ? (
-            <DeliveryDetails market={current} />
+            <DeliveryDetails market={current} scales={assetScales} />
           ) : null}
           <div className="trade-chart-toolbar">
             {["1m", "5m", "15m", "1h", "4h", "1d"].map((value) => (
@@ -1969,11 +1970,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               userId={session?.user.userId}
               instrumentId={current.instrumentId}
               productLine={view.line}
-              canChangeLeverage={
-                !(view.line === PRODUCT_LINES.usdMDelivery && current.status !== "TRADING")
-              }
+              canChangeLeverage={!(deliveryProduct && current?.status !== "TRADING")}
               onMarginModeChange={
-                view.line === PRODUCT_LINES.usdMDelivery
+                deliveryProduct
                   ? (marginMode) => setOrderSettings((previous) => ({ ...previous, marginMode }))
                   : undefined
               }
@@ -2312,7 +2311,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <span>{t("Available")}</span>
             <span className="mono">
               {session
-                ? `${displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
+                ? `${deliveryProduct ? (balanceAmount(balance, assetScales) ?? "—") : displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
                 : t("Login required")}
             </span>
             <span>
@@ -2321,7 +2320,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <span className="mono">
               {view.line === PRODUCT_LINES.spot && current
                 ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
-                : view.line === PRODUCT_LINES.usdMDelivery
+                : deliveryProduct
                   ? deliveryFeeEstimate()
                   : estimatedFee(
                       current,
@@ -2330,7 +2329,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                       numberValue(userFees, "takerFeeRatePpm"),
                     )}
             </span>
-            {view.line === PRODUCT_LINES.usdMDelivery && closingTicket ? (
+            {deliveryProduct && closingTicket ? (
               <>
                 <span>{t("Available to close short")}</span>
                 <span className="mono">
@@ -2371,7 +2370,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           {current && current.status !== "TRADING" && (
             <p role="status">
               {t(
-                current.productLine === "LINEAR_DELIVERY" && current.status === "SETTLING"
+                deliveryProduct && current?.status === "SETTLING"
                   ? "This contract is settling. Open orders are disabled; close or cancel existing orders."
                   : current.status === "CLOSED"
                     ? "This contract has ended. View historical records."
@@ -3066,7 +3065,13 @@ function formatNumeric(value: string | number): string {
   return Number.isFinite(parsed) ? parsed.toFixed(6) : "—"
 }
 
-function DeliveryDetails({ market }: { readonly market: Market | null }) {
+function DeliveryDetails({
+  market,
+  scales,
+}: {
+  readonly market: Market | null
+  readonly scales: Readonly<Record<string, string>>
+}) {
   return (
     <Panel dense className="contract-details">
       <div className="panel-heading">
@@ -3079,7 +3084,16 @@ function DeliveryDetails({ market }: { readonly market: Market | null }) {
         </a>
       </div>
       <div className="contract-detail-grid">
-        <Detail label={t("Contract value")} value={market?.contractValueAsset ?? "—"} />
+        <Detail
+          label={t("Contract value")}
+          value={
+            market?.productLine === PRODUCT_LINES.coinMDelivery
+              ? market.notionalMultiplierUnits && scales[market.quoteAsset]
+                ? `${unitsToDecimal(market.notionalMultiplierUnits, scales[market.quoteAsset] ?? "")} ${market.quoteAsset}`
+                : "—"
+              : (market?.contractValueAsset ?? "—")
+          }
+        />
         <Detail label={t("Expiry")} value={formatDate(market?.expiryTime)} />
         <Detail label={t("Delivery time")} value={formatDate(market?.deliveryTime)} />
         <Detail label={t("Settlement")} value={market?.settlementMethod ?? "—"} />

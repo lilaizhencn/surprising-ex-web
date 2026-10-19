@@ -431,7 +431,11 @@ export function LedgerPage() {
           <StateView kind="loading" message={t("Loading records")} />
         </Panel>
       ) : visible.length ? (
-        <div className="table-wrap">
+        <div
+          className={
+            category === "delivery-ledger" ? "table-wrap delivery-ledger-table" : "table-wrap"
+          }
+        >
           <table className="data-table">
             <thead>
               <tr>
@@ -489,6 +493,32 @@ export function LedgerPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      ) : null}
+      {!loading && category === "delivery-ledger" && visible.length ? (
+        <div className="delivery-ledger-cards">
+          {visible.map((row) => (
+            <Panel key={String(row.entryId)} className="delivery-ledger-record">
+              <strong className="mono">
+                {units(row.amountUnits, String(row.asset ?? ""), assetScales)}
+              </strong>
+              <span>
+                {t("Delivery settlement")} · {formatDate(row.createdAt)}
+              </span>
+              <span>
+                {t("Instrument ID")}: {String(row.instrumentId ?? "—")}
+              </span>
+              <span>
+                {t("Balance after")}:{" "}
+                <span className="mono">
+                  {units(row.balanceAfterUnits, String(row.asset ?? ""), assetScales)}
+                </span>
+              </span>
+              <span className="delivery-ledger-reference mono">
+                {t("Reference")}: {String(row.referenceId ?? "—")}
+              </span>
+            </Panel>
+          ))}
         </div>
       ) : null}
       {!loading && !error && visible.length === 0 ? (

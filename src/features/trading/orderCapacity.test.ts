@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import type { Market } from "../../types/domain"
 import {
-  linearDeliveryFee,
-  linearOpeningCapacity,
+  contractOpeningCapacity,
+  deliveryFee,
   orderPositionSide,
   spotAmendmentTerms,
   spotFeeReserve,
@@ -20,26 +20,20 @@ describe("linear delivery fee units", () => {
     notionalMultiplierUnits: "10000",
   } as Market
   it("uses contracts and notional multiplier rather than treating a contract as a whole BTC", () => {
-    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 500)).toBe("0.025")
-    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "2", 500)).toBe("0.05")
-    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 0)).toBe("0")
+    expect(deliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 500)).toBe("0.025")
+    expect(deliveryFee(delivery, { USDT: "100000000" }, "50000", "2", 500)).toBe("0.05")
+    expect(deliveryFee(delivery, { USDT: "100000000" }, "50000", "1", 0)).toBe("0")
   })
   it("honors asset scales and rounds fee units upward", () => {
     const small = { ...delivery, priceTickUnits: "1", notionalMultiplierUnits: "1" }
-    expect(linearDeliveryFee(small, { USDT: "1000000" }, "0.000001", "1", 1)).toBe("0.000001")
+    expect(deliveryFee(small, { USDT: "1000000" }, "0.000001", "1", 1)).toBe("0.000001")
   })
   it("does not invent a fee when precision, reference or whole-contract quantity is missing", () => {
-    expect(linearDeliveryFee(delivery, {}, "50000", "1", 500)).toBeNull()
-    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "", "1", 500)).toBeNull()
-    expect(linearDeliveryFee(delivery, { USDT: "100000000" }, "50000", "0.5", 500)).toBeNull()
+    expect(deliveryFee(delivery, {}, "50000", "1", 500)).toBeNull()
+    expect(deliveryFee(delivery, { USDT: "100000000" }, "", "1", 500)).toBeNull()
+    expect(deliveryFee(delivery, { USDT: "100000000" }, "50000", "0.5", 500)).toBeNull()
     expect(
-      linearDeliveryFee(
-        { ...delivery, productLine: "OPTION" },
-        { USDT: "100000000" },
-        "50000",
-        "1",
-        500,
-      ),
+      deliveryFee({ ...delivery, productLine: "OPTION" }, { USDT: "100000000" }, "50000", "1", 500),
     ).toBeNull()
   })
 })
@@ -178,12 +172,12 @@ it("uses the selected BBO level and side, and protects MARKET with server slippa
 })
 describe("opening capacity", () => {
   it("rounds margin and fee upward in settlement units before dividing available funds", () => {
-    expect(linearOpeningCapacity(input)).toBe("9")
-    expect(linearOpeningCapacity({ ...input, availableUnits: "100" })).toBe("0")
+    expect(contractOpeningCapacity(input)).toBe("9")
+    expect(contractOpeningCapacity({ ...input, availableUnits: "100" })).toBe("0")
   })
   it("reserves directional position capacity for existing positions and opening orders", () => {
     expect(
-      linearOpeningCapacity({
+      contractOpeningCapacity({
         ...input,
         market: { ...market, userOpenInterestLimitFloorUnits: "10000" },
         positions: [{ instrumentId: market.instrumentId, signedQuantitySteps: "5" }],
@@ -200,10 +194,13 @@ describe("opening capacity", () => {
     ).toBe("2")
   })
   it("does not invent capacity for missing fees, invalid tick prices or inverse contracts", () => {
-    expect(linearOpeningCapacity({ ...input, feeRatePpm: undefined })).toBeNull()
-    expect(linearOpeningCapacity({ ...input, referencePrice: "100.01" })).toBeNull()
+    expect(contractOpeningCapacity({ ...input, feeRatePpm: undefined })).toBeNull()
+    expect(contractOpeningCapacity({ ...input, referencePrice: "100.01" })).toBeNull()
     expect(
-      linearOpeningCapacity({ ...input, market: { ...market, productLine: "INVERSE_PERPETUAL" } }),
+      contractOpeningCapacity({
+        ...input,
+        market: { ...market, productLine: "INVERSE_PERPETUAL" },
+      }),
     ).toBeNull()
   })
 })
@@ -260,5 +257,49 @@ describe("spot amendment precision", () => {
       [{ ...spot, productLine: "LINEAR_DELIVERY" as const }, "101", "0.02"],
     ] as const)
       expect(() => spotAmendmentTerms(m, { BTC: "1000", USDT: "1000" }, order, price, q)).toThrow()
+  })
+})
+
+describe("inverse delivery settlement-asset estimates", () => {
+  const inverse = {
+    ...market,
+    productLine: "INVERSE_DELIVERY" as const,
+    settleAsset: "BTC",
+    priceTickUnits: "10000000",
+    notionalMultiplierUnits: "100000000000",
+    maxQuantitySteps: "100000",
+    maxPositionNotionalUnits: "100000000000",
+    userOpenInterestLimitFloorUnits: "100000000000",
+  }
+  const scales = { BTC: "100000000", USDT: "100000000" }
+  it("prices whole contracts in BTC with Core HALF_UP notional and upward fee rounding", () => {
+    expect(deliveryFee(inverse, scales, "50000", "1", 500)).toBe("0.00001")
+    expect(deliveryFee(inverse, scales, "50000", "2", 500)).toBe("0.00002")
+    expect(deliveryFee(inverse, scales, "60000", "1", 500)).toBe("0.00000834")
+    expect(deliveryFee(inverse, scales, "50000", "0.5", 500)).toBeNull()
+    expect(deliveryFee(inverse, { USDT: "100000000" }, "50000", "1", 500)).toBeNull()
+  })
+  it("uses inverse margin costs and deducts same-side exposure from the BTC cap", () => {
+    const params = {
+      ...input,
+      market: inverse,
+      scales,
+      availableUnits: "1000000",
+      referencePrice: "50000",
+      marginRatePpm: 10000,
+      feeRatePpm: 500,
+    }
+    expect(contractOpeningCapacity(params)).toBe("47")
+    expect(
+      contractOpeningCapacity({
+        ...params,
+        market: { ...inverse, maxPositionNotionalUnits: "10000000" },
+        positions: [{ instrumentId: "1", signedQuantitySteps: "3" }],
+        orders: [
+          { instrumentId: "1", side: "BUY", remainingQuantitySteps: "1", reduceOnly: false },
+        ],
+      }),
+    ).toBe("1")
+    expect(contractOpeningCapacity({ ...params, availableUnits: 9007199254740992 })).toBeNull()
   })
 })

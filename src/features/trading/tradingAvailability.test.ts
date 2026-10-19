@@ -10,15 +10,11 @@ it("permits only direct reductions while the linear delivery contract settles", 
   expect(canSubmitTradingOrder(market("SETTLING"), false)).toBe(false)
   for (const status of ["DRAFT", "PRE_TRADING", "HALT", "SETTLED", "EXPIRED", "UNAVAILABLE"])
     expect(canSubmitTradingOrder(market(status), true)).toBe(false)
+  expect(canSubmitTradingOrder(market("SETTLING", "INVERSE_DELIVERY"), true)).toBe(true)
+  expect(canSubmitTradingOrder(market("SETTLING", "INVERSE_DELIVERY"), false)).toBe(false)
   expect(canSubmitTradingOrder(null, true)).toBe(false)
 })
 it("does not enable another product through the delivery status policy", () => {
-  for (const line of [
-    "SPOT",
-    "LINEAR_PERPETUAL",
-    "INVERSE_PERPETUAL",
-    "INVERSE_DELIVERY",
-    "OPTION",
-  ])
+  for (const line of ["SPOT", "LINEAR_PERPETUAL", "INVERSE_PERPETUAL", "OPTION"])
     expect(canSubmitTradingOrder(market("SETTLING", line), true)).toBe(false)
 })

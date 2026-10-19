@@ -4243,3 +4243,24 @@ body,
     font-size: 12px;
   }
 }
+
+.delivery-ledger-cards {
+  display: none;
+}
+.delivery-ledger-record {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.delivery-ledger-reference {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .delivery-ledger-table {
+    display: none;
+  }
+  .delivery-ledger-cards {
+    display: grid;
+    gap: 12px;
+  }
+}
