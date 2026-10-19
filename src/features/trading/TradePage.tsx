@@ -2359,7 +2359,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 ? `${deliveryProduct || optionProduct ? (balanceAmount(balance, assetScales) ?? "—") : displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
                 : t("Login required")}
             </span>
-            {optionProduct && current ? (
+            {optionProduct && current && orderType !== "STOP" ? (
               <>
                 <span>{t("Buy premium and fee")}</span>
                 <span className="mono">
@@ -2380,7 +2380,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               {view.line === PRODUCT_LINES.spot && current
                 ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
                 : optionProduct
-                  ? `${optionTerms(side)?.fee ?? "—"} ${current?.settleAsset ?? ""}`
+                  ? orderType === "STOP"
+                    ? t("At execution")
+                    : `${optionTerms(side)?.fee ?? "—"} ${current?.settleAsset ?? ""}`
                   : deliveryProduct
                     ? deliveryFeeEstimate()
                     : estimatedFee(

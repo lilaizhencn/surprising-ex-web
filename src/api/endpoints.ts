@@ -859,6 +859,29 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
 
 /** Resolve original submissions and cancellations from realtime-owned views only. */
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
+  if (pending.ocoTakeProfitClientId && pending.ocoStopLossClientId) {
+    const query = new URLSearchParams({
+      userId: pending.userId,
+      takeProfitClientId: pending.ocoTakeProfitClientId,
+      stopLossClientId: pending.ocoStopLossClientId,
+    })
+    const receipt = await request(
+      `/api/v1/gateway/trading-trigger/oco-submission?${query}`,
+      GenericObjectSchema,
+      { productLine: pending.productLine, expectedUserId: pending.userId, retry: 0 },
+    )
+    if (
+      typeof receipt["commandId"] !== "string" ||
+      !receipt["commandId"] ||
+      (pending.commandId && receipt["commandId"] !== pending.commandId)
+    )
+      throw new Error("OCO receipt identity mismatch")
+    if (receipt["outcome"] === "TERMINAL" && typeof receipt["code"] === "string" && receipt["code"])
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+    if (receipt["outcome"] === "RESULT_UNKNOWN" && receipt["code"] === "RESULT_UNKNOWN")
+      return "pending"
+    throw new Error("OCO receipt is unavailable")
+  }
   if (pending.amendRequestId) {
     const query = new URLSearchParams({
       userId: pending.userId,
@@ -1310,15 +1333,83 @@ export function cancelTriggerOrder(
   })
 }
 
-export function placeBatchTriggerOrders(
+export async function placeBatchTriggerOrders(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
-  return request("/api/v1/gateway/trading-trigger/batch", GenericObjectSchema, {
-    method: "POST",
+  if (productLine !== "OPTION" || body["atomic"] !== true)
+    return request("/api/v1/gateway/trading-trigger/batch", GenericObjectSchema, {
+      method: "POST",
+      productLine,
+      body,
+    })
+  const orders = z.array(GenericObjectSchema).length(2).parse(body["orders"])
+  const tp = orders.find((r) => r["triggerType"] === "TAKE_PROFIT")
+  const sl = orders.find((r) => r["triggerType"] === "STOP_LOSS")
+  if (
+    !tp ||
+    !sl ||
+    !tp["userId"] ||
+    !tp["instrumentId"] ||
+    !tp["clientTriggerOrderId"] ||
+    !sl["clientTriggerOrderId"] ||
+    tp["userId"] !== sl["userId"] ||
+    tp["instrumentId"] !== sl["instrumentId"] ||
+    tp["ocoGroupId"] !== sl["ocoGroupId"]
+  )
+    throw new Error("OCO request identities are required")
+  const intent: PendingOrderCommand = {
+    userId: String(tp["userId"]),
     productLine,
-    body,
-  })
+    instrumentId: String(tp["instrumentId"]),
+    ocoTakeProfitClientId: String(tp["clientTriggerOrderId"]),
+    ocoStopLossClientId: String(sl["clientTriggerOrderId"]),
+  }
+  const existing = readPendingCommand(intent.userId)
+  if (existing) throw new PendingTradingCommand(existing.commandId)
+  try {
+    savePendingCommand(intent)
+  } catch {
+    throw new Error(t("Cannot save order recovery details. No order was sent."))
+  }
+  try {
+    const response = await request("/api/v1/gateway/trading-trigger/batch", GenericObjectSchema, {
+      method: "POST",
+      productLine,
+      expectedUserId: intent.userId,
+      retry: 0,
+      body,
+    })
+    const results = z.array(GenericObjectSchema).length(2).parse(response["results"])
+    if (
+      response["requested"] !== 2 ||
+      response["completed"] !== 2 ||
+      response["failed"] !== 0 ||
+      new Set(results.map((r) => r["index"])).size !== 2
+    )
+      throw new Error("OCO response is incomplete")
+    for (const item of results) {
+      const index = item["index"]
+      if (index !== 0 && index !== 1) throw new Error("OCO response index mismatch")
+      const order = GenericObjectSchema.parse(item["order"])
+      if (
+        item["success"] !== true ||
+        !/^[1-9]\d*$/.test(String(order["triggerOrderId"])) ||
+        order["clientTriggerOrderId"] !== orders[index]?.["clientTriggerOrderId"] ||
+        order["instrumentId"] !== intent.instrumentId ||
+        order["ocoGroupId"] !== tp["ocoGroupId"]
+      )
+        throw new Error("OCO response identity mismatch")
+    }
+    clearPendingCommand(intent)
+    return response
+  } catch (reason) {
+    if (isDefinitiveOrderRejection(reason)) {
+      clearPendingCommand(intent)
+      throw reason
+    }
+    throw new PendingTradingCommand(readPendingCommand(intent.userId)?.commandId)
+  }
 }
 
 export function cancelBatchTriggerOrders(

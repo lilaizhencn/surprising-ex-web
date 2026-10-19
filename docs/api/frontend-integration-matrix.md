@@ -8,7 +8,7 @@
 | U 本位永续 | instrument、orders、positions、position-mode | REST snapshot、下单、撤单、持仓读取已接 | 是 | risk/funding 私有 DTO | 不伪造持仓 |
 | 币本位永续 | 同上，币本位精度/计价 | REST snapshot、下单、撤单、持仓读取已接 | 是 | risk/funding 私有 DTO | 不伪造盈亏 |
 | 交割合约 | instrument、orders、positions | 页面与产品线参数已接 | 是 | 交割历史和结算 DTO | 不伪造结算 |
-| 期权 | instrument、orders、positions、realtime options/quote | 可选期权链、全额权利金、零贴现参考 IV/远期 Greeks、现金行权已接 | 是 | 本轮未覆盖完整组合 Greeks/利率曲线 | 无输入不造数 |
+| 期权 | instrument、orders、positions、realtime options/quote | 可选期权链、全额权利金、参考 Greeks、现金行权及两端原子 TP/SL 已接；OCO 支持原回执恢复 | 是 | 本轮未覆盖完整组合 Greeks/利率曲线 | 无输入不造数 |
 | 资产总览 | product-balances、估值/明细 | 已接余额 | 可选私有余额推送 | 明细 DTO | 仅本地无会话演示 |
 | 充值 | wallet address、network、records | 已接真实地址、网络和记录 | 否 | 托管服务运行配置 | 否 |
 | 提现 | wallet withdraw、limits、security | 已接真实提交、历史、KYC/风控/邮箱+TOTP校验 | 否 | 限额字段需 DTO 标准化 | 不伪造成功 |
