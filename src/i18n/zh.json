@@ -117,6 +117,7 @@
   "Est. fee": "预估手续费",
   "Fee reserve": "预留手续费",
   "Cannot save order recovery details. No order was sent.": "无法保存委托恢复资料，未发送订单。",
+  "Cannot save order confirmation. Query the original request again.": "无法保存委托确认结果，请再次查询原请求。",
   "Session changed. No order was sent.": "登录账户已变化，未发送订单。",
   "Limit": "限价",
   "Market": "市价",

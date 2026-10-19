@@ -16,6 +16,7 @@ vi.mock("./client", async (original) => ({
   request: vi.fn(),
 }))
 const send = vi.mocked(request)
+let failRemoval = false
 function storage() {
   const values: Record<string, string> = {}
   Object.defineProperties(values, {
@@ -28,6 +29,7 @@ function storage() {
     },
     removeItem: {
       value: (key: string) => {
+        if (failRemoval) throw Error("storage removal denied")
         delete values[key]
       },
     },
@@ -35,6 +37,7 @@ function storage() {
   return values as unknown as Storage
 }
 beforeEach(() => {
+  failRemoval = false
   send.mockReset()
   vi.stubGlobal(
     "window",
@@ -49,6 +52,63 @@ const intent = {
   clientOrderId: "spot-1",
   instrumentId: "1",
 }
+it.each(["place", "cancel", "amend"])(
+  "%s keeps its SPOT intent when confirmation cannot be persisted, and later recovers by GET",
+  async (action) => {
+    saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } })
+    const write = () =>
+      action === "place"
+        ? placeOrder(body, "SPOT")
+        : action === "cancel"
+          ? cancelOrder("1", "91", "SPOT")
+          : amendOrder(
+              { ...body, orderId: "91", clientRequestId: "edit-1", newClientOrderId: "new-1" },
+              "SPOT",
+            )
+    send.mockResolvedValue(
+      action === "amend"
+        ? {
+            outcome: "TERMINAL",
+            code: "NONE",
+            result: {
+              originalOrder: { orderId: "91", status: "CANCELED" },
+              replacementOrder: { orderId: "92", status: "ACCEPTED" },
+              cancelRequested: true,
+            },
+          }
+        : { orderId: "91", status: action === "cancel" ? "CANCELED" : "ACCEPTED" },
+    )
+    failRemoval = true
+    await expect(write()).rejects.toBeInstanceOf(PendingTradingCommand)
+    const original = readPendingCommand("1")
+    expect(original).not.toBeNull()
+    await expect(write()).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(send).toHaveBeenCalledTimes(1)
+    send.mockResolvedValue({
+      ...body,
+      userId: 1,
+      productLine: "SPOT",
+      commandId: "original-command",
+      outcome: "TERMINAL",
+      code: "NONE",
+      prospectiveOrderIds: ["91"],
+    })
+    if (!original) throw Error("missing pending request")
+    expect(await checkOrderSubmission(original)).toBe("confirmed")
+    expect(() => clearPendingCommand(original)).toThrow(
+      "Cannot save order confirmation. Query the original request again.",
+    )
+    expect(readPendingCommand("1")).toEqual(original)
+    failRemoval = false
+    clearPendingCommand(original)
+    expect(readPendingCommand("1")).toBeNull()
+    expect(send.mock.calls.map(([, , options]) => options?.method ?? "GET")).toEqual([
+      "POST",
+      "GET",
+    ])
+  },
+)
+
 describe("spot command receipts", () => {
   it("keeps an unanswered spot write pending instead of inviting another order", async () => {
     send.mockRejectedValue(new TypeError("connection reset after sending"))

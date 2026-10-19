@@ -263,3 +263,10 @@ DELIVERY_PROTECTION_PLAYWRIGHT_MODULE、DELIVERY_PROTECTION_CHROMIUM；重用原
 检查重启后 4h 图表和 24h 分钟口径在 1440/320px、深浅色下的真实累计成交量。
 realtime 修正报价面值换算、SETTLING/CLOSED 成交接收和冷启动当前周期查询；旧分钟投影需按后端文档受控重建，
 本轮未操作线上数据，查询继续走 realtime。
+
+
+### 现货委托确认资料与小屏提示（2026-10-20）
+
+`clearPendingCommand` 在持久记录删除失败时保留原锁定，并显示可操作的中英文提示：保存确认失败后继续查询原请求。下单、撤单、改单的回归验证未知请求不能再次 POST；交易页及订单页刷新后仍按原现货身份恢复。交易页长提示改用明确的内容宽度与换行，小屏不再被固定定位的剩余半屏宽度挤成窄列。
+
+受控浏览器回归 `scripts/spot-confirmation-storage-qa.mjs` 需要先启动本仓库 Vite，显式指定 `/tmp/surprising-spot-confirmation-` 前缀的 `SPOT_CONFIRMATION_QA_ROOT`。已有 Playwright/Chromium 可由 `SPOT_CONFIRMATION_PLAYWRIGHT_MODULE` / `SPOT_CONFIRMATION_CHROMIUM` 指定。它检查现货两页、1440/320px、深浅主题和中英文的原请求查询、刷新、保存失败及恢复，不代表真实 FUSED 成交验收。本轮未启动其他产品或 backend/wallet。详见 [验证记录](docs/validation/spot-confirmation-storage-20261020.json)。

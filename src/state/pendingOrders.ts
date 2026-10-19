@@ -9,6 +9,7 @@ export type CancellationPlan = {
   readonly failures: readonly { readonly orderId: string; readonly code: string }[]
 }
 
+import { t } from "../i18n"
 import type { ProductLine } from "../types/domain"
 import { PRODUCT_LINES } from "../types/domain"
 
@@ -95,6 +96,10 @@ export function savePendingCommand(pending: PendingOrderCommand): void {
 }
 
 export function clearPendingCommand(pending: PendingOrderCommand): void {
-  window.localStorage.removeItem(key(pending))
+  try {
+    window.localStorage.removeItem(key(pending))
+  } catch {
+    throw new Error(t("Cannot save order confirmation. Query the original request again."))
+  }
   window.dispatchEvent(new Event(pendingOrderChanged))
 }
