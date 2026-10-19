@@ -2,7 +2,8 @@ import { z } from "zod"
 import { t } from "../i18n"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
-import { request, requestBlob } from "./client"
+import { ApiError, request, requestBlob } from "./client"
+import { apiErrorMessage } from "./errors"
 import type {
   ApiBalance,
   ApiCandle,
@@ -844,13 +845,39 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
   )
 }
 
-export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
-  return request("/api/v1/gateway/trading", OrderSubmissionSchema, {
+export class PendingTradingCommand extends ApiError {
+  constructor(readonly commandId: string) {
+    super(t("Order result is pending. Do not submit it again."), 202)
+  }
+}
+
+export function loadTradingCommand(commandId: string, productLine: ProductLine) {
+  return request(
+    `/api/v1/gateway/trading-orders/commands/${encodeURIComponent(commandId)}`,
+    GenericObjectSchema,
+    { productLine, retry: 0 },
+  )
+}
+
+export async function placeOrder(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  const response = await request("/api/v1/gateway/trading", GenericObjectSchema, {
     method: "POST",
     productLine,
     idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
     body,
   })
+  const order = OrderSubmissionSchema.safeParse(response)
+  if (order.success) return order.data
+  if (
+    ["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"])) &&
+    typeof response["commandId"] === "string"
+  ) {
+    throw new PendingTradingCommand(response["commandId"])
+  }
+  throw new ApiError(apiErrorMessage(response, 409), 409, response)
 }
 
 export function placeBatchOrders(

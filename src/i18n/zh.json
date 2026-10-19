@@ -1002,5 +1002,15 @@
   "Leverage slider": "杠杆调节滑条",
   "Reference price is delayed. Waiting for a fresh update.": "参考价格更新延迟，正在等待最新行情。",
   "Price delayed": "行情已延迟",
-  "The request was not accepted. Please try again shortly.": "请求尚未受理，请稍后重试。"
+  "The request was not accepted. Please try again shortly.": "请求尚未受理，请稍后重试。",
+  "Time in force": "委托有效方式",
+  "Post only": "只挂单",
+  "Keep open until filled or canceled": "委托持续有效，直到成交或主动撤销",
+  "Fill available quantity and cancel the remainder": "立即成交可成交部分，其余自动撤销",
+  "Fill the entire quantity immediately or cancel": "立即全部成交，否则全部撤销",
+  "Only add liquidity; reject an order that would execute immediately": "仅挂单；会立即成交的委托将被拒绝",
+  "Order result is pending. Do not submit it again.": "委托结果待确认，请勿重复提交。",
+  "Order processing confirmed. Check the latest account state.": "委托处理结果已确认，请查看最新账户状态。",
+  "Order was not accepted. Check your order state.": "委托未被接受，请检查订单状态。",
+  "Check order result": "查询委托结果"
 }

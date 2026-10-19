@@ -13,6 +13,8 @@ import {
   loadMarkets,
   loadOptionQuote,
   loadRecentTrades,
+  loadTradingCommand,
+  PendingTradingCommand,
   placeBatchTriggerOrders,
   placeOrder,
   placeTriggerOrder,
@@ -66,7 +68,7 @@ import {
   unitsToDecimal,
 } from "../../lib/units"
 import type { WsEnvelope } from "../../realtime"
-import { useSession } from "../../state/session"
+import { loadSession, useSession } from "../../state/session"
 import {
   type Candle,
   type Market,
@@ -150,6 +152,22 @@ export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined):
   return snapshot
 }
 
+type PendingOrderCommand = { commandId: string; productLine: ProductLine; userId: string }
+const pendingCommandKey = (userId: string) => `surprising-ex.pending-command:${userId}`
+function readPendingCommand(userId: string): PendingOrderCommand | null {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(pendingCommandKey(userId)) ?? "null")
+    return value &&
+      value.userId === userId &&
+      typeof value.commandId === "string" &&
+      Object.values(PRODUCT_LINES).includes(value.productLine)
+      ? value
+      : null
+  } catch {
+    return null
+  }
+}
+
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
   const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
@@ -200,6 +218,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
+  const [spotTimeInForce, setSpotTimeInForce] = useState<"GTC" | "IOC" | "FOK" | "GTX">("GTC")
   const [bboEnabled, setBboEnabled] = useState(false)
   const [bboPriceMode, setBboPriceMode] = useState("OPPONENT_1")
   const useBbo = orderType === "LIMIT" && bboEnabled
@@ -225,6 +244,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   })
   const [quantity, setQuantity] = useState("")
   const [percentage, setPercentage] = useState(0)
+  const [pendingCommand, setPendingCommand] = useState<PendingOrderCommand | null>(() =>
+    readPendingCommand(String(session?.user.userId ?? "")),
+  )
+  useEffect(() => {
+    setPendingCommand(readPendingCommand(String(session?.user.userId ?? "")))
+  }, [session?.user.userId])
+  const pendingForUser =
+    pendingCommand !== null && pendingCommand.userId === String(session?.user.userId ?? "")
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [notice, setNotice] = useState<{ id: number; message: string } | null>(null)
   const notify = useCallback((message: string) => {
@@ -575,6 +602,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   useEffect(() => {
     setBook(null)
+    setQuantity("")
+    setPercentage(0)
+    setBboEnabled(false)
+    setSpotTimeInForce("GTC")
+    setOrderType("LIMIT")
     processedEvents.current.clear()
   }, [current?.instrumentId, view.line])
 
@@ -903,6 +935,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
 
   const submit = async (requestedSide: OrderSide = side) => {
     const side = requestedSide
+    if (pendingForUser) {
+      notify(t("Order result is pending. Do not submit it again."))
+      return
+    }
     if (current?.status !== "TRADING") {
       setSubmitState("error")
       notify(t("Trading is not enabled for this contract."))
@@ -1133,7 +1169,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             side,
             orderType,
             ...(useBbo ? { bboPriceMode } : {}),
-            timeInForce: orderType === "MARKET" ? "IOC" : "GTC",
+            timeInForce:
+              view.line === PRODUCT_LINES.spot
+                ? spotTimeInForce
+                : orderType === "MARKET"
+                  ? "IOC"
+                  : "GTC",
             priceTicks,
             quantitySteps,
             marginMode: orderSettings.marginMode,
@@ -1142,7 +1183,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 ? "NET"
                 : orderPositionSide(orderSettings.positionMode, ticketAction, side),
             reduceOnly: view.line !== PRODUCT_LINES.spot && ticketAction === "CLOSE",
-            postOnly: false,
+            postOnly: view.line === PRODUCT_LINES.spot && spotTimeInForce === "GTX",
           },
           view.line,
         )
@@ -1170,8 +1211,49 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setTakeProfitLimitPrice("")
       refresh()
     } catch (reason: unknown) {
+      if (reason instanceof PendingTradingCommand) {
+        const pending = {
+          commandId: reason.commandId,
+          productLine: view.line,
+          userId: String(session.user.userId),
+        }
+        try {
+          window.sessionStorage.setItem(pendingCommandKey(pending.userId), JSON.stringify(pending))
+        } catch {}
+        setPendingCommand(pending)
+        setSubmitState("idle")
+        notify(reason.message)
+        return
+      }
       setSubmitState("error")
       notify(orderType === "STOP" ? triggerSubmitError(reason) : readError(reason))
+    }
+  }
+  const checkPendingCommand = async () => {
+    if (!pendingCommand || !pendingForUser || submitState === "loading") return
+    const pending = pendingCommand
+    setSubmitState("loading")
+    try {
+      const receipt = await loadTradingCommand(pending.commandId, pending.productLine)
+      if (String(loadSession()?.user.userId ?? "") !== pending.userId) return
+      if (receipt["outcome"] === "TERMINAL" || receipt["outcome"] === "NOT_ACCEPTED") {
+        try {
+          window.sessionStorage.removeItem(pendingCommandKey(pending.userId))
+        } catch {}
+        setPendingCommand(null)
+        notify(
+          t(
+            receipt["outcome"] === "TERMINAL" && receipt["code"] === "NONE"
+              ? "Order processing confirmed. Check the latest account state."
+              : "Order was not accepted. Check your order state.",
+          ),
+        )
+        realtime.refresh()
+      } else notify(t("Order result is pending. Do not submit it again."))
+    } catch (reason) {
+      notify(readError(reason))
+    } finally {
+      setSubmitState("idle")
     }
   }
   const refresh = () => {
@@ -1770,12 +1852,48 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 type="button"
                 className={orderType === type ? "active" : ""}
                 key={type}
-                onClick={() => setOrderType(type)}
+                onClick={() => {
+                  setOrderType(type)
+                  if (view.line === PRODUCT_LINES.spot) {
+                    setSpotTimeInForce(type === "MARKET" ? "IOC" : "GTC")
+                    setBboEnabled(false)
+                  }
+                }}
               >
                 {t(type === "STOP" ? "TP / SL" : type)}
               </button>
             ))}
           </div>
+          {view.line === PRODUCT_LINES.spot && (
+            <Field label={t("Time in force")}>
+              <DropdownSelect
+                aria-label={t("Time in force")}
+                value={spotTimeInForce}
+                onChange={(event) =>
+                  setSpotTimeInForce(event.target.value as typeof spotTimeInForce)
+                }
+              >
+                {(orderType === "MARKET" ? ["IOC", "FOK"] : ["GTC", "IOC", "FOK", "GTX"]).map(
+                  (value) => (
+                    <option key={value} value={value}>
+                      {value === "GTX" ? t("Post only") : value}
+                    </option>
+                  ),
+                )}
+              </DropdownSelect>
+              <small className="muted">
+                {t(
+                  spotTimeInForce === "GTC"
+                    ? "Keep open until filled or canceled"
+                    : spotTimeInForce === "IOC"
+                      ? "Fill available quantity and cancel the remainder"
+                      : spotTimeInForce === "FOK"
+                        ? "Fill the entire quantity immediately or cancel"
+                        : "Only add liquidity; reject an order that would execute immediately",
+                )}
+              </small>
+            </Field>
+          )}
           {orderType === "STOP" ? (
             <>
               <fieldset className="protection-mode" aria-label={t("Protection mode")}>
@@ -2087,6 +2205,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               )}
             </p>
           )}
+          {pendingForUser && (
+            <div role="status">
+              <p>{t("Order result is pending. Do not submit it again.")}</p>
+              <Button
+                loading={submitState === "loading"}
+                onClick={() => void checkPendingCommand()}
+              >
+                {t("Check order result")}
+              </Button>
+            </div>
+          )}
           {!session ? (
             <a className="ticket-sign-in" href="/auth/login">
               {t("Log in to trade")}
@@ -2097,7 +2226,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 tone="positive"
                 loading={submitState === "loading"}
                 disabled={
-                  current?.status !== "TRADING" || (closingTicket && triggerCloseSide !== "BUY")
+                  pendingForUser ||
+                  current?.status !== "TRADING" ||
+                  (closingTicket && triggerCloseSide !== "BUY")
                 }
                 onClick={() => void submit("BUY")}
               >
@@ -2109,7 +2240,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 tone="negative"
                 loading={submitState === "loading"}
                 disabled={
-                  current?.status !== "TRADING" || (closingTicket && triggerCloseSide !== "SELL")
+                  pendingForUser ||
+                  current?.status !== "TRADING" ||
+                  (closingTicket && triggerCloseSide !== "SELL")
                 }
                 onClick={() => void submit("SELL")}
               >
@@ -2122,7 +2255,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <Button
               tone={side === "BUY" ? "positive" : "negative"}
               loading={submitState === "loading"}
-              disabled={current?.status !== "TRADING"}
+              disabled={pendingForUser || current?.status !== "TRADING"}
               onClick={() => void submit(orderType === "STOP" ? (triggerCloseSide ?? side) : side)}
             >
               {session && orderType === "STOP"
