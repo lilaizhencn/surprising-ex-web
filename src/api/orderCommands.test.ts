@@ -3,6 +3,7 @@ import { clearPendingCommand, readPendingCommand, savePendingCommand } from "../
 import { saveSession } from "../state/session"
 import { ApiError, request } from "./client"
 import {
+  amendOrder,
   cancelOrder,
   checkOrderSubmission,
   loadTradingCommand,
@@ -355,5 +356,125 @@ describe("spot cancellation recovery", () => {
     }
     send.mockRejectedValue(new ApiError("unavailable", 503))
     await expect(checkOrderSubmission(intent)).rejects.toThrow("unavailable")
+  })
+})
+
+describe("spot amendment recovery", () => {
+  const input = {
+    userId: 1,
+    orderId: "91",
+    instrumentId: "1",
+    newClientOrderId: "replacement-1",
+    clientRequestId: "edit-1",
+    priceTicks: "1100",
+    quantitySteps: "2",
+  }
+  const intent = {
+    userId: "1",
+    productLine: "SPOT" as const,
+    amendOrderId: "91",
+    amendRequestId: "edit-1",
+    clientOrderId: "replacement-1",
+    instrumentId: "1",
+  }
+  beforeEach(() =>
+    saveSession({
+      accessToken: "test",
+      refreshToken: "test",
+      user: { userId: 1, username: "spot", email: "", status: "ACTIVE" },
+    }),
+  )
+  it("sends the required request identity after durable save and keeps lost replies pending", async () => {
+    send.mockImplementation(async () => {
+      expect(readPendingCommand("1")).toEqual(intent)
+      throw new TypeError("reply lost")
+    })
+    await expect(amendOrder(input, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(readPendingCommand("1")).toEqual(intent)
+    await expect(
+      amendOrder({ ...input, clientRequestId: "another" }, "SPOT"),
+    ).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(
+      "/api/v1/gateway/trading/amend",
+      expect.anything(),
+      expect.objectContaining({
+        expectedUserId: "1",
+        idempotencyKey: "edit-1",
+        body: expect.objectContaining({
+          clientRequestId: "edit-1",
+          newClientOrderId: "replacement-1",
+        }),
+      }),
+    )
+  })
+  it("never sends without a request ID or when recovery storage fails", async () => {
+    await expect(amendOrder({ ...input, clientRequestId: "" }, "SPOT")).rejects.toThrow(
+      "No amendment was sent",
+    )
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw Error("quota")
+    })
+    await expect(amendOrder(input, "SPOT")).rejects.toThrow("No amendment was sent")
+    expect(send).not.toHaveBeenCalled()
+  })
+  it("decodes both order images and preserves the new 64 bit ID", async () => {
+    send.mockResolvedValue({
+      outcome: "TERMINAL",
+      code: "NONE",
+      result: {
+        originalOrder: { orderId: "91", status: "CANCELED" },
+        replacementOrder: { orderId: "9007199254740993", status: "ACCEPTED" },
+        cancelRequested: true,
+      },
+    })
+    const result = await amendOrder(input, "SPOT")
+    expect((result["replacementOrder"] as { orderId: string }).orderId).toBe("9007199254740993")
+    expect(readPendingCommand("1")).toBeNull()
+  })
+  it("keeps incomplete or pending results, but releases a definitive refusal", async () => {
+    send.mockResolvedValue({
+      outcome: "RESULT_UNKNOWN",
+      code: "RESULT_UNKNOWN",
+      commandId: "command-1",
+    })
+    await expect(amendOrder(input, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(readPendingCommand("1")).toEqual({ ...intent, commandId: "command-1" })
+    clearPendingCommand({ ...intent, commandId: "command-1" })
+    send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE", result: {} })
+    await expect(amendOrder(input, "SPOT")).rejects.toBeInstanceOf(PendingTradingCommand)
+    clearPendingCommand(intent)
+    send.mockRejectedValue(
+      new ApiError("insufficient", 409, {
+        outcome: "TERMINAL",
+        code: "INSUFFICIENT_AVAILABLE_BALANCE",
+        commandId: "command-1",
+      }),
+    )
+    await expect(amendOrder(input, "SPOT")).rejects.toThrow("insufficient")
+    expect(readPendingCommand("1")).toBeNull()
+  })
+  it("queries only the original amendment and never mistakes missing or wrong receipts for confirmation", async () => {
+    send.mockResolvedValue({
+      outcome: "RESULT_UNKNOWN",
+      code: "RESULT_UNKNOWN",
+      commandId: "command-1",
+    })
+    expect(await checkOrderSubmission(intent)).toBe("pending")
+    send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE", commandId: "command-1" })
+    expect(await checkOrderSubmission(intent)).toBe("confirmed")
+    send.mockResolvedValue({
+      outcome: "TERMINAL",
+      code: "INSUFFICIENT_AVAILABLE_BALANCE",
+      commandId: "command-1",
+    })
+    expect(await checkOrderSubmission(intent)).toBe("rejected")
+    send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE", commandId: "another" })
+    await expect(checkOrderSubmission({ ...intent, commandId: "command-1" })).rejects.toThrow()
+    expect(send).toHaveBeenLastCalledWith(
+      "/api/v1/gateway/trading/amendments?userId=1&clientRequestId=edit-1",
+      expect.anything(),
+      { productLine: "SPOT", expectedUserId: "1", retry: 0 },
+    )
   })
 })

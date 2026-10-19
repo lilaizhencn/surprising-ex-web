@@ -39,6 +39,7 @@ import {
 } from "../../state/pendingOrders"
 import { loadSession, useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
+import { SpotAmendOrderButton } from "../trading/SpotAmendOrderButton"
 
 import {
   fillProgress,
@@ -283,13 +284,17 @@ export function OrdersPage() {
                   clearPendingCommand(original)
                   setActionMessage(
                     t(
-                      original.cancelOrderId
+                      original.amendRequestId
                         ? result === "confirmed"
-                          ? "Cancellation processing confirmed. Check the latest order state."
-                          : "Cancellation was rejected. Check the latest order state."
-                        : result === "confirmed"
-                          ? "Order processing confirmed. Check the latest account state."
-                          : "Order was not accepted. Check your order state.",
+                          ? "Amendment processing confirmed. Check both order states."
+                          : "Amendment was rejected. Check the original order state."
+                        : original.cancelOrderId
+                          ? result === "confirmed"
+                            ? "Cancellation processing confirmed. Check the latest order state."
+                            : "Cancellation was rejected. Check the latest order state."
+                          : result === "confirmed"
+                            ? "Order processing confirmed. Check the latest account state."
+                            : "Order was not accepted. Check your order state.",
                     ),
                   )
                   realtime.refresh()
@@ -301,7 +306,13 @@ export function OrdersPage() {
                 .finally(() => setChecking(false))
             }}
           >
-            {t(pending.cancelOrderId ? "Check cancellation result" : "Check order result")}
+            {t(
+              pending.amendRequestId
+                ? "Check amendment result"
+                : pending.cancelOrderId
+                  ? "Check cancellation result"
+                  : "Check order result",
+            )}
           </Button>
         </div>
       )}
@@ -647,6 +658,8 @@ export function OrdersPage() {
           />
         ) : (
           <OrderTable
+            markets={markets}
+            assetScales={assetScales}
             commandPending={commandPending}
             rows={displayRows}
             canCancel={tab === "open"}
@@ -743,6 +756,18 @@ function AdvancedTradingActions({
   const [triggerPriceTicks, setTriggerPriceTicks] = useState("0")
   const [busy, setBusy] = useState(false)
 
+  const amendPayload = () => {
+    const key = `web-amend-${crypto.randomUUID()}`
+    return {
+      userId: session.user.userId,
+      orderId: toLong(orderId),
+      instrumentId,
+      newClientOrderId: key,
+      clientRequestId: key,
+      priceTicks: toLong(priceTicks),
+      quantitySteps: toLong(quantitySteps),
+    }
+  }
   const baseOrder = () => ({
     userId: session.user.userId,
     clientOrderId: `web-advanced-${crypto.randomUUID()}`,
@@ -847,18 +872,7 @@ function AdvancedTradingActions({
           disabled={!orderId}
           loading={busy}
           onClick={() =>
-            void run(
-              () =>
-                amendOrder(
-                  {
-                    ...baseOrder(),
-                    orderId: toLong(orderId),
-                    newClientOrderId: `web-amend-${crypto.randomUUID()}`,
-                  },
-                  productLine,
-                ),
-              t("Order amendment submitted."),
-            )
+            void run(() => amendOrder(amendPayload(), productLine), t("Order amendment submitted."))
           }
         >
           {" "}
@@ -1166,12 +1180,16 @@ function labelFor(value: string): string {
 }
 
 function OrderTable({
+  markets,
+  assetScales,
   commandPending,
   rows,
   canCancel,
   productLine,
   onDone,
 }: {
+  readonly markets: Readonly<Record<string, Market>>
+  readonly assetScales: Readonly<Record<string, string>>
   readonly rows: readonly RecordRow[]
   readonly canCancel: boolean
   readonly commandPending: boolean
@@ -1201,6 +1219,8 @@ function OrderTable({
             <OrderRow
               key={text(row, "orderId") || String(index)}
               row={row}
+              market={markets[`${productLine}:${text(row, "instrumentId")}`]}
+              scales={assetScales}
               canCancel={canCancel}
               commandPending={commandPending}
               productLine={productLine}
@@ -1213,12 +1233,16 @@ function OrderTable({
   )
 }
 function OrderRow({
+  market,
+  scales,
   commandPending,
   row,
   canCancel,
   productLine,
   onDone,
 }: {
+  readonly market: Market | undefined
+  readonly scales: Readonly<Record<string, string>>
   readonly row: RecordRow
   readonly canCancel: boolean
   readonly commandPending: boolean
@@ -1246,6 +1270,15 @@ function OrderRow({
       <td>{text(row, "displayUpdatedAt")}</td>
       {canCancel ? (
         <td>
+          {productLine === "SPOT" && (
+            <SpotAmendOrderButton
+              row={row}
+              market={market}
+              scales={scales}
+              disabled={commandPending || busy}
+              onNotice={(message) => onDone(message)}
+            />
+          )}
           <Button
             tone="negative"
             loading={busy}

@@ -1,0 +1,496 @@
+{
+  "date": "2026-10-19",
+  "productDebugScope": "SPOT only; shared public query identity tested over the six product-line enum values",
+  "releaseOrder": [
+    "ensure prior ae61e530d SQL receipt migration, realtime exporter upgrade and required historical receipt backfill are complete",
+    "update gateway with amendment query route",
+    "update Web/client; no new SQL migration or Core/exporter deployment change in this round"
+  ],
+  "limits": [
+    "Missing or unavailable receipt remains unknown; no automatic POST resend or inferred original refusal.",
+    "This query confirms processing, not the latest state of the original or replacement order; realtime account/order views remain authoritative.",
+    "New quantity is independent of prior executed quantity; the form starts with the original remaining quantity.",
+    "The original fee buffer after a partial fill is retained until replacement/cancel; financial tests use initial reserve minus actual fill spending."
+  ],
+  "notVerified": [
+    "complete FUSED service stack and live maker in this round",
+    "iOS/Android device installation",
+    "online deployment or historical backfill",
+    "batch placement/amendment/cancellation recovery",
+    "other product UIs",
+    "durable negative confirmation for requests never committed to Core"
+  ],
+  "cleanup": {
+    "status": "complete",
+    "ownedDatabase": "surprising_amend_18a0b15630",
+    "databaseDroppedAndVerified": true,
+    "ownedVitePid": 89674,
+    "ownedVitePort": 5193,
+    "portClosed": true,
+    "browserClosed": true,
+    "historicalUiRoot": "/var/folders/hx/xjj38_ln7kq9t86kzh9jz_9h0000gn/T/surprising-amend-ui-eoqw78xg",
+    "uiRootRemoved": true,
+    "rawLogsRemovedAfterSummaryAndHashArchive": true,
+    "ownedSurefireReportsRemoved": [
+      "surprising-aeron-core/surprising-aeron-service/target/surefire-reports/TEST-com.surprising.aeron.service.orchestration.CoreSpotAssetUnitsTest.xml",
+      "surprising-aeron-core/surprising-aeron-service/target/surefire-reports/com.surprising.aeron.service.orchestration.CoreSpotAssetUnitsTest.txt",
+      "surprising-aeron-core/surprising-aeron-service/target/surefire-reports/TEST-com.surprising.aeron.service.orchestration.LaneReplacementResponseTest.xml",
+      "surprising-aeron-core/surprising-aeron-service/target/surefire-reports/com.surprising.aeron.service.orchestration.LaneReplacementResponseTest.txt",
+      "surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.repository.CommittedCommandResultQueryPostgresTest.xml",
+      "surprising-gateway/target/surefire-reports/com.surprising.trading.order.repository.CommittedCommandResultQueryPostgresTest.txt",
+      "surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.service.OrderServiceTest.xml",
+      "surprising-gateway/target/surefire-reports/com.surprising.trading.order.service.OrderServiceTest.txt",
+      "surprising-gateway/target/surefire-reports/TEST-com.surprising.gateway.provider.local.LocalBusinessApiTest.xml",
+      "surprising-gateway/target/surefire-reports/com.surprising.gateway.provider.local.LocalBusinessApiTest.txt",
+      "surprising-gateway/target/surefire-reports/TEST-com.surprising.trading.order.controller.OrderControllerTest.xml",
+      "surprising-gateway/target/surefire-reports/com.surprising.trading.order.controller.OrderControllerTest.txt"
+    ],
+    "historicalUiArtifacts": {
+      "trade-390-light.png": {
+        "sha256": "98fdd556f1e7f0aca175c1dece4e7a9b7e5869d1c519468bfc603ac042400d35",
+        "bytes": 97415
+      },
+      "orders-390-light-editor.png": {
+        "sha256": "e51ed070aa14744e3eb6a8926ec41d02f7732cd495769647a08956cf124e5b80",
+        "bytes": 67382
+      },
+      "orders-1440-light.png": {
+        "sha256": "1572671ee74ac38d911dc45b1f0f74c5badd964c1bef5b53236e3a4966bb287f",
+        "bytes": 117299
+      },
+      "orders-1440-dark.png": {
+        "sha256": "0e149ad516fddb70f250dfbbff1671487c98a9acce11a06edcd21a849072aed2",
+        "bytes": 118143
+      },
+      "trade-390-light-editor.png": {
+        "sha256": "2f1f75b176399f5ad404c8509e06c673e52f6d438b22a9b448d0adbb0a9204d6",
+        "bytes": 99293
+      },
+      "result.json": {
+        "sha256": "79289b4c80b22c4bd5d8a32e6091321e053f1fc040576d5383a4f74a97372fd6",
+        "bytes": 7702
+      },
+      "trade-1440-light.png": {
+        "sha256": "9733376a85512614d9a46ca581250c5de4b699e6feef98d5cf4630f9f8984abb",
+        "bytes": 122652
+      },
+      "orders-390-dark-editor.png": {
+        "sha256": "ce07cbb46dcad0b363c48102b1fa821415ee77d81b5cdd54fd2b6831ca99d75d",
+        "bytes": 64593
+      },
+      "orders-390-dark.png": {
+        "sha256": "c4197020bb6067362a00cd981cf9f9455c30a60e18e896a979f6f49aca00121d",
+        "bytes": 68151
+      },
+      "orders-390-light.png": {
+        "sha256": "29efd4906f24a5fc641dd2e7b8852e60fa6db8e1ab7f1b4e07a17de2c1038771",
+        "bytes": 67531
+      },
+      "check.mjs": {
+        "sha256": "a8f5c255ccff0a0b98b9dc0f612f0ad372fb6d4a39f8d10ffbce7f0070964cf8",
+        "bytes": 8518
+      },
+      "trade-1440-dark.png": {
+        "sha256": "62a7c9f1d892dcccc5110bed77181f0586b0ad1a9f98dd70f6527398ad3c234a",
+        "bytes": 120182
+      },
+      "orders-1440-light-editor.png": {
+        "sha256": "73cc1b1b57177c52b0d89d16b4303ad53d2cd17706729b9812543d72ff56bcc0",
+        "bytes": 130045
+      },
+      "orders-1440-dark-editor.png": {
+        "sha256": "0938e7fd82110577081351f3fce5304a78d15269314c02f3527f30e3409bd8f4",
+        "bytes": 126027
+      },
+      "trade-1440-dark-editor.png": {
+        "sha256": "79a957ed335f3c51a627a8aecf41a9019b2b060aa7dbae1ec2ba576c1c2bf2ed",
+        "bytes": 131844
+      },
+      "trade-390-dark-editor.png": {
+        "sha256": "02bb582413339caf28967abecdfce089ce735c9651798741697edd1146828ad7",
+        "bytes": 97442
+      },
+      "trade-1440-light-editor.png": {
+        "sha256": "75e30e0117c436346a5b803ccb41553c977c8b774f4763940bcaf275ee07007a",
+        "bytes": 135178
+      },
+      "trade-390-dark.png": {
+        "sha256": "80f5f807e55adf2460cb1ae3a359efc9efe65ffdb683c637cf251d414d03f014",
+        "bytes": 96606
+      }
+    },
+    "preserved": "System PostgreSQL and unrelated databases/data, installed dependencies and compiled build outputs; no wallet or persistent FUSED trading stack started.",
+    "note": "Historical paths refer to removed temporary evidence; results, class counts and checksums remain here."
+  },
+  "baseCommit": "df4dd8781b5e2f5e84a3591a4c2abd80861c90a9",
+  "change": "SPOT row editor on trading/history pages, exact integer draft validation, required request identity, prewrite recovery persistence, readonly amendment lookup and pending lock",
+  "checks": {
+    "commands": [
+      "npm test",
+      "npm run lint",
+      "npm run build"
+    ],
+    "tests": 188,
+    "lint": "passed; informational diagnostics remain",
+    "build": "passed; bundle-size advisory remains"
+  },
+  "regression": "Temporarily restored old amendOrder only; RESULT_UNKNOWN resolved instead of rejecting. Restored current code and all tests passed.",
+  "browserSource": "controlled API/WS fixtures, not real FUSED services",
+  "browser": [
+    {
+      "page": "/trade/spot?instrumentId=1",
+      "width": 1440,
+      "theme": "dark",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-83c8e813-85c7-44ae-aa8c-5c83f4601537",
+        "clientRequestId": "web-amend-83c8e813-85c7-44ae-aa8c-5c83f4601537",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/trade/spot?instrumentId=1",
+      "width": 1440,
+      "theme": "light",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-cbb584ca-537d-4c74-b6ea-a5c95749f4e6",
+        "clientRequestId": "web-amend-cbb584ca-537d-4c74-b6ea-a5c95749f4e6",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/trade/spot?instrumentId=1",
+      "width": 390,
+      "theme": "dark",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-bd8b3160-812b-4ab2-b82c-eda6f65b46c9",
+        "clientRequestId": "web-amend-bd8b3160-812b-4ab2-b82c-eda6f65b46c9",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/trade/spot?instrumentId=1",
+      "width": 390,
+      "theme": "light",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-5acc577d-d04d-40a0-9f97-fd07a8c13da6",
+        "clientRequestId": "web-amend-5acc577d-d04d-40a0-9f97-fd07a8c13da6",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/orders",
+      "width": 1440,
+      "theme": "dark",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-dccd476c-8fe8-4f82-9d2a-dc10dc549993",
+        "clientRequestId": "web-amend-dccd476c-8fe8-4f82-9d2a-dc10dc549993",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/orders",
+      "width": 1440,
+      "theme": "light",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-09e217f1-89ed-4527-b65f-491f32674d4b",
+        "clientRequestId": "web-amend-09e217f1-89ed-4527-b65f-491f32674d4b",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/orders",
+      "width": 390,
+      "theme": "dark",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-1a352c3b-721e-44a2-92ae-d615ad9fd11b",
+        "clientRequestId": "web-amend-1a352c3b-721e-44a2-92ae-d615ad9fd11b",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "page": "/orders",
+      "width": 390,
+      "theme": "light",
+      "orderId": "9007199254740993",
+      "initialRemainingQuantity": "0.03",
+      "editorGeometry": {
+        "overflow": false,
+        "inside": true
+      },
+      "invalidPrecisionSentNothing": true,
+      "persistedBeforePost": true,
+      "post": {
+        "userId": 1,
+        "orderId": "9007199254740993",
+        "newClientOrderId": "web-amend-d1b40f71-6680-494b-b94d-5fba36f1d7ee",
+        "clientRequestId": "web-amend-d1b40f71-6680-494b-b94d-5fba36f1d7ee",
+        "priceTicks": "1011",
+        "quantitySteps": "2",
+        "timeInForce": "GTC",
+        "postOnly": false
+      },
+      "queries": [
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/gateway/trading/amendments"
+        }
+      ],
+      "unknownRemainedLocked": true,
+      "confirmedUnlocked": true,
+      "overflow": false,
+      "errors": []
+    }
+  ],
+  "geometryRegression": "Dialog inherited nowrap/right alignment from the table cell; captured overflow=true at 1440px. Scoped dialog typography/form layout fixed it; all eight final editor and page geometry checks passed.",
+  "backendEvidence": "surprising-ex/docs/validation/spot-amendment-20261019.json",
+  "artifacts": {
+    "surprising-amend-browser-geometry.log": {
+      "historicalPath": "/tmp/surprising-amend-browser-geometry.log",
+      "sha256": "080ca374e990e49ed5e5f620b3b88dea2a71f12d1d97d970060da56a07f1d7bc",
+      "bytes": 513,
+      "status": "pre-fix geometry check failed; corrected and eight final cases passed"
+    },
+    "surprising-amend-browser.log": {
+      "historicalPath": "/tmp/surprising-amend-browser.log",
+      "sha256": "ac62bbd85855eacab2d9771f0ee7c79c8fc1938090cb7ec41fc51b0a64d5d92c",
+      "bytes": 6290,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-build.log": {
+      "historicalPath": "/tmp/surprising-amend-web-build.log",
+      "sha256": "5ae6252540f3d43e9365d3bc04d2d46e87e9983f1e0e95d4ea6c88ab7e5c8275",
+      "bytes": 3274,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-format.log": {
+      "historicalPath": "/tmp/surprising-amend-web-format.log",
+      "sha256": "1bd6c57cba1df44b9012c5579e931415c3fe1a44c90a2ede8b8fcf4f6e0147c0",
+      "bytes": 10217,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-lint.log": {
+      "historicalPath": "/tmp/surprising-amend-web-lint.log",
+      "sha256": "51052a87c81d897c5c5042743aa1aeacdde2db36972168e27e04fb6658b23392",
+      "bytes": 18550,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-red.log": {
+      "historicalPath": "/tmp/surprising-amend-web-red.log",
+      "sha256": "0f819fced80dd026394c976dd0ed909823febdd2d16450bca273fd1f2c3374f0",
+      "bytes": 1491,
+      "status": "expected failure with the relevant fix omitted"
+    },
+    "surprising-amend-web-tests.log": {
+      "historicalPath": "/tmp/surprising-amend-web-tests.log",
+      "sha256": "47504d6ccfbcd5185be8c8b1cce2cc4e8d42918c8f25d7d5268f2e89d7b07348",
+      "bytes": 287,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-type.log": {
+      "historicalPath": "/tmp/surprising-amend-web-type.log",
+      "sha256": "28151c3ea8607c70d336e2411d9d846f0256865ee60b5ed04f089f44b9aaca8a",
+      "bytes": 62,
+      "status": "passed or routine diagnostic"
+    },
+    "surprising-amend-web-warning.log": {
+      "historicalPath": "/tmp/surprising-amend-web-warning.log",
+      "sha256": "3e362c7ead0204c3d17fa58f0b9efabc61386a84586008ef66a8d698a2d57935",
+      "bytes": 1091,
+      "status": "superseded optional-chain warning; final lint passed"
+    }
+  },
+  "backendCommit": "531ee2425c32c1d92984c4d257bad67efdf6541c"
+}

@@ -167,3 +167,11 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 交易页与订单页同步锁定单笔撤单，并提供查询入口；原产品的结果按原身份查询，恢复后刷新 realtime 账户视图。先更新支持该查询的 gateway，前提为上一轮回执表与 realtime 导出/历史回补已完成。请求从未提交到 Core 时仍需负确认，批量/改单等写入尚未纳入此恢复路径。
 
 181 项测试、lint/build 通过。旧版将 RESULT_UNKNOWN 当成成功已在回归中复现；受控 API/WS 浏览器检查交易页、订单页的 1440/390px 深浅主题八组：发送前保存、丢响应、刷新、未决锁定、终态解锁，64 位订单号完整，每组只有一条 POST，无 JS 异常或横向溢出。未部署或连接完整 FUSED 栈，见 [验证记录](docs/validation/spot-cancel-recovery-20261019.json)。
+
+## 现货订单行改单（2026-10-19）
+
+交易页和订单页的活动现货限价单增加“改单”。`SpotAmendOrderButton` 沿用 StandardDialog，按资产精度显示价格和剩余数量，新委托数量独立于原单已成交数量；`orderCapacity.spotAmendmentTerms` 使用整数检查步长、数量及名义价值。弹窗局部样式隔离表格 nowrap/对齐，桌面与手机都能完整显示字段和说明。
+
+`api/endpoints.ts.amendOrder` 显式发送后端必填的 clientRequestId，并在 POST 前持久保存请求号、原订单、新客户订单号、交易对和产品；存储失败不发送。只有匹配的已撤原单与有效新单才确认即时响应，异常、空响应及未决回执保持锁定。刷新后只查 realtime 的 `/api/v1/gateway/trading/amendments`，不重发 POST，不用新单是否存在推断原改单结果。高级操作的单笔改单也使用同一身份契约。
+
+188 项测试、lint/build 通过；旧代码把 RESULT_UNKNOWN 当作成功已复现。八组浏览器检查覆盖交易页/订单页、1440/390px、深浅主题，验证原剩余数量、步长校验、发送前保存、64 位订单号、断响应/刷新和只读恢复；每组一条 POST、两次 GET，页面和弹窗均无横向溢出。先发布新 gateway，且此前 realtime 回执迁移/导出/历史回补已完成。本轮为受控 API/WS，没有部署或验收完整 FUSED 实栈；批量操作和其他产品仍待继续。见 [记录](docs/validation/spot-amendment-20261019.json)。

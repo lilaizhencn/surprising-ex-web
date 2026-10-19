@@ -1281,13 +1281,17 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
         setPendingCommand(readPendingCommand(pending.userId))
         notify(
           t(
-            pending.cancelOrderId
+            pending.amendRequestId
               ? result === "confirmed"
-                ? "Cancellation processing confirmed. Check the latest order state."
-                : "Cancellation was rejected. Check the latest order state."
-              : result === "confirmed"
-                ? "Order processing confirmed. Check the latest account state."
-                : "Order was not accepted. Check your order state.",
+                ? "Amendment processing confirmed. Check both order states."
+                : "Amendment was rejected. Check the original order state."
+              : pending.cancelOrderId
+                ? result === "confirmed"
+                  ? "Cancellation processing confirmed. Check the latest order state."
+                  : "Cancellation was rejected. Check the latest order state."
+                : result === "confirmed"
+                  ? "Order processing confirmed. Check the latest account state."
+                  : "Order was not accepted. Check your order state.",
           ),
         )
         realtime.refresh()
@@ -2270,9 +2274,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 onClick={() => void checkPendingCommand()}
               >
                 {t(
-                  pendingCommand?.cancelOrderId
-                    ? "Check cancellation result"
-                    : "Check order result",
+                  pendingCommand?.amendRequestId
+                    ? "Check amendment result"
+                    : pendingCommand?.cancelOrderId
+                      ? "Check cancellation result"
+                      : "Check order result",
                 )}
               </Button>
             </div>

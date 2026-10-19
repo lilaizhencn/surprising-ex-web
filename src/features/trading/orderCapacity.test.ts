@@ -3,6 +3,7 @@ import type { Market } from "../../types/domain"
 import {
   linearOpeningCapacity,
   orderPositionSide,
+  spotAmendmentTerms,
   spotFeeReserve,
   spotOrderQuantity,
   spotReferenceTicks,
@@ -190,4 +191,40 @@ it("requires confirmed valid leverage and margin mode from the server", () => {
   expect(() => parseSetting({ ...setting, leveragePpm: 11000000 })).toThrow()
   expect(() => parseSetting({ ...setting, initialMarginRatePpm: null })).toThrow()
   expect(() => parseSetting({ ...setting, marginMode: "UNKNOWN" })).toThrow()
+})
+
+describe("spot amendment precision", () => {
+  const spot = {
+    ...market,
+    productLine: "SPOT" as const,
+    status: "TRADING",
+    priceTickUnits: "100",
+    quantityStepUnits: "10",
+    minNotionalUnits: "1",
+    maxNotionalUnits: "9223372036854775807",
+  }
+  const order = {
+    instrumentId: "1",
+    orderType: "LIMIT",
+    status: "PARTIALLY_FILLED",
+    priceTicks: "1000",
+    quantitySteps: "10",
+    remainingQuantitySteps: "3",
+  }
+  it("uses a new remaining quantity and exact price steps", () => {
+    expect(spotAmendmentTerms(spot, { BTC: "1000", USDT: "1000" }, order, "101.1", "0.02")).toEqual(
+      { priceTicks: "1011", quantitySteps: "2" },
+    )
+  })
+  it("rejects unchanged orders, invalid precision, limits, absent metadata and the wrong product", () => {
+    for (const [m, price, q] of [
+      [spot, "100", "0.03"],
+      [spot, "100.01", "0.02"],
+      [spot, "100", "0.001"],
+      [{ ...spot, maxQuantitySteps: "1" }, "101", "0.02"],
+      [{ ...spot, notionalMultiplierUnits: undefined }, "101", "0.02"],
+      [{ ...spot, productLine: "LINEAR_DELIVERY" as const }, "101", "0.02"],
+    ] as const)
+      expect(() => spotAmendmentTerms(m, { BTC: "1000", USDT: "1000" }, order, price, q)).toThrow()
+  })
 })

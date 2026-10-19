@@ -878,6 +878,29 @@ export function isDefinitiveOrderRejection(reason: unknown): boolean {
 
 /** Resolve original submissions and cancellations from realtime-owned views only. */
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
+  if (pending.amendRequestId) {
+    const query = new URLSearchParams({
+      userId: pending.userId,
+      clientRequestId: pending.amendRequestId,
+    })
+    const receipt = await request(
+      `/api/v1/gateway/trading/amendments?${query}`,
+      GenericObjectSchema,
+      { productLine: pending.productLine, expectedUserId: pending.userId, retry: 0 },
+    )
+    if (
+      typeof receipt["commandId"] !== "string" ||
+      !receipt["commandId"] ||
+      (pending.commandId && receipt["commandId"] !== pending.commandId)
+    )
+      throw new Error(t("Amendment result does not match the original request."))
+    if (receipt["outcome"] === "TERMINAL" && typeof receipt["code"] === "string" && receipt["code"])
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+    if (receipt["outcome"] === "RESULT_UNKNOWN" && receipt["code"] === "RESULT_UNKNOWN")
+      return "pending"
+    throw new Error(t("Amendment result is unavailable. Please check again."))
+  }
+
   if (pending.cancelOrderId) {
     const receipt = await request(
       `/api/v1/gateway/trading/cancellations/${encodeURIComponent(pending.cancelOrderId)}?userId=${encodeURIComponent(pending.userId)}`,
@@ -1076,12 +1099,104 @@ export function testOrder(body: Readonly<Record<string, unknown>>, productLine: 
   })
 }
 
-export function amendOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
-  return request("/api/v1/gateway/trading/amend", GenericObjectSchema, {
-    method: "POST",
-    productLine,
-    body,
-  })
+export async function amendOrder(
+  body: Readonly<Record<string, unknown>>,
+  productLine: ProductLine,
+) {
+  const userId = String(body["userId"] ?? ""),
+    orderId = String(body["orderId"] ?? "")
+  const requestId = String(body["clientRequestId"] ?? ""),
+    clientId = String(body["newClientOrderId"] ?? "")
+  if (
+    !userId ||
+    !/^[1-9]\d*$/.test(orderId) ||
+    !requestId ||
+    requestId.length > 64 ||
+    !clientId ||
+    clientId.length > 64
+  )
+    throw new Error(t("Amendment identity is required. No amendment was sent."))
+  const intent: PendingOrderCommand | null =
+    productLine === "SPOT"
+      ? {
+          userId,
+          productLine,
+          amendRequestId: requestId,
+          amendOrderId: orderId,
+          clientOrderId: clientId,
+          instrumentId: String(body["instrumentId"] ?? ""),
+        }
+      : null
+  if (intent) {
+    if (!intent.instrumentId)
+      throw new Error(t("Amendment identity is required. No amendment was sent."))
+    const existing = readPendingCommand(userId)
+    if (existing) throw new PendingTradingCommand(existing.commandId)
+    try {
+      savePendingCommand(intent)
+    } catch {
+      throw new Error(t("Cannot save amendment recovery details. No amendment was sent."))
+    }
+  }
+  try {
+    const response = await request("/api/v1/gateway/trading/amend", GenericObjectSchema, {
+      method: "POST",
+      productLine,
+      expectedUserId: userId,
+      idempotencyKey: requestId,
+      body: {
+        userId: body["userId"],
+        orderId: body["orderId"],
+        newClientOrderId: clientId,
+        clientRequestId: requestId,
+        priceTicks: body["priceTicks"],
+        quantitySteps: body["quantitySteps"],
+        ...(body["timeInForce"] === undefined ? {} : { timeInForce: body["timeInForce"] }),
+        ...(body["postOnly"] === undefined ? {} : { postOnly: body["postOnly"] }),
+      },
+    })
+    if (["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"]))) {
+      if (intent && typeof response["commandId"] === "string" && response["commandId"])
+        savePendingCommand({ ...intent, commandId: response["commandId"] })
+      throw new PendingTradingCommand(
+        typeof response["commandId"] === "string" ? response["commandId"] : undefined,
+        t("Amendment result is pending. Do not send it again."),
+      )
+    }
+    const result = GenericObjectSchema.safeParse(response["result"])
+    const original = OrderSubmissionSchema.safeParse(
+      result.success ? result.data["originalOrder"] : null,
+    )
+    const replacement = OrderSubmissionSchema.safeParse(
+      result.success ? result.data["replacementOrder"] : null,
+    )
+    if (
+      response["outcome"] !== "TERMINAL" ||
+      response["code"] !== "NONE" ||
+      !result.success ||
+      result.data["cancelRequested"] !== true ||
+      !original.success ||
+      String(original.data.orderId) !== orderId ||
+      original.data.status !== "CANCELED" ||
+      !replacement.success ||
+      !/^[1-9]\d*$/.test(String(replacement.data.orderId)) ||
+      String(replacement.data.orderId) === orderId
+    )
+      throw new ApiError(apiErrorMessage(response, 409), 502, response)
+    if (intent) clearPendingCommand(intent)
+    return result.data
+  } catch (reason) {
+    if (!intent) throw reason
+    if (isDefinitiveOrderRejection(reason)) {
+      clearPendingCommand(intent)
+      throw reason
+    }
+    if (reason instanceof PendingTradingCommand) throw reason
+    throw new PendingTradingCommand(
+      readPendingCommand(userId)?.commandId,
+      t("Amendment result is pending. Do not send it again."),
+    )
+  }
 }
 
 export function amendBatchOrders(

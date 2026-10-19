@@ -14,6 +14,7 @@ import {
 } from "../../realtime"
 import type { Market, ProductLine } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
+import { SpotAmendOrderButton } from "./SpotAmendOrderButton"
 import type { LeverageSettings } from "./TradingTicketControls"
 
 type Props = {
@@ -601,6 +602,15 @@ function TradingOrderRow({
         <small title={id}>{id}</small>
       </td>
       <td className="trading-order-actions">
+        {open && productLine === "SPOT" && (
+          <SpotAmendOrderButton
+            row={row}
+            market={market}
+            scales={scales}
+            disabled={!!commandPending || canceling}
+            onNotice={onNotice}
+          />
+        )}
         {open && (
           <button
             className="compact-cancel"

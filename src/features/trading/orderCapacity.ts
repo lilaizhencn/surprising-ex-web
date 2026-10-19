@@ -232,3 +232,60 @@ export function orderPositionSide(
   if (positionMode === "ONE_WAY") return "NET" as const
   return (action === "OPEN") === (side === "BUY") ? ("LONG" as const) : ("SHORT" as const)
 }
+
+/** A replacement uses an independent quantity; never subtract original fills from the draft. */
+export function spotAmendmentTerms(
+  market: Market,
+  scales: Readonly<Record<string, string>>,
+  order: Readonly<Record<string, unknown>>,
+  price: string,
+  quantity: string,
+) {
+  if (
+    market.productLine !== "SPOT" ||
+    market.status !== "TRADING" ||
+    String(order["instrumentId"]) !== market.instrumentId ||
+    order["orderType"] !== "LIMIT" ||
+    !["OPEN", "NEW", "ACCEPTED", "PARTIALLY_FILLED"].includes(String(order["status"]))
+  )
+    throw new Error("This order cannot be amended.")
+  if (
+    !market.priceTickUnits ||
+    !market.quantityStepUnits ||
+    !market.notionalMultiplierUnits ||
+    BigInt(market.notionalMultiplierUnits) <= 0n ||
+    !scales[market.baseAsset] ||
+    !scales[market.quoteAsset] ||
+    market.minQuantitySteps == null ||
+    market.maxQuantitySteps == null ||
+    market.minNotionalUnits == null ||
+    market.maxNotionalUnits == null
+  )
+    throw new Error("Trading precision is unavailable. Refresh before amending.")
+  const priceTicks = decimalToStepUnits(
+    price,
+    market.priceTickUnits,
+    scales[market.quoteAsset] ?? "",
+  )
+  const quantitySteps = decimalToStepUnits(
+    quantity,
+    market.quantityStepUnits ?? "",
+    scales[market.baseAsset] ?? "",
+  )
+  const q = BigInt(quantitySteps),
+    notional = BigInt(priceTicks) * q * BigInt(market.notionalMultiplierUnits ?? "")
+  if (
+    q < BigInt(market.minQuantitySteps ?? "") ||
+    q > BigInt(market.maxQuantitySteps ?? "") ||
+    notional < BigInt(market.minNotionalUnits ?? "") ||
+    notional > BigInt(market.maxNotionalUnits ?? "") ||
+    q * BigInt(market.quantityStepUnits ?? "") > 9223372036854775807n
+  )
+    throw new Error("Replacement quantity or value exceeds the trading rules.")
+  if (
+    String(order["priceTicks"]) === priceTicks &&
+    String(order["remainingQuantitySteps"]) === quantitySteps
+  )
+    throw new Error("Change the price or replacement quantity.")
+  return { priceTicks, quantitySteps }
+}
