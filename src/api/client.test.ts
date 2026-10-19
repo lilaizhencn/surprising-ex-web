@@ -68,6 +68,30 @@ describe("public request failures", () => {
 })
 
 describe("session refresh", () => {
+  it("never sends an order under a different user after an asynchronous refresh", async () => {
+    browserStorage()
+    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    let complete!: (response: Response) => void
+    vi.mocked(ky).mockImplementation(
+      (() =>
+        new Promise<Response>((resolve) => {
+          complete = resolve
+        })) as unknown as typeof ky,
+    )
+    const sent = request("/api/v1/gateway/trading", z.unknown(), {
+      method: "POST",
+      body: { userId: 1 },
+      expectedUserId: "1",
+    })
+    saveSession({
+      ...session("other", "2999-01-01T00:00:00Z"),
+      refreshToken: "other-refresh",
+      user: { userId: 2 },
+    })
+    complete(json(session("refreshed", "2999-01-01T00:00:00Z")))
+    await expect(sent).rejects.toThrow("Session changed")
+    expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
+  })
   it("loads public instruments without refreshing an expired session or sending credentials", async () => {
     browserStorage()
     saveSession(session("old", "2000-01-01T00:00:00Z"))

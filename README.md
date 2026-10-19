@@ -102,7 +102,8 @@ U 本位永续按 `contractMultiplierPpm / 1_000_000` 将合约步长换算为�
 切换产品或交易对会清空数量、比例、BBO 和旧委托方式，避免将另一市场的表单带入当前市场。
 
 placeOrder 显式识别 MATCHING_PENDING/RESULT_UNKNOWN，页面以“结果待确认”提示并锁定新单，
-保存用户、产品和 commandId 至当前标签页 sessionStorage。刷新或切换页面后恢复同一用户的待确认状态；
+保存用户、产品和 commandId 至 localStorage，现货还会在发送前保存 clientOrderId 与 instrumentId。
+每个请求单独存储，已有标签页中的旧回执记录在读取时迁入。刷新或切换页面后恢复同一用户的待确认状态；
 “查询委托结果”只读取原命令、原产品，不重发下单。确认终态后才解除锁定并刷新账户状态。
 
 恢复查询统一使用用户入口 `GET /api/v1/gateway/trading/commands/{commandId}`，与后端回执的
@@ -110,8 +111,8 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 两端硬编码路径，并在真实 FUSED 现货服务中验证回执地址可查询原命令；Web lint/build 和
 151 项测试通过。用户界面直接连接真实做市服务的完整验收仍未执行。
 
-这是已获得命令回执的恢复路径；没有收到 commandId 的网络中断及真实现货全链路
-仍待后续验收。本轮未调试永续、交割或期权，也未部署线上。
+已受理但未收到 commandId 的现货恢复见下节；请求未到达服务端时的负确认与真实现货全链路
+仍待后续验收。未调试永续、交割或期权，也未部署线上。
 
 验证：新增 orderCommands.test.ts 检查终态回执、64 位订单 ID、待确认分类及查询路由；
 现有 Web 测试共 151 项通过，lint/build 通过。Playwright 用受控 API/WS 数据，在 1440px 与 390px
@@ -132,3 +133,23 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 修复后为 0.09，50% 为 0.04。158 项测试、lint 和生产构建通过；受控 API/WS 浏览器检查
 覆盖 1440/390px 深浅主题、买卖比例、BBO 第五档和实际 POST，无 JS 异常和横向溢出。
 详细范围见 [验证记录](docs/validation/spot-order-sizing-20261019.json)。没有连接真实服务下单或部署线上。
+
+## 现货响应丢失后的查询恢复（2026-10-19）
+
+`api/endpoints.ts.placeOrder` 在发送现货 POST 前，将用户、产品、clientOrderId、instrumentId 写入
+`state/pendingOrders.ts` 管理的持久记录；存储失败就停止发送。传输中断、超时、服务端异常或响应
+无法解析时保留待确认状态，阻止另一笔下单。收到明确拒绝或完整订单响应后才移除该请求的记录。
+
+“查询委托结果”优先调用 `GET /api/v1/gateway/trading/by-client-order-id`，读取 realtime 活动视图或
+已提交终态投影。只接受用户、请求号和交易对一致且订单号有效的结果。404、视图不可用或响应
+不匹配都不能证明原订单未被受理；有 commandId 时保留既有回执查询，但查询自身的 NOT_ACCEPTED
+不再解除锁定。恢复只发 GET，不自动重发 POST。不同用户和请求各存一条记录，跨标签页变更同步。
+
+带用户身份约束的请求在登录刷新完成后再次核对账户，防止切换账户后用新用户凭证发送旧表单。
+170 项测试、lint、生产构建通过。受控 API/WS 浏览器检查覆盖 1440/390px 深浅主题：发送前持久化、
+响应中断、刷新恢复、404 保留锁定、成交终态解锁，每组仅有一条 POST。详见
+[验证记录](docs/validation/spot-order-response-loss-20261019.json)。
+
+本轮补齐的是已受理订单的响应丢失恢复。若请求从未到达服务端，或回执已过保留期且没有订单投影，
+目前仍保留待确认，尚需服务端的负确认机制；不能据此声称断网恢复已全部完成。
+普通现货下单以外的写入、原生真机及真实 FUSED 做市联调未纳入本轮。

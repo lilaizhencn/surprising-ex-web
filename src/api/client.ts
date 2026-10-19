@@ -28,6 +28,7 @@ export type RequestOptions = {
   readonly idempotencyKey?: string
   readonly signal?: AbortSignal
   readonly retry?: number
+  readonly expectedUserId?: string
 }
 
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
@@ -93,6 +94,11 @@ export async function request<T>(
   )
     await refreshStoredSession()
   const session = publicMarket ? null : loadSession()
+  if (
+    options.expectedUserId !== undefined &&
+    String(session?.user.userId ?? "") !== options.expectedUserId
+  )
+    throw new ApiError(t("Session changed. No order was sent."), 401)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
   if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)

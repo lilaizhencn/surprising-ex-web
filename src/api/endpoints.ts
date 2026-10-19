@@ -1,5 +1,11 @@
 import { z } from "zod"
 import { t } from "../i18n"
+import {
+  clearPendingCommand,
+  type PendingOrderCommand,
+  readPendingCommand,
+  savePendingCommand,
+} from "../state/pendingOrders"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
 import { ApiError, request, requestBlob } from "./client"
@@ -846,16 +852,81 @@ export function loadFundingSettlement(instrumentId: string, productLine: Product
 }
 
 export class PendingTradingCommand extends ApiError {
-  constructor(readonly commandId: string) {
+  constructor(readonly commandId?: string) {
     super(t("Order result is pending. Do not submit it again."), 202)
   }
 }
 
-export function loadTradingCommand(commandId: string, productLine: ProductLine) {
+export function isDefinitiveOrderRejection(reason: unknown): boolean {
+  if (!(reason instanceof ApiError)) return false
+  const receipt = GenericObjectSchema.safeParse(reason.payload)
+  if (
+    receipt.success &&
+    typeof receipt.data["commandId"] === "string" &&
+    typeof receipt.data["code"] === "string" &&
+    (receipt.data["outcome"] === "NOT_ACCEPTED" ||
+      (receipt.data["outcome"] === "TERMINAL" && receipt.data["code"] !== "NONE"))
+  )
+    return true
+  return (
+    reason.status >= 400 && reason.status < 500 && ![408, 409, 425, 429].includes(reason.status)
+  )
+}
+
+/** Order existence comes from realtime; a failed receipt lookup never proves rejection. */
+export async function checkOrderSubmission(pending: PendingOrderCommand) {
+  if (pending.clientOrderId && pending.instrumentId) {
+    const query = new URLSearchParams({
+      userId: pending.userId,
+      clientOrderId: pending.clientOrderId,
+    })
+    try {
+      const value = await request(
+        `/api/v1/gateway/trading/by-client-order-id?${query}`,
+        GenericObjectSchema,
+        {
+          productLine: pending.productLine,
+          expectedUserId: pending.userId,
+          retry: 0,
+        },
+      )
+      const order = OrderSubmissionSchema.parse(value)
+      if (
+        String(value["userId"]) !== pending.userId ||
+        order.clientOrderId !== pending.clientOrderId ||
+        order.instrumentId !== pending.instrumentId ||
+        !/^\d+$/.test(String(order.orderId)) ||
+        BigInt(order.orderId) <= 0n
+      )
+        throw new Error("Order recovery identity mismatch")
+      return order.status === "REJECTED" ? "rejected" : "confirmed"
+    } catch (reason) {
+      if (!(reason instanceof ApiError) || reason.status !== 404) throw reason
+    }
+  }
+  if (pending.commandId) {
+    const receipt = await loadTradingCommand(pending.commandId, pending.productLine, pending.userId)
+    if (receipt["commandId"] !== pending.commandId)
+      throw new Error("Order receipt identity mismatch")
+    if (
+      receipt["outcome"] === "TERMINAL" &&
+      typeof receipt["code"] === "string" &&
+      receipt["code"] !== ""
+    )
+      return receipt["code"] === "NONE" ? "confirmed" : "rejected"
+  }
+  return "pending"
+}
+
+export function loadTradingCommand(
+  commandId: string,
+  productLine: ProductLine,
+  expectedUserId?: string,
+) {
   return request(
     `/api/v1/gateway/trading/commands/${encodeURIComponent(commandId)}`,
     GenericObjectSchema,
-    { productLine, retry: 0 },
+    { productLine, retry: 0, ...(expectedUserId === undefined ? {} : { expectedUserId }) },
   )
 }
 
@@ -876,21 +947,60 @@ export async function placeOrder(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
-  const response = await request("/api/v1/gateway/trading", GenericObjectSchema, {
-    method: "POST",
-    productLine,
-    idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
-    body,
-  })
-  const order = OrderSubmissionSchema.safeParse(response)
-  if (order.success) return order.data
-  if (
-    ["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"])) &&
-    typeof response["commandId"] === "string"
-  ) {
-    throw new PendingTradingCommand(response["commandId"])
+  const intent: PendingOrderCommand | null =
+    productLine === "SPOT"
+      ? {
+          userId: String(body["userId"] ?? ""),
+          productLine,
+          clientOrderId: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
+          instrumentId: String(body["instrumentId"] ?? ""),
+        }
+      : null
+  if (intent) {
+    if (!intent.userId || !intent.clientOrderId || !intent.instrumentId)
+      throw new Error("Order identity is required")
+    const existing = readPendingCommand(intent.userId)
+    if (existing) throw new PendingTradingCommand(existing.commandId)
+    try {
+      savePendingCommand(intent)
+    } catch {
+      throw new Error(t("Cannot save order recovery details. No order was sent."))
+    }
   }
-  throw new ApiError(apiErrorMessage(response, 409), 409, response)
+  try {
+    const response = await request("/api/v1/gateway/trading", GenericObjectSchema, {
+      method: "POST",
+      productLine,
+      idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
+      ...(intent ? { expectedUserId: intent.userId } : {}),
+      body,
+    })
+    const order = OrderSubmissionSchema.safeParse(response)
+    if (
+      order.success &&
+      /^\d+$/.test(String(order.data.orderId)) &&
+      BigInt(order.data.orderId) > 0n
+    ) {
+      if (intent) clearPendingCommand(intent)
+      return order.data
+    }
+    if (
+      ["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"])) &&
+      typeof response["commandId"] === "string"
+    ) {
+      if (intent) savePendingCommand({ ...intent, commandId: response["commandId"] })
+      throw new PendingTradingCommand(response["commandId"])
+    }
+    throw new ApiError(apiErrorMessage(response, 409), 502, response)
+  } catch (reason) {
+    if (!intent) throw reason
+    if (isDefinitiveOrderRejection(reason)) {
+      clearPendingCommand(intent)
+      throw reason
+    }
+    if (reason instanceof PendingTradingCommand) throw reason
+    throw new PendingTradingCommand(readPendingCommand(intent.userId)?.commandId)
+  }
 }
 
 export function placeBatchOrders(

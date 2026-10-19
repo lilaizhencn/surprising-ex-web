@@ -116,6 +116,8 @@
   "Available": "可用",
   "Est. fee": "预估手续费",
   "Fee reserve": "预留手续费",
+  "Cannot save order recovery details. No order was sent.": "无法保存委托恢复资料，未发送订单。",
+  "Session changed. No order was sent.": "登录账户已变化，未发送订单。",
   "Limit": "限价",
   "Market": "市价",
   "Stop loss": "止损",

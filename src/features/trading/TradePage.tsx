@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { ApiError } from "../../api/client"
 import {
   cancelTriggerOrder,
+  checkOrderSubmission,
   loadAssetScales,
   loadCandles,
   loadEffectiveTradingFee,
@@ -14,7 +15,6 @@ import {
   loadOptionQuote,
   loadOrderPriceProtection,
   loadRecentTrades,
-  loadTradingCommand,
   PendingTradingCommand,
   placeBatchTriggerOrders,
   placeOrder,
@@ -69,6 +69,13 @@ import {
   unitsToDecimal,
 } from "../../lib/units"
 import type { WsEnvelope } from "../../realtime"
+import {
+  clearPendingCommand,
+  type PendingOrderCommand,
+  pendingOrderChanged,
+  readPendingCommand,
+  savePendingCommand,
+} from "../../state/pendingOrders"
 import { loadSession, useSession } from "../../state/session"
 import {
   type Candle,
@@ -159,22 +166,6 @@ export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined):
   return snapshot
 }
 
-type PendingOrderCommand = { commandId: string; productLine: ProductLine; userId: string }
-const pendingCommandKey = (userId: string) => `surprising-ex.pending-command:${userId}`
-function readPendingCommand(userId: string): PendingOrderCommand | null {
-  try {
-    const value = JSON.parse(window.sessionStorage.getItem(pendingCommandKey(userId)) ?? "null")
-    return value &&
-      value.userId === userId &&
-      typeof value.commandId === "string" &&
-      Object.values(PRODUCT_LINES).includes(value.productLine)
-      ? value
-      : null
-  } catch {
-    return null
-  }
-}
-
 export function TradePage({ productKey }: { readonly productKey: string }) {
   const normalizedProductKey = productKeyAliases[productKey] ?? productKey
   const view = views.find((candidate) => candidate.key === normalizedProductKey) ?? views[0]
@@ -256,7 +247,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     readPendingCommand(String(session?.user.userId ?? "")),
   )
   useEffect(() => {
-    setPendingCommand(readPendingCommand(String(session?.user.userId ?? "")))
+    const update = () => setPendingCommand(readPendingCommand(String(session?.user.userId ?? "")))
+    update()
+    window.addEventListener("storage", update)
+    window.addEventListener(pendingOrderChanged, update)
+    return () => {
+      window.removeEventListener("storage", update)
+      window.removeEventListener(pendingOrderChanged, update)
+    }
   }, [session?.user.userId])
   const pendingForUser =
     pendingCommand !== null && pendingCommand.userId === String(session?.user.userId ?? "")
@@ -1230,6 +1228,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           },
           view.line,
         )
+        if (String(loadSession()?.user.userId ?? "") !== String(session.user.userId)) return
         if (response.status === "REJECTED") {
           setSubmitState("error")
           notify(apiErrorMessage({ code: response.rejectReason }, 409))
@@ -1255,16 +1254,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setTakeProfitLimitPrice("")
       refresh()
     } catch (reason: unknown) {
+      if (String(loadSession()?.user.userId ?? "") !== String(session.user.userId)) return
       if (reason instanceof PendingTradingCommand) {
-        const pending = {
-          commandId: reason.commandId,
-          productLine: view.line,
-          userId: String(session.user.userId),
+        const userId = String(session.user.userId)
+        if (!readPendingCommand(userId) && reason.commandId) {
+          savePendingCommand({ commandId: reason.commandId, productLine: view.line, userId })
         }
-        try {
-          window.sessionStorage.setItem(pendingCommandKey(pending.userId), JSON.stringify(pending))
-        } catch {}
-        setPendingCommand(pending)
+        setPendingCommand(readPendingCommand(userId))
         setSubmitState("idle")
         notify(reason.message)
         return
@@ -1278,16 +1274,14 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     const pending = pendingCommand
     setSubmitState("loading")
     try {
-      const receipt = await loadTradingCommand(pending.commandId, pending.productLine)
+      const result = await checkOrderSubmission(pending)
       if (String(loadSession()?.user.userId ?? "") !== pending.userId) return
-      if (receipt["outcome"] === "TERMINAL" || receipt["outcome"] === "NOT_ACCEPTED") {
-        try {
-          window.sessionStorage.removeItem(pendingCommandKey(pending.userId))
-        } catch {}
-        setPendingCommand(null)
+      if (result !== "pending") {
+        clearPendingCommand(pending)
+        setPendingCommand(readPendingCommand(pending.userId))
         notify(
           t(
-            receipt["outcome"] === "TERMINAL" && receipt["code"] === "NONE"
+            result === "confirmed"
               ? "Order processing confirmed. Check the latest account state."
               : "Order was not accepted. Check your order state.",
           ),
