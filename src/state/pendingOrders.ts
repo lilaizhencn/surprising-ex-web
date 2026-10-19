@@ -31,6 +31,9 @@ export type PendingOrderCommand = {
 export const tracksSingleOrderIntent = (line: ProductLine) =>
   line === "SPOT" || line === "LINEAR_DELIVERY" || line === "INVERSE_DELIVERY" || line === "OPTION"
 
+export const tracksTriggerIntent = (line: ProductLine) =>
+  line === "OPTION" || line === "LINEAR_DELIVERY"
+
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
 const key = (pending: PendingOrderCommand) =>
@@ -55,14 +58,14 @@ export function readPendingCommand(userId: string): PendingOrderCommand | null {
         value?.userId === userId &&
         Object.values(PRODUCT_LINES).includes(value.productLine) &&
         (value.cancelPlan != null ||
-          (value.productLine === "OPTION" &&
+          (tracksTriggerIntent(value.productLine) &&
             typeof value.instrumentId === "string" &&
             value.instrumentId.length > 0 &&
             ((typeof value.clientTriggerOrderId === "string" &&
               value.clientTriggerOrderId.length > 0) ||
               (typeof value.cancelTriggerOrderId === "string" &&
                 /^[1-9]\d*$/.test(value.cancelTriggerOrderId)))) ||
-          (value.productLine === "OPTION" &&
+          (tracksTriggerIntent(value.productLine) &&
             typeof value.instrumentId === "string" &&
             value.instrumentId.length > 0 &&
             typeof value.ocoTakeProfitClientId === "string" &&

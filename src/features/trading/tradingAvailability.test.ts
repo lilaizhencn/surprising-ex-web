@@ -1,6 +1,6 @@
 import { expect, it } from "vitest"
 import type { Market } from "../../types/domain"
-import { canSubmitTradingOrder } from "./tradingAvailability"
+import { canSubmitTradingOrder, canSubmitTriggerOrder } from "./tradingAvailability"
 
 const market = (status: string, productLine = "LINEAR_DELIVERY") =>
   ({ status, productLine }) as Market
@@ -29,4 +29,20 @@ it("requires an unexpired TRADING option and never enables reductions during exe
   expect(canSubmitTradingOrder({ ...option, expiryTime: "invalid" }, false, now)).toBe(false)
   for (const status of ["PRE_TRADING", "HALT", "SETTLING", "CLOSED"])
     expect(canSubmitTradingOrder({ ...option, status }, true, now)).toBe(false)
+})
+
+it("new conditional protection is forbidden at settlement, expiry and unavailable metadata", () => {
+  const now = Date.parse("2030-01-01T00:00:00Z")
+  for (const line of ["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"]) {
+    const fresh = { ...market("TRADING", line), expiryTime: "2030-01-01T01:00:00Z" }
+    expect(canSubmitTriggerOrder(fresh, now)).toBe(true)
+    for (const status of ["SETTLING", "HALT", "CLOSED", "PRE_TRADING"])
+      expect(canSubmitTriggerOrder({ ...fresh, status }, now)).toBe(false)
+    expect(canSubmitTriggerOrder(fresh, now + 3600000)).toBe(false)
+    expect(canSubmitTriggerOrder({ ...fresh, expiryTime: undefined }, now)).toBe(false)
+    expect(canSubmitTriggerOrder({ ...fresh, expiryTime: "invalid" }, now)).toBe(false)
+  }
+  expect(canSubmitTriggerOrder(market("TRADING", "SPOT"), now)).toBe(false)
+  expect(canSubmitTriggerOrder(market("TRADING", "LINEAR_PERPETUAL"), now)).toBe(true)
+  expect(canSubmitTriggerOrder(null, now)).toBe(false)
 })

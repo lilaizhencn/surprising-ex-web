@@ -13,6 +13,7 @@ import {
   readPendingCommand,
   savePendingCommand,
   tracksSingleOrderIntent,
+  tracksTriggerIntent,
 } from "../state/pendingOrders"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
@@ -1322,7 +1323,7 @@ export function placeTriggerOrder(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ): Promise<ApiTriggerOrder> {
-  if (productLine === "OPTION") {
+  if (tracksTriggerIntent(productLine)) {
     const intent: PendingOrderCommand = {
       userId: String(body["userId"]),
       productLine,
@@ -1336,7 +1337,7 @@ export function placeTriggerOrder(
       intent.clientTriggerOrderId.length > 64
     )
       return Promise.reject(new Error("Trigger request identities are required"))
-    return submitOptionTrigger(intent, "/api/v1/gateway/trading-trigger", body)
+    return submitTrackedTrigger(intent, "/api/v1/gateway/trading-trigger", body)
   }
   return request("/api/v1/gateway/trading-trigger", TriggerOrderSchema, {
     method: "POST",
@@ -1366,7 +1367,7 @@ export function cancelTriggerOrder(
   productLine: ProductLine,
   instrumentId?: string,
 ): Promise<ApiTriggerOrder> {
-  if (productLine === "OPTION") {
+  if (tracksTriggerIntent(productLine)) {
     const intent: PendingOrderCommand = {
       userId: String(userId),
       productLine,
@@ -1379,7 +1380,7 @@ export function cancelTriggerOrder(
       !intent.instrumentId
     )
       return Promise.reject(new Error("Trigger cancellation identities are required"))
-    return submitOptionTrigger(intent, "/api/v1/gateway/trading-trigger/cancel", {
+    return submitTrackedTrigger(intent, "/api/v1/gateway/trading-trigger/cancel", {
       userId,
       triggerOrderId,
     })
@@ -1392,8 +1393,8 @@ export function cancelTriggerOrder(
   })
 }
 
-/** Save the original OPTION trigger request before its sole POST. Resolution is GET only. */
-async function submitOptionTrigger(
+/** Save the original trigger request before its sole POST. Resolution is GET only. */
+async function submitTrackedTrigger(
   intent: PendingOrderCommand,
   path: string,
   body: Readonly<Record<string, unknown>>,
@@ -1441,7 +1442,7 @@ export async function placeBatchTriggerOrders(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
-  if (productLine !== "OPTION" || body["atomic"] !== true)
+  if (!tracksTriggerIntent(productLine) || body["atomic"] !== true)
     return request("/api/v1/gateway/trading-trigger/batch", GenericObjectSchema, {
       method: "POST",
       productLine,
@@ -1498,6 +1499,10 @@ export async function placeBatchTriggerOrders(
       const order = GenericObjectSchema.parse(item["order"])
       if (
         item["success"] !== true ||
+        String(order["userId"]) !== intent.userId ||
+        !["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"].includes(
+          String(order["status"]),
+        ) ||
         !/^[1-9]\d*$/.test(String(order["triggerOrderId"])) ||
         order["clientTriggerOrderId"] !== orders[index]?.["clientTriggerOrderId"] ||
         order["instrumentId"] !== intent.instrumentId ||

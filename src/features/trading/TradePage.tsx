@@ -103,7 +103,7 @@ import { mergeRecentTrades } from "./recentTrades"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
-import { canSubmitTradingOrder } from "./tradingAvailability"
+import { canSubmitTradingOrder, canSubmitTriggerOrder } from "./tradingAvailability"
 import {
   closeSideForPosition,
   positionPercentageSteps,
@@ -1054,7 +1054,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       notify(t("Order result is pending. Do not submit it again."))
       return
     }
-    if (!canSubmitTradingOrder(current, orderType !== "STOP" && closingTicket)) {
+    if (
+      !(orderType === "STOP"
+        ? canSubmitTriggerOrder(current)
+        : canSubmitTradingOrder(current, closingTicket))
+    ) {
       setSubmitState("error")
       notify(
         t(
@@ -2117,8 +2121,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                             )}
                         <br />
                         {protectionMode === "OCO"
-                          ? `${t("Stop loss")}: ${triggerConditionText(side, "STOP_LOSS")} · ${t("Take profit")}: ${triggerConditionText(side, "TAKE_PROFIT")}`
-                          : triggerConditionText(side, triggerType)}
+                          ? `${t("Stop loss")}: ${triggerConditionText(side, "STOP_LOSS", triggerPriceSource)} · ${t("Take profit")}: ${triggerConditionText(side, "TAKE_PROFIT", triggerPriceSource)}`
+                          : triggerConditionText(side, triggerType, triggerPriceSource)}
                         <br />
                         {t("Reduces the position after triggering; never opens a new position.")}
                       </span>
@@ -2380,20 +2384,20 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <span className="mono">
               {view.line === PRODUCT_LINES.spot && current
                 ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
-                : optionProduct
-                  ? orderType === "STOP"
-                    ? t("At execution")
-                    : `${optionTerms(side)?.fee ?? "—"} ${current?.settleAsset ?? ""}`
-                  : deliveryProduct
-                    ? deliveryFeeEstimate()
-                    : estimatedFee(
-                        current,
-                        price,
-                        quantity,
-                        numberValue(userFees, "takerFeeRatePpm"),
-                      )}
+                : (deliveryProduct || optionProduct) && orderType === "STOP"
+                  ? t("At execution")
+                  : optionProduct
+                    ? `${optionTerms(side)?.fee ?? "—"} ${current?.settleAsset ?? ""}`
+                    : deliveryProduct
+                      ? deliveryFeeEstimate()
+                      : estimatedFee(
+                          current,
+                          price,
+                          quantity,
+                          numberValue(userFees, "takerFeeRatePpm"),
+                        )}
             </span>
-            {(deliveryProduct || optionProduct) && closingTicket ? (
+            {(deliveryProduct || optionProduct) && (closingTicket || orderType === "STOP") ? (
               <>
                 <span>{t("Available to close short")}</span>
                 <span className="mono">
@@ -2406,7 +2410,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </>
             ) : (
               view.line !== PRODUCT_LINES.spot &&
-              !optionProduct && (
+              !optionProduct &&
+              orderType !== "STOP" && (
                 <>
                   <span
                     title={t(
@@ -2525,7 +2530,12 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <Button
               tone={side === "BUY" ? "positive" : "negative"}
               loading={submitState === "loading"}
-              disabled={pendingForUser || !canSubmitTradingOrder(current, false)}
+              disabled={
+                pendingForUser ||
+                !(orderType === "STOP"
+                  ? canSubmitTriggerOrder(current)
+                  : canSubmitTradingOrder(current, false))
+              }
               onClick={() => void submit(orderType === "STOP" ? (triggerCloseSide ?? side) : side)}
             >
               {session && orderType === "STOP"

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
+import { t } from "../../i18n"
 import {
   closeSideForPosition,
   positionPercentageSteps,
   positionQuantityPercentage,
   selectTriggerPosition,
+  triggerConditionText,
 } from "./triggerOrder"
 
 describe("TP/SL percentage quantity", () => {
@@ -72,4 +74,22 @@ describe("manual close quantity percentage", () => {
     expect(positionQuantityPercentage(0n, 1n)).toBe(0)
     expect(positionQuantityPercentage(900719925474099300n, 450359962737049650n)).toBe(50)
   })
+})
+
+it("trigger instructions describe the actual chosen reference and close direction", () => {
+  expect(triggerConditionText("SELL", "TAKE_PROFIT", "LAST")).toBe(
+    t("Triggers when last traded price ≥ trigger price"),
+  )
+  expect(triggerConditionText("SELL", "STOP_LOSS", "LAST")).toBe(
+    t("Triggers when last traded price ≤ trigger price"),
+  )
+  expect(triggerConditionText("BUY", "TAKE_PROFIT", "INDEX")).toBe(
+    t("Triggers when index price ≤ trigger price"),
+  )
+  expect(triggerConditionText("BUY", "STOP_LOSS", "INDEX")).toBe(
+    t("Triggers when index price ≥ trigger price"),
+  )
+  expect(triggerConditionText("SELL", "TAKE_PROFIT")).toBe(
+    t("Triggers when mark price ≥ trigger price"),
+  )
 })

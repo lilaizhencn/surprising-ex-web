@@ -234,3 +234,14 @@ OPTION 的独立条件单和单笔撤销现在与普通委托、OCO 一样，在
 发布需匹配 gateway 两个新只读入口，保留此前回执迁移及 realtime 导出，无新 SQL。
 接口见 docs/api/options.md，隔离实栈脚本 scripts/option-single-trigger-fused-live.mjs 使用 OPTION_SINGLE_LIVE_FIXTURE、
 OPTION_SINGLE_PLAYWRIGHT_MODULE、OPTION_SINGLE_CHROMIUM；证据见 docs/validation/option-single-trigger-20261020.json。
+
+
+### U 本位交割保护委托恢复
+
+U 本位交割的独立条件单、原子 OCO 与单笔撤销在发送前保存产品及原身份，刷新后只查 realtime 原回执。
+保护单仅在未到期 TRADING 可提交，SETTLING 保留直接 reduce-only 平仓与原结果查询。
+票据展示实际 MARK/LAST/INDEX 触发规则、可平数量和触发成交时费用，去除保护票据中的开仓额度估算。
+
+scripts/linear-delivery-protection-fused-live.mjs 使用 LINEAR_PROTECTION_LIVE_FIXTURE、LINEAR_PROTECTION_PHASE、
+LINEAR_PROTECTION_PLAYWRIGHT_MODULE、LINEAR_PROTECTION_CHROMIUM，验证 TRADING 与 SETTLING 两阶段。
+需既有 gateway 条件单回执接口及 realtime 导出，无新 SQL；记录见 docs/validation/linear-delivery-protection-20261020.json。

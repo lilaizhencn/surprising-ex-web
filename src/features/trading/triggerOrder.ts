@@ -51,13 +51,22 @@ export function closeSideForPosition(position: Record<string, unknown>): OrderSi
 export function triggerConditionText(
   side: OrderSide,
   triggerType: "STOP_LOSS" | "TAKE_PROFIT",
+  priceSource: "MARK" | "LAST" | "INDEX" = "MARK",
 ): string {
   const greaterOrEqual =
     (triggerType === "TAKE_PROFIT" && side === "SELL") ||
     (triggerType === "STOP_LOSS" && side === "BUY")
+  if (priceSource === "LAST")
+    return greaterOrEqual
+      ? t("Triggers when last traded price ≥ trigger price")
+      : t("Triggers when last traded price ≤ trigger price")
+  if (priceSource === "INDEX")
+    return greaterOrEqual
+      ? t("Triggers when index price ≥ trigger price")
+      : t("Triggers when index price ≤ trigger price")
   return greaterOrEqual
-    ? t("Triggers when mark price \u2265 trigger price")
-    : t("Triggers when mark price \u2264 trigger price")
+    ? t("Triggers when mark price ≥ trigger price")
+    : t("Triggers when mark price ≤ trigger price")
 }
 
 function text(row: Record<string, unknown>, key: string): string {
