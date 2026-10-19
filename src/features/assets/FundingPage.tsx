@@ -30,7 +30,10 @@ export function FundingPage({ mode }: { readonly mode: "deposit" | "withdraw" | 
 
 function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
   const session = useSession()
-  const [asset, setAsset] = useState("BTC")
+  const [requestedAsset] = useState(
+    () => new URLSearchParams(window.location.search).get("asset")?.toUpperCase() ?? "",
+  )
+  const [asset, setAsset] = useState(requestedAsset || "BTC")
   const [network, setNetwork] = useState("")
   const [address, setAddress] = useState("")
   const [amount, setAmount] = useState("")
@@ -63,12 +66,24 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
     ])
       .then(([balanceRows, recordRows, transferRows, scales]) => {
         setBalances(balanceRows)
+        if (mode === "transfer") {
+          const availableAssets = [
+            ...new Set(balanceRows.map((row) => text(row, "asset").toUpperCase()).filter(Boolean)),
+          ]
+          setAsset((current) =>
+            availableAssets.includes(current)
+              ? current
+              : availableAssets.includes(requestedAsset)
+                ? requestedAsset
+                : (availableAssets[0] ?? requestedAsset),
+          )
+        }
         setRecords(recordRows)
         setTransferRecords(transferRows)
         setAssetScales(scales)
       })
       .catch((reason: unknown) => setMessage(readError(reason)))
-  }, [asset, mode, session])
+  }, [asset, mode, requestedAsset, session])
 
   useEffect(() => {
     if (!session || mode !== "withdraw") return
@@ -77,16 +92,17 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
       (rows) => {
         if (abort.signal.aborted) return
         setFundingAssets(rows)
-        setAsset(rows[0]?.asset ?? "")
-        setChains(rows[0]?.networks ?? [])
-        setNetwork(rows[0]?.networks[0]?.networkCode ?? "")
+        const selected = rows.find((row) => row.asset === requestedAsset) ?? rows[0]
+        setAsset(selected?.asset ?? "")
+        setChains(selected?.networks ?? [])
+        setNetwork(selected?.networks.length === 1 ? (selected.networks[0]?.networkCode ?? "") : "")
       },
       (reason) => {
         if (!abort.signal.aborted) setMessage(readError(reason))
       },
     )
     return () => abort.abort()
-  }, [session, mode])
+  }, [requestedAsset, session, mode])
 
   const available = useMemo(() => {
     const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
@@ -218,7 +234,7 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
                   const row = fundingAssets.find((item) => item.asset === value)
                   setAsset(value)
                   setChains(row?.networks ?? [])
-                  setNetwork(row?.networks[0]?.networkCode ?? "")
+                  setNetwork(row?.networks.length === 1 ? (row.networks[0]?.networkCode ?? "") : "")
                 }}
               />
             </Field>
@@ -337,6 +353,17 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
             </DropdownSelect>
           </Field>
         </div>
+        <Field label={t("Asset")}>
+          <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
+            {[...new Set(balances.map((row) => text(row, "asset").toUpperCase()).filter(Boolean))]
+              .sort()
+              .map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+          </DropdownSelect>
+        </Field>
         <button
           type="button"
           className="swap-button"

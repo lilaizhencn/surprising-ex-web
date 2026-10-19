@@ -4,6 +4,7 @@ import {
   loadAssetScales,
   loadDepositHistory,
   loadFundingPaymentsPage,
+  loadMarkets,
   loadMyTrades,
   loadOrderHistory,
   loadProductLedgerPage,
@@ -11,7 +12,9 @@ import {
   loadWithdrawalHistory,
 } from "../../api/endpoints"
 import { productLineLabels } from "../../components/layout/navigation"
-import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { DatePicker } from "../../components/ui/DatePicker"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
+import { AssetIcon, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
@@ -58,16 +61,30 @@ export function LedgerPage() {
   const [status, setStatus] = useState("")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [search, setSearch] = useState("")
   const [rows, setRows] = useState<readonly Row[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
+  const [markets, setMarkets] = useState<readonly { instrumentId: string; symbol: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [revision, setRevision] = useState(0)
+  const [_referenceOptions, setReferenceOptions] = useState<readonly string[]>([])
   useEffect(() => {
     void loadAssetScales().then(setAssetScales, () => {})
   }, [])
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadMarkets(line, controller.signal).then(
+      (rows) => {
+        if (!controller.signal.aborted)
+          setMarkets(rows.map((row) => ({ instrumentId: row.instrumentId, symbol: row.symbol })))
+      },
+      () => {
+        if (!controller.signal.aborted) setMarkets([])
+      },
+    )
+    return () => controller.abort()
+  }, [line])
   const fetchPage = async (
     cursor?: string,
   ): Promise<{ rows: readonly Row[]; nextCursor: string | null }> => {
@@ -185,19 +202,24 @@ export function LedgerPage() {
     if (status && String(row.status ?? "").toUpperCase() !== status.toUpperCase()) return false
     if (
       referenceType &&
-      category !== "funding-ledger" &&
       String(row.referenceType ?? "").toUpperCase() !== referenceType.toUpperCase()
     )
       return false
-    return (
-      !search ||
-      Object.values(row).some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      )
-    )
+    return true
   })
+  const referenceTypes = [
+    ...new Set(rows.map((row) => String(row.referenceType ?? "")).filter(Boolean)),
+  ]
+  const statuses = [...new Set(rows.map((row) => String(row.status ?? "")).filter(Boolean))]
+  const showReferenceType = ["funding-ledger", "product-ledger"].includes(category)
+  const showStatus =
+    ["transfer", "deposit", "withdrawal", "external-transfer", "order", "trade"].includes(
+      category,
+    ) && statuses.length > 0
+  useEffect(() => {
+    if (!showReferenceType) return
+    setReferenceOptions((current) => [...new Set([...current, ...referenceTypes])])
+  }, [showReferenceType, referenceTypes.join("|")])
   return (
     <div className="account-content">
       <div className="page-heading">
@@ -209,9 +231,15 @@ export function LedgerPage() {
       <Panel>
         <div className="ledger-filters">
           <Field label={t("Record type")}>
-            <select
+            <DropdownSelect
+              aria-label={t("Record type")}
               value={category}
-              onChange={(event) => setCategory(event.target.value as Category)}
+              onChange={(event) => {
+                setCategory(event.target.value as Category)
+                setReferenceType("")
+                setStatus("")
+                setInstrumentId("")
+              }}
             >
               <option value="funding-ledger">{t("Funding account ledger")}</option>
               <option value="product-ledger">{t("Product account ledger")}</option>
@@ -222,56 +250,120 @@ export function LedgerPage() {
               <option value="funding-payment">{t("Funding payments")}</option>
               <option value="order">{t("Orders")}</option>
               <option value="trade">{t("Trades")}</option>
-            </select>
+            </DropdownSelect>
           </Field>
           {!["funding-ledger", "deposit", "withdrawal", "external-transfer"].includes(category) ? (
             <Field label={t("Product line")}>
-              <select value={line} onChange={(event) => setLine(event.target.value as ProductLine)}>
+              <DropdownSelect
+                aria-label={t("Product line")}
+                value={line}
+                onChange={(event) => setLine(event.target.value as ProductLine)}
+              >
                 {(Object.values(PRODUCT_LINES) as ProductLine[]).map((value) => (
                   <option key={value} value={value}>
                     {t(productLineLabels[value])}
                   </option>
                 ))}
-              </select>
+              </DropdownSelect>
             </Field>
           ) : null}
           <Field label={t("Asset")}>
-            <input
+            <DropdownSelect
+              aria-label={t("Asset")}
               value={asset}
               onChange={(event) => setAsset(event.target.value)}
-              placeholder="USDT"
-            />
+              searchable
+              searchPlaceholder={t("Search by asset name")}
+              noResultsLabel={t("No matches")}
+              maxMenuWidth={280}
+              renderOption={(option) => (
+                <span className="ledger-asset-option">
+                  <AssetIcon asset={option.value} />
+                  {option.label}
+                </span>
+              )}
+            >
+              <option value="">{t("All assets")}</option>
+              {Object.keys(assetScales)
+                .sort()
+                .map((value) => (
+                  <option key={value} value={value} data-search={value}>
+                    {value}
+                  </option>
+                ))}
+            </DropdownSelect>
           </Field>
           {["order", "trade", "funding-payment"].includes(category) ? (
-            <Field label={t("Instrument ID")}>
-              <input
+            <Field label={t("Trading pair")}>
+              <DropdownSelect
+                aria-label={t("Trading pair")}
                 value={instrumentId}
                 onChange={(event) => setInstrumentId(event.target.value)}
-              />
+                searchable
+                searchPlaceholder={t("Search trading pair")}
+                noResultsLabel={t("No matches")}
+              >
+                <option value="">{t("All pairs")}</option>
+                {markets.map((market) => (
+                  <option
+                    key={market.instrumentId}
+                    value={market.instrumentId}
+                    data-search={market.symbol}
+                  >
+                    {market.symbol} · {market.instrumentId}
+                  </option>
+                ))}
+              </DropdownSelect>
             </Field>
           ) : null}
-          {category === "funding-ledger" ? (
+          {showReferenceType ? (
             <Field label={t("Reference type")}>
-              <input
+              <DropdownSelect
+                aria-label={t("Reference type")}
                 value={referenceType}
                 onChange={(event) => setReferenceType(event.target.value)}
-              />
+              >
+                <option value="">{t("All types")}</option>
+                {referenceTypes.map((value) => (
+                  <option key={value} value={value}>
+                    {t(referenceTypeLabel(value))}
+                  </option>
+                ))}
+              </DropdownSelect>
             </Field>
           ) : null}
-          <Field label={t("Status")}>
-            <input value={status} onChange={(event) => setStatus(event.target.value)} />
-          </Field>
+          {showStatus ? (
+            <Field label={t("Status")}>
+              <DropdownSelect
+                aria-label={t("Status")}
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="">{t("All statuses")}</option>
+                {statuses.map((value) => (
+                  <option key={value} value={value}>
+                    {t(statusLabel(value))}
+                  </option>
+                ))}
+              </DropdownSelect>
+            </Field>
+          ) : null}
           <Field label={t("From")}>
-            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+            <DatePicker
+              label={t("From")}
+              value={from}
+              onChange={setFrom}
+              min="2000-01-01"
+              max={todayDate()}
+            />
           </Field>
           <Field label={t("To")}>
-            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-          </Field>
-          <Field label={t("Search")}>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("ID, reason, address...")}
+            <DatePicker
+              label={t("To")}
+              value={to}
+              onChange={setTo}
+              min="2000-01-01"
+              max={todayDate()}
             />
           </Field>
           <Button loading={loading} onClick={() => setRevision((value) => value + 1)}>
@@ -297,7 +389,7 @@ export function LedgerPage() {
                 <th>{t("Type")}</th>
                 <th>{t("Asset")}</th>
                 <th>{t("Amount")}</th>
-                <th>{t("Status")}</th>
+                {showStatus ? <th>{t("Status")}</th> : null}
                 <th>{t("Reference")}</th>
               </tr>
             </thead>
@@ -314,14 +406,16 @@ export function LedgerPage() {
                   )}
                 >
                   <td>{formatDate(row.createdAt ?? row.updatedAt)}</td>
-                  <td>{String(row.referenceType ?? row.reason ?? category)}</td>
+                  <td>
+                    {t(referenceTypeLabel(String(row.referenceType ?? row.reason ?? category)))}
+                  </td>
                   <td>{String(row.asset ?? row.currency ?? "—")}</td>
                   <td className="mono">
                     {row.amountUnits != null
                       ? units(row.amountUnits, String(row.asset ?? ""), assetScales)
                       : String(row.amount ?? row.quantitySteps ?? "—")}
                   </td>
-                  <td>{String(row.status ?? "—")}</td>
+                  {showStatus ? <td>{t(statusLabel(String(row.status ?? "")))}</td> : null}
                   <td className="mono">
                     {String(
                       row.referenceId ??
@@ -336,11 +430,7 @@ export function LedgerPage() {
             </tbody>
           </table>
         </div>
-      ) : (
-        <Panel>
-          <StateView kind="empty" message={t("No records match these filters.")} />
-        </Panel>
-      )}
+      ) : null}
       {nextCursor ? (
         <div className="ledger-load-more">
           <Button tone="outline" loading={loading} onClick={loadMore}>
@@ -357,6 +447,23 @@ function dateStart(value: string): number | undefined {
 }
 function dateEnd(value: string): number | undefined {
   return value ? new Date(`${value}T23:59:59.999`).getTime() : undefined
+}
+function todayDate(): string {
+  const date = new Date()
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+function referenceTypeLabel(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+function statusLabel(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 function formatDate(value: unknown): string {
   const date = new Date(String(value ?? ""))

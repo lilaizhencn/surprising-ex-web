@@ -17,10 +17,13 @@ import "./DepositPage.css"
 
 export function DepositPage() {
   const session = useSession()
+  const [requestedAsset] = useState(
+    () => new URLSearchParams(window.location.search).get("asset")?.toUpperCase() ?? "",
+  )
   const [catalog, setCatalog] = useState<{ token: string; rows: readonly FundingAsset[] } | null>(
     null,
   )
-  const [selection, setSelection] = useState({ asset: "", network: "" })
+  const [selection, setSelection] = useState({ asset: requestedAsset, network: "" })
   const [catalogError, setCatalogError] = useState("")
   const [reload, setReload] = useState(0)
   const [retry, setRetry] = useState(0)
@@ -46,8 +49,7 @@ export function DepositPage() {
   } | null>(null)
   const assets = catalog?.token === session?.accessToken ? (catalog?.rows ?? []) : []
   const asset = assets.find((row) => row.asset === selection.asset) ?? assets[0]
-  const network =
-    asset?.networks.find((row) => row.networkCode === selection.network) ?? asset?.networks[0]
+  const network = asset?.networks.find((row) => row.networkCode === selection.network)
   const assetCode = asset?.asset ?? ""
   const networkCode = network?.networkCode ?? ""
   const token = session?.accessToken ?? ""
@@ -60,13 +62,21 @@ export function DepositPage() {
     const abort = new AbortController()
     setCatalogError("")
     void loadFundingAssets("deposit", abort.signal).then(
-      (rows) => setCatalog({ token, rows }),
+      (rows) => {
+        if (abort.signal.aborted) return
+        setCatalog({ token, rows })
+        const selected = rows.find((row) => row.asset === requestedAsset) ?? rows[0]
+        setSelection({
+          asset: selected?.asset ?? "",
+          network: selected?.networks.length === 1 ? (selected.networks[0]?.networkCode ?? "") : "",
+        })
+      },
       (reason) => {
         if (!abort.signal.aborted) setCatalogError(readError(reason))
       },
     )
     return () => abort.abort()
-  }, [token, reload])
+  }, [token, reload, requestedAsset])
 
   useEffect(() => {
     setNotice("")
@@ -164,7 +174,16 @@ export function DepositPage() {
                   <FundingAssetSelect
                     assets={assets}
                     value={assetCode}
-                    onChange={(value) => setSelection({ asset: value, network: "" })}
+                    onChange={(value) => {
+                      const nextAsset = assets.find((row) => row.asset === value)
+                      setSelection({
+                        asset: value,
+                        network:
+                          nextAsset?.networks.length === 1
+                            ? (nextAsset.networks[0]?.networkCode ?? "")
+                            : "",
+                      })
+                    }}
                   />
                 </Field>
                 <Field label={t("Network")}>
@@ -175,6 +194,7 @@ export function DepositPage() {
                       setSelection({ asset: assetCode, network: event.target.value })
                     }
                   >
+                    <option value="">{t("Select network")}</option>
                     {asset?.networks.map((row) => (
                       <option
                         key={row.networkCode}

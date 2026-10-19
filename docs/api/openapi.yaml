@@ -16,6 +16,7 @@ tags:
   - name: Security
   - name: Compliance
   - name: Notifications
+  - name: Announcements
   - name: Help
 paths:
   /auth/login:
@@ -275,10 +276,10 @@ paths:
     get:
       tags: [Compliance]
       summary: Get KYC status
-      x-status: partial
+      x-status: confirmed-by-backend-audit
       responses:
         '200':
-          description: KYC status; enum and DTO require backend confirmation.
+          description: Current user KYC profile.
           content:
             application/json:
               schema:
@@ -295,11 +296,58 @@ paths:
               $ref: '#/components/schemas/KycSubmissionRequest'
       responses:
         '200':
-          description: KYC profile in backend review state.
+          description: Persisted KYC profile and short-lived third-party launch session.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Envelope'
+                $ref: '#/components/schemas/KycSubmissionResponse'
+  /compliance/kyc/provider:
+    get:
+      tags: [Compliance]
+      summary: Get active KYC provider and simulation mode
+      responses:
+        '200':
+          description: Server-selected provider configuration safe for the signed-in user.
+  /compliance/kyc/simulation/complete:
+    post:
+      tags: [Compliance]
+      summary: Complete a development-only simulated KYC result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [APPROVED, REJECTED, MANUAL_REVIEW] }
+      responses:
+        '200': { description: Updated KYC profile. }
+        '403': { description: Simulation is disabled or the KYC session is not pending. }
+  /compliance/kyc/session/refresh:
+    post:
+      tags: [Compliance]
+      summary: Refresh the active Sumsub SDK access token
+      responses:
+        '200': { description: Refreshed short-lived provider launch session. }
+        '403': { description: No pending Sumsub verification session. }
+  /compliance/kyc/webhooks/{provider}:
+    post:
+      tags: [Compliance]
+      summary: Receive a signed Sumsub or Veriff decision webhook
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string, enum: [SUMSUB, VERIFF] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Verified callback accepted or already processed. }
+        '401': { description: Invalid signature or callback does not match an active session. }
   /compliance/kyc/documents:
     post:
       tags: [Compliance]
@@ -338,6 +386,99 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Notification' }
+  /announcements:
+    get:
+      tags: [Announcements]
+      summary: List currently visible public announcements
+      description: Locale content falls back to English, then Chinese. Authenticated users receive readAt and unreadCount; anonymous clients may read the public feed.
+      security:
+        - bearerAuth: []
+        - {}
+      x-status: confirmed-by-backend-implementation
+      parameters:
+        - { name: locale, in: query, schema: { type: string, default: en-US } }
+        - { name: productLine, in: query, schema: { type: string, default: ALL } }
+        - { name: platform, in: query, schema: { type: string, enum: [WEB, IOS, ANDROID], default: WEB } }
+        - { name: placement, in: query, schema: { type: string, enum: [CENTER, MODAL, BANNER], default: CENTER } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: Announcement page and personalized unread count.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnouncementPage' }
+  /announcements/{announcementId}:
+    get:
+      tags: [Announcements]
+      summary: Get an active announcement
+      security:
+        - bearerAuth: []
+        - {}
+      x-status: confirmed-by-backend-implementation
+      parameters:
+        - { name: announcementId, in: path, required: true, schema: { type: integer, format: int64 } }
+        - { name: locale, in: query, schema: { type: string, default: en-US } }
+        - { name: productLine, in: query, schema: { type: string, default: ALL } }
+        - { name: platform, in: query, schema: { type: string, enum: [WEB, IOS, ANDROID], default: WEB } }
+        - { name: placement, in: query, schema: { type: string, enum: [CENTER, MODAL, BANNER], default: CENTER } }
+      responses:
+        '200':
+          description: Localized announcement.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Announcement' }
+        '404': { $ref: '#/components/responses/BusinessError' }
+  /announcements/unread-count:
+    get:
+      tags: [Announcements]
+      summary: Count unread visible announcements for the current user
+      x-status: confirmed-by-backend-implementation
+      parameters:
+        - { name: productLine, in: query, schema: { type: string, default: ALL } }
+        - { name: platform, in: query, schema: { type: string, enum: [WEB, IOS, ANDROID], default: WEB } }
+        - { name: placement, in: query, schema: { type: string, enum: [CENTER, MODAL, BANNER], default: CENTER } }
+      responses:
+        '200':
+          description: Unread announcement count.
+          content:
+            application/json:
+              schema: { type: integer, format: int32 }
+  /announcements/{announcementId}/read:
+    post:
+      tags: [Announcements]
+      summary: Mark one announcement as read
+      x-status: confirmed-by-backend-implementation
+      parameters:
+        - { name: announcementId, in: path, required: true, schema: { type: integer, format: int64 } }
+        - { name: locale, in: query, schema: { type: string, default: en-US } }
+        - { name: productLine, in: query, schema: { type: string, default: ALL } }
+        - { name: platform, in: query, schema: { type: string, enum: [WEB, IOS, ANDROID], default: WEB } }
+        - { name: placement, in: query, schema: { type: string, enum: [CENTER, MODAL, BANNER], default: CENTER } }
+      responses:
+        '200':
+          description: Updated announcement with readAt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Announcement' }
+  /announcements/read-all:
+    post:
+      tags: [Announcements]
+      summary: Mark all visible announcements as read
+      x-status: confirmed-by-backend-implementation
+      parameters:
+        - { name: productLine, in: query, schema: { type: string, default: ALL } }
+        - { name: platform, in: query, schema: { type: string, enum: [WEB, IOS, ANDROID], default: WEB } }
+        - { name: placement, in: query, schema: { type: string, enum: [CENTER, MODAL, BANNER], default: CENTER } }
+      responses:
+        '200':
+          description: Number of newly read announcements.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties: { updated: { type: integer, format: int64 } }
   /notifications/{notificationId}/read:
     post:
       tags: [Notifications]
@@ -466,6 +607,61 @@ components:
         documentIds:
           type: array
           items: { type: integer, format: int64 }
+    KycSubmissionResponse:
+      type: object
+      required: [profile, verificationSession]
+      properties:
+        profile: { type: object, additionalProperties: true }
+        verificationSession:
+          type: object
+          required: [provider, status, simulated]
+          properties:
+            provider: { type: string, enum: [SELF, SUMSUB, VERIFF] }
+            providerReference: { type: string, nullable: true }
+            launchToken: { type: string, nullable: true, description: Short-lived and only returned to the authenticated applicant. }
+            redirectUrl: { type: string, format: uri, nullable: true }
+            status: { type: string, enum: [PENDING] }
+            simulated: { type: boolean }
+    AnnouncementTranslation:
+      type: object
+      required: [locale, title, summary, body]
+      properties:
+        locale: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        body: { type: string }
+    Announcement:
+      type: object
+      required: [announcementId, category, status, effectiveStatus, priority, placements, productLines, platforms, startsAt, version, translations, createdAt, updatedAt]
+      properties:
+        announcementId: { type: integer, format: int64 }
+        category: { type: string, enum: [GENERAL, PRODUCT, MAINTENANCE, SECURITY, RISK] }
+        status: { type: string, enum: [DRAFT, PUBLISHED, WITHDRAWN] }
+        effectiveStatus: { type: string, enum: [DRAFT, SCHEDULED, PUBLISHED, EXPIRED, WITHDRAWN] }
+        priority: { type: integer }
+        placements: { type: array, items: { type: string, enum: [CENTER, MODAL, BANNER] } }
+        productLines: { type: array, items: { type: string } }
+        platforms: { type: array, items: { type: string, enum: [WEB, IOS, ANDROID] } }
+        startsAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        version: { type: integer }
+        translations: { type: array, items: { $ref: '#/components/schemas/AnnouncementTranslation' } }
+        locale: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        summary: { type: string, nullable: true }
+        body: { type: string, nullable: true }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AnnouncementPage:
+      type: object
+      required: [announcements, unreadCount, offset, limit, hasMore]
+      properties:
+        announcements: { type: array, items: { $ref: '#/components/schemas/Announcement' } }
+        unreadCount: { type: integer, format: int64 }
+        offset: { type: integer }
+        limit: { type: integer }
+        hasMore: { type: boolean }
     Notification:
       type: object
       required: [notificationId, category, title, body, createdAt]

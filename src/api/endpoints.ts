@@ -1170,6 +1170,69 @@ export function loadNotifications(unreadOnly = false) {
   return request(`/api/v1/notifications?${query.toString()}`, ArraySchema)
 }
 
+export function loadAnnouncements(
+  params: {
+    locale?: string
+    productLine?: string
+    platform?: string
+    placement?: string
+    offset?: number
+    limit?: number
+  } = {},
+) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries({
+    locale: params.locale ?? "en-US",
+    productLine: params.productLine ?? "ALL",
+    platform: params.platform ?? "WEB",
+    placement: params.placement ?? "CENTER",
+    offset: params.offset ?? 0,
+    limit: params.limit ?? 50,
+  }))
+    query.set(key, String(value))
+  return request(
+    `/api/v1/announcements?${query.toString()}`,
+    z
+      .object({
+        announcements: ArraySchema,
+        unreadCount: z.number(),
+        offset: z.number(),
+        limit: z.number(),
+        hasMore: z.boolean(),
+      })
+      .passthrough(),
+  )
+}
+
+export function markAnnouncementRead(
+  announcementId: string,
+  productLine = "ALL",
+  placement = "CENTER",
+  locale = "en-US",
+) {
+  const query = new URLSearchParams({ productLine, platform: "WEB", placement, locale })
+  return request(
+    `/api/v1/announcements/${encodeURIComponent(announcementId)}/read?${query.toString()}`,
+    GenericObjectSchema,
+    { method: "POST" },
+  ).then((result) => {
+    window.dispatchEvent(new Event("surprising-announcements-updated"))
+    return result
+  })
+}
+
+export function markAllAnnouncementsRead(productLine = "ALL") {
+  const query = new URLSearchParams({ productLine, platform: "WEB", placement: "CENTER" })
+  return request(
+    `/api/v1/announcements/read-all?${query.toString()}`,
+    z.object({ updated: z.number() }),
+    { method: "POST" },
+  ).then((result) => {
+    window.dispatchEvent(new Event("surprising-announcements-updated"))
+    return result
+  })
+}
+
 export function loadHelpArticles(query = "", category = "") {
   const params = new URLSearchParams()
   if (query.trim()) params.set("query", query.trim())

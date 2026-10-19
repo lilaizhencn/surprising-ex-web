@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from "react"
 import { authApi } from "../../api/endpoints"
+import { AnnouncementSurfaces } from "../../features/announcements/AnnouncementsPage"
 import { saveSession, useSession } from "../../state/session"
 import { AccountSidebar } from "./AccountSidebar"
 import { Footer } from "./Footer"
@@ -35,6 +36,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       <TopNav session={session} onLogout={logout} />
+      <AnnouncementSurfaces />
       {accountArea ? (
         <div className="account-layout">
           <AccountSidebar />

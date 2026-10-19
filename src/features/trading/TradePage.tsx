@@ -80,6 +80,7 @@ import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
 import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
 import { ReferencePrice } from "./ReferencePrice"
+import { mergeRecentTrades } from "./recentTrades"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
@@ -713,17 +714,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             marketPriceFromRecord(history[0] ?? {}, current, assetScales),
           )
         }
-        setRecentTrades((live) => {
-          const byId = new Map<string, Record<string, unknown>>()
-          for (const trade of [...history, ...live])
-            byId.set(
-              text(trade, "tradeId") || text(trade, "sequence") || JSON.stringify(trade),
-              trade,
-            )
-          return [...byId.values()]
-            .sort((left, right) => text(right, "eventTime").localeCompare(text(left, "eventTime")))
-            .slice(0, 50)
-        })
+        setRecentTrades((live) => mergeRecentTrades(history, live))
       })
       .catch(() => {})
     return () => {
@@ -875,10 +866,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       if (channel === "trades") {
         const nextTrade = normalizeTrade(data, current, assetScales)
         setRecentTrades((previous) =>
-          [
+          mergeRecentTrades(previous, [
             { ...nextTrade, eventTime: event.eventTime ?? new Date().toISOString() },
-            ...previous,
-          ].slice(0, 50),
+          ]),
         )
         updateMarketQuote(
           current.instrumentId,

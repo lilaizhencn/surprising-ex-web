@@ -7,7 +7,6 @@ import {
   cancelAllAfter,
   cancelBatchOrders,
   cancelOpenAlgoOrders,
-  cancelOpenOrders,
   cancelOpenTriggerOrders,
   cancelOrder,
   cancelTriggerOrder,
@@ -27,8 +26,9 @@ import {
 } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import type { ApiAccountLedgerEntry, ApiOrder, ApiProductTransferRecord } from "../../api/types"
+import { DatePicker } from "../../components/ui/DatePicker"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { Button, Field, Panel, SearchField, StateView } from "../../components/ui/Primitives"
+import { AssetIcon, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { t } from "../../i18n"
 import { loadSession, useSession } from "../../state/session"
@@ -71,7 +71,6 @@ export function OrdersPage() {
   } | null>(null)
   const isAssetTab = tab === "ledger" || tab === "product-ledger" || tab === "transfers"
   const filterValue = isAssetTab ? assetFilter : instrumentId
-  const [search, setSearch] = useState("")
   const [status, setStatus] = useState("ALL")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
@@ -149,13 +148,11 @@ export function OrdersPage() {
     () =>
       liveRows.filter(
         (row) =>
-          `${JSON.stringify(row)} ${markets[`${productLine}:${text(row, "instrumentId")}`]?.symbol ?? ""}`
-            .toLowerCase()
-            .includes(search.toLowerCase()) &&
+          inDateRange(row, from, to) &&
           (!filterValue || text(row, isAssetTab ? "asset" : "instrumentId") === filterValue) &&
           (status === "ALL" || text(row, "status").toUpperCase() === status),
       ),
-    [liveRows, search, status, filterValue, isAssetTab, markets, productLine],
+    [liveRows, status, filterValue, isAssetTab, markets, productLine, from, to],
   )
   useEffect(() => {
     const controller = new AbortController()
@@ -244,24 +241,6 @@ export function OrdersPage() {
         </div>
       ) : null}
       <div className="history-actions">
-        <Button
-          tone="negative"
-          disabled={tab !== "open" || loading || !session}
-          onClick={() => {
-            if (!session || !window.confirm("Cancel all open orders for this product line?")) return
-            void runBulkAction(
-              () =>
-                cancelOpenOrders(
-                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
-                  productLine,
-                ),
-              t("Batch cancellation requested."),
-            )
-          }}
-        >
-          {" "}
-          {t("Cancel all open")}{" "}
-        </Button>
         <div className="inline-form">
           <input
             value={countdown}
@@ -330,73 +309,132 @@ export function OrdersPage() {
           {t("Cancel open triggers")}{" "}
         </Button>
       </div>
-      <div className="history-toolbar">
-        <SearchField value={search} onChange={setSearch} placeholder={t("Search symbol or ID")} />
-        <DropdownSelect
-          value={productLine}
-          onChange={(event) => {
-            setInstrumentId("")
-            setProductLine(event.target.value as ProductLine)
-          }}
-          aria-label={t("Product line")}
-        >
-          <option value={PRODUCT_LINES.spot}>{t("Spot")}</option>
-          <option value={PRODUCT_LINES.usdMPerpetual}>{t("USD-M perpetual")}</option>
-          <option value={PRODUCT_LINES.coinMPerpetual}>{t("Coin-M perpetual")}</option>
-          <option value={PRODUCT_LINES.usdMDelivery}>{t("USD-M delivery")}</option>
-          <option value={PRODUCT_LINES.coinMDelivery}>{t("Coin-M delivery")}</option>
-          <option value={PRODUCT_LINES.option}>{t("Options")}</option>
-        </DropdownSelect>
-        {isAssetTab ? (
-          <input
-            value={assetFilter}
-            onChange={(event) => setAssetFilter(event.target.value.toUpperCase())}
-            placeholder={t("Asset (optional)")}
-            aria-label={t("Asset filter")}
-          />
-        ) : (
-          <div>
+      <Panel className="orders-filter-panel">
+        <div className="orders-filter-grid">
+          <Field label={t("Product line")}>
             <DropdownSelect
-              value={instrumentId}
-              onChange={(event) => setInstrumentId(event.target.value)}
-              aria-label={t("Select trading pair")}
+              aria-label={t("Product line")}
+              value={productLine}
+              onChange={(event) => {
+                setInstrumentId("")
+                setProductLine(event.target.value as ProductLine)
+              }}
             >
-              <option value="">{t("All pairs")}</option>
-              {(marketOptions?.line === productLine ? marketOptions.items : []).map((market) => (
-                <option key={market.instrumentId} value={market.instrumentId}>
-                  {market.symbol}
-                </option>
-              ))}
+              <option value={PRODUCT_LINES.spot}>{t("Spot")}</option>
+              <option value={PRODUCT_LINES.usdMPerpetual}>{t("USD-M perpetual")}</option>
+              <option value={PRODUCT_LINES.coinMPerpetual}>{t("Coin-M perpetual")}</option>
+              <option value={PRODUCT_LINES.usdMDelivery}>{t("USD-M delivery")}</option>
+              <option value={PRODUCT_LINES.coinMDelivery}>{t("Coin-M delivery")}</option>
+              <option value={PRODUCT_LINES.option}>{t("Options")}</option>
             </DropdownSelect>
+          </Field>
+          {isAssetTab ? (
+            <Field label={t("Asset")}>
+              <DropdownSelect
+                aria-label={t("Asset")}
+                value={assetFilter}
+                onChange={(event) => setAssetFilter(event.target.value)}
+                searchable
+                searchPlaceholder={t("Search by asset name")}
+                noResultsLabel={t("No matches")}
+                maxMenuWidth={280}
+                renderOption={(option) => (
+                  <span className="ledger-asset-option">
+                    <AssetIcon asset={option.value} />
+                    {option.label}
+                  </span>
+                )}
+              >
+                <option value="">{t("All assets")}</option>
+                {Object.keys(assetScales)
+                  .sort()
+                  .map((asset) => (
+                    <option key={asset} value={asset}>
+                      {asset}
+                    </option>
+                  ))}
+              </DropdownSelect>
+            </Field>
+          ) : ["open", "history", "fills", "algo", "triggers"].includes(tab) ? (
+            <Field label={t("Trading pair")}>
+              <DropdownSelect
+                aria-label={t("Select trading pair")}
+                value={instrumentId}
+                onChange={(event) => setInstrumentId(event.target.value)}
+                searchable
+                searchPlaceholder={t("Search trading pair")}
+                noResultsLabel={t("No matches")}
+              >
+                <option value="">{t("All pairs")}</option>
+                {(marketOptions?.line === productLine ? marketOptions.items : []).map((market) => (
+                  <option
+                    key={market.instrumentId}
+                    value={market.instrumentId}
+                    data-search={market.symbol}
+                  >
+                    {market.symbol} · {market.instrumentId}
+                  </option>
+                ))}
+              </DropdownSelect>
+            </Field>
+          ) : null}
+          {["open", "history", "algo", "triggers"].includes(tab) ? (
+            <Field label={t("Order status")}>
+              <DropdownSelect
+                aria-label={t("Order status")}
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="ALL">{t("All statuses")}</option>
+                {(tab === "triggers"
+                  ? ["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"]
+                  : [
+                      "PENDING_RESERVE",
+                      "ACCEPTED",
+                      "PARTIALLY_FILLED",
+                      "FILLED",
+                      "CANCEL_REQUESTED",
+                      "CANCELED",
+                      "REJECTED",
+                    ]
+                ).map((value) => (
+                  <option key={value} value={value}>
+                    {t(statusLabels[value] ?? value)}
+                  </option>
+                ))}
+              </DropdownSelect>
+            </Field>
+          ) : null}
+          {["history", "fills", "ledger", "product-ledger", "transfers"].includes(tab) ? (
+            <Field label={t("From")}>
+              <DatePicker
+                label={t("From date")}
+                value={from}
+                onChange={setFrom}
+                min="2000-01-01"
+                max={new Date().toISOString().slice(0, 10)}
+              />
+            </Field>
+          ) : null}
+          {["history", "fills", "ledger", "product-ledger", "transfers"].includes(tab) ? (
+            <Field label={t("To")}>
+              <DatePicker
+                label={t("To date")}
+                value={to}
+                onChange={setTo}
+                min="2000-01-01"
+                max={new Date().toISOString().slice(0, 10)}
+              />
+            </Field>
+          ) : null}
+          <div className="orders-filter-actions">
+            <Button tone="outline" onClick={load}>
+              <RefreshCw size={16} />
+              {t("Refresh")}
+            </Button>
           </div>
-        )}
-        <Button tone="outline" onClick={load}>
-          <RefreshCw size={16} /> {t("Refresh")}{" "}
-        </Button>
-        <DropdownSelect
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          aria-label={t("Order status")}
-        >
-          <option value="ALL">{t("All statuses")}</option>
-          <option value="NEW">{t("New")}</option>
-          <option value="PARTIALLY_FILLED">{t("Partially filled")}</option>
-          <option value="FILLED">{t("Filled")}</option>
-          <option value="CANCELED">{t("Canceled")}</option>
-        </DropdownSelect>
-        <input
-          type="date"
-          value={from}
-          onChange={(event) => setFrom(event.target.value)}
-          aria-label={t("From date")}
-        />
-        <input
-          type="date"
-          value={to}
-          onChange={(event) => setTo(event.target.value)}
-          aria-label={t("To date")}
-        />
-      </div>
+        </div>
+      </Panel>
       <div className="segment-control history-tabs">
         <button
           type="button"
@@ -511,9 +549,19 @@ export function OrdersPage() {
             }
           />
         ) : tab === "ledger" || tab === "product-ledger" || tab === "transfers" ? (
-          <RecordTable rows={displayRows} mode={tab} />
+          <RecordTable
+            rows={displayRows}
+            mode={tab}
+            assetScales={assetScales}
+            productLine={productLine}
+          />
         ) : tab === "fills" ? (
-          <RecordTable rows={displayRows} mode="fills" />
+          <RecordTable
+            rows={displayRows}
+            mode="fills"
+            assetScales={assetScales}
+            productLine={productLine}
+          />
         ) : tab === "algo" ? (
           <AlgoTable
             rows={displayRows}
@@ -995,10 +1043,15 @@ function AlgoRow({
 function RecordTable({
   rows,
   mode,
+  assetScales,
+  productLine,
 }: {
   readonly rows: readonly RecordRow[]
   readonly mode: "ledger" | "product-ledger" | "transfers" | "fills"
+  readonly assetScales: Readonly<Record<string, string>>
+  readonly productLine: ProductLine
 }) {
+  void productLine
   const columns =
     mode === "ledger" || mode === "product-ledger"
       ? ["asset", "referenceType", "amountUnits", "balanceAfterUnits", "createdAt"]
@@ -1020,7 +1073,9 @@ function RecordTable({
             <tr key={text(row, "id") || text(row, "transferId") || String(index)}>
               {columns.map((column) => (
                 <td className={column.toLowerCase().includes("units") ? "mono" : ""} key={column}>
-                  {text(row, column) || "—"}
+                  {column.toLowerCase().includes("units")
+                    ? units(row[column], text(row, "asset"), assetScales)
+                    : text(row, column) || "—"}
                 </td>
               ))}
             </tr>
@@ -1029,6 +1084,15 @@ function RecordTable({
       </table>
     </div>
   )
+}
+
+function inDateRange(row: RecordRow, from: string, to: string): boolean {
+  const value = row["createdAt"] ?? row["eventTime"] ?? row["updatedAt"]
+  const timestamp = Date.parse(String(value ?? ""))
+  if (!Number.isFinite(timestamp)) return !from && !to
+  const start = from ? Date.parse(`${from}T00:00:00`) : Number.NEGATIVE_INFINITY
+  const end = to ? Date.parse(`${to}T23:59:59.999`) : Number.POSITIVE_INFINITY
+  return timestamp >= start && timestamp <= end
 }
 
 function labelFor(value: string): string {

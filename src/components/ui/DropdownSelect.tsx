@@ -23,6 +23,7 @@ type Props = Readonly<{
   searchPlaceholder?: string
   noResultsLabel?: string
   maxMenuWidth?: number
+  renderOption?: (option: { value: string; label: string }) => ReactNode
 }>
 
 /** A controlled select whose menu stays inside the page and above scroll containers. */
@@ -35,6 +36,7 @@ export function DropdownSelect({
   searchPlaceholder = "Search",
   noResultsLabel = "No matches",
   maxMenuWidth = 320,
+  renderOption,
 }: Props) {
   const options: Option[] = Children.toArray(children)
     .filter(isValidElement<OptionHTMLAttributes<HTMLOptionElement>>)
@@ -158,7 +160,11 @@ export function DropdownSelect({
           }
         }}
       >
-        <span>{selected?.label ?? options[0]?.label ?? "Select"}</span>
+        <span>
+          {selected
+            ? (renderOption?.(selected) ?? selected.label)
+            : (options[0]?.label ?? "Select")}
+        </span>
         <ChevronDown size={15} aria-hidden="true" />
       </button>
       {open &&
@@ -206,7 +212,7 @@ export function DropdownSelect({
                     onMouseEnter={() => setActive(index)}
                     onClick={() => choose(option)}
                   >
-                    {option.label}
+                    {renderOption?.(option) ?? option.label}
                   </button>
                 ))
               ) : (

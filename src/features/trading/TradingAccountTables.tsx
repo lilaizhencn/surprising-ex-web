@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import "./TradingAccountTables.css"
-import { cancelOrder, loadPositionRisk } from "../../api/endpoints"
+import { cancelOpenOrders, cancelOrder, loadPositionRisk } from "../../api/endpoints"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
@@ -187,6 +187,7 @@ export function TradingAccountTables(props: Props) {
   } = props
   const [tab, setTab] = useState<"positions" | "orders" | "history">("orders")
   const [onlyCurrent, setOnlyCurrent] = useState(true)
+  const [cancelingAll, setCancelingAll] = useState(false)
   const [history, setHistory] = useState<readonly Row[]>([])
   const [riskSnapshots, setRiskSnapshots] = useState<readonly Row[]>([])
   const positionVersion =
@@ -281,6 +282,32 @@ export function TradingAccountTables(props: Props) {
           />
           {t("Current pair only")}
         </label>
+        {tab === "orders" && loggedIn && userId != null ? (
+          <button
+            type="button"
+            className="button button-negative"
+            disabled={cancelingAll || orderRows.length === 0}
+            onClick={() => {
+              if (!window.confirm(t("Cancel all open orders for this product line?"))) return
+              setCancelingAll(true)
+              void cancelOpenOrders(
+                {
+                  userId,
+                  instrumentId: onlyCurrent ? (market?.instrumentId ?? null) : null,
+                  limit: 1000,
+                },
+                productLine,
+              )
+                .then(
+                  () => onNotice(t("Batch cancellation requested."), false),
+                  () => onNotice(t("Order service unavailable. Please retry later."), true),
+                )
+                .finally(() => setCancelingAll(false))
+            }}
+          >
+            {cancelingAll ? t("Canceling…") : t("Cancel all open")}
+          </button>
+        ) : null}
       </div>
       {!loggedIn ? (
         <p className="account-table-empty">{t("Log in to view orders and positions.")}</p>

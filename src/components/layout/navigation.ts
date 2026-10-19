@@ -1,6 +1,7 @@
 import type { ProductLine } from "../../types/domain"
 
 export const publicNavigation = [
+  { label: "Announcements", href: "/announcements" },
   { label: "Markets", href: "/markets" },
   { label: "Spot", href: "/trade/spot" },
   {

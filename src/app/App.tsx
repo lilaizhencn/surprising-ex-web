@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { refreshStoredSession } from "../api/client"
 import { AppShell } from "../components/layout/AppShell"
+import { AnnouncementsPage } from "../features/announcements/AnnouncementsPage"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
 import { useRealtimeApplication } from "../hooks/useRealtimeApplication"
@@ -201,6 +202,12 @@ function AppRoutes() {
     return (
       <AppShell>
         <NotificationsPage />
+      </AppShell>
+    )
+  if (path === "/announcements")
+    return (
+      <AppShell>
+        <AnnouncementsPage />
       </AppShell>
     )
   if (path === "/help")

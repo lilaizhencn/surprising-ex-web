@@ -160,3 +160,12 @@ pong 可维持无成交市场的连接。页面重新可见或 pageshow 时立�
 新增使用方只接收自己的产品线、频道、合约和周期；加入已有 depth/accountState 订阅时重新请求基线，避免接收不到早先快照。离开页面仅释放自己的订阅，最后一个使用方离开后关闭连接并移除 token 引用。切换用户不会复用另一身份的连接。订阅总量超过上限仍由原管理器分批，不能为追求单连接绕过服务端限制。
 
 交易页的币对列表行情与当前币对、账户订阅共用一个登录态 feed。`TradePage` 通过 `useRealtime` 的 additionalSubscriptions 合并列表成交订阅，不能另外启动 `useRealtimeFeed(null, ...)`，否则登录用户会同时拥有认证和匿名两条连接。列表按秒刷新显示；当前币对成交、盘口和 K 线继续在每次绘制时更新。成交 tape 仅保留当前币对，避免列表的其他成交挤掉当前币对记录。切换币对/周期只更新订阅，不更换 transport；产品线和登录 token 保持隔离。
+
+## realtime 查询对齐（2026-10-19）
+
+盘口 REST 维持原 URL，由 gateway 读取 realtime Router 的 Valkey 查询视图，最多每侧 50 档。
+缺失、过期或 Router epoch 已变更时返回 503，不请求交易 Core；WS depth 继续使用首条 SNAPSHOT
+和后续绝对数量 DELTA，前端接收链及断档重订阅协议不变。最近成交与 K 线 REST 继续由 realtime 提供。
+WS trades 的 value 带有与 REST 相同的 tradeId；`mergeRecentTrades` 合并历史与推送，按该标识去重，
+按标识中的精确整数日志位置、matcher 序号和成交索引排序，最多保留 50 条。
+不会比较 REST 导出 sequence 与 WS coreSequence，也不会因 REST 晚到而将较新成交挤到后面。

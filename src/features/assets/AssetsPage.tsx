@@ -1,4 +1,4 @@
-import { Eye, EyeOff, PieChart, Plus, Send, Shuffle } from "lucide-react"
+import { Eye, EyeOff, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAssetScales } from "../../api/endpoints"
 import { productLineLabels } from "../../components/layout/navigation"
@@ -76,19 +76,11 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 ? `${t(productLineLabels[selectedLine])} ${t("Assets")}`
                 : t("Assets")}
           </h1>
-          <p>{t("Review account balances and move funds with explicit confirmation.")}</p>
         </div>
         <Button tone="outline" onClick={() => setHidden(!hidden)}>
           {hidden ? <Eye size={16} /> : <EyeOff size={16} />} {t(hidden ? "Show" : "Hide")}
         </Button>
       </div>
-      {session && !realtime.ready ? (
-        <div role="status">
-          {" "}
-          {t("Syncing assets")}
-          {realtime.error ? `: ${realtime.error}` : ""}
-        </div>
-      ) : null}
       {demo ? (
         <div className="demo-banner">
           {t("Demo data: balances are for local visual checks only.")}
@@ -103,18 +95,18 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         <Panel className="balance-hero">
           <div className="eyebrow">{t("ACCOUNT BALANCE")}</div>
           <div className="balance-number mono">
-            {hidden
-              ? "••••••"
-              : session || demo
-                ? total === null
-                  ? "—"
-                  : formatUsd(total)
-                : "Log in to view"}{" "}
-            <small>
-              {total === null
-                ? t(loading || !realtime.ready ? "Syncing assets" : "Valuation unavailable")
-                : "USD"}
-            </small>
+            {hidden ? (
+              "••••••"
+            ) : session || demo ? (
+              total === null ? (
+                <span className="asset-value-skeleton" aria-hidden="true" />
+              ) : (
+                formatUsd(total)
+              )
+            ) : (
+              "Log in to view"
+            )}{" "}
+            {total !== null ? <small>USD</small> : null}
           </div>
           <div className="balance-actions">
             <Button
@@ -145,7 +137,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         <Panel className="distribution">
           <h2>{t("Asset distribution")}</h2>
           {hasDistribution ? (
-            <>
+            <div className="asset-distribution-content">
               <div
                 className="donut"
                 style={{ background: donutGradient(segments) }}
@@ -153,32 +145,37 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 role="img"
               >
                 <span>
-                  <PieChart size={30} />
+                  <strong className="mono">{hidden ? "••••" : formatUsd(total)}</strong>
+                  <small>USD</small>
                 </span>
               </div>
               <div className="distribution-rows">
                 {segments.map((segment) => (
-                  <div key={segment.asset}>
-                    <span>
+                  <div className="distribution-row" key={segment.asset}>
+                    <span className="distribution-asset">
                       <i className="dot" style={{ background: segment.color }} />
+                      <AssetIcon asset={segment.asset} />
                       {segment.asset}
                     </span>
-                    <strong>{`${segment.percent.toFixed(1)}%`}</strong>
+                    <span className="distribution-value">
+                      <strong>{`${segment.percent.toFixed(1)}%`}</strong>
+                      <small className="mono">{hidden ? "••••" : formatUsd(segment.value)}</small>
+                    </span>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
+          ) : session && (loading || !realtime.ready) ? (
+            <div className="asset-distribution-skeleton" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
           ) : (
             <StateView
-              kind={session && (loading || !realtime.ready) ? "loading" : "empty"}
+              kind={session ? "empty" : "error"}
               message={
-                session
-                  ? loading || !realtime.ready
-                    ? "Syncing assets"
-                    : total === null
-                      ? "Valuation unavailable"
-                      : "No assets to display yet."
-                  : "Sign in to view your asset distribution."
+                session ? "No assets to display yet." : "Sign in to view your asset distribution."
               }
             />
           )}
@@ -195,7 +192,6 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           <div className="asset-product-grid">
             {(Object.values(PRODUCT_LINES) as ProductLine[]).map((line) => {
               const lineRows = allRows.filter((row) => row.accountType === productAccounts[line])
-              const available = demo || realtime.products.includes(line)
               const value = lineRows.every((row) => row.estimatedUsd !== null)
                 ? lineRows.reduce((sum, row) => sum + (row.estimatedUsd ?? 0), 0)
                 : null
@@ -207,83 +203,85 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 >
                   <span>{t(productLineLabels[line])}</span>
                   <strong className="mono">
-                    {hidden ? "••••" : !available ? "—" : formatUsd(value)}
+                    {hidden
+                      ? "••••"
+                      : value === null
+                        ? t("Valuation unavailable")
+                        : formatUsd(value)}
                   </strong>
-                  <small>
-                    {available
-                      ? `${lineRows.length} ${t("Assets")}`
-                      : t("Product line unavailable")}
-                  </small>
+                  <small>{`${lineRows.length} ${t("Assets")}`}</small>
                 </a>
               )
             })}
           </div>
         </section>
       ) : null}
-      <div className="asset-overview-grid">
-        <Panel>
-          <div className="panel-heading">
-            <h2>{t("Account totals")}</h2>
-            <span className="muted">{t("Live balances")}</span>
-          </div>
-          {aggregateAssets(rows)
-            .slice(0, 6)
-            .map((balance) => (
-              <div className="row-between" key={balance.asset}>
-                <span>{balance.asset}</span>
-                <strong className="mono">
-                  {hidden ? "••••" : formatUsd(balance.estimatedUsd)}
-                </strong>
-              </div>
-            ))}
-        </Panel>
-      </div>
       <div className="section-title">
-        <h2>{t("My Accounts")}</h2>
+        <h2>{t("Currency asset details")}</h2>
       </div>
       {loading || !realtime.ready || rows.length > 0 ? (
         <div className="table-wrap">
           <table className="data-table asset-account-table">
             <thead>
               <tr>
-                <th>{t("Account")}</th>
-                <th className="number">{t("Balance (USD)")}</th>
+                <th>{t("Asset")}</th>
+                <th className="number">{t("Total balance")}</th>
                 <th className="number">{t("Available")}</th>
+                <th className="number">{t("Estimated value (USD)")}</th>
                 <th className="number">{t("Action")}</th>
               </tr>
             </thead>
             <tbody>
-              {loading || (session && !realtime.ready) ? (
-                <tr>
-                  <td colSpan={4}>
-                    <StateView kind="loading" message="Loading account balances" />
-                  </td>
-                </tr>
-              ) : rows.length > 0 ? (
-                rows.map((balance) => (
-                  <tr key={`${balance.accountType ?? "ACCOUNT"}-${balance.asset}`}>
-                    <td>
-                      <span className="market-name">
-                        <AssetIcon asset={balance.asset} />
-                        <strong>{balance.asset}</strong>
-                        <span className="muted">{accountLabel(balance.accountType)}</span>
-                      </span>
-                    </td>
-                    <td className="number mono">
-                      {hidden ? "••••" : formatUsd(balance.estimatedUsd)}
-                    </td>
-                    <td className="number mono">
-                      {hidden ? "••••" : <Price value={balance.available} />}
-                    </td>
-                    <td className="number">
-                      <a className="route-link" href="/assets/transfer">
-                        {" "}
-                        {t("Move funds")}{" "}
-                      </a>
-                    </td>
-                  </tr>
-                ))
-              ) : null}
+              {loading || (session && !realtime.ready)
+                ? [0, 1, 2].map((item) => (
+                    <tr key={`asset-skeleton-${item}`}>
+                      <td colSpan={5}>
+                        <span className="asset-table-skeleton" />
+                      </td>
+                    </tr>
+                  ))
+                : rows.length > 0
+                  ? aggregateAssets(rows).map((balance) => (
+                      <tr key={balance.asset}>
+                        <td>
+                          <span className="market-name">
+                            <AssetIcon asset={balance.asset} />
+                            <strong>{balance.asset}</strong>
+                          </span>
+                        </td>
+                        <td className="number mono">
+                          {hidden ? (
+                            "••••"
+                          ) : (
+                            <Price value={(balance.available ?? 0) + (balance.locked ?? 0)} />
+                          )}
+                        </td>
+                        <td className="number mono">
+                          {hidden ? "••••" : <Price value={balance.available} />}
+                        </td>
+                        <td className="number mono">
+                          {hidden
+                            ? "••••"
+                            : balance.estimatedUsd === null
+                              ? "—"
+                              : formatUsd(balance.estimatedUsd)}
+                        </td>
+                        <td className="number">
+                          <span className="asset-row-actions">
+                            <a href={`/assets/deposit?asset=${encodeURIComponent(balance.asset)}`}>
+                              <Plus size={14} /> {t("Deposit")}
+                            </a>
+                            <a href={`/assets/withdraw?asset=${encodeURIComponent(balance.asset)}`}>
+                              <Send size={14} /> {t("Withdraw")}
+                            </a>
+                            <a href={`/assets/transfer?asset=${encodeURIComponent(balance.asset)}`}>
+                              <Shuffle size={14} /> {t("Transfer")}
+                            </a>
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  : null}
             </tbody>
           </table>
         </div>
@@ -327,11 +325,6 @@ function aggregateAssets(rows: readonly Balance[]): readonly Balance[] {
   )
 }
 
-function accountLabel(accountType: string | undefined): string {
-  if (!accountType) return "Account balance"
-  return accountType.replaceAll("_", " ")
-}
-
 function accountMatches(balance: Balance, account: string | null): boolean {
   if (!account || account === "overview") return true
   return (Object.values(PRODUCT_LINES) as ProductLine[]).some(
@@ -351,7 +344,7 @@ function productAccountKey(line: ProductLine): string {
   return keys[line]
 }
 
-type DistributionSegment = { asset: string; percent: number; color: string }
+type DistributionSegment = { asset: string; percent: number; color: string; value: number }
 
 function distributionSegments(rows: readonly Balance[], total: number): DistributionSegment[] {
   const largest = rows.slice(0, 5)
@@ -360,9 +353,15 @@ function distributionSegments(rows: readonly Balance[], total: number): Distribu
     asset: row.asset,
     percent: ((row.estimatedUsd ?? 0) / total) * 100,
     color: assetColors[index] ?? "#64748b",
+    value: row.estimatedUsd ?? 0,
   }))
   if (remainder > 0)
-    segments.push({ asset: "Other", percent: (remainder / total) * 100, color: "#64748b" })
+    segments.push({
+      asset: "Other",
+      percent: (remainder / total) * 100,
+      color: "#64748b",
+      value: remainder,
+    })
   return segments
 }
 

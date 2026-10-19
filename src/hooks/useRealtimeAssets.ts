@@ -132,16 +132,20 @@ export function useRealtimeAssets(
       .catch(() => {
         if (!closed) setError(t("Instruments unavailable"))
       })
-    void loadUsdValuation("1", "USDT")
-      .then((value) => {
-        const rate = Number(value.convertedAmount)
-        if (!closed) setFx(Number.isFinite(rate) && rate > 0 ? rate : null)
-      })
-      .catch(() => {
-        if (!closed) setError(t("FX unavailable"))
-      })
+    const refreshUsdtUsd = () =>
+      void loadUsdValuation("1", "USDT")
+        .then((value) => {
+          const rate = Number(value.convertedAmount)
+          if (!closed) setFx(Number.isFinite(rate) && rate > 0 ? rate : null)
+        })
+        .catch(() => {
+          if (!closed) setError(t("FX unavailable"))
+        })
+    refreshUsdtUsd()
+    const refreshTimer = window.setInterval(refreshUsdtUsd, 30_000)
     return () => {
       closed = true
+      window.clearInterval(refreshTimer)
     }
   }, [])
   const mappedMarkets = useMemo(() => markets.map(mapMarket), [markets])
@@ -166,6 +170,13 @@ export function useRealtimeAssets(
       if (m.productLine === "SPOT" && m.quoteAsset === "USDT" && assets.has(m.baseAsset)) {
         next.push({ channel: "trades", productLine: "SPOT", instrumentId: m.instrumentId })
         next.push({ channel: "bookTicker", productLine: "SPOT", instrumentId: m.instrumentId })
+      } else if (
+        m.productLine !== "SPOT" &&
+        m.productLine !== "UNKNOWN" &&
+        m.quoteAsset === "USDT" &&
+        assets.has(m.baseAsset)
+      ) {
+        next.push({ channel: "mark", productLine: m.productLine, instrumentId: m.instrumentId })
       }
     setHeld(next)
   }, [realtime.views, realtime.products, mappedMarkets])
@@ -173,23 +184,27 @@ export function useRealtimeAssets(
     // Cash balances are usable once account snapshots arrive, even without a USD quote.
     let ready = Boolean(session && realtime.products.length)
     const balances: Balance[] = []
-    const prices = new Map<string, number>([["USDT", 1]])
-    for (const m of mappedMarkets.filter(
-      (m) => m.productLine === "SPOT" && m.quoteAsset === "USDT",
-    )) {
+    const prices = new Map<string, number>([
+      ["USDT", 1],
+      ["USD", 1],
+    ])
+    for (const m of mappedMarkets.filter((market) => market.quoteAsset === "USDT")) {
       const event =
         realtime.events.find(
           (e) =>
-            e.productLine === "SPOT" &&
+            e.productLine === m.productLine &&
             e.instrumentId === m.instrumentId &&
-            e.channel === "bookTicker",
+            (e.channel === "mark" || e.channel === "bookTicker"),
         ) ??
         realtime.events.find(
           (e) =>
-            e.productLine === "SPOT" && e.instrumentId === m.instrumentId && e.channel === "trades",
+            e.productLine === m.productLine &&
+            e.instrumentId === m.instrumentId &&
+            e.channel === "trades",
         )
       const raw = markets.find(
-        (raw) => raw.instrumentId === m.instrumentId && mapMarket(raw).productLine === "SPOT",
+        (raw) =>
+          raw.instrumentId === m.instrumentId && mapMarket(raw).productLine === m.productLine,
       )
       const initialPrice =
         raw?.lastPriceTicks !== undefined
@@ -232,14 +247,15 @@ export function useRealtimeAssets(
         const balance = mapBalance(parsed.data, scales)
         if (balance.available === null || balance.locked === null) ready = false
         const scale = scales[balance.asset],
-          price = prices.get(balance.asset)
+          price = prices.get(balance.asset),
+          usdRate = balance.asset === "USD" ? 1 : fx
         let usd: number | null = null
         try {
-          if (equity.complete && scale && price !== undefined && fx !== null)
+          if (equity.complete && scale && price !== undefined && usdRate !== null)
             usd =
               Number(signedUnitsToDecimal(integer(row["equityUnits"]).toString(), scale)) *
               price *
-              fx
+              usdRate
         } catch {
           usd = null
         }

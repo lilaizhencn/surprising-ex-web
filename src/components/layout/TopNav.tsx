@@ -1,7 +1,17 @@
-import { Bell, ChevronDown, CircleUserRound, Menu, Moon, Search, Sun } from "lucide-react"
-import { useState } from "react"
+import {
+  Bell,
+  ChevronDown,
+  CircleUserRound,
+  Megaphone,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+} from "lucide-react"
+import { useEffect, useState } from "react"
+import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
-import { t } from "../../i18n"
+import { t, useLocale } from "../../i18n"
 import { IconButton } from "../ui/Primitives"
 import { LanguagePicker } from "./LanguagePicker"
 import { publicNavigation } from "./navigation"
@@ -17,13 +27,45 @@ export function TopNav({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dark, setDark] = useState(document.documentElement.dataset[THEME_KEY] === "dark")
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0)
   const pathname = window.location.pathname
+  const locale = useLocale()
   const toggleTheme = () => {
     const next = !dark
     setDark(next)
     document.documentElement.dataset[THEME_KEY] = next ? "dark" : "light"
     localStorage.setItem("surprising-ex.theme", next ? "dark" : "light")
   }
+  useEffect(() => {
+    let active = true
+    const refreshUnread = () => {
+      if (!session) {
+        setUnreadAnnouncements(0)
+        return
+      }
+      void loadAnnouncements({
+        locale: locale === "zh" ? "zh-CN" : "en-US",
+        productLine: "ALL",
+        platform: "WEB",
+        placement: "CENTER",
+        limit: 1,
+      })
+        .then((result) => {
+          if (active) setUnreadAnnouncements(result.unreadCount)
+        })
+        .catch(() => {})
+    }
+    refreshUnread()
+    const timer = window.setInterval(refreshUnread, 60_000)
+    window.addEventListener("focus", refreshUnread)
+    window.addEventListener("surprising-announcements-updated", refreshUnread)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refreshUnread)
+      window.removeEventListener("surprising-announcements-updated", refreshUnread)
+    }
+  }, [session?.accessToken, locale])
   return (
     <header className="top-nav">
       <div className="top-nav-inner">
@@ -55,6 +97,19 @@ export function TopNav({
         </nav>
         <div className="nav-actions">
           <LanguagePicker />
+          <IconButton
+            label={t("Announcements")}
+            onClick={() => {
+              window.location.href = "/announcements"
+            }}
+          >
+            <span className="announcement-nav-icon">
+              <Megaphone size={20} />
+              {unreadAnnouncements > 0 ? (
+                <span>{unreadAnnouncements > 99 ? "99+" : unreadAnnouncements}</span>
+              ) : null}
+            </span>
+          </IconButton>
           <IconButton
             label={t("Search")}
             onClick={() => {

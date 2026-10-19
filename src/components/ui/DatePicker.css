@@ -1,0 +1,39 @@
+.date-picker {
+  min-width: 0;
+}
+.date-picker-calendar {
+  position: fixed;
+  z-index: 9999;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  width: fit-content;
+  min-width: 0;
+  max-width: calc(100vw - 16px);
+  box-shadow: var(--shadow-popover);
+}
+.date-picker-navigation {
+  display: flex;
+  gap: 8px;
+}
+.date-picker-calendar .rdp-root {
+  --rdp-accent-color: var(--color-primary);
+  --rdp-accent-background-color: var(--color-surface-active);
+  --rdp-day-width: 36px;
+  --rdp-day-height: 36px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-height: 34px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.date-picker-calendar .rdp-month_caption {
+  display: none;
+}
+.date-picker-calendar button {
+  font-family: inherit;
+}
+.date-picker-calendar .rdp-day_button {
+  border-radius: 8px;
+}

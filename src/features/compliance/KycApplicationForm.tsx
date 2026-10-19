@@ -2,10 +2,10 @@ import { Check, FileCheck, Trash2, Upload, UserRound } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { submitKyc, uploadKycDocument } from "../../api/endpoints"
 import { type Country, deleteKycDraft, loadCountries } from "../../api/kyc"
+import { DatePicker } from "../../components/ui/DatePicker"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
-import { KycDatePicker } from "./KycDatePicker"
 import "./KycApplicationForm.css"
 
 type Row = Readonly<Record<string, unknown>> & { documentId?: unknown; profile?: unknown }
@@ -32,6 +32,7 @@ export function KycApplicationForm({
   const [level, setLevel] = useState("")
   const [proof, setProof] = useState("")
   const [expiry, setExpiry] = useState("")
+  const [documentIssued, setDocumentIssued] = useState("")
   const [issued, setIssued] = useState("")
   const [files, setFiles] = useState<Record<string, UploadedDocument>>({})
   const [error, setError] = useState("")
@@ -147,6 +148,13 @@ export function KycApplicationForm({
       return
     }
     if (
+      type === "ID_CARD" &&
+      (!documentIssued || documentIssued > today || documentIssued > expiry)
+    ) {
+      setError(t("Identity card issue date must be on or before today and not after expiry."))
+      return
+    }
+    if (
       level !== "BASIC" &&
       (!issued || issued < oldest.toISOString().slice(0, 10) || issued > today)
     ) {
@@ -167,6 +175,7 @@ export function KycApplicationForm({
         provider,
         documentIds: slots.map((slot) => files[slot.key ?? slot.type]?.id),
         documentExpiresOn: expiry,
+        documentIssuedOn: type === "ID_CARD" ? documentIssued : null,
         addressIssuedOn: level === "BASIC" ? null : issued,
         faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
       })
@@ -266,7 +275,9 @@ export function KycApplicationForm({
         ) : null}
         <section className="kyc-evidence-section">
           <h2>{t("Identity document")}</h2>
-          <div className="grid-2">
+          <div
+            className={`grid-2 kyc-document-fields${type === "ID_CARD" ? " has-issue-date" : ""}`}
+          >
             <Field label={t("Document type")}>
               <DropdownSelect
                 aria-label={t("Document type")}
@@ -274,6 +285,7 @@ export function KycApplicationForm({
                 onChange={(event) => {
                   setType(event.target.value)
                   setExpiry("")
+                  setDocumentIssued("")
                 }}
               >
                 <option value="">{t("Select an identity document")}</option>
@@ -283,9 +295,20 @@ export function KycApplicationForm({
                 <option value="RESIDENCE_PERMIT">{t("Residence permit")}</option>
               </DropdownSelect>
             </Field>
+            {type === "ID_CARD" ? (
+              <Field label={t("Document issue date")}>
+                <DatePicker
+                  label={t("Document issue date")}
+                  value={documentIssued}
+                  onChange={setDocumentIssued}
+                  min="1900-01-01"
+                  max={expiry && expiry < today ? expiry : today}
+                />
+              </Field>
+            ) : null}
             {type ? (
               <Field label={t("Document expiry date")}>
-                <KycDatePicker
+                <DatePicker
                   label={t("Document expiry date")}
                   value={expiry}
                   onChange={setExpiry}
@@ -335,7 +358,7 @@ export function KycApplicationForm({
               </Field>
               {proof ? (
                 <Field label={t("Proof of address issue date")}>
-                  <KycDatePicker
+                  <DatePicker
                     label={t("Proof of address issue date")}
                     value={issued}
                     onChange={setIssued}
