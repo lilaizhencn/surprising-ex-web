@@ -1,7 +1,157 @@
+import type { ApiOrderBook } from "../../api/types"
 import { decimalToStepUnits, stepUnitsToDecimal } from "../../lib/units"
 import type { Market, OrderSide } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
 import { signedPositionSteps } from "./triggerOrder"
+
+/** Prices in this UI book have already been converted to exact decimal strings. */
+export function spotReferenceTicks({
+  market,
+  scales,
+  book,
+  price,
+  side,
+  orderType,
+  bboMode,
+  slippagePpm,
+}: {
+  market: Market
+  scales: Readonly<Record<string, string>>
+  book: ApiOrderBook | null
+  price: string
+  side: OrderSide
+  orderType: string
+  bboMode: string | null
+  slippagePpm: number | undefined
+}): string | null {
+  try {
+    if (market.productLine !== "SPOT") return null
+    const ticks = (value: string) =>
+      BigInt(
+        decimalToStepUnits(value, market.priceTickUnits ?? "", scales[market.quoteAsset] ?? ""),
+      )
+    if (orderType === "LIMIT" && !bboMode) return ticks(price).toString()
+    const sameSide = bboMode?.startsWith("SAME_SIDE_") ?? false
+    if (bboMode && !["OPPONENT_1", "OPPONENT_5", "SAME_SIDE_1", "SAME_SIDE_5"].includes(bboMode))
+      return null
+    const levels = (side === "BUY") !== sameSide ? book?.asks : book?.bids
+    const level = levels?.[bboMode?.endsWith("_5") ? 4 : 0]
+    if (!level) return null
+    const reference = ticks(String(Array.isArray(level) ? level[0] : level.priceTicks))
+    if (orderType === "LIMIT") return reference.toString()
+    if (
+      orderType !== "MARKET" ||
+      slippagePpm == null ||
+      !Number.isSafeInteger(slippagePpm) ||
+      slippagePpm < 0 ||
+      slippagePpm >= 1000000
+    )
+      return null
+    const numerator =
+      reference * BigInt(side === "BUY" ? 1000000 + slippagePpm : 1000000 - slippagePpm)
+    const bound = side === "BUY" ? (numerator + 999999n) / 1000000n : numerator / 1000000n
+    return bound > 9223372036854775807n ? null : (bound > 0n ? bound : 1n).toString()
+  } catch {
+    return null
+  }
+}
+
+/** Core reserves each step's rounded fee so fragmented fills cannot exceed the reserve. */
+export function spotOrderQuantity({
+  market,
+  scales,
+  availableUnits,
+  referenceTicks,
+  feeRatePpm,
+  percentage,
+  side,
+}: {
+  market: Market
+  scales: Readonly<Record<string, string>>
+  availableUnits: string | number | undefined
+  referenceTicks: string | null
+  feeRatePpm: number | undefined
+  percentage: number
+  side: OrderSide
+}): string | null {
+  try {
+    if (
+      market.productLine !== "SPOT" ||
+      !Number.isInteger(percentage) ||
+      percentage < 0 ||
+      percentage > 100
+    )
+      return null
+    if (
+      availableUnits == null ||
+      (typeof availableUnits === "number" && !Number.isSafeInteger(availableUnits))
+    )
+      return null
+    const funds = BigInt(availableUnits)
+    const unit = BigInt(market.quantityStepUnits ?? "")
+    const scale = scales[market.baseAsset] ?? ""
+    const min = BigInt(market.minQuantitySteps ?? "")
+    const max = BigInt(market.maxQuantitySteps ?? "")
+    const minNotional = BigInt(market.minNotionalUnits ?? "")
+    const maxNotional = BigInt(market.maxNotionalUnits ?? "")
+    const notional = BigInt(referenceTicks ?? "") * BigInt(market.notionalMultiplierUnits ?? "")
+    if (
+      funds < 0n ||
+      unit <= 0n ||
+      !/^10*$/.test(scale) ||
+      min <= 0n ||
+      max < min ||
+      minNotional <= 0n ||
+      maxNotional < minNotional ||
+      notional <= 0n
+    )
+      return null
+    let cost = unit
+    if (side === "BUY") {
+      if (feeRatePpm == null || !Number.isSafeInteger(feeRatePpm) || Math.abs(feeRatePpm) > 1000000)
+        return null
+      cost = notional + (notional * BigInt(Math.max(0, feeRatePpm)) + 999999n) / 1000000n
+    }
+    let steps = (funds * BigInt(percentage)) / 100n / cost
+    for (const cap of [max, maxNotional / notional, 9223372036854775807n / unit])
+      if (steps > cap) steps = cap
+    if (steps < min || steps * notional < minNotional) steps = 0n
+    return stepUnitsToDecimal(steps.toString(), unit.toString(), scale)
+  } catch {
+    return null
+  }
+}
+
+export function spotFeeReserve(
+  market: Market,
+  scales: Readonly<Record<string, string>>,
+  referenceTicks: string | null,
+  quantity: string,
+  rate: number | undefined,
+): string | null {
+  try {
+    if (
+      market.productLine !== "SPOT" ||
+      referenceTicks == null ||
+      rate == null ||
+      !Number.isSafeInteger(rate) ||
+      Math.abs(rate) > 1000000
+    )
+      return null
+    const notional = BigInt(referenceTicks) * BigInt(market.notionalMultiplierUnits ?? "")
+    if (notional <= 0n) return null
+    const steps = BigInt(
+      decimalToStepUnits(quantity, market.quantityStepUnits ?? "", scales[market.baseAsset] ?? ""),
+    )
+    return stepUnitsToDecimal(
+      (((notional * BigInt(Math.max(0, rate)) + 999999n) / 1000000n) * steps).toString(),
+      "1",
+      scales[market.quoteAsset] ?? "",
+    )
+  } catch {
+    return null
+  }
+}
 
 // Conservative display estimate for linear contracts; Core remains the order admission authority.
 export function linearOpeningCapacity({

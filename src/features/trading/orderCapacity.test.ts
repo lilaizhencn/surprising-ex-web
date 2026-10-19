@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 import type { Market } from "../../types/domain"
-import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
+import {
+  linearOpeningCapacity,
+  orderPositionSide,
+  spotFeeReserve,
+  spotOrderQuantity,
+  spotReferenceTicks,
+} from "./orderCapacity"
 import { parseSetting } from "./TradingTicketControls"
 
 const market: Market = {
@@ -36,6 +42,105 @@ const input = {
   orders: [],
   side: "BUY" as const,
 }
+
+const spot = {
+  ...market,
+  productLine: "SPOT" as const,
+  priceTickUnits: "100",
+  quantityStepUnits: "10",
+  minNotionalUnits: "1",
+  maxNotionalUnits: "9223372036854775807",
+}
+const spotInput = {
+  market: spot,
+  scales: { BTC: "1000", USDT: "1000" },
+  availableUnits: "10000",
+  referenceTicks: "1000",
+  feeRatePpm: 1000,
+  percentage: 100,
+  side: "BUY" as const,
+}
+describe("spot percentage quantity", () => {
+  it("displays the same exact fragmented fee reserve used by percentage sizing", () => {
+    expect(spotFeeReserve(spot, spotInput.scales, "1000", "0.09", 1000)).toBe("0.009")
+    expect(spotFeeReserve(spot, spotInput.scales, "1000", "0.09", undefined)).toBeNull()
+  })
+  it("reserves fee per step and floors funds before calculating partial percentages", () => {
+    expect(spotOrderQuantity(spotInput)).toBe("0.09")
+    expect(spotOrderQuantity({ ...spotInput, percentage: 50 })).toBe("0.04")
+    expect(spotOrderQuantity({ ...spotInput, availableUnits: "5", referenceTicks: "1" })).toBe(
+      "0.02",
+    )
+    expect(spotOrderQuantity({ ...spotInput, availableUnits: "95", side: "SELL" })).toBe("0.09")
+  })
+  it("preserves 18-digit asset precision and values above the JavaScript safe integer range", () => {
+    expect(
+      spotOrderQuantity({
+        ...spotInput,
+        market: { ...spot, quantityStepUnits: "1", maxQuantitySteps: "9223372036854775807" },
+        scales: { BTC: "1000000000000000000" },
+        availableUnits: "9007199254740993",
+        referenceTicks: "1",
+        side: "SELL",
+      }),
+    ).toBe("0.009007199254740993")
+    expect(
+      spotOrderQuantity({
+        ...spotInput,
+        market: { ...spot, quantityStepUnits: "1000000000000000" },
+        scales: { BTC: "1000000000000000000", USDT: "1000000" },
+        availableUnits: "1000000",
+        referenceTicks: "100000",
+      }),
+    ).toBe("0.009")
+  })
+  it("obeys order/notional limits and never invents missing metadata", () => {
+    expect(spotOrderQuantity({ ...spotInput, market: { ...spot, maxQuantitySteps: "3" } })).toBe(
+      "0.03",
+    )
+    expect(spotOrderQuantity({ ...spotInput, market: { ...spot, maxNotionalUnits: "2000" } })).toBe(
+      "0.02",
+    )
+    expect(
+      spotOrderQuantity({ ...spotInput, market: { ...spot, minNotionalUnits: "10001" } }),
+    ).toBe("0")
+    expect(spotOrderQuantity({ ...spotInput, feeRatePpm: undefined })).toBeNull()
+    expect(spotOrderQuantity({ ...spotInput, referenceTicks: null })).toBeNull()
+    expect(spotOrderQuantity({ ...spotInput, scales: {} })).toBeNull()
+    expect(
+      spotOrderQuantity({ ...spotInput, availableUnits: Number.MAX_SAFE_INTEGER + 1 }),
+    ).toBeNull()
+  })
+})
+it("uses the selected BBO level and side, and protects MARKET with server slippage", () => {
+  const input = {
+    market: spot,
+    scales: { USDT: "1000" },
+    book: {
+      bids: ["99", "98", "97", "96", "95"].map((priceTicks) => ({
+        priceTicks,
+        quantitySteps: "1",
+      })),
+      asks: ["101", "102", "103", "104", "105"].map((priceTicks) => ({
+        priceTicks,
+        quantitySteps: "1",
+      })),
+    },
+    price: "100",
+    side: "BUY" as const,
+    orderType: "LIMIT",
+    bboMode: "OPPONENT_5",
+    slippagePpm: 10000,
+  }
+  expect(spotReferenceTicks(input)).toBe("1050")
+  expect(spotReferenceTicks({ ...input, side: "SELL" })).toBe("950")
+  expect(spotReferenceTicks({ ...input, bboMode: "SAME_SIDE_5" })).toBe("950")
+  expect(spotReferenceTicks({ ...input, orderType: "MARKET", bboMode: null })).toBe("1021")
+  expect(spotReferenceTicks({ ...input, orderType: "MARKET", bboMode: null, side: "SELL" })).toBe(
+    "980",
+  )
+  expect(spotReferenceTicks({ ...input, book: { bids: [], asks: [] } })).toBeNull()
+})
 describe("opening capacity", () => {
   it("rounds margin and fee upward in settlement units before dividing available funds", () => {
     expect(linearOpeningCapacity(input)).toBe("9")

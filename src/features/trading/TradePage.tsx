@@ -12,6 +12,7 @@ import {
   loadFundingSettlement,
   loadMarkets,
   loadOptionQuote,
+  loadOrderPriceProtection,
   loadRecentTrades,
   loadTradingCommand,
   PendingTradingCommand,
@@ -80,7 +81,13 @@ import {
 import { bookPriceMultipliers } from "./bookPriceSteps"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketQuantitySpec } from "./marketQuantity"
-import { linearOpeningCapacity, orderPositionSide } from "./orderCapacity"
+import {
+  linearOpeningCapacity,
+  orderPositionSide,
+  spotFeeReserve,
+  spotOrderQuantity,
+  spotReferenceTicks,
+} from "./orderCapacity"
 import { ReferencePrice } from "./ReferencePrice"
 import { mergeRecentTrades } from "./recentTrades"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
@@ -244,6 +251,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   })
   const [quantity, setQuantity] = useState("")
   const [percentage, setPercentage] = useState(0)
+  const [spotSlippagePpm, setSpotSlippagePpm] = useState<number>()
   const [pendingCommand, setPendingCommand] = useState<PendingOrderCommand | null>(() =>
     readPendingCommand(String(session?.user.userId ?? "")),
   )
@@ -330,16 +338,36 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   useEffect(() => {
     let cancelled = false
     setUserFees(null)
-    if (session?.user.userId && current?.instrumentId)
-      void loadEffectiveTradingFee(session.user.userId, current.instrumentId, view.line)
-        .then((value) => {
-          if (!cancelled) setUserFees(value)
+    setSpotSlippagePpm(undefined)
+    const userId = session?.user.userId
+    const instrumentId = current?.instrumentId
+    if (!userId || !instrumentId) return
+    const refresh = () =>
+      void Promise.all([
+        loadEffectiveTradingFee(userId, instrumentId, view.line, current?.changeId),
+        view.line === PRODUCT_LINES.spot
+          ? loadOrderPriceProtection(view.line)
+          : Promise.resolve(null),
+      ])
+        .then(([fee, policy]) => {
+          if (!cancelled) {
+            setUserFees(fee)
+            setSpotSlippagePpm(policy?.marketMaxSlippagePpm)
+          }
         })
-        .catch(() => {})
+        .catch(() => {
+          if (!cancelled) {
+            setUserFees(null)
+            setSpotSlippagePpm(undefined)
+          }
+        })
+    refresh()
+    const timer = view.line === PRODUCT_LINES.spot ? setInterval(refresh, 10000) : undefined
     return () => {
       cancelled = true
+      clearInterval(timer)
     }
-  }, [session?.user.userId, current?.instrumentId, view.line])
+  }, [session?.user.userId, current?.instrumentId, current?.changeId, view.line])
   const handleLeverageChange = useCallback((setting: LeverageSettings | null) => {
     setLeverageSetting(setting)
     if (setting) setOrderSettings((previous) => ({ ...previous, marginMode: setting.marginMode }))
@@ -362,6 +390,27 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }) ?? ""
     )
   }
+  const spotCapacity = (percent: number) =>
+    current
+      ? spotOrderQuantity({
+          market: current,
+          scales: assetScales,
+          availableUnits: balance?.availableUnits,
+          referenceTicks: spotReferenceTicks({
+            market: current,
+            scales: assetScales,
+            book,
+            price,
+            side,
+            orderType,
+            bboMode: useBbo ? bboPriceMode : null,
+            slippagePpm: spotSlippagePpm,
+          }),
+          feeRatePpm: numberValue(userFees, "takerFeeRatePpm") ?? undefined,
+          percentage: percent,
+          side,
+        })
+      : null
   const triggerSupported = view.line !== PRODUCT_LINES.spot
   const activeTriggerPosition = useMemo(
     () =>
@@ -399,6 +448,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     orderSettings.positionSide,
     orderSettings.positionMode,
     orderType,
+    side,
+    bboEnabled,
+    bboPriceMode,
   ])
   const triggerCloseSide = activeTriggerPosition
     ? closeSideForPosition(activeTriggerPosition)
@@ -587,17 +639,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       setQuantity("")
       return
     }
-    const available = balanceAmount(balance, assetScales)
-    const availableNumber = available === null ? null : Number(available)
-    if (availableNumber === null || !Number.isFinite(availableNumber)) {
-      setQuantity("")
-      return
-    }
-    const referencePrice = Number(price || marketQuotes[current.instrumentId] || current.price)
-    const factor = next / 100
-    const quantityValue =
-      side === "SELL" ? availableNumber * factor : (availableNumber / referencePrice) * factor
-    setQuantity(Number.isFinite(quantityValue) && quantityValue > 0 ? String(quantityValue) : "")
+    const value = spotCapacity(next)
+    setQuantity(value && value !== "0" ? value : "")
   }
 
   useEffect(() => {
@@ -1206,6 +1249,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       }
       setSubmitState("success")
       setQuantity("")
+      setPercentage(0)
       setTriggerPrice("")
       setTakeProfitTriggerPrice("")
       setTakeProfitLimitPrice("")
@@ -2037,7 +2081,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <div className="number-input">
                     <input
                       value={price}
-                      onChange={(event) => setPrice(event.target.value)}
+                      onChange={(event) => {
+                        setPrice(event.target.value)
+                        setPercentage(0)
+                      }}
                       aria-label={t("Limit price")}
                       inputMode="decimal"
                     />
@@ -2132,7 +2179,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
             <div className="number-input">
               <input
                 value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
+                onChange={(event) => {
+                  setQuantity(event.target.value)
+                  setPercentage(0)
+                }}
                 inputMode="decimal"
                 placeholder="0.00"
                 aria-label={orderType === "STOP" ? t("TP/SL close quantity") : t("Order quantity")}
@@ -2152,7 +2202,11 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 min="0"
                 max="100"
                 value={closingTicket ? closePercentage : percentage}
-                disabled={closingTicket && (!session || !activeTriggerPosition)}
+                disabled={
+                  closingTicket
+                    ? !session || !activeTriggerPosition
+                    : !session || spotCapacity(100) === null
+                }
                 aria-valuetext={`${closingTicket ? closePercentage : percentage}%`}
                 onChange={(event) => setOrderPercentage(Number(event.target.value))}
                 aria-label={t("Order percentage")}
@@ -2167,9 +2221,13 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                 ? `${displayPrice(balanceAmount(balance, assetScales) ?? "", isDollarQuote(balance?.asset ?? current?.quoteAsset))} ${balance?.asset ?? current?.quoteAsset ?? ""}`
                 : t("Login required")}
             </span>
-            <span>{t("Est. fee")}</span>
+            <span>
+              {t(view.line === PRODUCT_LINES.spot && side === "BUY" ? "Fee reserve" : "Est. fee")}
+            </span>
             <span className="mono">
-              {estimatedFee(current, price, quantity, numberValue(userFees, "takerFeeRatePpm"))}
+              {view.line === PRODUCT_LINES.spot && current
+                ? `${spotFeeReserve(current, assetScales, spotReferenceTicks({ market: current, scales: assetScales, book, price, side, orderType, bboMode: useBbo ? bboPriceMode : null, slippagePpm: spotSlippagePpm }), quantity, numberValue(userFees, "takerFeeRatePpm") ?? undefined) ?? "—"} ${current.quoteAsset}`
+                : estimatedFee(current, price, quantity, numberValue(userFees, "takerFeeRatePpm"))}
             </span>
             {view.line !== PRODUCT_LINES.spot && (
               <>

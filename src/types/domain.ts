@@ -13,6 +13,7 @@ export type Market = {
   readonly status?: string | undefined
   readonly symbol: string
   readonly instrumentId: string
+  readonly changeId?: string | undefined
   readonly baseAsset: string
   readonly quoteAsset: string
   readonly settleAsset?: string
@@ -30,6 +31,8 @@ export type Market = {
   readonly notionalMultiplierUnits?: string | undefined
   readonly minQuantitySteps?: string | undefined
   readonly maxQuantitySteps?: string | undefined
+  readonly minNotionalUnits?: string | undefined
+  readonly maxNotionalUnits?: string | undefined
   readonly maxPositionNotionalUnits?: string | undefined
   readonly userOpenInterestLimitFloorUnits?: string | undefined
   readonly priceTickUnits?: string | undefined

@@ -8,6 +8,7 @@ export function mapMarket(raw: ApiMarket): Market {
   const { baseAsset, quoteAsset } = raw
   return {
     instrumentId: raw.instrumentId,
+    changeId: raw.changeId,
     status: raw.status,
     symbol: raw.symbol,
     baseAsset,
@@ -26,6 +27,8 @@ export function mapMarket(raw: ApiMarket): Market {
     notionalMultiplierUnits: raw.notionalMultiplierUnits,
     minQuantitySteps: raw.minQuantitySteps,
     maxQuantitySteps: raw.maxQuantitySteps,
+    minNotionalUnits: raw.minNotionalUnits,
+    maxNotionalUnits: raw.maxNotionalUnits,
     maxPositionNotionalUnits: raw.maxPositionNotionalUnits,
     userOpenInterestLimitFloorUnits: raw.userOpenInterestLimitFloorUnits,
     priceTickUnits: integerScale(raw.priceTickUnits),

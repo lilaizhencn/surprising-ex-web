@@ -859,6 +859,19 @@ export function loadTradingCommand(commandId: string, productLine: ProductLine) 
   )
 }
 
+export async function loadOrderPriceProtection(productLine: ProductLine) {
+  const policy = await request(
+    "/api/v1/gateway/trading/price-protection",
+    z.object({
+      productLine: z.string(),
+      marketMaxSlippagePpm: z.number().int().min(0).max(999999),
+    }),
+    { productLine },
+  )
+  if (policy.productLine !== productLine) throw new Error("Order protection product mismatch")
+  return policy
+}
+
 export async function placeOrder(
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
@@ -1314,13 +1327,31 @@ function periodMillisecondsFor(period: string): number {
   return amount * multiplier
 }
 
-export function loadEffectiveTradingFee(
+export async function loadEffectiveTradingFee(
   userId: string | number,
   instrumentId: string,
   productLine: ProductLine,
+  instrumentChangeId?: string,
 ) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
-  return request(`/api/v1/gateway/trading-fees/effective?${query}`, GenericObjectSchema, {
-    productLine,
-  })
+  const fee = await request(
+    `/api/v1/gateway/trading-fees/effective?${query}`,
+    GenericObjectSchema,
+    {
+      productLine,
+    },
+  )
+  if (
+    productLine === "SPOT" &&
+    (instrumentChangeId == null ||
+      String(fee["userId"]) !== String(userId) ||
+      fee["productLine"] !== productLine ||
+      String(fee["instrumentId"]) !== instrumentId ||
+      String(fee["instrumentChangeId"]) !== instrumentChangeId ||
+      typeof fee["takerFeeRatePpm"] !== "number" ||
+      !Number.isSafeInteger(fee["takerFeeRatePpm"]) ||
+      Math.abs(fee["takerFeeRatePpm"]) > 1000000)
+  )
+    throw new Error("Order fee metadata mismatch")
+  return fee
 }
