@@ -183,3 +183,5 @@ commandResultUrl 保持一致；`trading-orders` 是后台服务路由名，不�
 响应未知或刷新后，交易页/订单页显示“确认并继续撤单”。该操作 GET 查询已发送批次，确认后继续原计划尚未发送的批次；不重发原批，不把新订单加入原计划。存储失败不发送、查询异常/回执不匹配不解锁，同账户多标签使用 Web Locks 串行执行；不支持锁的浏览器明确拒绝发送。账户切换保留原账户断点。
 
 先按后端说明执行 `20261019-cancel-batch-results.sql`、更新 realtime 并按需使用新的独立 `.command-repair` checkpoint 回补旧批次，再发布 gateway，最后发布两端。未部署完整 FUSED 实栈；其他产品、旧直接聚合端点与批量下单/改单仍需逐项验收。见 [验证记录](docs/validation/spot-bulk-cancellation-20261019.json)。
+
+现货 FUSED 实链路补充：`scripts/spot-fused-live.mjs` 在真实 HTTP/WS、持续做市下执行两组 51 笔目标，覆盖 1440px 深色和 390px 浅色。真实暂停所属 realtime 后回执为 202；恢复并刷新后只发送后续批次，各组 50 成功/1 已结束，计划之后新增的委托保留。测试只丢弃首批已送达后的响应，不伪造数据。运行需 backend `SixProductLineContractLiveTest` 的显式交接 fixture、所属 realtime PID 文件、已有 Playwright/Chromium，并使用允许的本地 5173 端口。完整步骤见后端 `docs/realtime-command-results.md`，本仓库 [实测证据](docs/validation/spot-fused-clients-20261019.json)。
