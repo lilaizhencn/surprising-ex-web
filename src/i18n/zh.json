@@ -1105,5 +1105,6 @@
   "Same-expiry option chain": "同到期期权链",
   "No matching option contracts.": "暂无匹配的期权合约。",
   "As of": "报价时间",
-  "At execution": "触发成交时计算"
+  "At execution": "触发成交时计算",
+  "Order history does not match the original query. Refresh to retry.": "历史委托与原查询不匹配，请刷新重试。"
 }

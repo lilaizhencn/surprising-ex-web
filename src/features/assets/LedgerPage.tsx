@@ -20,6 +20,7 @@ import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 import type { Market } from "../../types/domain"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
+import { OrderHistoryTable } from "../orders/OrderHistoryTable"
 import { TradeFillTable } from "../orders/TradeFillTable"
 import { units } from "../trading/TradingAccountTables"
 
@@ -62,8 +63,8 @@ export function LedgerPage() {
   const requestVersion = useRef(0)
   const [initial] = useState(() => new URLSearchParams(window.location.search))
   const [category, setCategory] = useState<Category>(() =>
-    initial.get("category") === "trade"
-      ? "trade"
+    ["trade", "order"].includes(initial.get("category") ?? "")
+      ? (initial.get("category") as "trade" | "order")
       : initial.get("category") === "option-exercise"
         ? "option-exercise"
         : initial.get("category") === "delivery-ledger"
@@ -86,8 +87,25 @@ export function LedgerPage() {
   const [status, setStatus] = useState("")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [rows, setRows] = useState<readonly Row[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const queryScope = JSON.stringify([
+    session?.user.userId,
+    session?.accessToken,
+    category,
+    line,
+    asset,
+    referenceType,
+    instrumentId,
+    status,
+    from,
+    to,
+  ])
+  const [records, setRecords] = useState<{
+    scope: string
+    rows: readonly Row[]
+    nextCursor: string | null
+  }>({ scope: "", rows: [], nextCursor: null })
+  const rows = records.scope === queryScope ? records.rows : []
+  const nextCursor = records.scope === queryScope ? records.nextCursor : null
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const [markets, setMarkets] = useState<readonly Market[]>([])
   const [loading, setLoading] = useState(false)
@@ -156,6 +174,17 @@ export function LedgerPage() {
       })
       return { rows: page.trades, nextCursor: page.nextCursor }
     }
+    if (category === "order") {
+      const page = await loadOrderHistory(
+        instrumentId,
+        line,
+        dateStart(from),
+        dateEnd(to),
+        cursor,
+        status || undefined,
+      )
+      return { rows: page.orders, nextCursor: page.nextCursor }
+    }
     if (cursor) return { rows: [], nextCursor: null }
     if (category === "external-transfer") {
       const [deposits, withdrawals] = await Promise.all([
@@ -173,11 +202,7 @@ export function LedgerPage() {
       return { rows, nextCursor: null }
     }
     const result: readonly Row[] =
-      category === "deposit"
-        ? await loadDepositHistory(asset)
-        : category === "withdrawal"
-          ? await loadWithdrawalHistory(asset)
-          : await loadOrderHistory(instrumentId, line, dateStart(from), dateEnd(to))
+      category === "deposit" ? await loadDepositHistory(asset) : await loadWithdrawalHistory(asset)
     return { rows: result, nextCursor: null }
   }
   useEffect(() => {
@@ -186,19 +211,17 @@ export function LedgerPage() {
     let active = true
     setLoading(true)
     setError("")
-    setRows([])
-    setNextCursor(null)
+    setRecords({ scope: queryScope, rows: [], nextCursor: null })
     void fetchPage()
       .then(
         (page) => {
           if (active) {
-            setRows(page.rows)
-            setNextCursor(page.nextCursor)
+            setRecords({ scope: queryScope, rows: page.rows, nextCursor: page.nextCursor })
           }
         },
         (reason: unknown) => {
           if (active) {
-            setRows([])
+            setRecords({ scope: queryScope, rows: [], nextCursor: null })
             setError(
               reason instanceof Error
                 ? reason.message
@@ -213,7 +236,7 @@ export function LedgerPage() {
     return () => {
       active = false
     }
-  }, [session, category, line, revision])
+  }, [queryScope, revision])
   const loadMore = () => {
     if (!nextCursor || loading) return
     const version = requestVersion.current
@@ -222,8 +245,15 @@ export function LedgerPage() {
       .then(
         (page) => {
           if (version !== requestVersion.current) return
-          setRows((current) => [...current, ...page.rows])
-          setNextCursor(page.nextCursor)
+          setRecords((current) => {
+            if (current.scope !== queryScope) return current
+            const combined = [...current.rows, ...page.rows]
+            const unique =
+              category === "order"
+                ? [...new Map(combined.map((row) => [String(row["orderId"]), row])).values()]
+                : combined
+            return { scope: queryScope, rows: unique, nextCursor: page.nextCursor }
+          })
         },
         (reason: unknown) => {
           if (version === requestVersion.current)
@@ -263,7 +293,10 @@ export function LedgerPage() {
   const referenceTypes = [
     ...new Set(rows.map((row) => String(row.referenceType ?? "")).filter(Boolean)),
   ]
-  const statuses = [...new Set(rows.map((row) => String(row.status ?? "")).filter(Boolean))]
+  const statuses =
+    category === "order"
+      ? ["FILLED", "CANCELED", "REJECTED"]
+      : [...new Set(rows.map((row) => String(row.status ?? "")).filter(Boolean))]
   const showReferenceType = ["funding-ledger", "product-ledger"].includes(category)
   const showStatus =
     ["transfer", "deposit", "withdrawal", "external-transfer", "order", "trade"].includes(
@@ -349,7 +382,7 @@ export function LedgerPage() {
               </DropdownSelect>
             </Field>
           ) : null}
-          {category !== "trade" ? (
+          {category !== "trade" && category !== "order" ? (
             <Field label={t("Asset")}>
               <DropdownSelect
                 aria-label={t("Asset")}
@@ -465,7 +498,16 @@ export function LedgerPage() {
           <StateView kind="loading" message={t("Loading records")} />
         </Panel>
       ) : visible.length ? (
-        category === "trade" ? (
+        category === "order" ? (
+          <OrderHistoryTable
+            rows={visible}
+            markets={Object.fromEntries(
+              markets.map((market) => [`${market.productLine}:${market.instrumentId}`, market]),
+            )}
+            scales={assetScales}
+            productLine={line}
+          />
+        ) : category === "trade" ? (
           <TradeFillTable
             rows={visible}
             markets={Object.fromEntries(

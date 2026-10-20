@@ -106,6 +106,21 @@ export function stepUnitsToDecimal(
   return unitsToDecimal(totalUnits.toString(), assetScale)
 }
 
+/** Average execution ticks may be fractional; retain them without a Number conversion. */
+export function decimalStepUnitsToDecimal(
+  ticks: string,
+  unitSize: UnitScale,
+  assetScale: UnitScale,
+): string {
+  const decimal = parseDecimal(ticks)
+  const scale = scaleToBigInt(assetScale)
+  if (!/^10*$/.test(scale.toString())) throw new Error(t("Invalid asset precision."))
+  return unitsToDecimal(
+    (decimal.coefficient * scaleToBigInt(unitSize)).toString(),
+    (scale * ten(decimal.fractionDigits)).toString(),
+  )
+}
+
 function parseDecimal(value: string): Decimal {
   const normalized = value.trim()
   if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {

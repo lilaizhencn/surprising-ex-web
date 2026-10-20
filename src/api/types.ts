@@ -290,6 +290,47 @@ const OrderStatusSchema = z.enum([
   "FILLED",
 ])
 
+export const OrderHistoryPageSchema = z
+  .object({
+    count: z.number().int().nonnegative(),
+    orders: z.array(
+      OrderSchema.extend({
+        orderId: PositiveInt64Schema,
+        userId: PositiveInt64Schema,
+        instrumentId: PositiveInt64Schema,
+        side: z.enum(["BUY", "SELL"]),
+        orderType: z.enum(["LIMIT", "MARKET"]),
+        status: z.enum(["FILLED", "CANCELED", "REJECTED"]),
+        priceTicks: SafeIntegerWireSchema,
+        quantitySteps: PositiveInt64Schema,
+        executedQuantitySteps: SafeIntegerWireSchema,
+        remainingQuantitySteps: SafeIntegerWireSchema,
+        cumulativeFeeUnits: SignedIntegerWireSchema,
+        averagePriceTicks: z
+          .string()
+          .regex(/^\d+(?:\.\d+)?$/)
+          .nullable(),
+        createdAt: z.iso.datetime(),
+        updatedAt: z.iso.datetime(),
+      }).refine(
+        (order) =>
+          BigInt(order.executedQuantitySteps) <= BigInt(order.quantitySteps) &&
+          BigInt(order.remainingQuantitySteps) <= BigInt(order.quantitySteps),
+      ),
+    ),
+    nextCursor: z.string().min(1).nullable(),
+    hasMore: z.boolean(),
+    sort: z.literal("updatedAt.desc"),
+    limit: z.number().int().min(1).max(1000),
+  })
+  .refine(
+    (page) =>
+      page.count === page.orders.length &&
+      page.count <= page.limit &&
+      page.hasMore === Boolean(page.nextCursor),
+    "Invalid order history page",
+  )
+
 const DirectOrderSubmissionSchema = z
   .object({
     orderId: z.union([z.string(), z.number()]),

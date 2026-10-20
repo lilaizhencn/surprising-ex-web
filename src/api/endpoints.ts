@@ -55,6 +55,7 @@ import {
   MarketListSchema,
   MarketSchema,
   OrderBookSchema,
+  OrderHistoryPageSchema,
   OrderListSchema,
   OrderSubmissionSchema,
   PositionListSchema,
@@ -1565,9 +1566,11 @@ export async function loadOrderHistory(
   productLine: ProductLine,
   startTime?: number,
   endTime?: number,
+  cursor?: string,
+  status?: string,
 ) {
   const session = loadSession()
-  if (!session) return [] as readonly ApiOrder[]
+  if (!session) throw new Error(t("Sign in required."))
   const query = new URLSearchParams({
     userId: String(session.user.userId),
     limit: "100",
@@ -1575,12 +1578,24 @@ export async function loadOrderHistory(
   if (instrumentId.trim()) query.set("instrumentId", instrumentId.trim())
   if (startTime !== undefined) query.set("startTime", String(startTime))
   if (endTime !== undefined) query.set("endTime", String(endTime))
+  if (cursor) query.set("cursor", cursor)
+  if (status) query.set("status", status)
   const response = await request(
     `/api/v1/gateway/trading/history?${query.toString()}`,
-    OrderListSchema,
-    { productLine },
+    OrderHistoryPageSchema,
+    { productLine, expectedUserId: String(session.user.userId), retry: 0 },
   )
-  return orderRows(response)
+  if (
+    (response.hasMore && response.nextCursor === cursor) ||
+    response.orders.some(
+      (row) =>
+        String(row.userId) !== String(session.user.userId) ||
+        (instrumentId.trim() && row.instrumentId !== instrumentId.trim()) ||
+        (status && row.status !== status),
+    )
+  )
+    throw new Error(t("Order history does not match the original query. Refresh to retry."))
+  return response
 }
 
 export async function loadMyTrades(

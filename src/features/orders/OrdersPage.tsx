@@ -49,6 +49,7 @@ import {
   timestamp,
   units,
 } from "../trading/TradingAccountTables"
+import { OrderHistoryTable } from "./OrderHistoryTable"
 import { TradeFillTable } from "./TradeFillTable"
 
 type RecordRow =
@@ -112,6 +113,7 @@ export function OrdersPage() {
     assetFilter,
     from,
     to,
+    tab === "history" ? status : "",
   ])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -142,9 +144,19 @@ export function OrdersPage() {
             rows: page.trades as readonly RecordRow[],
             nextCursor: page.nextCursor,
           }))
-        : (tab === "history"
-            ? loadOrderHistory(instrumentId, productLine, dateValue(from), dateValue(to, true))
-            : tab === "ledger"
+        : tab === "history"
+          ? loadOrderHistory(
+              instrumentId,
+              productLine,
+              dateValue(from),
+              dateValue(to, true),
+              more ? (records.nextCursor ?? undefined) : undefined,
+              status === "ALL" ? undefined : status,
+            ).then((page) => ({
+              rows: page.orders as readonly RecordRow[],
+              nextCursor: page.nextCursor,
+            }))
+          : (tab === "ledger"
               ? loadAccountLedger(assetFilter)
               : tab === "product-ledger"
                 ? loadProductLedger(productLine, assetFilter)
@@ -153,7 +165,7 @@ export function OrdersPage() {
                   : tab === "algo"
                     ? loadOpenAlgoOrders(session.user.userId, instrumentId, productLine)
                     : Promise.resolve([])
-          ).then((rows) => ({ rows: rows as readonly RecordRow[], nextCursor: null }))
+            ).then((rows) => ({ rows: rows as readonly RecordRow[], nextCursor: null }))
     void task
       .then(
         (page) => {
@@ -168,11 +180,13 @@ export function OrdersPage() {
               ...page.rows,
             ]
             const unique =
-              tab === "fills"
+              tab === "fills" || tab === "history"
                 ? [
                     ...new Map(
                       combined.map((row) => [
-                        `${row["tradeId"]}:${row["liquidityRole"]}:${row["orderId"]}`,
+                        tab === "history"
+                          ? String(row["orderId"])
+                          : `${row["tradeId"]}:${row["liquidityRole"]}:${row["orderId"]}`,
                         row,
                       ]),
                     ).values(),
@@ -244,7 +258,7 @@ export function OrdersPage() {
         setMarketOptions({ line: productLine, items: rows })
         setMarkets(
           Object.fromEntries(
-            rows.map((row) => [`${productLine}:${row.instrumentId}`, mapMarket(row)]),
+            rows.map((row) => [`${productLine}:${row["instrumentId"]}`, mapMarket(row)]),
           ),
         )
       },
@@ -544,17 +558,26 @@ export function OrdersPage() {
                 onChange={(event) => setStatus(event.target.value)}
               >
                 <option value="ALL">{t("All statuses")}</option>
-                {(tab === "triggers"
-                  ? ["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"]
-                  : [
-                      "PENDING_RESERVE",
-                      "ACCEPTED",
-                      "PARTIALLY_FILLED",
-                      "FILLED",
-                      "CANCEL_REQUESTED",
-                      "CANCELED",
-                      "REJECTED",
-                    ]
+                {(tab === "history"
+                  ? ["FILLED", "CANCELED", "REJECTED"]
+                  : tab === "triggers"
+                    ? [
+                        "PENDING",
+                        "TRIGGERING",
+                        "TRIGGERED",
+                        "TRIGGER_FAILED",
+                        "CANCELED",
+                        "EXPIRED",
+                      ]
+                    : [
+                        "PENDING_RESERVE",
+                        "ACCEPTED",
+                        "PARTIALLY_FILLED",
+                        "FILLED",
+                        "CANCEL_REQUESTED",
+                        "CANCELED",
+                        "REJECTED",
+                      ]
                 ).map((value) => (
                   <option key={value} value={value}>
                     {t(statusLabels[value] ?? value)}
@@ -605,7 +628,10 @@ export function OrdersPage() {
         <button
           type="button"
           className={tab === "history" ? "active" : ""}
-          onClick={() => setTab("history")}
+          onClick={() => {
+            setStatus("ALL")
+            setTab("history")
+          }}
         >
           {" "}
           {t("Order history")}{" "}
@@ -713,6 +739,13 @@ export function OrdersPage() {
             assetScales={assetScales}
             productLine={productLine}
           />
+        ) : tab === "history" ? (
+          <OrderHistoryTable
+            rows={displayRows}
+            markets={markets}
+            scales={assetScales}
+            productLine={productLine}
+          />
         ) : tab === "fills" ? (
           <TradeFillTable rows={displayRows} markets={markets} scales={assetScales} />
         ) : tab === "algo" ? (
@@ -748,7 +781,10 @@ export function OrdersPage() {
           />
         )}
       </Panel>
-      {tab === "fills" && records.scope === queryScope && records.nextCursor && !error ? (
+      {(tab === "fills" || tab === "history") &&
+      records.scope === queryScope &&
+      records.nextCursor &&
+      !error ? (
         <Button tone="outline" loading={loading} onClick={() => load(true)}>
           {t("Load more")}
         </Button>

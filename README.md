@@ -277,3 +277,10 @@ realtime 修正报价面值换算、SETTLING/CLOSED 成交接收和冷启动当�
 `loadMyTrades` 改用 `/api/v1/gateway/trading/trades`，验证登录账户、产品、分页与执行字段；旧 `trading-trades` 地址不再使用。订单页和分类记录页展示本人订单、买卖方向、Maker/Taker、成交价、数量及原成交费率，采用真实资产精度和整数换算，保留大订单号及自成交双方。两处入口都支持后续页，手机显示成交卡片；日期包含选中结束日，订单页丢弃旧账户、产品和筛选请求的迟到结果。需配套后端新路由，保持原 realtime 导出与迁移就绪。验证见 docs/validation/spot-private-fills-20261020.json；显式实栈脚本为 scripts/spot-trade-history-fused-live.mjs。
 
 实栈脚本需要 `SPOT_FILLS_LIVE_FIXTURE`（隔离 FUSED 用例生成、位于 `/tmp/surprising-spot-fused-fills-` 下）及 `SPOT_FILLS_CORE_PID`，只在单次已加载的只读请求期间暂停并恢复该 Core；不能指向其他运行环境。已有浏览器可通过 `SPOT_FILLS_PLAYWRIGHT_MODULE` / `SPOT_FILLS_CHROMIUM` 指定。
+
+
+### 现货历史委托分页、筛选与展示（2026-10-20）
+
+历史委托继续从 realtime 已提交的订单投影查询。状态 FILLED/CANCELED/REJECTED 在 SQL 分页之前过滤；按更新时间及订单号倒序翻页，响应 sort 修正为 updatedAt.desc，起止日期仍按创建时间且含两端。Web 两处入口保留游标与原账户/产品/筛选，桌面和手机共用只读历史展示；client 固定已应用查询，编辑草稿不会把新条件与旧游标混页。两端保留大订单号、实际 tick/step/资产精度和小数 tick 均价，展示成交量、剩余量及原累计手续费；client 对不在交易目录的历史合约按永久身份取资料。
+
+需配套发布 gateway、Web、client；无新表、迁移、topic 或 Core 交易状态变化。实栈一次只运行 SPOT、FUSED，不启动 wallet。隔离脚本分别为 Web 的 scripts/spot-order-history-fused-live.mjs、client 的 test/spot_order_history_fused_live_test.dart，显式传 SPOT_HISTORY_LIVE_FIXTURE（/tmp/surprising-spot-fused-history- 下、Maven SIX_LINE_LIVE_USER_HISTORY=true 生成）；Web 可用 SPOT_HISTORY_PLAYWRIGHT_MODULE / SPOT_HISTORY_CHROMIUM 指定已有浏览器。脚本只把真实 GET 的 limit 降为 1 以验证分页，不生成金融响应或提交交易。实测与清理见 docs/validation/spot-order-history-20261020.json。
