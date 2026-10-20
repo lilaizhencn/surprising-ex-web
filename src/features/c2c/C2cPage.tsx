@@ -21,7 +21,7 @@ import { ChatComposer } from "./ChatComposer"
 import { useC2cConversation } from "./useC2cConversation"
 import "./c2c.css"
 
-export function C2cPage() {
+export function C2cPage({ initialConversation }: { initialConversation?: C2cConversation } = {}) {
   useLocale()
   const session = useSession()
   if (!session)
@@ -40,17 +40,26 @@ export function C2cPage() {
       key={String(session.user.userId)}
       owner={String(session.user.userId)}
       token={session.accessToken}
+      initialConversation={initialConversation}
     />
   )
 }
 
-function C2cWorkspace({ owner, token }: { readonly owner: string; readonly token: string }) {
+function C2cWorkspace({
+  owner,
+  token,
+  initialConversation,
+}: {
+  readonly owner: string
+  readonly token: string
+  readonly initialConversation: C2cConversation | undefined
+}) {
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [tab, setTab] = useState<"messages" | "orders">("messages")
   const [search, setSearch] = useState("")
   const [conversations, setConversations] = useState<C2cConversation[]>([])
   const [orders, setOrders] = useState<C2cOrder[]>([])
-  const [selection, setSelection] = useState<C2cConversation | null>(null)
+  const [selection, setSelection] = useState<C2cConversation | null>(initialConversation ?? null)
   const [more, setMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")

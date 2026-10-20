@@ -529,3 +529,83 @@
     display: none;
   }
 }
+
+.c2c-trading-tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border-soft);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.c2c-trading button {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+}
+.c2c-trading button[aria-pressed="true"] {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.c2c-trading button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.c2c-offers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-4);
+  margin-block: var(--space-4);
+}
+.c2c-panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-5);
+  margin-block: var(--space-4);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.c2c-panel button {
+  margin: var(--space-2);
+}
+.c2c-panel small {
+  display: block;
+  color: var(--color-ink-subtle);
+}
+.c2c-trading label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+  font-size: var(--font-body-small);
+}
+.c2c-trading input,
+.c2c-trading select,
+.c2c-trading textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.c2c-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.c2c-form-row label {
+  flex: 1 1 160px;
+}
+.c2c-payment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

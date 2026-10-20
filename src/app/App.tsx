@@ -12,7 +12,7 @@ const AssetsPage = lazy(() =>
   import("../features/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })),
 )
 const C2cPage = lazy(() =>
-  import("../features/c2c/C2cPage").then((module) => ({ default: module.C2cPage })),
+  import("../features/c2c/C2cTradingPage").then((module) => ({ default: module.C2cTradingPage })),
 )
 const FundingPage = lazy(() =>
   import("../features/assets/FundingPage").then((module) => ({ default: module.FundingPage })),

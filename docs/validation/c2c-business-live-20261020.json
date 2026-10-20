@@ -1,0 +1,567 @@
+{
+  "date": "2026-10-21",
+  "scope": {
+    "productLine": "SPOT",
+    "executionMode": "FUSED",
+    "real": [
+      "registered trading JWT",
+      "PostgreSQL",
+      "Kafka",
+      "Redis",
+      "Core transfers",
+      "realtime account queries",
+      "maker orders",
+      "shared market/chat WebSocket",
+      "admin permissions/audit/two-person approvals"
+    ],
+    "simulated": [
+      "KYC fixture",
+      "OTP fixture",
+      "off-platform fiat payment confirmation",
+      "market-price input"
+    ],
+    "notPerformed": [
+      "remote server release",
+      "APK installation",
+      "real bank payment",
+      "other product live stacks",
+      "live R2 upload this round"
+    ]
+  },
+  "tests": {
+    "backendUniquePassed": 102,
+    "backendConditionalSkipped": 3,
+    "backendFinalCandidatePassed": 32,
+    "webPassed": 324,
+    "adminPassed": 16,
+    "flutterPassed": 398,
+    "flutterConditionalSkipped": 11,
+    "nativeLivePassed": 2,
+    "browserStepsPassed": 8,
+    "webAndAdminLintBuild": "passed",
+    "flutterAnalyze": "passed"
+  },
+  "businessEvidence": {
+    "scope": "真实本地交易鉴权、Core 资金及 realtime；合成 KYC、验证码与站外法币付款",
+    "steps": [
+      "商家在页面确认质押，真实 Core 扣减后显示 LOCKED",
+      "后台按原请求经另一管理员审批后通过商家审核",
+      "商家发布出售广告，真实托管确认后上架",
+      "已提交订单丢失响应后查询原回执，未产生第二次下单 POST",
+      "买家读取订单收款快照、确认已付款，卖家核实后通过安全验证放币，Core 完成净额和手续费",
+      "原订单直接进入会话，真实鉴权的聊天和行情帧来自同一条 WebSocket；第三方无法加入",
+      "390 宽度卖家向商家买入广告出售，商家确认付款，卖家验证后放币",
+      "用户新增实名收款账户，后台审计查阅、人工核验和另一管理员审批后通过"
+    ],
+    "errors": [],
+    "orders": [
+      "0c38723b-6856-41d6-9732-5557f37ff4ca",
+      "dc503522-41e0-4aec-bfab-5312962d3c73"
+    ],
+    "passed": true,
+    "sockets": {
+      "seller": {
+        "opened": 2,
+        "frames": [
+          {
+            "socket": 2,
+            "op": "authenticated",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "c2c.subscribed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "c2c.changed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.changed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.changed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          }
+        ]
+      },
+      "admin": {
+        "opened": 0,
+        "frames": []
+      },
+      "buyer": {
+        "opened": 2,
+        "frames": [
+          {
+            "socket": 2,
+            "op": "authenticated",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.subscribed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "trades"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.changed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "unsubscribed",
+            "channel": "trades"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.changed",
+            "channel": "c2c.inbox"
+          },
+          {
+            "socket": 2,
+            "op": "c2c.messages",
+            "channel": "c2c.messages"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          }
+        ]
+      },
+      "other": {
+        "opened": 2,
+        "frames": [
+          {
+            "socket": 2,
+            "op": "authenticated",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "orders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "triggerOrders"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positions"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "positionRisk"
+          },
+          {
+            "socket": 2,
+            "op": "subscribed",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": "executionReports"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "event",
+            "channel": "accountState"
+          },
+          {
+            "socket": 2,
+            "op": "snapshot",
+            "channel": null
+          }
+        ]
+      }
+    }
+  },
+  "finalFunds": {
+    "passed": true,
+    "scope": "Local SPOT FUSED Core, real JWT, PostgreSQL, realtime and maker; synthetic KYC, OTP and off-platform fiat",
+    "suspensionBlocksNewOrdersAndWithdrawal": true,
+    "existingPaidOrderCompleted": "0a744cc7-75bc-4a19-b706-b88488cbea1a",
+    "merchantBondOriginalOwnerAndAmountReturned": true,
+    "allC2cObjectsTerminal": true,
+    "merchantEscrowSummaryAfterRefund": "0",
+    "allLockedUnits": "0",
+    "initialTotals": {
+      "USDT": 100300000000000,
+      "BTC": 1000000000
+    },
+    "finalTotals": {
+      "USDT": 100300000000000,
+      "BTC": 1000000000
+    },
+    "fundsDifference": {
+      "USDT": 0,
+      "BTC": 0
+    },
+    "accounts": {
+      "5": [
+        {
+          "userId": 5,
+          "asset": "USDT",
+          "availableUnits": 99299600000,
+          "lockedUnits": 0,
+          "equityUnits": 99299600000,
+          "updatedAt": "2026-10-20T16:00:28.295454Z"
+        }
+      ],
+      "6": [
+        {
+          "userId": 6,
+          "asset": "USDT",
+          "availableUnits": 101098900000,
+          "lockedUnits": 0,
+          "equityUnits": 101098900000,
+          "updatedAt": "2026-10-20T16:00:28.333291Z"
+        }
+      ],
+      "7": [
+        {
+          "userId": 7,
+          "asset": "USDT",
+          "availableUnits": 99600000000,
+          "lockedUnits": 0,
+          "equityUnits": 99600000000,
+          "updatedAt": "2026-10-20T16:00:28.342068Z"
+        }
+      ],
+      "8": [
+        {
+          "userId": 8,
+          "asset": "BTC",
+          "availableUnits": 1000000000,
+          "lockedUnits": 0,
+          "equityUnits": 1000000000,
+          "updatedAt": "2026-10-20T16:00:28.348831Z"
+        },
+        {
+          "userId": 8,
+          "asset": "USDT",
+          "availableUnits": 100000000000000,
+          "lockedUnits": 0,
+          "equityUnits": 100000000000000,
+          "updatedAt": "2026-10-20T16:00:28.348833Z"
+        }
+      ],
+      "1": [
+        {
+          "userId": 1,
+          "asset": "USDT",
+          "availableUnits": 0,
+          "lockedUnits": 0,
+          "equityUnits": 0,
+          "updatedAt": "2026-10-20T16:00:28.356730Z"
+        }
+      ],
+      "2": [
+        {
+          "userId": 2,
+          "asset": "USDT",
+          "availableUnits": 1500000,
+          "lockedUnits": 0,
+          "equityUnits": 1500000,
+          "updatedAt": "2026-10-20T16:00:28.379148Z"
+        }
+      ]
+    },
+    "reconciliation": {
+      "status": "MATCHED",
+      "assets": [
+        {
+          "actualEscrowUnits": "0",
+          "feeLockedUnits": "0",
+          "asset": "USDT",
+          "escrowLockedUnits": "0",
+          "expectedEscrowUnits": "0",
+          "expectedFeeUnits": "1500000",
+          "matches": true,
+          "actualFeeUnits": "1500000"
+        }
+      ],
+      "pendingIntentCount": "0"
+    }
+  },
+  "serverReleased": false,
+  "phoneInstalled": false,
+  "cleanup": {
+    "status": "complete",
+    "ownedProcessesStopped": true,
+    "ownedDatabaseDropped": "surprising_c2c_20261020_222008",
+    "temporaryIntegrationSchemasRemaining": 0,
+    "ownedPortsReleased": [
+      9094,
+      9095,
+      9096,
+      16379,
+      19092,
+      19093,
+      5173,
+      5174
+    ],
+    "sharedPostgresRunning": true,
+    "sharedServicesAndOtherWorkPreserved": true,
+    "ownedRuntimeRemoved": true,
+    "rawLogsRemovedAfterHashing": true,
+    "privateFixtureRemoved": true
+  },
+  "adminFinalRead": {
+    "passed": true,
+    "escrow": "0",
+    "fees": "1500000",
+    "actualRowStatus": "一致",
+    "desktopOverflow": false
+  }
+}
