@@ -9,6 +9,7 @@ import {
 } from "../../api/endpoints"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
+import { useSession } from "../../state/session"
 import { LoginVerificationSettings } from "./LoginVerificationSettings"
 import { SecurityActionDialog } from "./SecurityActionDialog"
 
@@ -16,6 +17,11 @@ type Scene = Readonly<Record<string, unknown>>
 type Action = { type: "password" } | { type: "scene"; scene: Scene }
 
 export function AccountSecurityPage() {
+  const session = useSession()
+  return <AccountSecurityForUser key={String(session?.user.userId ?? "anonymous")} />
+}
+
+function AccountSecurityForUser() {
   const [scenes, setScenes] = useState<readonly Scene[]>([])
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)

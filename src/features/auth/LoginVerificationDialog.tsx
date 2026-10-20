@@ -22,6 +22,7 @@ export function verificationMessage(reason: unknown): string {
     LOGIN_SMS_UNAVAILABLE: "SMS verification is not configured yet.",
     LOGIN_CODE_DELIVERY_FAILED: "Unable to send verification codes. Please try again later.",
     LOGIN_PASSWORD_INVALID: "Incorrect login password.",
+    LOGIN_RECENT_AUTHENTICATION_REQUIRED: "Sign in again before changing security settings.",
     LOGIN_CONTACT_INVALID: "Enter a valid email address or international phone number.",
     LOGIN_CONTACT_MISSING: "Bind an email address or phone number before enabling this method.",
     LOGIN_SECURITY_CHANGED: "Security settings changed. Please contact support.",
