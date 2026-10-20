@@ -1,11 +1,17 @@
-import type { Subscription, WsEnvelope } from "./realtime"
-import { PRIVATE_CHANNELS, subscriptionKey } from "./realtime"
+import type { RealtimeSubscription, WsEnvelope } from "./realtime"
+import {
+  isC2cSubscription,
+  isPrivateRealtimeChannel,
+  record,
+  subscriptionKey,
+  subscriptionProducts,
+} from "./realtime"
 import { RealtimeConnections } from "./realtimeConnections"
 import type { ProductLine } from "./types/domain"
 
 type Endpoint = (product: ProductLine) => string
 type Consumer = {
-  subscriptions: readonly Subscription[]
+  subscriptions: readonly RealtimeSubscription[]
   token: string | null
   message: (event: WsEnvelope) => void
   state: (products: readonly ProductLine[], live: boolean) => void
@@ -39,7 +45,7 @@ export function retainRealtimeSession(endpoint: Endpoint, token: string | null) 
       owner.close()
       owner = nextOwner
     },
-    update: (subscriptions: readonly Subscription[]) => owner.update(subscriptions),
+    update: (subscriptions: readonly RealtimeSubscription[]) => owner.update(subscriptions),
     close: () => session.close(),
   }
 }
@@ -60,6 +66,7 @@ class SharedRealtimeSession {
   private readonly live = new Map<ProductLine, boolean>()
   private readonly transport: RealtimeConnections
   private closed = false
+  private connected = false
 
   constructor(
     endpoint: Endpoint,
@@ -73,19 +80,22 @@ class SharedRealtimeSession {
         if (this.closed) return
         for (const consumer of this.consumers) {
           if (
-            (event.userId == null || (consumer.token === this.token && this.token !== null)) &&
+            ((event.userId == null && !isPrivateRealtimeChannel(event.channel ?? "")) ||
+              (consumer.token === this.token && this.token !== null)) &&
             accepts(consumer.subscriptions, event)
           )
             consumer.message(event)
         }
       },
       (products, connected) => {
+        this.connected = connected
         for (const product of products) this.live.set(product, connected)
         for (const consumer of this.consumers) {
           const owned = products.filter((product) =>
             consumer.subscriptions.some((subscription) => subscription.productLine === product),
           )
-          if (owned.length) consumer.state(owned, connected)
+          if (owned.length || consumer.subscriptions.some(isC2cSubscription))
+            consumer.state(owned, connected)
         }
       },
     )
@@ -118,7 +128,7 @@ class SharedRealtimeSession {
       update: (subscriptions) => {
         if (closed || this.closed) return
         const previous = new Set(consumer.subscriptions.map(subscriptionKey))
-        const previousProducts = new Set(consumer.subscriptions.map((s) => s.productLine))
+        const previousProducts = new Set(subscriptionProducts(consumer.subscriptions))
         const shared = new Set(
           [...this.consumers]
             .filter((other) => other !== consumer)
@@ -134,16 +144,17 @@ class SharedRealtimeSession {
         }
         // Joining an already live transport needs its state and a fresh private/
         // depth baseline. Do not reset existing views on ordinary plan updates.
-        for (const product of new Set(subscriptions.map((s) => s.productLine))) {
+        for (const product of subscriptionProducts(subscriptions)) {
           if (!previousProducts.has(product) && this.live.has(product))
             consumer.state([product], this.live.get(product) === true)
         }
+        if (subscriptions.some(isC2cSubscription)) consumer.state([], this.connected)
         for (const subscription of subscriptions) {
           const key = subscriptionKey(subscription)
           if (
             !previous.has(key) &&
             shared.has(key) &&
-            ["depth", "accountState"].includes(subscription.channel)
+            ["depth", "accountState", "c2c.messages"].includes(subscription.channel)
           )
             this.transport.resubscribe(subscription)
         }
@@ -175,7 +186,7 @@ class SharedRealtimeSession {
       [...this.consumers].flatMap((consumer) =>
         consumer.subscriptions.filter(
           (subscription) =>
-            !PRIVATE_CHANNELS.has(subscription.channel) ||
+            !isPrivateRealtimeChannel(subscription.channel) ||
             (consumer.token === this.token && this.token !== null),
         ),
       ),
@@ -183,7 +194,17 @@ class SharedRealtimeSession {
   }
 }
 
-function accepts(subscriptions: readonly Subscription[], event: WsEnvelope): boolean {
+function accepts(subscriptions: readonly RealtimeSubscription[], event: WsEnvelope): boolean {
+  if (event.channel?.startsWith("c2c.")) {
+    return subscriptions.some(
+      (s) =>
+        isC2cSubscription(s) &&
+        (event.op === "c2c.error" ||
+          event.channel === "c2c.inbox" ||
+          (s.channel === "c2c.messages" &&
+            s.conversationId === record(event.data)["conversationId"])),
+    )
+  }
   if (!event.productLine) return true
   return subscriptions.some(
     (subscription) =>

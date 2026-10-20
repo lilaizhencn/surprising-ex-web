@@ -175,7 +175,29 @@ export interface Subscription {
   instrumentId?: string
   period?: string
 }
-export function subscriptionKey(s: Subscription): string {
+export interface C2cSubscription {
+  channel: "c2c.inbox" | "c2c.messages"
+  conversationId?: string
+  after?: string
+  afterEvent?: string
+  productLine?: never
+  instrumentId?: never
+  period?: never
+}
+export type RealtimeSubscription = Subscription | C2cSubscription
+export function isC2cSubscription(s: RealtimeSubscription): s is C2cSubscription {
+  return s.productLine === undefined && (s.channel === "c2c.inbox" || s.channel === "c2c.messages")
+}
+export function isPrivateRealtimeChannel(channel: string): boolean {
+  return PRIVATE_CHANNELS.has(channel) || channel === "c2c.inbox" || channel === "c2c.messages"
+}
+export function subscriptionProducts(
+  subscriptions: readonly RealtimeSubscription[],
+): ProductLine[] {
+  return [...new Set(subscriptions.flatMap((s) => (s.productLine ? [s.productLine] : [])))]
+}
+export function subscriptionKey(s: RealtimeSubscription): string {
+  if (isC2cSubscription(s)) return `${s.channel}:${s.conversationId ?? ""}`
   return `${s.productLine}:${s.channel}:${s.instrumentId ?? "*"}:${s.period ?? ""}`
 }
 export function privateSubscriptions(products: readonly ProductLine[]): Subscription[] {

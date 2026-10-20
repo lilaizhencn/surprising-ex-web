@@ -27,6 +27,14 @@ describe("gateway JSON integer decoding", () => {
 })
 
 describe("public request failures", () => {
+  it("never fetches a private attachment under a different signed-in owner", async () => {
+    browserStorage()
+    saveSession(session("current", "2999-01-01T00:00:00Z"))
+    await expect(
+      requestBlob("/api/v1/c2c/attachments/private/content", { expectedUserId: "2" }),
+    ).rejects.toThrow("Session changed")
+    expect(ky).not.toHaveBeenCalled()
+  })
   it("maps business rejection and retains structured diagnostics for JSON and downloads", async () => {
     browserStorage()
     const payload = {

@@ -1,0 +1,81 @@
+{
+  "fixture": "synthetic-auth-controlled-core-real-postgres",
+  "steps": [
+    "actual recent history baseline contains exactly 50 persisted messages",
+    "earlier page retains all 80 messages and preserves the scroll anchor",
+    "real order dialog reads the order and exact fee fields",
+    "market subscription and chat use the one existing physical socket",
+    "persisted message reaches the other logged-in browser through shared websocket",
+    "a lost committed response recovers by receipt without posting twice",
+    "offline messages replay once on the existing shared transport",
+    "private authenticated image upload is delivered and displayed for the other party",
+    "desktop light and dark layouts have no horizontal overflow",
+    "mobile layout opens the conversation, fits the composer and returns to the list",
+    "consultation privacy rejection remains visible inside its dialog",
+    "changing accounts removes all prior conversation content"
+  ],
+  "sockets": {
+    "buyer": [
+      "ws://127.0.0.1:17173/ws/v1",
+      "ws://127.0.0.1:17173/ws/v1"
+    ],
+    "maker": [
+      "ws://127.0.0.1:17173/ws/v1",
+      "ws://127.0.0.1:17173/ws/v1"
+    ]
+  },
+  "errors": [],
+  "passed": true,
+  "scope": {
+    "web": true,
+    "flutter": false,
+    "adminWeb": false,
+    "serverDeployed": false,
+    "r2BrowserStorage": "gateway private filesystem fixture; actual R2 separately tested in backend",
+    "marketData": "real shared websocket handler and trades subscription acknowledgement; no Core price feed started",
+    "authentication": "synthetic fixture auth calls through production websocket authenticator",
+    "activeBusinessSocketsPerPage": 1,
+    "developmentHmrSocketExcluded": true,
+    "socketLifetimeCountIncludesStrictModeMountAndOfflineReconnect": true
+  },
+  "artifacts": [
+    {
+      "path": "docs/validation/c2c-chat-20261020/chat-desktop-dark.png",
+      "sha256": "922ca660df7ed347df87fc10a1ebd1455f59bbb88de88041098d7906c4e249cd",
+      "bytes": 96646
+    },
+    {
+      "path": "docs/validation/c2c-chat-20261020/chat-desktop-light.png",
+      "sha256": "117c61585e94f425708d196dca63d4ed1fb267bba7738fda7aee40e48028c549",
+      "bytes": 123854
+    },
+    {
+      "path": "docs/validation/c2c-chat-20261020/chat-mobile-dark.png",
+      "sha256": "7396eef58bf3a560ddebb44b258b74fd99219a09d5065a829fde4e3206f4137e",
+      "bytes": 49901
+    },
+    {
+      "path": "docs/validation/c2c-chat-20261020/order-desktop.png",
+      "sha256": "c229aa5d579134c1872855cf78ff213c19680ddd7eab28246a0bb0ef2d5c59ec",
+      "bytes": 29558
+    }
+  ],
+  "checks": {
+    "vitest": {
+      "files": 42,
+      "passed": 318,
+      "failed": 0
+    },
+    "lint": {
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 0,
+      "existingInformationalDiagnostics": 548
+    },
+    "build": {
+      "exitCode": 0,
+      "warning": "Existing DeviceManagementPage bundle exceeds 500 kB; C2C is lazy loaded"
+    }
+  },
+  "goalComplete": false
+}

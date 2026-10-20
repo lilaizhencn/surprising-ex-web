@@ -1,8 +1,10 @@
 import {
-  PRIVATE_CHANNELS,
+  isC2cSubscription,
+  isPrivateRealtimeChannel,
   parseRealtimeJson,
-  type Subscription,
+  type RealtimeSubscription,
   subscriptionKey,
+  subscriptionProducts,
   type WsEnvelope,
 } from "./realtime"
 import type { ProductLine } from "./types/domain"
@@ -30,8 +32,12 @@ export class RealtimeConnections {
     this.token = token
     this.connection?.updateToken(token)
   }
-  update(subscriptions: readonly Subscription[]) {
+  update(subscriptions: readonly RealtimeSubscription[]) {
     const unique = [...new Map(subscriptions.map((s) => [subscriptionKey(s), s])).values()]
+    const chats = unique.filter((s) => isC2cSubscription(s) && s.channel === "c2c.messages")
+    if (chats.length > 1) throw new Error("Only one chat conversation can be open at a time.")
+    if (chats.length && !unique.some((s) => s.channel === "c2c.inbox"))
+      unique.push({ channel: "c2c.inbox" })
     if (unique.length > 200)
       throw new Error("Too many realtime subscriptions. Narrow the selected markets.")
     if (!this.connection) {
@@ -48,7 +54,7 @@ export class RealtimeConnections {
   refresh() {
     this.connection?.refresh()
   }
-  resubscribe(subscription: Subscription) {
+  resubscribe(subscription: RealtimeSubscription) {
     this.connection?.resubscribe(subscription)
   }
   close() {
@@ -62,8 +68,8 @@ export class RealtimeConnections {
 
 class Connection {
   private socket: WebSocket | null = null
-  private desired = new Map<string, Subscription>()
-  private installed = new Map<string, Subscription>()
+  private desired = new Map<string, RealtimeSubscription>()
+  private installed = new Map<string, RealtimeSubscription>()
   private authenticated = false
   private awaitingAuthentication = false
   private closed = false
@@ -81,9 +87,9 @@ class Connection {
     private readonly state: (products: readonly ProductLine[], live: boolean) => void,
   ) {}
   private products() {
-    return [...new Set([...this.desired.values()].map((s) => s.productLine))]
+    return subscriptionProducts([...this.desired.values()])
   }
-  update(subscriptions: readonly Subscription[]) {
+  update(subscriptions: readonly RealtimeSubscription[]) {
     const previousProducts = new Set(this.products())
     this.desired = new Map(subscriptions.map((s) => [subscriptionKey(s), s]))
     if (!this.socket && !this.reconnect) this.connect()
@@ -163,7 +169,7 @@ class Connection {
           this.state(this.products(), false)
         }
         if (
-          (event.userId != null || PRIVATE_CHANNELS.has(event.channel ?? "")) &&
+          (event.userId != null || isPrivateRealtimeChannel(event.channel ?? "")) &&
           event.op !== "authenticated" &&
           !this.authenticated
         )
@@ -218,32 +224,54 @@ class Connection {
     if (socket?.readyState !== WebSocket.OPEN) return
     const allowed = new Map(
       [...this.desired].filter(
-        ([, s]) => !PRIVATE_CHANNELS.has(s.channel) || (this.token && this.authenticated),
+        ([, s]) => !isPrivateRealtimeChannel(s.channel) || (this.token && this.authenticated),
       ),
     )
     for (const [id, s] of this.installed)
       if (!allowed.has(id)) {
-        socket.send(JSON.stringify({ op: "unsubscribe", id, ...s }))
+        if (!isC2cSubscription(s)) socket.send(JSON.stringify({ op: "unsubscribe", id, ...s }))
         this.depthProgress.delete(id)
       }
+    const oldChat = [...this.installed.values()].filter(isC2cSubscription)
+    const newChat = [...allowed.values()].filter(isC2cSubscription)
+    const oldWatch = oldChat.find((s) => s.channel === "c2c.messages")
+    const newWatch = newChat.find((s) => s.channel === "c2c.messages")
+    if (oldChat.length && !newChat.length) socket.send(JSON.stringify({ op: "c2c.stop" }))
+    else {
+      if (!oldChat.length && newChat.length) socket.send(JSON.stringify({ op: "c2c.inbox" }))
+      if (oldWatch && oldWatch.conversationId !== newWatch?.conversationId)
+        socket.send(JSON.stringify({ op: "c2c.unwatch" }))
+      if (newWatch && oldWatch?.conversationId !== newWatch.conversationId)
+        socket.send(JSON.stringify({ op: "c2c.watch", ...chatCursor(newWatch) }))
+    }
     for (const [id, s] of allowed)
       if (!this.installed.has(id)) {
-        socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
+        if (!isC2cSubscription(s)) socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
         if (s.channel === "depth")
           this.depthProgress.set(id, { at: Date.now(), awaitingSnapshot: true })
       }
     this.installed = allowed
   }
-  resubscribe(subscription: Subscription) {
+  resubscribe(subscription: RealtimeSubscription) {
     const id = subscriptionKey(subscription)
     const socket = this.socket
     if (
       !this.desired.has(id) ||
       !this.installed.has(id) ||
       socket?.readyState !== WebSocket.OPEN ||
-      (PRIVATE_CHANNELS.has(subscription.channel) && !this.authenticated)
+      (isPrivateRealtimeChannel(subscription.channel) && !this.authenticated)
     )
       return
+    if (isC2cSubscription(subscription)) {
+      socket.send(
+        JSON.stringify(
+          subscription.channel === "c2c.inbox"
+            ? { op: "c2c.inbox" }
+            : { op: "c2c.watch", ...chatCursor(subscription) },
+        ),
+      )
+      return
+    }
     socket.send(JSON.stringify({ op: "unsubscribe", id, ...subscription }))
     socket.send(JSON.stringify({ op: "subscribe", id, ...subscription }))
     if (subscription.channel === "depth")
@@ -263,5 +291,13 @@ class Connection {
     clearTimeout(this.reconnect)
     clearInterval(this.heartbeat)
     this.socket?.close()
+  }
+}
+
+function chatCursor(subscription: import("./realtime").C2cSubscription) {
+  return {
+    conversationId: subscription.conversationId,
+    after: subscription.after ?? "0",
+    afterEvent: subscription.afterEvent ?? "0",
   }
 }

@@ -169,6 +169,11 @@ export async function requestBlob(
   if (allowRefresh && !path.includes("/auth/") && sessionAccessExpired(loadSession()))
     await refreshStoredSession()
   const session = loadSession()
+  if (
+    options.expectedUserId !== undefined &&
+    String(session?.user.userId ?? "") !== options.expectedUserId
+  )
+    throw new ApiError(t("Session changed. No request was sent."), 401)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
   if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)

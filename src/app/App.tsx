@@ -11,6 +11,9 @@ import { loadSession, saveSession, sessionAccessExpired, useSession } from "../s
 const AssetsPage = lazy(() =>
   import("../features/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })),
 )
+const C2cPage = lazy(() =>
+  import("../features/c2c/C2cPage").then((module) => ({ default: module.C2cPage })),
+)
 const FundingPage = lazy(() =>
   import("../features/assets/FundingPage").then((module) => ({ default: module.FundingPage })),
 )
@@ -136,6 +139,12 @@ function AppRoutes() {
     return (
       <AppShell accountArea>
         <AssetsPage account={new URLSearchParams(window.location.search).get("account")} />
+      </AppShell>
+    )
+  if (path === "/c2c" || path === "/c2c/messages")
+    return (
+      <AppShell>
+        <C2cPage />
       </AppShell>
     )
   if (path === "/assets/ledger")

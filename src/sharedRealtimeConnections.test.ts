@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { Subscription } from "./realtime"
+import type { C2cSubscription, Subscription } from "./realtime"
 import { acquireRealtimeConnections, retainRealtimeSession } from "./sharedRealtimeConnections"
 
 class Socket {
@@ -255,5 +255,129 @@ describe("shared page realtime transports", () => {
     expect(Socket.instances).toHaveLength(1)
     socket().open()
     expect(socket().sent.filter((c) => c["op"] === "subscribe")).toHaveLength(120)
+  })
+  it("shares authentication, socket and heartbeat between chat and market subscriptions", () => {
+    const marketMessage = vi.fn(),
+      chatMessage = vi.fn()
+    const market = acquire("token", marketMessage),
+      chat = acquire("token", chatMessage)
+    market.update([trade])
+    const conversation: C2cSubscription = {
+      channel: "c2c.messages",
+      conversationId: "conversation-a",
+    }
+    chat.update([conversation])
+    const ws = socket()
+    ws.open()
+    expect(ws.sent.filter((frame) => frame["op"] === "authenticate")).toHaveLength(1)
+    expect(ws.sent.some((frame) => String(frame["op"]).startsWith("c2c."))).toBe(false)
+    ws.receive({ op: "authenticated", userId: "12" })
+    expect(Socket.instances).toHaveLength(1)
+    expect(ws.sent.find((frame) => frame["op"] === "c2c.watch")).toEqual({
+      op: "c2c.watch",
+      conversationId: "conversation-a",
+      after: "0",
+      afterEvent: "0",
+    })
+    marketMessage.mockClear()
+    chatMessage.mockClear()
+    ws.receive({
+      op: "c2c.messages",
+      channel: "c2c.messages",
+      data: { conversationId: "conversation-a", messages: [] },
+    })
+    expect(chatMessage).toHaveBeenCalledTimes(1)
+    expect(marketMessage).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(20_000)
+    expect(ws.sent.filter((frame) => frame["op"] === "ping")).toHaveLength(1)
+  })
+  it("resumes chat from its updated cursors on the market transport reconnect", () => {
+    const chat = acquire("token")
+    chat.update([{ channel: "c2c.messages", conversationId: "conversation-a" }])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    chat.update([
+      {
+        channel: "c2c.messages",
+        conversationId: "conversation-a",
+        after: "9007199254740999",
+        afterEvent: "23",
+      },
+    ])
+    expect(socket().sent.filter((frame) => frame["op"] === "c2c.watch")).toHaveLength(1)
+    socket().close()
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    socket(1).receive({ op: "authenticated" })
+    expect(socket(1).sent.find((frame) => frame["op"] === "c2c.watch")).toMatchObject({
+      conversationId: "conversation-a",
+      after: "9007199254740999",
+      afterEvent: "23",
+    })
+  })
+  it("stops chat without retiring the market connection or its subscriptions", () => {
+    const market = acquire("token"),
+      chat = acquire("token")
+    market.update([trade])
+    chat.update([{ channel: "c2c.messages", conversationId: "conversation-a" }])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    chat.close()
+    expect(socket().sent.some((frame) => frame["op"] === "c2c.stop")).toBe(true)
+    expect(
+      socket().sent.some((frame) => frame["op"] === "unsubscribe" && frame["channel"] === "trades"),
+    ).toBe(false)
+    expect(socket().readyState).toBe(Socket.OPEN)
+  })
+  it("keeps chat failures from marking market streams disconnected", () => {
+    const marketState = vi.fn(),
+      chatMessage = vi.fn()
+    acquire("token", vi.fn(), marketState).update([trade])
+    acquire("token", chatMessage).update([{ channel: "c2c.inbox" }])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    marketState.mockClear()
+    socket().receive({ op: "c2c.error", channel: "c2c.messages", message: "会话无权访问" })
+    expect(chatMessage).toHaveBeenLastCalledWith(expect.objectContaining({ op: "c2c.error" }))
+    expect(marketState).not.toHaveBeenCalled()
+    expect(socket().readyState).toBe(Socket.OPEN)
+  })
+  it("rejects simultaneous distinct chat watches while retaining the existing watch", () => {
+    const first = acquire("token"),
+      second = acquire("token")
+    first.update([{ channel: "c2c.messages", conversationId: "conversation-a" }])
+    expect(() =>
+      second.update([{ channel: "c2c.messages", conversationId: "conversation-b" }]),
+    ).toThrow("Only one chat")
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    expect(
+      socket()
+        .sent.filter((frame) => frame["op"] === "c2c.watch")
+        .map((frame) => frame["conversationId"]),
+    ).toEqual(["conversation-a"])
+  })
+  it("never delivers new account chat contents to a retired session consumer", () => {
+    const retired = vi.fn(),
+      fresh = vi.fn()
+    const old = acquire("old-token", retired)
+    old.update([{ channel: "c2c.messages", conversationId: "old-conversation" }])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    retired.mockClear()
+    owners.get(endpoint)?.updateToken("new-token")
+    const current = acquire("new-token", fresh)
+    current.update([{ channel: "c2c.messages", conversationId: "new-conversation" }])
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    socket(1).receive({ op: "authenticated" })
+    retired.mockClear()
+    socket(1).receive({
+      op: "c2c.messages",
+      channel: "c2c.messages",
+      data: { conversationId: "new-conversation", messages: [{ text: "new account" }] },
+    })
+    expect(fresh).toHaveBeenCalledWith(expect.objectContaining({ channel: "c2c.messages" }))
+    expect(retired).not.toHaveBeenCalled()
   })
 })
