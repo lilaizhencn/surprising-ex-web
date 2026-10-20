@@ -222,3 +222,29 @@ export function mergeC2cMessages(previous: readonly C2cMessage[], incoming: read
         : 0,
   )
 }
+
+/** Message IDs are commit order; transaction start timestamps can arrive out of order. */
+export function c2cTimeline(messages: readonly C2cMessage[], events: readonly C2cEvent[]) {
+  type Item = { key: string; at: string } & ({ message: C2cMessage } | { event: C2cEvent })
+  const result: Item[] = []
+  const orderedEvents = [...events].sort((a, b) => (BigInt(a.eventId) < BigInt(b.eventId) ? -1 : 1))
+  let nextEvent = 0,
+    messageTime = 0,
+    eventTime = 0
+  for (const message of mergeC2cMessages([], messages)) {
+    messageTime = Math.max(messageTime, Date.parse(message.createdAt) || 0)
+    while (nextEvent < orderedEvents.length) {
+      const event = orderedEvents[nextEvent]
+      if (!event) break
+      const time = Math.max(eventTime, Date.parse(event.createdAt) || 0)
+      if (time > messageTime) break
+      result.push({ key: `e${event.eventId}`, at: event.createdAt, event })
+      eventTime = time
+      nextEvent++
+    }
+    result.push({ key: `m${message.messageId}`, at: message.createdAt, message })
+  }
+  for (const event of orderedEvents.slice(nextEvent))
+    result.push({ key: `e${event.eventId}`, at: event.createdAt, event })
+  return result
+}

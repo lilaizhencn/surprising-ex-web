@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import {
   type C2cConversation,
   type C2cOrder,
+  c2cTimeline,
   loadC2cConversations,
   loadC2cOrder,
   loadC2cOrders,
@@ -369,14 +370,7 @@ function ConversationPanel({
   const anchor = useRef<{ top: number; height: number } | null>(null)
   const bottom = useRef(true)
   const size = useRef({ width: 0, height: 0 })
-  const timeline = [
-    ...chat.messages.map((message) => ({
-      key: `m${message.messageId}`,
-      at: message.createdAt,
-      message,
-    })),
-    ...chat.events.map((event) => ({ key: `e${event.eventId}`, at: event.createdAt, event })),
-  ].sort((a, b) => a.at.localeCompare(b.at) || a.key.localeCompare(b.key))
+  const timeline = c2cTimeline(chat.messages, chat.events)
   useLayoutEffect(() => {
     const node = scroller.current
     if (!node) return

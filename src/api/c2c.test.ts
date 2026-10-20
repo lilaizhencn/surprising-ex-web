@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import {
   C2cMessageSchema,
+  c2cTimeline,
   loadC2cMessages,
   loadC2cOrders,
   mergeC2cMessages,
@@ -25,6 +26,32 @@ const message = (messageId: string) =>
   })
 
 describe("C2C API contracts", () => {
+  it("keeps commit order even when concurrent transactions have inverted timestamps", () => {
+    const earlierCommit = { ...message("9223372036854775805"), createdAt: "2026-10-20T00:00:02Z" }
+    const laterCommit = { ...message("9223372036854775806"), createdAt: "2026-10-20T00:00:01Z" }
+    const timeline = c2cTimeline(
+      [laterCommit, earlierCommit],
+      [
+        {
+          eventId: "1",
+          actorUserId: null,
+          type: "ORDER_CREATED",
+          details: {},
+          createdAt: "2026-10-20T00:00:01.500Z",
+        },
+      ],
+    )
+    expect(
+      timeline
+        .filter((item) => "message" in item)
+        .map((item) => ("message" in item ? item.message.messageId : "")),
+    ).toEqual([earlierCommit.messageId, laterCommit.messageId])
+    expect(timeline.map((item) => item.key)).toEqual([
+      "e1",
+      "m9223372036854775805",
+      "m9223372036854775806",
+    ])
+  })
   it("preserves exact IDs when history and replay overlap", () => {
     expect(
       mergeC2cMessages(
