@@ -1,0 +1,30 @@
+{
+  "fixture": "synthetic-auth-controlled-core-real-postgres",
+  "steps": [
+    "actual recent history baseline contains exactly 50 persisted messages",
+    "earlier pages retain the 80 seeded messages and preserve the scroll anchor",
+    "real order dialog reads the order and exact fee fields",
+    "market subscription and chat use the one existing physical socket",
+    "persisted message reaches the other logged-in browser through shared websocket",
+    "a lost committed response recovers by receipt without posting twice",
+    "visible messages arriving during a delayed read are acknowledged without another interaction",
+    "offline messages replay once on the existing shared transport",
+    "private authenticated image upload is delivered and displayed for the other party",
+    "desktop light and dark layouts have no horizontal overflow",
+    "mobile layout opens the conversation, fits the composer and returns to the list",
+    "consultation privacy rejection remains visible inside its dialog",
+    "changing accounts removes all prior conversation content"
+  ],
+  "sockets": {
+    "buyer": [
+      "ws://127.0.0.1:17173/ws/v1",
+      "ws://127.0.0.1:17173/ws/v1"
+    ],
+    "maker": [
+      "ws://127.0.0.1:17173/ws/v1",
+      "ws://127.0.0.1:17173/ws/v1"
+    ]
+  },
+  "errors": [],
+  "passed": true
+}

@@ -1,0 +1,7 @@
+{
+  "scope": "isolated UI with empty HTTP fixtures and injected WebSocket subscription failure",
+  "passed": true,
+  "inboxRequests": 2,
+  "retryOpenedAnotherConnection": false,
+  "connections": 2
+}

@@ -84,5 +84,35 @@
     "buildExit": 0,
     "case": "Concurrent transaction timestamps cannot reorder committed message IDs",
     "visualScope": "The previously captured normal timestamp layout is unchanged; focused contract test covers inverted timestamps"
+  },
+  "readRecoveryFollowup": {
+    "browserPassed": true,
+    "realGatewayScenarios": [
+      "actual recent history baseline contains exactly 50 persisted messages",
+      "earlier pages retain the 80 seeded messages and preserve the scroll anchor",
+      "real order dialog reads the order and exact fee fields",
+      "market subscription and chat use the one existing physical socket",
+      "persisted message reaches the other logged-in browser through shared websocket",
+      "a lost committed response recovers by receipt without posting twice",
+      "visible messages arriving during a delayed read are acknowledged without another interaction",
+      "offline messages replay once on the existing shared transport",
+      "private authenticated image upload is delivered and displayed for the other party",
+      "desktop light and dark layouts have no horizontal overflow",
+      "mobile layout opens the conversation, fits the composer and returns to the list",
+      "consultation privacy rejection remains visible inside its dialog",
+      "changing accounts removes all prior conversation content"
+    ],
+    "faultInjectedInboxRetry": {
+      "scope": "isolated UI with empty HTTP fixtures and injected WebSocket subscription failure",
+      "passed": true,
+      "inboxRequests": 2,
+      "retryOpenedAnotherConnection": false,
+      "connections": 2
+    },
+    "vitestPassed": 319,
+    "lintExit": 0,
+    "buildExit": 0,
+    "physicalPhoneInstalled": false,
+    "serverDeployed": false
   }
 }

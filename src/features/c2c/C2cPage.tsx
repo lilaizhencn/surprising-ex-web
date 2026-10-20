@@ -54,19 +54,29 @@ function C2cWorkspace({ owner, token }: { readonly owner: string; readonly token
   const [more, setMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [chatError, setChatError] = useState("")
   const [revision, setRevision] = useState(0)
   const [opening, setOpening] = useState(false)
   const [newConversation, setNewConversation] = useState(false)
   const alive = useRef(true)
   const nextOffset = useRef(0)
   const generation = useRef(0)
+  const inbox = useRef<ReturnType<typeof acquireRealtimeConnections> | null>(null)
+  const chatFault = useRef(false)
   useEffect(() => {
     alive.current = true
     return () => {
       alive.current = false
     }
   }, [])
-  const refresh = useCallback(() => setRevision((value) => value + 1), [])
+  const refresh = useCallback(() => {
+    if (chatFault.current) {
+      chatFault.current = false
+      setChatError("")
+      inbox.current?.resubscribe({ channel: "c2c.inbox" })
+    }
+    setRevision((value) => value + 1)
+  }, [])
   useEffect(() => {
     generation.current++
     const abort = new AbortController()
@@ -120,6 +130,15 @@ function C2cWorkspace({ owner, token }: { readonly owner: string; readonly token
       config.wsBaseUrlForProductLine,
       token,
       (event) => {
+        if (event.op === "c2c.error") {
+          chatFault.current = true
+          setChatError(t("Chat subscription failed. Please retry."))
+          return
+        }
+        if (event.op === "c2c.subscribed" || event.op === "c2c.changed") {
+          chatFault.current = false
+          setChatError("")
+        }
         if (event.op === "c2c.changed" && !timer)
           timer = setTimeout(() => {
             timer = undefined
@@ -129,9 +148,11 @@ function C2cWorkspace({ owner, token }: { readonly owner: string; readonly token
       () => {},
     )
     connection.update([{ channel: "c2c.inbox" }])
+    inbox.current = connection
     return () => {
       if (timer) clearTimeout(timer)
       connection.close()
+      if (inbox.current === connection) inbox.current = null
     }
   }, [enabled, token, refresh])
 
@@ -235,7 +256,9 @@ function C2cWorkspace({ owner, token }: { readonly owner: string; readonly token
             </div>
           ) : null}
           <div className="c2c-sidebar-list" aria-busy={loading}>
-            {error ? <StateView kind="error" message={error} retry={refresh} /> : null}
+            {error || chatError ? (
+              <StateView kind="error" message={error || chatError} retry={refresh} />
+            ) : null}
             {enabled === false ? (
               <StateView kind="empty" message="C2C messaging is not enabled yet." />
             ) : loading && (tab === "messages" ? !conversations.length : !orders.length) ? (

@@ -52,7 +52,7 @@ async function open(id, viewport = { width: 1440, height: 1000 }) {
   await page.goto("http://127.0.0.1:17173/c2c")
   await page.locator(".c2c-conversation").first().waitFor()
   await page.locator(".c2c-conversation").first().click()
-  await page.getByText("QA history 79", { exact: true }).waitFor()
+  await page.locator(".c2c-timeline").getByText("QA history 79", { exact: true }).waitFor()
   return { context, page, sockets, activeSockets, frames }
 }
 async function step(name, fn) {
@@ -145,6 +145,71 @@ try {
     )
     await buyer.page.unroute(path)
   })
+  await step(
+    "visible messages arriving during a delayed read are acknowledged without another interaction",
+    async () => {
+      const api = `http://127.0.0.1:${runtime.port}/api/v1/c2c/conversations/${runtime.conversationId}`
+      const snapshot = async () =>
+        (
+          await fetch(`${api}/messages?latest=true`, { headers: { Authorization: "Bearer qa-12" } })
+        ).json()
+      const readThrough = async (expected) => {
+        for (let i = 0; i < 100; i++) {
+          const page = await snapshot()
+          const read = page.reads.find((value) => value.userId === "12")
+          if (read && BigInt(read.messageId) >= BigInt(expected)) return
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        }
+        throw Error("Visible read receipt did not advance")
+      }
+      await buyer.page.bringToFront()
+      await buyer.page.locator(".c2c-timeline").evaluate((node) => {
+        node.scrollTop = node.scrollHeight
+      })
+      const baseline = await snapshot()
+      await readThrough(baseline.messages.at(-1).messageId)
+      let release,
+        opened,
+        held = false
+      const wait = new Promise((resolve) => {
+        release = resolve
+      })
+      const started = new Promise((resolve) => {
+        opened = resolve
+      })
+      const routePath = `**/conversations/${runtime.conversationId}/read`
+      await buyer.page.route(routePath, async (route) => {
+        if (held) return route.continue()
+        held = true
+        const response = await route.fetch()
+        opened()
+        await wait
+        await route.fulfill({ response })
+      })
+      const send = async (text) => {
+        const response = await fetch(`${api}/messages`, {
+          method: "POST",
+          headers: { Authorization: "Bearer qa-11", "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId: crypto.randomUUID(), text }),
+        })
+        assert.equal(response.status, 200)
+        return response.json()
+      }
+      try {
+        const suffix = Date.now()
+        await send(`已读合并第一条 ${suffix}`)
+        await started
+        const second = await send(`已读合并第二条 ${suffix}`)
+        await buyer.page.locator(".c2c-timeline").getByText(second.text, { exact: true }).waitFor()
+        await buyer.page.waitForTimeout(100)
+        release()
+        await readThrough(second.messageId)
+      } finally {
+        release()
+        await buyer.page.unroute(routePath)
+      }
+    },
+  )
   await step("offline messages replay once on the existing shared transport", async () => {
     await buyer.context.setOffline(true)
     await buyer.page.waitForTimeout(300)
@@ -163,16 +228,14 @@ try {
   await step(
     "private authenticated image upload is delivered and displayed for the other party",
     async () => {
-      await buyer.page
-        .locator("input[type=file]")
-        .setInputFiles({
-          name: "synthetic-proof.png",
-          mimeType: "image/png",
-          buffer: Buffer.from(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp1sAAAAASUVORK5CYII=",
-            "base64",
-          ),
-        })
+      await buyer.page.locator("input[type=file]").setInputFiles({
+        name: "synthetic-proof.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp1sAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      })
       await buyer.page.locator(".c2c-selected-file").getByText("已就绪", { exact: true }).waitFor()
       await buyer.page.getByRole("button", { name: "发送", exact: true }).click()
       await maker.page.locator(".c2c-timeline").evaluate((n) => (n.scrollTop = n.scrollHeight))

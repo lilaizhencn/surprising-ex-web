@@ -10,6 +10,8 @@
 
 2026-10-20：`npm run lint`、`npm run build`、318 项 Vitest 通过。本地 Chromium 在 1440×1000、390×844、明暗主题下完成双账号收发、未知结果去重、离线补拉、历史滚动锚点、私有图片、订单查询、隐私拒绝和账号切换。证据位于 [validation/c2c-chat-20261020/evidence.json](validation/c2c-chat-20261020/evidence.json)。
 
-浏览器夹具使用真实 PostgreSQL 独占 schema、真实 HTTP/共享 WebSocket 处理器和文件存储，身份和 Core 调用受控。行情验证到同连接的 trades 订阅 ACK，没有启动实际 Core 行情链路；真实 R2 上传验证记录在后端的独立证据中。此次未发布服务器，Flutter 与管理端接入仍需继续。
+浏览器夹具使用真实 PostgreSQL 独占 schema、真实 HTTP/共享 WebSocket 处理器和文件存储，身份和 Core 调用受控。行情验证到同连接的 trades 订阅 ACK，没有启动实际 Core 行情链路；真实 R2 上传验证记录在后端的独立证据中。Flutter 与管理端已在各自项目接入；服务器发布和手机新包安装仍延后。
 
 复验时在后端显式运行 `C2cBrowserQaTest`，设置独占的 `/tmp/surprising-c2c-web-qa-*` 目录、既有 PostgreSQL 测试环境变量及 JDK 27。从该目录 `runtime.json` 取得监听端口，启动本 Web 的 Vite：`VITE_API_PROXY_TARGET` 与 `VITE_WS_PROXY_TARGET` 指向夹具，`VITE_WS_BASE_URL=ws://127.0.0.1:17173/ws/v1`，监听 `127.0.0.1:17173`。准备独立 Playwright 工具环境后运行 `scripts/c2c-chat-browser.mjs`，可用 `C2C_PLAYWRIGHT_MODULE` 和 `C2C_CHROMIUM_EXECUTABLE` 指定工具路径。结束后写入夹具目录的 `done` 文件，使后端关闭服务器并清理自己的 schema 和文件。
+
+已读请求在途时继续合并新的已见水位，完成原请求后确认最新位置。真实 Gateway 浏览器新增已读并发场景，共 13 项通过；另有明确的空数据/故障注入浏览器场景验证会话列表错误可在原连接上重订阅。后者不冒充真实业务数据或服务器故障。最终 Vitest 为 319 项，lint/build 通过。

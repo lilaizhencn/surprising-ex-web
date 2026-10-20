@@ -41,6 +41,7 @@ export function useC2cConversation(owner: string, token: string, conversation: C
   const handle = useRef<RealtimeConnectionHandle | null>(null)
   const active = useRef(true)
   const readPosition = useRef({ message: "0", event: "0" })
+  const requestedRead = useRef({ message: "0", event: "0" })
   const reading = useRef(false)
   const initialized = useRef(false)
   useEffect(() => {
@@ -163,15 +164,23 @@ export function useC2cConversation(owner: string, token: string, conversation: C
   const markRead = useCallback(async () => {
     const position = { ...cursor.current }
     if (
-      reading.current ||
-      (position.message === readPosition.current.message &&
-        position.event === readPosition.current.event)
+      position.message === readPosition.current.message &&
+      position.event === readPosition.current.event
     )
       return
+    requestedRead.current = position
+    if (reading.current) return
     reading.current = true
     try {
-      await readC2cMessages(owner, id, position.message, position.event)
-      if (active.current) readPosition.current = position
+      while (
+        active.current &&
+        (requestedRead.current.message !== readPosition.current.message ||
+          requestedRead.current.event !== readPosition.current.event)
+      ) {
+        const next = { ...requestedRead.current }
+        await readC2cMessages(owner, id, next.message, next.event)
+        if (active.current) readPosition.current = next
+      }
     } catch {
       /* Keep the cursor unchanged; the next visible update can retry. */
     } finally {
