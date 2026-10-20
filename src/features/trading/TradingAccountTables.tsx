@@ -189,6 +189,17 @@ function mergeOrders(history: readonly Row[], updates: readonly Row[]) {
 }
 
 export function TradingAccountTables(props: Props) {
+  // Reset local selections and cached updates before rendering another account or market.
+  const scope = JSON.stringify([
+    props.productLine,
+    props.loggedIn,
+    props.userId == null ? null : String(props.userId),
+    props.market?.instrumentId ?? null,
+  ])
+  return <TradingAccountTablesView key={scope} {...props} />
+}
+
+function TradingAccountTablesView(props: Props) {
   const {
     market,
     markets,
@@ -226,7 +237,13 @@ export function TradingAccountTables(props: Props) {
       )
       .join("|")
   useEffect(() => {
-    if (tab !== "positions" || !loggedIn || userId == null || positions.length === 0) {
+    if (
+      productLine === "SPOT" ||
+      tab !== "positions" ||
+      !loggedIn ||
+      userId == null ||
+      positions.length === 0
+    ) {
       setRiskSnapshots([])
       return
     }
@@ -242,26 +259,28 @@ export function TradingAccountTables(props: Props) {
       current = false
     }
   }, [tab, loggedIn, userId, productLine, positionVersion, positions.length])
-  useEffect(() => {
-    setHistory([])
-  }, [productLine, loggedIn, market?.instrumentId])
   const lastOrderEvent = useRef<WsEnvelope | undefined>(undefined)
   useEffect(() => {
-    const latestOrder = events.find(
-      (event) => event.channel === "orders" && event.productLine === productLine,
-    )
+    const ownsEvent = (event: WsEnvelope) =>
+      loggedIn &&
+      userId != null &&
+      event.channel === "orders" &&
+      event.productLine === productLine &&
+      String(event.userId) === String(userId)
+    const latestOrder = events.find(ownsEvent)
     if (latestOrder === lastOrderEvent.current) return
     lastOrderEvent.current = latestOrder
     const orderEvents = events
-      .filter((event) => event.channel === "orders" && event.productLine === productLine)
+      .filter(ownsEvent)
       .map((event) => event.data as Row)
+      .filter((row) => field(row, "orderId") !== "")
       .reverse()
     if (orderEvents.length)
       setHistory((previous) => {
         const merged = mergeOrders(previous, orderEvents)
         return JSON.stringify(merged) === JSON.stringify(previous) ? previous : merged
       })
-  }, [events, productLine])
+  }, [events, productLine, loggedIn, userId])
   const filter = (row: Row) => !onlyCurrent || field(row, "instrumentId") === market?.instrumentId
   const positionRows = positions.filter(filter),
     orderRows = orders.filter(filter)
@@ -275,7 +294,9 @@ export function TradingAccountTables(props: Props) {
         <div role="tablist" aria-label={t("Trading account")}>
           {(
             [
-              ["positions", `${t("Positions")} (${positionRows.length})`],
+              ...(productLine === "SPOT"
+                ? []
+                : ([["positions", `${t("Positions")} (${positionRows.length})`]] as const)),
               ["orders", `${t("Open orders")} (${orderRows.length})`],
               ["history", t("Recent order updates")],
             ] as const
@@ -358,7 +379,13 @@ export function TradingAccountTables(props: Props) {
         ) : null}
       </div>
       {!loggedIn ? (
-        <p className="account-table-empty">{t("Log in to view orders and positions.")}</p>
+        <p className="account-table-empty">
+          {t(
+            productLine === "SPOT"
+              ? "Log in to view account and orders."
+              : "Log in to view orders and positions.",
+          )}
+        </p>
       ) : tab === "positions" ? (
         <div className="table-wrap">
           <table className="data-table compact-trading-table">

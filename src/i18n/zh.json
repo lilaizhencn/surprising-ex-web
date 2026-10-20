@@ -741,6 +741,7 @@
   "No orders.": "暂无订单",
   "No open positions.": "暂无持仓",
   "Log in to view orders and positions.": "登录后查看订单与持仓",
+  "Log in to view account and orders.": "登录后查看账户与委托",
   "Use last trade price": "使用最新成交价",
   "Last updated": "最后更新",
   "Average execution price is shown when supplied by the order service.": "成交均价由订单服务提供，缺失时不估算。",
