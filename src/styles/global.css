@@ -4355,3 +4355,62 @@ body,
     padding: 0;
   }
 }
+
+.telegram-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.telegram-login-button:hover {
+  background: var(--color-surface-muted);
+}
+.telegram-login-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.nav-display-name {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-account.nav-account-named {
+  width: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .top-nav:has(.nav-display-name) .language-picker {
+    width: 64px;
+    min-width: 0;
+  }
+  .top-nav:has(.nav-display-name) .language-label-full {
+    display: none;
+  }
+  .top-nav:has(.nav-display-name) .language-label-compact {
+    display: inline;
+  }
+  .top-nav:has(.nav-display-name) .nav-market-search {
+    display: none;
+  }
+  .nav-display-name {
+    max-width: 54px;
+  }
+}
+@media (max-width: 380px) {
+  .nav-display-name {
+    max-width: 44px;
+    font-size: 11px;
+  }
+}

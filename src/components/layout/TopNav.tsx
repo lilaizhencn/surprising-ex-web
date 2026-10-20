@@ -112,6 +112,7 @@ export function TopNav({
           </IconButton>
           <IconButton
             label={t("Search")}
+            className="nav-market-search"
             onClick={() => {
               window.location.href = "/markets"
             }}
@@ -135,11 +136,16 @@ export function TopNav({
             {dark ? <Sun size={20} /> : <Moon size={20} />}
           </IconButton>
           <a
-            className="nav-account"
+            className={session?.user.displayName ? "nav-account nav-account-named" : "nav-account"}
             href={session ? "/assets" : "/auth/login"}
             aria-label={session ? t("Overview") : t("Sign in")}
           >
             <CircleUserRound size={21} />
+            {session?.user.displayName ? (
+              <span className="nav-display-name" title={session.user.displayName}>
+                {session.user.displayName}
+              </span>
+            ) : null}
           </a>
           {session ? (
             <button type="button" className="nav-logout" onClick={onLogout}>

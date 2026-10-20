@@ -32,3 +32,16 @@
 - 密码只通过 HTTPS 发送，不写入 localStorage、日志或错误消息。
 - 登录、注册、找回密码均不得在前端展示真实账户是否存在的敏感差异，具体由后端统一文案。
 - 重复提交必须由后端按 challenge、token 或 request id 幂等处理。
+
+## Telegram 快捷登录
+
+登录和注册均可直接使用 Telegram，不填写密码、邮箱或手机号。服务端验证 Telegram 的 OIDC 身份后返回与普通登录相同的会话，或要求现有的安全验证。用户昵称使用 `user.displayName`；`username` 和 `email` 可以为空。
+
+- `GET /api/v1/auth/telegram/config` → `{enabled}`。
+- `POST /api/v1/auth/telegram/start` → `{flowId, verifier, authorizationUrl, expiresAt}`，沿用设备 ID 请求头。
+- 在浏览器弹窗打开 `authorizationUrl`。
+- `POST /api/v1/auth/telegram/complete`，正文 `{flowId, verifier}`，沿用同一设备 ID。等待授权时返回 `{pending:true}`，成功返回现有 `AuthSession` 或 `LoginChallenge`。
+
+回调路径 `/api/v1/auth/telegram/callback` 由后端处理。客户端不接收 Telegram Client Secret，也不将领取 verifier 放入 URL、localStorage 或会话缓存。取消或离开页面会中止轮询，关闭弹窗，不接受迟到结果。
+
+2026-10-20 验证：Web 测试 324 项通过，lint/build 通过；本机 Chromium 在 320/390/1440 像素、深浅主题共 6 个场景验证了空密码/空邮箱登录、昵称显示与无横向溢出。这些场景使用明确标识的模拟 Telegram 提供方，不能代替真实 Telegram 授权验收。浏览器验收脚本：`scripts/telegram-login-browser.mjs`。
