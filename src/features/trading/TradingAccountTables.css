@@ -19,6 +19,11 @@
 }
 
 @media (max-width: 600px) {
+  .spot-trading-table .trading-order-actions {
+    position: static;
+    box-shadow: none;
+  }
+
   .trading-order-actions .compact-cancel {
     min-height: 44px;
   }

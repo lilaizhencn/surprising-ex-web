@@ -4,7 +4,11 @@ import { cancelOpenOrders, cancelOrder, loadPositionRisk } from "../../api/endpo
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
-import { signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
+import {
+  decimalStepUnitsToDecimal,
+  signedUnitsToDecimal,
+  stepUnitsToDecimal,
+} from "../../lib/units"
 import {
   integer,
   type PrivateView,
@@ -62,6 +66,14 @@ export function fillProgress(row: Row): string {
 export function price(ticks: unknown, market: Market | undefined, scales: Props["assetScales"]) {
   if (ticks == null || !market?.priceTickUnits || !scales[market.quoteAsset]) return "—"
   try {
+    if (market.productLine === "SPOT") {
+      if (typeof ticks === "number" && !Number.isSafeInteger(ticks)) return "—"
+      return decimalStepUnitsToDecimal(
+        String(ticks),
+        market.priceTickUnits,
+        scales[market.quoteAsset] ?? "",
+      )
+    }
     const tick = Number(market.priceTickUnits) / Number(scales[market.quoteAsset])
     const amount = Number(ticks) * tick
     if (!Number.isFinite(amount)) return "—"
@@ -119,15 +131,16 @@ export function timestamp(row: Row, key: "created" | "updated") {
 function filledValue(row: Row, market: Market | undefined, scales: Props["assetScales"]) {
   if (
     !market ||
-    !["LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine) ||
+    !["SPOT", "LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine) ||
     !market.notionalMultiplierUnits ||
     row["executedValueTicks"] == null
   )
     return "—"
   try {
+    if (integer(market.notionalMultiplierUnits) <= 0n) return "—"
     return units(
       (integer(row["executedValueTicks"]) * integer(market.notionalMultiplierUnits)).toString(),
-      market.settleAsset ?? market.quoteAsset,
+      market.productLine === "SPOT" ? market.quoteAsset : (market.settleAsset ?? market.quoteAsset),
       scales,
     )
   } catch {
@@ -137,19 +150,20 @@ function filledValue(row: Row, market: Market | undefined, scales: Props["assetS
 function valueAtLimit(row: Row, market: Market | undefined, scales: Props["assetScales"]) {
   if (
     !market ||
-    !["LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine) ||
+    !["SPOT", "LINEAR_PERPETUAL", "LINEAR_DELIVERY"].includes(market.productLine) ||
     !market.notionalMultiplierUnits ||
     row["orderType"] === "MARKET"
   )
     return "—"
   try {
+    if (integer(market.notionalMultiplierUnits) <= 0n) return "—"
     return units(
       (
         integer(row["priceTicks"]) *
         integer(row["quantitySteps"]) *
         integer(market.notionalMultiplierUnits)
       ).toString(),
-      market.settleAsset ?? market.quoteAsset,
+      market.productLine === "SPOT" ? market.quoteAsset : (market.settleAsset ?? market.quoteAsset),
       scales,
     )
   } catch {
@@ -516,19 +530,21 @@ export function TradingAccountTables(props: Props) {
             </p>
           )}
           <div className="table-wrap">
-            <table className="data-table compact-trading-table">
+            <table
+              className={`data-table compact-trading-table${productLine === "SPOT" ? " spot-trading-table" : ""}`}
+            >
               <thead>
                 <tr>
                   {[
                     "Symbol / Type",
                     "Order time",
-                    "Side / Margin",
+                    productLine === "SPOT" ? "Side" : "Side / Margin",
                     "Average / Order price",
                     "Filled / Order quantity",
                     "Remaining / Progress",
                     "Filled / Order value",
-                    "Settlement asset",
-                    "Reduce only / Post only",
+                    productLine === "SPOT" ? "Quote asset" : "Settlement asset",
+                    productLine === "SPOT" ? "Post only" : "Reduce only / Post only",
                     "Fee / Time in force",
                     "Status / Order ID",
                     "Actions",
@@ -596,9 +612,11 @@ function TradingOrderRow({
       </td>
       <td className={row["side"] === "BUY" ? "positive" : "negative"}>
         {t(row["side"] === "BUY" ? "Buy" : "Sell")}
-        <small>
-          {field(row, "marginMode")} · {field(row, "positionSide")}
-        </small>
+        {productLine !== "SPOT" ? (
+          <small>
+            {field(row, "marginMode")} · {field(row, "positionSide")}
+          </small>
+        ) : null}
       </td>
       <td>
         <span title={t("Average execution price is shown when supplied by the order service.")}>
@@ -620,13 +638,29 @@ function TradingOrderRow({
         {filledValue(row, market, scales)}
         <small>{valueAtLimit(row, market, scales)}</small>
       </td>
-      <td>{market?.settleAsset ?? market?.quoteAsset ?? "—"}</td>
       <td>
-        {t(row["reduceOnly"] ? "Yes" : "No")}
-        <small>{t(row["postOnly"] ? "Yes" : "No")}</small>
+        {market?.productLine === "SPOT"
+          ? market.quoteAsset
+          : (market?.settleAsset ?? market?.quoteAsset ?? "—")}
       </td>
       <td>
-        {units(row["cumulativeFeeUnits"], market?.settleAsset ?? market?.quoteAsset, scales)}
+        {productLine === "SPOT" ? (
+          t(row["postOnly"] ? "Yes" : "No")
+        ) : (
+          <>
+            {t(row["reduceOnly"] ? "Yes" : "No")}
+            <small>{t(row["postOnly"] ? "Yes" : "No")}</small>
+          </>
+        )}
+      </td>
+      <td>
+        {units(
+          row["cumulativeFeeUnits"],
+          market?.productLine === "SPOT"
+            ? market.quoteAsset
+            : (market?.settleAsset ?? market?.quoteAsset),
+          scales,
+        )}
         <small>{field(row, "timeInForce")}</small>
       </td>
       <td>
