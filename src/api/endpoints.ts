@@ -62,6 +62,7 @@ import {
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
+  TradeFillPageSchema,
   TriggerOrderQuerySchema,
   TriggerOrderSchema,
   UserSessionPageSchema,
@@ -1586,16 +1587,34 @@ export async function loadMyTrades(
   userId: string | number,
   instrumentId: string,
   productLine: ProductLine,
+  filters: {
+    startTime?: number | undefined
+    endTime?: number | undefined
+    cursor?: string | undefined
+  } = {},
 ) {
-  const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
+  const query = new URLSearchParams({ userId: String(userId), limit: "100" })
+  if (instrumentId.trim()) query.set("instrumentId", instrumentId.trim())
+  if (filters.startTime !== undefined) query.set("startTime", String(filters.startTime))
+  if (filters.endTime !== undefined) query.set("endTime", String(filters.endTime))
+  if (filters.cursor) query.set("cursor", filters.cursor)
   const response = await request(
-    `/api/v1/gateway/trading-trades/trades?${query.toString()}`,
-    ObjectOrArraySchema,
-    { productLine },
+    `/api/v1/gateway/trading/trades?${query.toString()}`,
+    TradeFillPageSchema,
+    { productLine, expectedUserId: String(userId), retry: 0 },
   )
-  return Array.isArray(response)
-    ? response
-    : (response.trades ?? response.fills ?? response.items ?? [])
+  if (
+    String(response.userId) !== String(userId) ||
+    response.productLine !== productLine ||
+    (response.hasMore && (!response.nextCursor || response.nextCursor === filters.cursor)) ||
+    response.trades.some(
+      (row) =>
+        row.productLine !== productLine ||
+        (instrumentId.trim() && row.instrumentId !== instrumentId.trim()),
+    )
+  )
+    throw new Error(t("Trade history does not match the original query. Refresh to retry."))
+  return response
 }
 
 export async function cancelOrder(_symbol: string, orderId: string, productLine: ProductLine) {

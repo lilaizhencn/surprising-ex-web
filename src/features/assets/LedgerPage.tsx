@@ -11,13 +11,16 @@ import {
   loadTransferHistoryPage,
   loadWithdrawalHistory,
 } from "../../api/endpoints"
+import { mapMarket } from "../../api/mappers"
 import { productLineLabels } from "../../components/layout/navigation"
 import { DatePicker } from "../../components/ui/DatePicker"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { AssetIcon, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
+import type { Market } from "../../types/domain"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
+import { TradeFillTable } from "../orders/TradeFillTable"
 import { units } from "../trading/TradingAccountTables"
 
 type Category =
@@ -59,11 +62,13 @@ export function LedgerPage() {
   const requestVersion = useRef(0)
   const [initial] = useState(() => new URLSearchParams(window.location.search))
   const [category, setCategory] = useState<Category>(() =>
-    initial.get("category") === "option-exercise"
-      ? "option-exercise"
-      : initial.get("category") === "delivery-ledger"
-        ? "delivery-ledger"
-        : "funding-ledger",
+    initial.get("category") === "trade"
+      ? "trade"
+      : initial.get("category") === "option-exercise"
+        ? "option-exercise"
+        : initial.get("category") === "delivery-ledger"
+          ? "delivery-ledger"
+          : "funding-ledger",
   )
   const [line, setLine] = useState<ProductLine>(() =>
     initial.get("category") === "option-exercise"
@@ -84,7 +89,7 @@ export function LedgerPage() {
   const [rows, setRows] = useState<readonly Row[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
-  const [markets, setMarkets] = useState<readonly { instrumentId: string; symbol: string }[]>([])
+  const [markets, setMarkets] = useState<readonly Market[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [revision, setRevision] = useState(0)
@@ -96,8 +101,7 @@ export function LedgerPage() {
     const controller = new AbortController()
     void loadMarkets(line, controller.signal).then(
       (rows) => {
-        if (!controller.signal.aborted)
-          setMarkets(rows.map((row) => ({ instrumentId: row.instrumentId, symbol: row.symbol })))
+        if (!controller.signal.aborted) setMarkets(rows.map(mapMarket))
       },
       () => {
         if (!controller.signal.aborted) setMarkets([])
@@ -144,6 +148,14 @@ export function LedgerPage() {
       )
       return { rows: page.payments, nextCursor: page.nextCursor }
     }
+    if (category === "trade" && session) {
+      const page = await loadMyTrades(session.user.userId, instrumentId, line, {
+        startTime: dateStart(from),
+        endTime: dateEnd(to),
+        cursor,
+      })
+      return { rows: page.trades, nextCursor: page.nextCursor }
+    }
     if (cursor) return { rows: [], nextCursor: null }
     if (category === "external-transfer") {
       const [deposits, withdrawals] = await Promise.all([
@@ -165,9 +177,7 @@ export function LedgerPage() {
         ? await loadDepositHistory(asset)
         : category === "withdrawal"
           ? await loadWithdrawalHistory(asset)
-          : category === "trade" && session
-            ? await loadMyTrades(session.user.userId, instrumentId, line)
-            : await loadOrderHistory(instrumentId, line, dateStart(from), dateEnd(to))
+          : await loadOrderHistory(instrumentId, line, dateStart(from), dateEnd(to))
     return { rows: result, nextCursor: null }
   }
   useEffect(() => {
@@ -229,7 +239,7 @@ export function LedgerPage() {
       })
   }
   const visible = rows.filter((row) => {
-    const created = new Date(String(row.createdAt ?? row.updatedAt ?? ""))
+    const created = new Date(String(row.createdAt ?? row["eventTime"] ?? row.updatedAt ?? ""))
     if (from && (!Number.isFinite(created.getTime()) || created.getTime() < (dateStart(from) ?? 0)))
       return false
     if (to && (!Number.isFinite(created.getTime()) || created.getTime() > (dateEnd(to) ?? 0)))
@@ -294,6 +304,7 @@ export function LedgerPage() {
                 )
                   setLine(PRODUCT_LINES.usdMPerpetual)
                 setReferenceType("")
+                setAsset("")
                 setStatus("")
                 setInstrumentId("")
               }}
@@ -338,32 +349,34 @@ export function LedgerPage() {
               </DropdownSelect>
             </Field>
           ) : null}
-          <Field label={t("Asset")}>
-            <DropdownSelect
-              aria-label={t("Asset")}
-              value={asset}
-              onChange={(event) => setAsset(event.target.value)}
-              searchable
-              searchPlaceholder={t("Search by asset name")}
-              noResultsLabel={t("No matches")}
-              maxMenuWidth={280}
-              renderOption={(option) => (
-                <span className="ledger-asset-option">
-                  <AssetIcon asset={option.value} />
-                  {option.label}
-                </span>
-              )}
-            >
-              <option value="">{t("All assets")}</option>
-              {Object.keys(assetScales)
-                .sort()
-                .map((value) => (
-                  <option key={value} value={value} data-search={value}>
-                    {value}
-                  </option>
-                ))}
-            </DropdownSelect>
-          </Field>
+          {category !== "trade" ? (
+            <Field label={t("Asset")}>
+              <DropdownSelect
+                aria-label={t("Asset")}
+                value={asset}
+                onChange={(event) => setAsset(event.target.value)}
+                searchable
+                searchPlaceholder={t("Search by asset name")}
+                noResultsLabel={t("No matches")}
+                maxMenuWidth={280}
+                renderOption={(option) => (
+                  <span className="ledger-asset-option">
+                    <AssetIcon asset={option.value} />
+                    {option.label}
+                  </span>
+                )}
+              >
+                <option value="">{t("All assets")}</option>
+                {Object.keys(assetScales)
+                  .sort()
+                  .map((value) => (
+                    <option key={value} value={value} data-search={value}>
+                      {value}
+                    </option>
+                  ))}
+              </DropdownSelect>
+            </Field>
+          ) : null}
           {["order", "trade", "funding-payment"].includes(category) ? (
             <Field label={t("Trading pair")}>
               <DropdownSelect
@@ -452,65 +465,75 @@ export function LedgerPage() {
           <StateView kind="loading" message={t("Loading records")} />
         </Panel>
       ) : visible.length ? (
-        <div className={settlementCash ? "table-wrap delivery-ledger-table" : "table-wrap"}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>{t("Time")}</th>
-                <th>{t("Type")}</th>
-                <th>{t("Asset")}</th>
-                <th>{t("Amount")}</th>
-                {showStatus ? <th>{t("Status")}</th> : null}
-                {settlementCash ? <th>{t("Instrument ID")}</th> : null}
-                {settlementCash ? <th>{t("Balance after")}</th> : null}
-                <th>{t("Reference")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((row, index) => (
-                <tr
-                  key={String(
-                    row.entryId ??
-                      row.transferId ??
-                      row.paymentId ??
-                      row.orderId ??
-                      row.id ??
-                      index,
-                  )}
-                >
-                  <td>{formatDate(row.createdAt ?? row.updatedAt)}</td>
-                  <td>
-                    {t(referenceTypeLabel(String(row.referenceType ?? row.reason ?? category)))}
-                  </td>
-                  <td>{String(row.asset ?? row.currency ?? "—")}</td>
-                  <td className="mono">
-                    {row.amountUnits != null
-                      ? units(row.amountUnits, String(row.asset ?? ""), assetScales)
-                      : String(row.amount ?? row.quantitySteps ?? "—")}
-                  </td>
-                  {showStatus ? <td>{t(statusLabel(String(row.status ?? "")))}</td> : null}
-                  {settlementCash ? (
-                    <td className="mono">{String(row.instrumentId ?? "—")}</td>
-                  ) : null}
-                  {settlementCash ? (
-                    <td className="mono">
-                      {units(row.balanceAfterUnits, String(row.asset ?? ""), assetScales)}
-                    </td>
-                  ) : null}
-                  <td className="mono">
-                    {String(
-                      row.referenceId ??
-                        row.transactionId ??
-                        row.instrumentId ??
-                        row.orderId ??
-                        "—",
-                    )}
-                  </td>
+        category === "trade" ? (
+          <TradeFillTable
+            rows={visible}
+            markets={Object.fromEntries(
+              markets.map((market) => [`${market.productLine}:${market.instrumentId}`, market]),
+            )}
+            scales={assetScales}
+          />
+        ) : (
+          <div className={settlementCash ? "table-wrap delivery-ledger-table" : "table-wrap"}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>{t("Time")}</th>
+                  <th>{t("Type")}</th>
+                  <th>{t("Asset")}</th>
+                  <th>{t("Amount")}</th>
+                  {showStatus ? <th>{t("Status")}</th> : null}
+                  {settlementCash ? <th>{t("Instrument ID")}</th> : null}
+                  {settlementCash ? <th>{t("Balance after")}</th> : null}
+                  <th>{t("Reference")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {visible.map((row, index) => (
+                  <tr
+                    key={String(
+                      row.entryId ??
+                        row.transferId ??
+                        row.paymentId ??
+                        row.orderId ??
+                        row.id ??
+                        index,
+                    )}
+                  >
+                    <td>{formatDate(row.createdAt ?? row.updatedAt)}</td>
+                    <td>
+                      {t(referenceTypeLabel(String(row.referenceType ?? row.reason ?? category)))}
+                    </td>
+                    <td>{String(row.asset ?? row.currency ?? "—")}</td>
+                    <td className="mono">
+                      {row.amountUnits != null
+                        ? units(row.amountUnits, String(row.asset ?? ""), assetScales)
+                        : String(row.amount ?? row.quantitySteps ?? "—")}
+                    </td>
+                    {showStatus ? <td>{t(statusLabel(String(row.status ?? "")))}</td> : null}
+                    {settlementCash ? (
+                      <td className="mono">{String(row.instrumentId ?? "—")}</td>
+                    ) : null}
+                    {settlementCash ? (
+                      <td className="mono">
+                        {units(row.balanceAfterUnits, String(row.asset ?? ""), assetScales)}
+                      </td>
+                    ) : null}
+                    <td className="mono">
+                      {String(
+                        row.referenceId ??
+                          row.transactionId ??
+                          row.instrumentId ??
+                          row.orderId ??
+                          "—",
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : null}
       {!loading && settlementCash && visible.length ? (
         <div className="delivery-ledger-cards">

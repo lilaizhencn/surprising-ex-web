@@ -1,0 +1,58 @@
+.trade-fill-history {
+  min-width: 0;
+}
+.trade-fill-cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 640px) {
+  .history-tabs.orders-history-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .orders-history-tabs > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .trade-fill-history > .table-wrap {
+    display: none;
+  }
+  .trade-fill-cards {
+    display: grid;
+    gap: 12px;
+  }
+  .trade-fill-card {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    overflow-wrap: anywhere;
+  }
+  .trade-fill-card dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+  }
+  .trade-fill-card dl > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+  .trade-fill-card dt,
+  .trade-fill-card time {
+    color: var(--color-ink-muted);
+    font-size: 12px;
+  }
+  .trade-fill-card dd {
+    margin: 0;
+    white-space: normal;
+  }
+}

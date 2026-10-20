@@ -270,3 +270,10 @@ realtime 修正报价面值换算、SETTLING/CLOSED 成交接收和冷启动当�
 `clearPendingCommand` 在持久记录删除失败时保留原锁定，并显示可操作的中英文提示：保存确认失败后继续查询原请求。下单、撤单、改单的回归验证未知请求不能再次 POST；交易页及订单页刷新后仍按原现货身份恢复。交易页长提示改用明确的内容宽度与换行，小屏不再被固定定位的剩余半屏宽度挤成窄列。
 
 受控浏览器回归 `scripts/spot-confirmation-storage-qa.mjs` 需要先启动本仓库 Vite，显式指定 `/tmp/surprising-spot-confirmation-` 前缀的 `SPOT_CONFIRMATION_QA_ROOT`。已有 Playwright/Chromium 可由 `SPOT_CONFIRMATION_PLAYWRIGHT_MODULE` / `SPOT_CONFIRMATION_CHROMIUM` 指定。它检查现货两页、1440/320px、深浅主题和中英文的原请求查询、刷新、保存失败及恢复，不代表真实 FUSED 成交验收。本轮未启动其他产品或 backend/wallet。详见 [验证记录](docs/validation/spot-confirmation-storage-20261020.json)。
+
+
+### 用户成交记录（2026-10-20）
+
+`loadMyTrades` 改用 `/api/v1/gateway/trading/trades`，验证登录账户、产品、分页与执行字段；旧 `trading-trades` 地址不再使用。订单页和分类记录页展示本人订单、买卖方向、Maker/Taker、成交价、数量及原成交费率，采用真实资产精度和整数换算，保留大订单号及自成交双方。两处入口都支持后续页，手机显示成交卡片；日期包含选中结束日，订单页丢弃旧账户、产品和筛选请求的迟到结果。需配套后端新路由，保持原 realtime 导出与迁移就绪。验证见 docs/validation/spot-private-fills-20261020.json；显式实栈脚本为 scripts/spot-trade-history-fused-live.mjs。
+
+实栈脚本需要 `SPOT_FILLS_LIVE_FIXTURE`（隔离 FUSED 用例生成、位于 `/tmp/surprising-spot-fused-fills-` 下）及 `SPOT_FILLS_CORE_PID`，只在单次已加载的只读请求期间暂停并恢复该 Core；不能指向其他运行环境。已有浏览器可通过 `SPOT_FILLS_PLAYWRIGHT_MODULE` / `SPOT_FILLS_CHROMIUM` 指定。

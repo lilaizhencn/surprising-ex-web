@@ -23,6 +23,48 @@ const SignedIntegerWireSchema = z
 
 export const GenericObjectSchema = z.record(z.string(), z.unknown())
 
+const PositiveInt64Schema = SafeIntegerWireSchema.refine(
+  (value) => BigInt(value) > 0n && BigInt(value) <= 9223372036854775807n,
+)
+export const TradeFillPageSchema = z
+  .object({
+    userId: PositiveInt64Schema,
+    productLine: z.string(),
+    count: z.number().int().nonnegative(),
+    trades: z.array(
+      z.object({
+        tradeId: z.string().min(1),
+        productLine: z.string(),
+        instrumentId: PositiveInt64Schema,
+        orderId: PositiveInt64Schema,
+        side: z.enum(["BUY", "SELL"]),
+        positionSide: z.enum(["NET", "LONG", "SHORT"]),
+        liquidityRole: z.enum(["MAKER", "TAKER"]),
+        priceTicks: PositiveInt64Schema,
+        quantitySteps: PositiveInt64Schema,
+        feeRatePpm: SignedIntegerWireSchema.refine(
+          (value) => BigInt(value) >= -1000000n && BigInt(value) <= 1000000n,
+        ),
+        eventTime: z.iso.datetime(),
+      }),
+    ),
+    nextCursor: z.string().min(1).nullable(),
+    hasMore: z.boolean(),
+    sort: z.literal("eventTime.desc"),
+    limit: z.number().int().min(1).max(1000),
+  })
+  .refine(
+    (page) =>
+      page.count === page.trades.length &&
+      page.count <= page.limit &&
+      page.hasMore === Boolean(page.nextCursor) &&
+      page.trades.every(
+        (fill) =>
+          fill.productLine === page.productLine && fill.tradeId.startsWith(`${page.productLine}:`),
+      ),
+    "Invalid private fill page",
+  )
+
 export const UserSchema = z
   .object({
     userId: z.union([z.string(), z.number()]),

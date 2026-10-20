@@ -1,5 +1,5 @@
 import { Download, RefreshCw, XCircle } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   amendBatchOrders,
   amendOrder,
@@ -41,7 +41,6 @@ import {
 import { loadSession, useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import { SpotAmendOrderButton } from "../trading/SpotAmendOrderButton"
-
 import {
   fillProgress,
   price,
@@ -50,6 +49,7 @@ import {
   timestamp,
   units,
 } from "../trading/TradingAccountTables"
+import { TradeFillTable } from "./TradeFillTable"
 
 type RecordRow =
   | ApiOrder
@@ -97,7 +97,22 @@ export function OrdersPage() {
   const [status, setStatus] = useState("ALL")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [rows, setRows] = useState<readonly RecordRow[]>([])
+  const [records, setRecords] = useState<{
+    scope: string
+    rows: readonly RecordRow[]
+    nextCursor: string | null
+  }>({ scope: "", rows: [], nextCursor: null })
+  const requestVersion = useRef(0)
+  const queryScope = JSON.stringify([
+    session?.user.userId,
+    session?.accessToken,
+    productLine,
+    tab,
+    instrumentId,
+    assetFilter,
+    from,
+    to,
+  ])
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [actionMessage, setActionMessage] = useState("")
@@ -105,8 +120,10 @@ export function OrdersPage() {
   const realtime = useRealtimeFeed(session, [], 100, true, productLine)
   const privateView = realtime.views[productLine]
 
-  const load = () => {
+  const load = (more = false) => {
     if (!session) return
+    if (more && (records.scope !== queryScope || !records.nextCursor || loading)) return
+    const version = ++requestVersion.current
     setError("")
     if (tab === "open" || tab === "triggers") {
       realtime.refresh()
@@ -114,30 +131,70 @@ export function OrdersPage() {
       return
     }
     setLoading(true)
+    if (!more) setRecords({ scope: queryScope, rows: [], nextCursor: null })
     const task =
-      tab === "history"
-        ? loadOrderHistory(instrumentId, productLine, dateValue(from), dateValue(to))
-        : tab === "fills"
-          ? session
-            ? loadMyTrades(session.user.userId, instrumentId, productLine)
-            : Promise.resolve([])
-          : tab === "ledger"
-            ? loadAccountLedger(assetFilter)
-            : tab === "product-ledger"
-              ? loadProductLedger(productLine, assetFilter)
-              : tab === "transfers"
-                ? loadTransferHistory(productLine, assetFilter)
-                : tab === "algo"
-                  ? loadOpenAlgoOrders(session.user.userId, instrumentId, productLine)
-                  : Promise.resolve([])
+      tab === "fills"
+        ? loadMyTrades(session.user.userId, instrumentId, productLine, {
+            startTime: dateValue(from),
+            endTime: dateValue(to, true),
+            cursor: more ? (records.nextCursor ?? undefined) : undefined,
+          }).then((page) => ({
+            rows: page.trades as readonly RecordRow[],
+            nextCursor: page.nextCursor,
+          }))
+        : (tab === "history"
+            ? loadOrderHistory(instrumentId, productLine, dateValue(from), dateValue(to, true))
+            : tab === "ledger"
+              ? loadAccountLedger(assetFilter)
+              : tab === "product-ledger"
+                ? loadProductLedger(productLine, assetFilter)
+                : tab === "transfers"
+                  ? loadTransferHistory(productLine, assetFilter)
+                  : tab === "algo"
+                    ? loadOpenAlgoOrders(session.user.userId, instrumentId, productLine)
+                    : Promise.resolve([])
+          ).then((rows) => ({ rows: rows as readonly RecordRow[], nextCursor: null }))
     void task
       .then(
-        (result) => setRows(result),
-        (reason: unknown) => setError(readError(reason)),
+        (page) => {
+          if (
+            version !== requestVersion.current ||
+            String(loadSession()?.user.userId) !== String(session.user.userId)
+          )
+            return
+          setRecords((previous) => {
+            const combined = [
+              ...(more && previous.scope === queryScope ? previous.rows : []),
+              ...page.rows,
+            ]
+            const unique =
+              tab === "fills"
+                ? [
+                    ...new Map(
+                      combined.map((row) => [
+                        `${row["tradeId"]}:${row["liquidityRole"]}:${row["orderId"]}`,
+                        row,
+                      ]),
+                    ).values(),
+                  ]
+                : combined
+            return { scope: queryScope, rows: unique, nextCursor: page.nextCursor }
+          })
+        },
+        (reason: unknown) => {
+          if (version === requestVersion.current) setError(readError(reason))
+        },
       )
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (version === requestVersion.current) setLoading(false)
+      })
   }
-  useEffect(load, [productLine, session, tab])
+  useEffect(() => {
+    load()
+    return () => {
+      ++requestVersion.current
+    }
+  }, [queryScope])
   const liveRows: readonly RecordRow[] =
     tab === "open"
       ? (privateView?.rows("order") ?? [])
@@ -150,7 +207,9 @@ export function OrdersPage() {
         ? (privateView?.rows("trigger") ?? []).filter((r) =>
             ["PENDING", "TRIGGERING"].includes(String(r["status"])),
           )
-        : rows
+        : records.scope === queryScope
+          ? records.rows
+          : []
   const [markets, setMarkets] = useState<Readonly<Record<string, Market>>>({})
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   useEffect(() => {
@@ -527,14 +586,14 @@ export function OrdersPage() {
             </Field>
           ) : null}
           <div className="orders-filter-actions">
-            <Button tone="outline" onClick={load}>
+            <Button tone="outline" onClick={() => load()}>
               <RefreshCw size={16} />
               {t("Refresh")}
             </Button>
           </div>
         </div>
       </Panel>
-      <div className="segment-control history-tabs">
+      <div className="segment-control history-tabs orders-history-tabs">
         <button
           type="button"
           className={tab === "open" ? "active" : ""}
@@ -623,7 +682,7 @@ export function OrdersPage() {
             onDone={(value) => setActionMessage(value)}
           />
         ) : error ? (
-          <StateView kind="error" message={error} retry={load} />
+          <StateView kind="error" message={error} retry={() => load()} />
         ) : loading || snapshotPending ? (
           <StateView kind="loading" message="Loading order state" />
         ) : displayRows.length === 0 ? (
@@ -655,12 +714,7 @@ export function OrdersPage() {
             productLine={productLine}
           />
         ) : tab === "fills" ? (
-          <RecordTable
-            rows={displayRows}
-            mode="fills"
-            assetScales={assetScales}
-            productLine={productLine}
-          />
+          <TradeFillTable rows={displayRows} markets={markets} scales={assetScales} />
         ) : tab === "algo" ? (
           <AlgoTable
             rows={displayRows}
@@ -694,6 +748,11 @@ export function OrdersPage() {
           />
         )}
       </Panel>
+      {tab === "fills" && records.scope === queryScope && records.nextCursor && !error ? (
+        <Button tone="outline" loading={loading} onClick={() => load(true)}>
+          {t("Load more")}
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -1347,9 +1406,9 @@ function readError(reason: unknown): string {
     : t("Order service unavailable. Please retry later.")
 }
 
-function dateValue(value: string): number | undefined {
+function dateValue(value: string, end = false): number | undefined {
   if (!value) return undefined
-  const parsed = Date.parse(`${value}T00:00:00Z`)
+  const parsed = Date.parse(`${value}T${end ? "23:59:59.999" : "00:00:00"}`)
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
