@@ -1051,7 +1051,13 @@ export async function loadOrderPriceProtection(productLine: ProductLine) {
   return policy
 }
 
-export async function placeOrder(
+export function placeOrder(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
+  return submitSingleOrder("/api/v1/gateway/trading", body, productLine)
+}
+
+/** Ordinary orders and dedicated position closes share the original order receipt. */
+async function submitSingleOrder(
+  path: string,
   body: Readonly<Record<string, unknown>>,
   productLine: ProductLine,
 ) {
@@ -1075,7 +1081,7 @@ export async function placeOrder(
     }
   }
   try {
-    const response = await request("/api/v1/gateway/trading", GenericObjectSchema, {
+    const response = await request(path, GenericObjectSchema, {
       method: "POST",
       productLine,
       idempotencyKey: String(body[CLIENT_ORDER_ID_KEY] ?? ""),
@@ -1241,11 +1247,7 @@ export function amendBatchOrders(
 }
 
 export function closePosition(body: Readonly<Record<string, unknown>>, productLine: ProductLine) {
-  return request("/api/v1/gateway/trading/close-position", GenericObjectSchema, {
-    method: "POST",
-    productLine,
-    body,
-  })
+  return submitSingleOrder("/api/v1/gateway/trading/close-position", body, productLine)
 }
 
 export function cancelOpenOrders(

@@ -1,0 +1,692 @@
+{
+  "date": "2026-10-21",
+  "scope": "Original financial request persistence, owner/product identity, reload/reconstruction and GET-only result recovery",
+  "products": [
+    "SPOT",
+    "LINEAR_PERPETUAL",
+    "INVERSE_PERPETUAL",
+    "LINEAR_DELIVERY",
+    "INVERSE_DELIVERY",
+    "OPTION"
+  ],
+  "unitTestsPassed": 375,
+  "conditionalSkipped": 0,
+  "staticChecks": "passed",
+  "sourceSha256": {
+    "src/api/endpoints.ts": "66641756a93b1c2b6b69be975031b06456cd9c51cc2792f301fc898010c1e570",
+    "src/state/pendingOrders.ts": "0a839462d6847992f9ace4318a22f96a72f119af4b2a968c35c19569ec90dcf1",
+    "src/api/orderCommands.test.ts": "c0c2a7a79e596f3246321d7df0a18e40925001a32857c110139e03b7674e9a30",
+    "src/api/optionTrigger.test.ts": "1ae8b807e99e25db203324a5bc3207200bfbb48cc0e7e3d15a0e420807ed97c8",
+    "src/api/optionOco.test.ts": "4f818c93206745b77964e36d874c7b05d5ee751ab47004632bea9aa17854aed0",
+    "scripts/product-request-recovery-qa.mjs": "31c69fced5be0a4abc60f3778ed43cf68b19001aebc3e0138b7a86fb72d06452"
+  },
+  "logSha256": {
+    "web-all-tests.log": "cce6122e76ffed14ae7c1844802dc6a386b08f63eca8c444d2c03722318b9a9f",
+    "web-lint.log": "5e74f63b2d5d01f01f39cd259951b59a1418cace907ee179454f0cc4b730ea35",
+    "web-build.log": "d415a122264d2478e2b75cb093003f718b4504bb7499cc3129b6d757b53edbe1",
+    "web-trigger-red.log": "1412f069fed3231e90c0a2537d0ecc2ccc9d0a268e48954f7be38e4bf3eabb28",
+    "web-perpetual-order-red.log": "cb9bcbd942e72f24641662defcb26bc29bb24641091877fc297b154bb1751f98",
+    "web-close-red.log": "90058d14a6cc5ebec50143b7b558c7d72f1adb430afa4b45e3fb8606cbe1f54a",
+    "browser-request-recovery.json": "b9f0c33250b4ca3ced926e374ae7fa15a841aef584b63ee24574ad41093f5ca0"
+  },
+  "sourceIsolation": "Workspace had no pre-existing changes",
+  "notClaimed": [
+    "complete platform readiness",
+    "native device installation",
+    "remote deployment",
+    "real bank payment",
+    "standalone full six-product service-stack acceptance"
+  ],
+  "cleanup": {
+    "ownedVitePidsStopped": [
+      5430
+    ],
+    "port5173Listening": false,
+    "databasesCreated": 0,
+    "unrelatedServicesStopped": false,
+    "status": "completed",
+    "temporaryQaRootRemoved": true,
+    "rawLogsAndBuildsRemoved": true,
+    "sanitizedEvidenceRetainedInRepository": true,
+    "verifiedBackendArtifactsRetained": "/tmp/surprising-product-recovery-verified-20261021",
+    "remoteDeployment": false,
+    "apkInstallation": false
+  },
+  "browser": {
+    "scope": "Real Chrome, production HTTP adapters/localStorage; controlled transport and synthetic receipts, no Core or financial assertions",
+    "cases": [
+      {
+        "width": 1440,
+        "product": "SPOT",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "SPOT",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "SPOT",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "SPOT",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "SPOT",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "LINEAR_DELIVERY",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "INVERSE_DELIVERY",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 1440,
+        "product": "OPTION",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "SPOT",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "SPOT",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "SPOT",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "SPOT",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "SPOT",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_PERPETUAL",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_PERPETUAL",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "LINEAR_DELIVERY",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "INVERSE_DELIVERY",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "place",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "trigger",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "trigger-cancel",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "oco",
+        "posts": 1,
+        "reads": 2,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      },
+      {
+        "width": 390,
+        "product": "OPTION",
+        "operation": "close",
+        "posts": 1,
+        "reads": 3,
+        "reloadRecovered": true,
+        "otherOwnerBlockedBeforeNetwork": true
+      }
+    ],
+    "passed": true
+  },
+  "productionBuild": "passed"
+}

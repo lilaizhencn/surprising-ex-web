@@ -300,3 +300,9 @@ client 现货默认打开当前委托，隐藏持仓入口和保证金风险摘�
 Web 最近订单更新曾在直接切换已登录账户时保留前一账户缓存。现按账户、登录状态、产品及永久 instrumentId 重新挂载面板，清除页签、筛选、订单更新与风险局部状态；仅收录根事件 userId 属于当前账户、channel=orders 且产品匹配的更新，跳过无订单号的空事件。现货不再展示持仓页签，衍生品入口保留。
 
 本轮只调试现货界面与状态隔离，无 API、realtime 或 Core 逻辑改动，无迁移/topic/服务新增；查询继续使用既有 realtime 路径。未启动后端、wallet 或其他产品实栈，不能据此宣称新的 FUSED 成交/资金对账通过。scripts/spot-order-details-qa.mjs 新增账户、退出登录、交易对往返、错误产品事件与页签切换回归，沿用既有 SPOT_DETAILS_QA_ROOT / SPOT_DETAILS_QA_BASE / SPOT_DETAILS_PLAYWRIGHT_MODULE / SPOT_DETAILS_CHROMIUM 参数。受控真实组件验证、原生 widget 覆盖与资源清理见 [验证记录](docs/validation/spot-trading-panel-scope-20261020.json)。
+
+## 六产品线原请求恢复（2026-10-21）
+
+普通单笔下单/撤单与条件单原身份恢复统一覆盖六产品，Web 专用衍生品平仓也沿用普通订单的原请求回执。发送前持久化，未知结果阻止重复提交，重启/刷新后查询原用户、产品和请求；存储失败不发送。客户端持仓 OCO 用于五条衍生产品，不向现货余额显示衍生仓位保护表单。
+
+本轮受控浏览器、组件、真实 AppState 和静态检查的证据见 [恢复验证记录](docs/validation/product-recovery-20261021.json)。测试响应为显式契约样本，不代表本轮真实资金、全部产品 UI 或原生设备已验收；服务器发布继续暂缓。全平台剩余范围见后端 `docs/product-completion-20261021.md`。

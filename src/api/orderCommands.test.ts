@@ -6,6 +6,7 @@ import {
   amendOrder,
   cancelOrder,
   checkOrderSubmission,
+  closePosition,
   loadTradingCommand,
   PendingTradingCommand,
   placeOrder,
@@ -604,3 +605,117 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
     expect(send).not.toHaveBeenCalled()
   },
 )
+
+// These receipts are shared by all product lines, including perpetual contracts.
+describe.each(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"] as const)(
+  "%s original order recovery",
+  (product) => {
+    beforeEach(() =>
+      saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } }),
+    )
+    it("preserves the original placement before POST and never issues another order after a lost reply", async () => {
+      send.mockRejectedValueOnce(new TypeError("lost committed response"))
+      await expect(placeOrder(body, product)).rejects.toBeInstanceOf(PendingTradingCommand)
+      const original = readPendingCommand("1")
+      expect(original).toMatchObject({
+        userId: "1",
+        productLine: product,
+        instrumentId: "1",
+        clientOrderId: "spot-1",
+      })
+      await expect(
+        placeOrder({ ...body, clientOrderId: "second" }, product),
+      ).rejects.toBeInstanceOf(PendingTradingCommand)
+      expect(send).toHaveBeenCalledTimes(1)
+      if (!original) throw Error("missing original identity")
+      send.mockResolvedValueOnce({
+        userId: "1",
+        productLine: product,
+        instrumentId: "1",
+        clientOrderId: "spot-1",
+        commandId: "original-command",
+        outcome: "TERMINAL",
+        code: "NONE",
+      })
+      expect(await checkOrderSubmission(original)).toBe("confirmed")
+      expect(send.mock.calls[1]?.[0]).toBe(
+        "/api/v1/gateway/trading/submission?userId=1&clientOrderId=spot-1",
+      )
+      expect(send.mock.calls[1]?.[2]).toMatchObject({
+        productLine: product,
+        expectedUserId: "1",
+        retry: 0,
+      })
+    })
+    it("persists the exact canceled order and rejects a mismatched committed receipt", async () => {
+      send.mockRejectedValueOnce(new TypeError("lost cancellation reply"))
+      await expect(cancelOrder("1", "9007199254740993", product)).rejects.toBeInstanceOf(
+        PendingTradingCommand,
+      )
+      const original = readPendingCommand("1")
+      expect(original).toMatchObject({ productLine: product, cancelOrderId: "9007199254740993" })
+      if (!original) throw Error("missing original cancellation")
+      send.mockResolvedValueOnce({
+        commandId: "original-command",
+        prospectiveOrderIds: ["9007199254740994"],
+        outcome: "TERMINAL",
+        code: "NONE",
+      })
+      await expect(checkOrderSubmission(original)).rejects.toThrow()
+      expect(readPendingCommand("1")).toEqual(original)
+      expect(send).toHaveBeenCalledTimes(2)
+    })
+  },
+)
+
+describe.each([
+  "LINEAR_PERPETUAL",
+  "INVERSE_PERPETUAL",
+  "LINEAR_DELIVERY",
+  "INVERSE_DELIVERY",
+  "OPTION",
+] as const)("%s dedicated close recovery", (product) => {
+  beforeEach(() => saveSession({ accessToken: "test", user: { userId: 1 } }))
+  it("persists the close request before POST; lost replies recover by the original ordinary-order receipt", async () => {
+    send.mockImplementationOnce(async (url, _schema, options) => {
+      expect(url).toBe("/api/v1/gateway/trading/close-position")
+      expect(options).toMatchObject({ method: "POST", productLine: product, expectedUserId: "1" })
+      expect(readPendingCommand("1")).toMatchObject({
+        userId: "1",
+        productLine: product,
+        instrumentId: "1",
+        clientOrderId: "original-close",
+      })
+      throw new TypeError("lost close response")
+    })
+    const body = {
+      userId: 1,
+      instrumentId: "1",
+      clientOrderId: "original-close",
+      marginMode: "CROSS",
+      positionSide: "NET",
+    }
+    await expect(closePosition(body, product)).rejects.toBeInstanceOf(PendingTradingCommand)
+    const original = readPendingCommand("1")
+    expect(original).not.toBeNull()
+    await expect(
+      closePosition({ ...body, clientOrderId: "second-close" }, product),
+    ).rejects.toBeInstanceOf(PendingTradingCommand)
+    expect(send).toHaveBeenCalledTimes(1)
+    if (!original) throw Error("missing original close")
+    send.mockResolvedValueOnce({
+      userId: "1",
+      productLine: product,
+      clientOrderId: "original-close",
+      instrumentId: "1",
+      commandId: "original-close-command",
+      outcome: "TERMINAL",
+      code: "NONE",
+    })
+    expect(await checkOrderSubmission(original)).toBe("confirmed")
+    expect(send.mock.calls[1]?.[0]).toBe(
+      "/api/v1/gateway/trading/submission?userId=1&clientOrderId=original-close",
+    )
+    expect(send.mock.calls[1]?.[2]?.method).toBeUndefined()
+  })
+})

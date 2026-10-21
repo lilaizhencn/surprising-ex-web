@@ -30,10 +30,11 @@ export type PendingOrderCommand = {
 }
 
 export const tracksSingleOrderIntent = (line: ProductLine) =>
-  line === "SPOT" || line === "LINEAR_DELIVERY" || line === "INVERSE_DELIVERY" || line === "OPTION"
+  Object.values(PRODUCT_LINES).includes(line)
 
+// Every product uses the same committed trigger receipts and owner-bound recovery.
 export const tracksTriggerIntent = (line: ProductLine) =>
-  line === "OPTION" || line === "LINEAR_DELIVERY" || line === "INVERSE_DELIVERY"
+  Object.values(PRODUCT_LINES).includes(line)
 
 export const pendingOrderChanged = "surprising-ex.pending-order-changed"
 const prefix = (userId: string) => `surprising-ex.pending-command:${userId}`
