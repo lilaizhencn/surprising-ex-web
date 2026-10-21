@@ -1,13 +1,4 @@
-import {
-  Bell,
-  ChevronDown,
-  CircleUserRound,
-  Megaphone,
-  Menu,
-  Moon,
-  Search,
-  Sun,
-} from "lucide-react"
+import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu, Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
@@ -110,14 +101,6 @@ export function TopNav({
               ) : null}
             </span>
           </IconButton>
-          <IconButton
-            label={t("Search")}
-            onClick={() => {
-              window.location.href = "/markets"
-            }}
-          >
-            <Search size={20} />
-          </IconButton>
           {session ? (
             <IconButton
               label={t("Notifications")}
@@ -135,11 +118,16 @@ export function TopNav({
             {dark ? <Sun size={20} /> : <Moon size={20} />}
           </IconButton>
           <a
-            className="nav-account"
+            className={session?.user.displayName ? "nav-account nav-account-named" : "nav-account"}
             href={session ? "/assets" : "/auth/login"}
             aria-label={session ? t("Overview") : t("Sign in")}
           >
             <CircleUserRound size={21} />
+            {session?.user.displayName ? (
+              <span className="nav-display-name" title={session.user.displayName}>
+                {session.user.displayName}
+              </span>
+            ) : null}
           </a>
           {session ? (
             <button type="button" className="nav-logout" onClick={onLogout}>

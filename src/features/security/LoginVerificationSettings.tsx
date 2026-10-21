@@ -1,7 +1,7 @@
 import QRCode from "qrcode"
 import "./LoginVerificationSettings.css"
 import { Fingerprint, KeyRound, Mail, Smartphone } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { authApi } from "../../api/endpoints"
 import type { LoginChallenge } from "../../api/types"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
@@ -22,6 +22,10 @@ export function LoginVerificationSettings({
 }) {
   const [settings, setSettings] = useState<Setting[]>([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [primary, setPrimary] = useState<Awaited<
+    ReturnType<typeof authApi.primaryAuthentication>
+  > | null>(null)
+  const alive = useRef(true)
   const [editing, setEditing] = useState<{
     method: Method
     enabled: boolean
@@ -37,13 +41,22 @@ export function LoginVerificationSettings({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   useEffect(() => {
-    void authApi
-      .loginMethods()
-      .then((methods) => {
+    alive.current = true
+    let current = true
+    void Promise.all([authApi.loginMethods(), authApi.primaryAuthentication()])
+      .then(([methods, context]) => {
+        if (!current) return
         setSettings(methods)
+        setPrimary(context)
         setSettingsLoaded(true)
       })
-      .catch((reason) => setError(verificationMessage(reason)))
+      .catch((reason) => {
+        if (current) setError(verificationMessage(reason))
+      })
+    return () => {
+      current = false
+      alive.current = false
+    }
   }, [])
   const selectedSetting = settings.find((setting) => setting.type === editing?.method)
   const stagedEmail =
@@ -72,12 +85,28 @@ export function LoginVerificationSettings({
   }
   const beginEdit = (setting: Setting, changeBinding = false) => {
     close()
-    setError("")
-    setEditing({
-      method: setting.type,
-      enabled: changeBinding || !setting.enabled,
-      changeBinding,
-    })
+    setBusy(true)
+    void authApi
+      .primaryAuthentication()
+      .then((context) => {
+        if (!alive.current) return
+        setPrimary(context)
+        if (context.reauthenticationRequired) {
+          setError(t("Sign in again before changing security settings."))
+          return
+        }
+        setEditing({
+          method: setting.type,
+          enabled: changeBinding || !setting.enabled,
+          changeBinding,
+        })
+      })
+      .catch((reason) => {
+        if (alive.current) setError(verificationMessage(reason))
+      })
+      .finally(() => {
+        if (alive.current) setBusy(false)
+      })
   }
   const renderSetting = (setting: Setting) => {
     const title = methodTitle(setting.type)
@@ -101,11 +130,11 @@ export function LoginVerificationSettings({
           <span>{t(setting.enabled ? "Enabled" : "Disabled")}</span>
         </p>
         <div className="login-method-actions">
-          <Button tone="outline" onClick={() => beginEdit(setting)}>
+          <Button tone="outline" disabled={busy} onClick={() => beginEdit(setting)}>
             {t(setting.enabled ? "Disable" : setting.bound ? "Enable" : "Bind")}
           </Button>
           {setting.type !== "TOTP" && setting.bound ? (
-            <Button tone="ghost" onClick={() => beginEdit(setting, true)}>
+            <Button tone="ghost" disabled={busy} onClick={() => beginEdit(setting, true)}>
               {t("Change binding")}
             </Button>
           ) : null}
@@ -116,11 +145,22 @@ export function LoginVerificationSettings({
   return (
     <section className="section-block">
       <h2>{t("Authentication methods")}</h2>
-      <p className="muted">{t("Configure your password and login verification methods.")}</p>
+      <p className="muted">
+        {t(
+          primary?.passwordRequired
+            ? "Configure your password and login verification methods."
+            : "Configure your login verification methods.",
+        )}
+      </p>
       {error && !editing ? <p role="alert">{error}</p> : null}
+      {primary?.reauthenticationRequired ? (
+        <a className="route-link" href="/auth/login">
+          {t("Sign in again")}
+        </a>
+      ) : null}
       <div className="security-grid">
         {settings.filter((setting) => setting.type === "EMAIL").map(renderSetting)}
-        {settingsLoaded && onChangePassword ? (
+        {settingsLoaded && primary?.passwordRequired && onChangePassword ? (
           <Panel className="login-method-card">
             <div className="login-method-heading">
               <KeyRound size={20} />
@@ -155,7 +195,7 @@ export function LoginVerificationSettings({
           <p className="muted">
             {t("Changing a security method disables withdrawals for 24 hours.")}
           </p>
-          {editing.method === "PHONE" && editing.enabled ? (
+          {editing.method === "PHONE" && editing.enabled && primary?.passwordRequired ? (
             <p className="muted">
               {t(
                 editing.changeBinding
@@ -275,14 +315,16 @@ export function LoginVerificationSettings({
             </form>
           ) : (
             <>
-              <Field label={t("Login Password")}>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field>
+              {primary?.passwordRequired ? (
+                <Field label={t("Login Password")}>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </Field>
+              ) : null}
               {editing.enabled &&
               editing.method !== "TOTP" &&
               (editing.changeBinding || !selectedSetting?.bound) ? (
@@ -299,7 +341,7 @@ export function LoginVerificationSettings({
                 <Button
                   loading={busy}
                   disabled={
-                    !password ||
+                    (primary?.passwordRequired && !password) ||
                     (editing.enabled &&
                       editing.method !== "TOTP" &&
                       (editing.changeBinding || !selectedSetting?.bound) &&

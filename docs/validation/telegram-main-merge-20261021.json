@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-21",
+  "primary_branch": "main",
+  "base": "088da9d41ba5ed36e61cd40e88d6535647ae1cdc",
+  "feature": "b8846293039bd096209752a5bff249ae0e94df89",
+  "checks": {
+    "unit_tests": {
+      "passed": 385,
+      "files": 44
+    },
+    "lint": "passed; 551 informational diagnostics",
+    "build": "passed; existing chunk-size warning"
+  },
+  "browser": {
+    "auth_polish": {
+      "cases": 4,
+      "errors": [],
+      "evidence": "/tmp/surprising-main-merge-web-auth-polish/evidence.json",
+      "sha256": "5694c1396eaf5aba06ab03babb8e421b2a811273dc3def23cc5d83579465029c",
+      "provider": "synthetic login rejection/provider responses; UI uses real browser"
+    },
+    "telegram": {
+      "cases": 6,
+      "errors": [],
+      "evidence": "/tmp/surprising-main-merge-web-telegram/evidence.json",
+      "sha256": "d12e240d608bfc86114daf2c9b709cd290c85e910559da4c56fce4b041522899",
+      "provider": "synthetic login rejection/provider responses; UI uses real browser"
+    },
+    "passwordless_security": {
+      "cases": 7,
+      "errors": [],
+      "evidence": "/tmp/surprising-main-merge-web-passwordless/evidence.json",
+      "sha256": "5520a8a7cf4d08eec200bdbbd943512543effb3e78852736246bf0e0d19c3af0",
+      "provider": "synthetic login rejection/provider responses; UI uses real browser"
+    }
+  },
+  "sources": {
+    "src/components/layout/TopNav.tsx": "0526f7e2032101cc6971f1d5a708a69e9c41940fc27115f4d75f2abe8d1b6172",
+    "src/features/auth/AuthPage.tsx": "92824ddc9363d88fd9a336eafb5a90739f161f95a3b124238350bd4c08ab27a0",
+    "src/styles/global.css": "a61decfbee5e6846b544fa36ee3f88940dc27c5cdd9ed7a630a1619856185dce",
+    "src/api/endpoints.ts": "908992aed2b1ea5f630bc058b2ae18cabe1392aee9e01a6071e6e916c0c315fa"
+  },
+  "real_telegram_login": "用户已在真实 Telegram 授权完成登录；后端验证记录见 telegram-configuration-20261021.json，不将合成浏览器响应作为真实授权证明。"
+}

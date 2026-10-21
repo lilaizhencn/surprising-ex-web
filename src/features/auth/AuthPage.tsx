@@ -8,6 +8,8 @@ import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
 
+import { TelegramLoginButton } from "./TelegramLoginButton"
+
 type AuthMode = "login" | "register" | "forgot" | "reset" | "verify"
 
 export function AuthPage({ mode }: { readonly mode: AuthMode }) {
@@ -103,7 +105,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       ) : null}
       <dialog
         ref={loginErrorDialog}
-        className="auth-error-dialog"
+        className="standard-dialog auth-error-dialog"
         aria-labelledby="login-error-title"
         aria-describedby="login-error-description"
         onClose={() => setCredentialsRejected(false)}
@@ -216,6 +218,23 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                     : "Verify Email"}{" "}
             <ArrowRight size={16} />
           </Button>
+          {(mode === "login" || mode === "register") && !challenge ? (
+            <TelegramLoginButton
+              disabled={loading}
+              onBusyChange={setLoading}
+              onError={setMessage}
+              onLogin={(result) => {
+                setPassword("")
+                if ("requiresVerification" in result && result.requiresVerification) {
+                  setChallenge(LoginChallengeSchema.parse(result))
+                  return
+                }
+                if (!("accessToken" in result)) return
+                saveSession(result)
+                window.location.href = "/assets"
+              }}
+            />
+          ) : null}
           {mode === "verify" ? (
             <Button
               tone="outline"

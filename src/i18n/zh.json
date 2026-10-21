@@ -1191,5 +1191,14 @@
   "Orders": "订单",
   "Send": "发送",
   "Close dialog": "关闭",
-  "Loading…": "加载中…"
+  "Loading…": "加载中…",
+  "Continue with Telegram": "通过 Telegram 继续",
+  "Cancel Telegram sign-in": "取消 Telegram 登录",
+  "Allow popups to sign in with Telegram.": "请允许弹出窗口以完成 Telegram 登录。",
+  "Telegram sign-in failed.": "Telegram 登录失败，请重试。",
+  "Telegram login is not configured.": "Telegram 登录尚未配置。",
+  "Telegram login expired. Please try again.": "Telegram 登录已过期，请重试。",
+  "Sign in again before changing security settings.": "请重新登录后继续安全设置。",
+  "Sign in again": "重新登录验证身份",
+  "Configure your login verification methods.": "配置登录验证方式。"
 }

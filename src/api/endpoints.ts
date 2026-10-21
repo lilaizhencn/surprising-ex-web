@@ -126,10 +126,30 @@ export const authApi = {
         }),
       ),
     ),
+  primaryAuthentication: () =>
+    request(
+      "/api/v1/security/login-verification/authentication",
+      z
+        .object({
+          passwordRequired: z.boolean(),
+          reauthenticationRequired: z.boolean(),
+          authenticatedUntil: z.string().datetime().nullable().optional(),
+        })
+        .refine(
+          (value) =>
+            value.passwordRequired ||
+            value.reauthenticationRequired ||
+            typeof value.authenticatedUntil === "string",
+        ),
+      {
+        expectedUserId: String(loadSession()?.user.userId ?? ""),
+      },
+    ),
   verifyLoginMethodPassword: (method: "EMAIL" | "PHONE" | "TOTP", currentPassword: string) =>
     request(`/api/v1/security/login-verification/${method}/verify-password`, z.unknown(), {
       method: "POST",
       body: { currentPassword },
+      expectedUserId: String(loadSession()?.user.userId ?? ""),
     }),
   bindLoginMethod: (
     method: "EMAIL" | "PHONE" | "TOTP",
@@ -147,12 +167,14 @@ export const authApi = {
       {
         method: "POST",
         body: { currentPassword, destination, enabled },
+        expectedUserId: String(loadSession()?.user.userId ?? ""),
       },
     ),
   resendLoginMethodCode: (method: "EMAIL" | "PHONE" | "TOTP", challengeToken: string) =>
     request(`/api/v1/security/login-verification/${method}/resend`, LoginChallengeSchema, {
       method: "POST",
       body: { challengeToken },
+      expectedUserId: String(loadSession()?.user.userId ?? ""),
     }),
   confirmLoginMethod: (
     method: "EMAIL" | "PHONE" | "TOTP",
@@ -162,6 +184,7 @@ export const authApi = {
     request(`/api/v1/security/login-verification/${method}/confirm`, z.unknown(), {
       method: "POST",
       body: { codes, currentPassword },
+      expectedUserId: String(loadSession()?.user.userId ?? ""),
     }),
   logout: (refreshToken: string) =>
     request("/api/v1/auth/logout", z.unknown(), {

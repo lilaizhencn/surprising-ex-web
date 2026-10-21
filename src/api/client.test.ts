@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import { saveSession } from "../state/session"
 import { ApiError, quoteUnsafeJsonIntegers, request, requestBlob } from "./client"
+import { authApi } from "./endpoints"
 
 vi.mock("ky", () => ({ default: vi.fn() }))
 
@@ -76,6 +77,57 @@ describe("public request failures", () => {
 })
 
 describe("session refresh", () => {
+  it.each(["verify", "bind", "resend", "confirm"] as const)(
+    "never retries a security %s under a different signed-in owner after refresh",
+    async (operation) => {
+      browserStorage()
+      saveSession(session("old", "2000-01-01T00:00:00Z"))
+      let complete!: (response: Response) => void
+      vi.mocked(ky).mockImplementation(
+        (() =>
+          new Promise<Response>((resolve) => {
+            complete = resolve
+          })) as unknown as typeof ky,
+      )
+      const sent =
+        operation === "verify"
+          ? authApi.verifyLoginMethodPassword("EMAIL", "")
+          : operation === "bind"
+            ? authApi.bindLoginMethod("EMAIL", "", "new@example.test", true)
+            : operation === "resend"
+              ? authApi.resendLoginMethodCode("TOTP", "challenge")
+              : authApi.confirmLoginMethod(
+                  "EMAIL",
+                  { challengeToken: "challenge", emailCode: "123456" },
+                  "",
+                )
+      saveSession({
+        ...session("other", "2999-01-01T00:00:00Z"),
+        refreshToken: "other-refresh",
+        user: { userId: 2 },
+      })
+      complete(json(session("refreshed", "2999-01-01T00:00:00Z")))
+      await expect(sent).rejects.toThrow("Session changed")
+      expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it("does not assume passwordless eligibility from incomplete primary metadata", async () => {
+    browserStorage()
+    saveSession(session("current", "2999-01-01T00:00:00Z"))
+    for (const payload of [{}, { passwordRequired: false, reauthenticationRequired: false }]) {
+      vi.mocked(ky).mockImplementation((async () => json(payload)) as unknown as typeof ky)
+      await expect(authApi.primaryAuthentication()).rejects.toBeInstanceOf(ApiError)
+    }
+    const valid = {
+      passwordRequired: false,
+      reauthenticationRequired: false,
+      authenticatedUntil: "2999-01-01T00:00:00Z",
+    }
+    vi.mocked(ky).mockImplementation((async () => json(valid)) as unknown as typeof ky)
+    await expect(authApi.primaryAuthentication()).resolves.toEqual(valid)
+  })
+
   it("never sends an order under a different user after an asynchronous refresh", async () => {
     browserStorage()
     saveSession(session("old", "2000-01-01T00:00:00Z"))

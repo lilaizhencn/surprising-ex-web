@@ -69,7 +69,8 @@ export const UserSchema = z
   .object({
     userId: z.union([z.string(), z.number()]),
     username: z.string().nullable().optional(),
-    email: z.string().optional(),
+    displayName: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
     status: z.string().optional(),
     roles: z.array(z.string()).optional(),
