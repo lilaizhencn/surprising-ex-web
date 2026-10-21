@@ -1,0 +1,105 @@
+{
+  "scenarios": [
+    {
+      "width": 320,
+      "theme": "light",
+      "styles": {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(27, 28, 30)",
+        "border": "rgb(195, 197, 217)",
+        "surface": "#ffffff",
+        "ink": "#1b1c1e",
+        "width": 282,
+        "x": 19,
+        "right": 301
+      },
+      "confirmClosed": true,
+      "escapeClosed": true,
+      "topSearchAbsent": true,
+      "fixture": "only login rejection is synthetic"
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "styles": {
+        "background": "rgb(25, 28, 35)",
+        "color": "rgb(242, 240, 243)",
+        "border": "rgb(59, 66, 82)",
+        "surface": "#191c23",
+        "ink": "#f2f0f3",
+        "width": 282,
+        "x": 19,
+        "right": 301
+      },
+      "confirmClosed": true,
+      "escapeClosed": true,
+      "topSearchAbsent": true,
+      "fixture": "only login rejection is synthetic"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "styles": {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(27, 28, 30)",
+        "border": "rgb(195, 197, 217)",
+        "surface": "#ffffff",
+        "ink": "#1b1c1e",
+        "width": 480,
+        "x": 480,
+        "right": 960
+      },
+      "confirmClosed": true,
+      "escapeClosed": true,
+      "topSearchAbsent": true,
+      "fixture": "only login rejection is synthetic"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "styles": {
+        "background": "rgb(25, 28, 35)",
+        "color": "rgb(242, 240, 243)",
+        "border": "rgb(59, 66, 82)",
+        "surface": "#191c23",
+        "ink": "#f2f0f3",
+        "width": 480,
+        "x": 480,
+        "right": 960
+      },
+      "confirmClosed": true,
+      "escapeClosed": true,
+      "topSearchAbsent": true,
+      "fixture": "only login rejection is synthetic"
+    }
+  ],
+  "errors": [],
+  "date": "2026-10-21",
+  "changes": [
+    "移除顶部右上角搜索按钮",
+    "账号密码登录错误弹窗使用主题令牌并适配深浅色"
+  ],
+  "checks": {
+    "lint": "passed; pre-existing informational diagnostics",
+    "build": "passed; existing chunk-size warning",
+    "browser": "4 passed, 0 page errors"
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/surprising-web-auth-polish/login-error-1440-dark.png",
+      "sha256": "18f52136947215149982f78e147b2f2af11bd6a9ed7456b9871871ba2583cffe"
+    },
+    {
+      "path": "/tmp/surprising-web-auth-polish/login-error-1440-light.png",
+      "sha256": "45df1d8bc63ece2c9d09ecf8bd1e4cef9a9367a044bcf298423f5ea23dfaf625"
+    },
+    {
+      "path": "/tmp/surprising-web-auth-polish/login-error-320-dark.png",
+      "sha256": "ed99d737ae8e0b312316f9e61b73fa2c8d4be2cab95830f189f730f9a7f14e4d"
+    },
+    {
+      "path": "/tmp/surprising-web-auth-polish/login-error-320-light.png",
+      "sha256": "d3844eed172f66abf66f3ee1e3a06d7d32e77c816534a04eacce9a1985649c3b"
+    }
+  ]
+}

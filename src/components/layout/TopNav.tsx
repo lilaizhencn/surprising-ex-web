@@ -1,13 +1,4 @@
-import {
-  Bell,
-  ChevronDown,
-  CircleUserRound,
-  Megaphone,
-  Menu,
-  Moon,
-  Search,
-  Sun,
-} from "lucide-react"
+import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu, Moon, Sun } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
@@ -109,15 +100,6 @@ export function TopNav({
                 <span>{unreadAnnouncements > 99 ? "99+" : unreadAnnouncements}</span>
               ) : null}
             </span>
-          </IconButton>
-          <IconButton
-            label={t("Search")}
-            className="nav-market-search"
-            onClick={() => {
-              window.location.href = "/markets"
-            }}
-          >
-            <Search size={20} />
           </IconButton>
           {session ? (
             <IconButton

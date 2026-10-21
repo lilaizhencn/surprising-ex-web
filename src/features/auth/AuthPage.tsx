@@ -105,7 +105,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       ) : null}
       <dialog
         ref={loginErrorDialog}
-        className="auth-error-dialog"
+        className="standard-dialog auth-error-dialog"
         aria-labelledby="login-error-title"
         aria-describedby="login-error-description"
         onClose={() => setCredentialsRejected(false)}

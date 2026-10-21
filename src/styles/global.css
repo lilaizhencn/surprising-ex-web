@@ -1355,6 +1355,19 @@ button:disabled {
 .standard-dialog::backdrop {
   background: rgba(8, 16, 32, 0.65);
 }
+.auth-error-dialog h2 {
+  margin: 0;
+  font-size: var(--font-h3);
+  line-height: 1.35;
+}
+.auth-error-dialog p {
+  margin: var(--space-3) 0 var(--space-6);
+  color: var(--color-ink-muted);
+  line-height: 1.6;
+}
+.auth-error-dialog > button {
+  width: 100%;
+}
 .standard-dialog-heading {
   margin-bottom: 8px;
 }
@@ -4400,9 +4413,6 @@ body,
   }
   .top-nav:has(.nav-display-name) .language-label-compact {
     display: inline;
-  }
-  .top-nav:has(.nav-display-name) .nav-market-search {
-    display: none;
   }
   .nav-display-name {
     max-width: 54px;
