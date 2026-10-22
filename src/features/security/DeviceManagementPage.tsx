@@ -1,9 +1,5 @@
-import { MoreOutlined } from "@ant-design/icons"
-import type { MenuProps, TableColumnsType } from "antd"
-import { Button as AntButton, Dropdown, Table, Tag } from "antd"
 import { MonitorSmartphone, ShieldBan } from "lucide-react"
 import { useEffect, useState } from "react"
-import "antd/dist/reset.css"
 import {
   changeDeviceBlock,
   changeIpBlock,
@@ -15,7 +11,7 @@ import {
   revokeUserSession,
 } from "../../api/endpoints"
 import type { ApiDeviceStatus, ApiIpStatus } from "../../api/types"
-import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { Badge, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { SecurityActionDialog } from "./SecurityActionDialog"
 
@@ -55,113 +51,10 @@ export function DeviceManagementPage() {
       .filter((ip) => !devices.some((device) => device.ipAddress === ip.ipAddress))
       .map((ip) => ({ key: `ip-${ip.ipAddress}`, ip })),
   ]
-  const columns: TableColumnsType<DeviceTableRow> = [
-    {
-      title: t("Device and IP"),
-      key: "identity",
-      width: "62%",
-      render: (_, row) => (
-        <div className="device-table-identity">
-          <div className="device-table-title">
-            {row.device ? (
-              <MonitorSmartphone size={16} aria-hidden="true" />
-            ) : (
-              <ShieldBan size={16} aria-hidden="true" />
-            )}
-            <strong>
-              {row.device ? describeDevice(row.device.userAgent) : t("Login IP address")}
-            </strong>
-            {row.device?.current ? <Tag color="blue">{t("Current device")}</Tag> : null}
-          </div>
-          <span className="device-table-ip mono">
-            {displayIp(row.device?.ipAddress ?? row.ip?.ipAddress ?? null)}
-          </span>
-          <small className="device-table-date">
-            {t("Last login")}: {formatDate(row.device?.lastSeen ?? row.ip?.lastSeen ?? "")}
-            {row.ip ? ` · ${t("Logins")}: ${row.ip.loginCount}` : ""}
-          </small>
-        </div>
-      ),
-    },
-    {
-      title: t("Status"),
-      key: "status",
-      width: "18%",
-      render: (_, row) => {
-        const blocked = row.device?.blocked ?? row.ip?.blocked ?? false
-        const active = row.device?.active ?? !blocked
-        return (
-          <Tag color={blocked ? "red" : active ? "green" : "default"}>
-            {t(blocked ? "Blocked" : row.device ? (active ? "Active" : "Signed out") : "Allowed")}
-          </Tag>
-        )
-      },
-    },
-    {
-      title: t("Actions"),
-      key: "actions",
-      align: "right",
-      width: "20%",
-      render: (_, row) => {
-        const items: MenuProps["items"] = []
-        if (row.device?.active && !row.device.current) {
-          items.push({ key: "sign-out", label: t("Sign out") })
-        }
-        if (row.device?.deviceId && !row.device.current) {
-          items.push({
-            key: "toggle-device",
-            danger: !row.device.blocked,
-            label: t(row.device.blocked ? "Allow login" : "Block login"),
-          })
-        }
-        if (row.ip) {
-          items.push({
-            key: "toggle-ip",
-            danger: !row.ip.blocked,
-            label: t(row.ip.blocked ? "Allow IP" : "Block IP"),
-          })
-        }
-        if (!items.length) return <span className="muted">—</span>
-        return (
-          <Dropdown
-            trigger={["click"]}
-            menu={{
-              items,
-              onClick: ({ key }) => {
-                if (key === "sign-out" && row.device) {
-                  setAction({
-                    kind: "device",
-                    value: row.device.deviceId ?? "",
-                    mode: "revoke",
-                    sessionId: String(row.device.sessionId),
-                  })
-                } else if (key === "toggle-device" && row.device?.deviceId) {
-                  setAction({
-                    kind: "device",
-                    value: row.device.deviceId,
-                    mode: row.device.blocked ? "unblock" : "block",
-                  })
-                } else if (key === "toggle-ip" && row.ip) {
-                  setAction({
-                    kind: "ip",
-                    value: row.ip.ipAddress,
-                    mode: row.ip.blocked ? "unblock" : "block",
-                  })
-                }
-              },
-            }}
-          >
-            <AntButton
-              size="small"
-              aria-label={t("Manage")}
-              title={t("Manage")}
-              icon={<MoreOutlined />}
-            />
-          </Dropdown>
-        )
-      },
-    },
-  ]
+  const [page, setPage] = useState(0)
+  const pageSize = 8
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currentPage = Math.min(page, pageCount - 1)
   const refresh = () => {
     setMfaStatusLoaded(false)
     setBusy(true)
@@ -239,17 +132,144 @@ export function DeviceManagementPage() {
         </div>
         {rows.length ? (
           <div className="device-management-table-shell">
-            <Table<DeviceTableRow>
-              className="device-management-table"
-              rowKey="key"
-              size="small"
-              loading={busy}
-              columns={columns}
-              dataSource={rows}
-              pagination={{ pageSize: 8, size: "small", hideOnSinglePage: true }}
-              locale={{ emptyText: t("No devices yet.") }}
-              tableLayout="fixed"
-            />
+            <div className="table-wrap" aria-busy={busy}>
+              <table className="data-table device-management-table">
+                <thead>
+                  <tr>
+                    <th>{t("Device and IP")}</th>
+                    <th>{t("Status")}</th>
+                    <th>{t("Actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map((row) => {
+                    const blocked = row.device?.blocked ?? row.ip?.blocked ?? false
+                    const active = row.device?.active ?? !blocked
+                    return (
+                      <tr key={row.key}>
+                        <td>
+                          <div className="device-table-identity">
+                            <div className="device-table-title">
+                              {row.device ? (
+                                <MonitorSmartphone size={16} aria-hidden="true" />
+                              ) : (
+                                <ShieldBan size={16} aria-hidden="true" />
+                              )}
+                              <strong>
+                                {row.device
+                                  ? describeDevice(row.device.userAgent)
+                                  : t("Login IP address")}
+                              </strong>
+                              {row.device?.current ? (
+                                <Badge tone="info">{t("Current device")}</Badge>
+                              ) : null}
+                            </div>
+                            <span className="device-table-ip mono">
+                              {displayIp(row.device?.ipAddress ?? row.ip?.ipAddress ?? null)}
+                            </span>
+                            <small className="device-table-date">
+                              {t("Last login")}:{" "}
+                              {formatDate(row.device?.lastSeen ?? row.ip?.lastSeen ?? "")}
+                              {row.ip ? ` · ${t("Logins")}: ${row.ip.loginCount}` : ""}
+                            </small>
+                          </div>
+                        </td>
+                        <td>
+                          <Badge tone={blocked ? "negative" : active ? "positive" : "neutral"}>
+                            {t(
+                              blocked
+                                ? "Blocked"
+                                : row.device
+                                  ? active
+                                    ? "Active"
+                                    : "Signed out"
+                                  : "Allowed",
+                            )}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="device-table-actions">
+                            {row.device?.active && !row.device.current ? (
+                              <Button
+                                tone="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  setAction({
+                                    kind: "device",
+                                    value: row.device?.deviceId ?? "",
+                                    mode: "revoke",
+                                    sessionId: String(row.device?.sessionId),
+                                  })
+                                }
+                              >
+                                {t("Sign out")}
+                              </Button>
+                            ) : null}
+                            {row.device?.deviceId && !row.device.current ? (
+                              <Button
+                                tone="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  setAction({
+                                    kind: "device",
+                                    value: row.device?.deviceId ?? "",
+                                    mode: row.device?.blocked ? "unblock" : "block",
+                                  })
+                                }
+                              >
+                                {t(row.device.blocked ? "Allow login" : "Block login")}
+                              </Button>
+                            ) : null}
+                            {row.ip ? (
+                              <Button
+                                tone="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  setAction({
+                                    kind: "ip",
+                                    value: row.ip?.ipAddress ?? "",
+                                    mode: row.ip?.blocked ? "unblock" : "block",
+                                  })
+                                }
+                              >
+                                {t(row.ip.blocked ? "Allow IP" : "Block IP")}
+                              </Button>
+                            ) : null}
+                            {(!row.device ||
+                              row.device.current ||
+                              (!row.device.active && !row.device.deviceId)) &&
+                            !row.ip ? (
+                              <span className="muted">—</span>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {pageCount > 1 ? (
+              <nav className="device-table-pagination" aria-label={t("Device pages")}>
+                <Button
+                  tone="outline"
+                  disabled={currentPage === 0}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  {t("Previous")}
+                </Button>
+                <span>
+                  {currentPage + 1} / {pageCount}
+                </span>
+                <Button
+                  tone="outline"
+                  disabled={currentPage + 1 >= pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  {t("Next")}
+                </Button>
+              </nav>
+            ) : null}
           </div>
         ) : (
           <Panel>

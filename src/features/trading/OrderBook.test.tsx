@@ -1,7 +1,7 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
-import { OrderBook } from "./TradePage"
+import { OrderBook } from "./OrderBook"
 
 describe("empty order book layout", () => {
   it("keeps both headers and the latest trade before the first snapshot and after an empty snapshot", () => {

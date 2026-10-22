@@ -2,13 +2,15 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app/App"
 import "./styles/global.css"
+import { PageErrorBoundary } from "./components/layout/PageErrorBoundary"
+import { readStoredValue } from "./lib/storage"
 
 if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_RENDER_DEBUG === "true") {
   void import("react-grab")
   void import("react-scan")
 }
 
-const savedTheme = window.localStorage.getItem("surprising-ex.theme")
+const savedTheme = readStoredValue("surprising-ex.theme")
 const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches
 const THEME_KEY = "theme"
 document.documentElement.dataset[THEME_KEY] =
@@ -18,6 +20,8 @@ const rootElement = document.getElementById("root")
 if (!rootElement) throw new Error("Application root is missing")
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <PageErrorBoundary>
+      <App />
+    </PageErrorBoundary>
   </StrictMode>,
 )

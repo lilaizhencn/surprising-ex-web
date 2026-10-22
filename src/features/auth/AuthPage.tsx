@@ -4,6 +4,7 @@ import { ApiError } from "../../api/client"
 import { authApi } from "../../api/endpoints"
 import { type LoginChallenge, LoginChallengeSchema } from "../../api/types"
 import { Button, Field } from "../../components/ui/Primitives"
+import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
@@ -27,7 +28,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     if (credentialsRejected) loginErrorDialog.current?.showModal()
     else loginErrorDialog.current?.close()
   }, [credentialsRejected])
+  const submitting = useRef(false)
   const submit = async () => {
+    if (submitting.current || loading) return
     setMessage("")
     const passwordRequired = mode === "login" || mode === "register" || mode === "reset"
     if (!identifier || (passwordRequired && !password)) {
@@ -38,6 +41,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       setMessage("Enter the verification code.")
       return
     }
+    submitting.current = true
     setLoading(true)
     try {
       if (mode === "login") {
@@ -49,11 +53,11 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         }
         if (!("accessToken" in session)) return
         saveSession(session)
-        window.location.href = session.requiresEmailVerification ? "/auth/verify-email" : "/assets"
+        navigateInApplication(session.requiresEmailVerification ? "/auth/verify-email" : "/assets")
       } else if (mode === "register") {
         const session = await authApi.register(identifier, password, contactMode)
         saveSession(session)
-        window.location.href = session.requiresEmailVerification ? "/auth/verify-email" : "/assets"
+        navigateInApplication(session.requiresEmailVerification ? "/auth/verify-email" : "/assets")
       } else if (mode === "forgot") {
         await authApi.forgotPassword(identifier)
         setMessage("If the account exists, recovery instructions have been sent.")
@@ -63,7 +67,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       } else {
         await authApi.verifyEmail(identifier, code)
         setMessage("Email verified. Your account is ready.")
-        window.location.href = "/assets"
+        navigateInApplication("/assets")
       }
     } catch (reason: unknown) {
       if (mode === "login" && reason instanceof ApiError && reason.status === 401) {
@@ -74,6 +78,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         setMessage(verificationMessage(reason))
       }
     } finally {
+      submitting.current = false
       setLoading(false)
     }
   }
@@ -97,9 +102,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           onVerify={async (codes) => {
             const session = await authApi.verifyLogin(codes)
             saveSession(session)
-            window.location.href = session.requiresEmailVerification
-              ? "/auth/verify-email"
-              : "/assets"
+            navigateInApplication(
+              session.requiresEmailVerification ? "/auth/verify-email" : "/assets",
+            )
           }}
         />
       ) : null}
@@ -124,7 +129,13 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           <span className="sr-only">Surprising EX</span>
         </a>
         <h1 className="sr-only">{t(title)}</h1>
-        <div className="auth-form">
+        <form
+          className="auth-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
           {mode === "register" ? (
             <fieldset className="segment-control">
               <legend className="sr-only">{t("Registration contact method")}</legend>
@@ -206,7 +217,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               {t(message)}
             </p>
           ) : null}
-          <Button loading={loading} onClick={() => void submit()}>
+          <Button type="submit" loading={loading}>
             {mode === "login"
               ? t("Log In")
               : mode === "register"
@@ -231,7 +242,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 }
                 if (!("accessToken" in result)) return
                 saveSession(result)
-                window.location.href = "/assets"
+                navigateInApplication("/assets")
               }}
             />
           ) : null}
@@ -257,7 +268,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               {t("Resend code")}{" "}
             </Button>
           ) : null}
-        </div>
+        </form>
         <div className="auth-links">
           {mode === "login" ? (
             <>

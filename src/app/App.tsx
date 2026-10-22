@@ -4,9 +4,15 @@ import { AppShell } from "../components/layout/AppShell"
 import { AnnouncementsPage } from "../features/announcements/AnnouncementsPage"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
+import { useBrowserNavigation } from "../hooks/useBrowserNavigation"
 import { useRealtimeApplication } from "../hooks/useRealtimeApplication"
 import { t, useLocale } from "../i18n"
-import { loadSession, saveSession, sessionAccessExpired, useSession } from "../state/session"
+import {
+  loadSession,
+  sessionAccessExpired,
+  useSession,
+  useSessionRefreshIssue,
+} from "../state/session"
 
 const AssetsPage = lazy(() =>
   import("../features/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })),
@@ -60,17 +66,40 @@ const TradePage = lazy(() =>
 )
 
 export function App() {
+  const location = useBrowserNavigation()
   useRealtimeApplication(useSession())
+  const refreshIssue = useSessionRefreshIssue()
+  const [retrying, setRetrying] = useState(false)
   return (
-    <Suspense
-      fallback={
-        <AppShell>
-          <div className="container section" aria-busy="true" />
-        </AppShell>
-      }
-    >
-      <AppRoutes />
-    </Suspense>
+    <>
+      {refreshIssue ? (
+        <div className="demo-banner" role="alert">
+          {refreshIssue}{" "}
+          <button
+            type="button"
+            className="button button-outline"
+            disabled={retrying}
+            onClick={() => {
+              setRetrying(true)
+              void refreshStoredSession()
+                .catch(() => {})
+                .finally(() => setRetrying(false))
+            }}
+          >
+            {t("Retry")}
+          </button>
+        </div>
+      ) : null}
+      <Suspense
+        fallback={
+          <AppShell>
+            <div className="container section" aria-busy="true" />
+          </AppShell>
+        }
+      >
+        <AppRoutes key={location} />
+      </Suspense>
+    </>
   )
 }
 
@@ -82,7 +111,9 @@ function AppRoutes() {
     if (sessionReady) return
     let active = true
     void refreshStoredSession()
-      .catch(() => saveSession(null))
+      .catch(() => {
+        /* Refresh classifies invalid credentials separately from transient failure. */
+      })
       .finally(() => {
         if (active) setSessionReady(true)
       })

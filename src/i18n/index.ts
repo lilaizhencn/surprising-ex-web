@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { readStoredValue, writeStoredValue } from "../lib/storage"
 import messages from "./zh.json"
 
 export type Locale = "en" | "zh"
@@ -6,7 +7,7 @@ const storageKey = "surprising-ex.language"
 const listeners = new Set<() => void>()
 let locale: Locale = "en"
 if (typeof window !== "undefined") {
-  locale = window.localStorage.getItem(storageKey) === "zh" ? "zh" : "en"
+  locale = readStoredValue(storageKey) === "zh" ? "zh" : "en"
   document.documentElement.lang = locale === "zh" ? "zh-CN" : "en"
   window.addEventListener("storage", (event) => {
     if (event.key === storageKey) applyLocale(event.newValue === "zh" ? "zh" : "en")
@@ -18,7 +19,7 @@ function applyLocale(next: Locale) {
   for (const listener of listeners) listener()
 }
 export function setLocale(next: Locale) {
-  window.localStorage.setItem(storageKey, next)
+  writeStoredValue(storageKey, next)
   applyLocale(next)
 }
 export function useLocale(): Locale {

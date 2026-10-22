@@ -13,6 +13,7 @@ export class PendingTradingCommand extends ApiError {
 
 export function isDefinitiveOrderRejection(reason: unknown): boolean {
   if (!(reason instanceof ApiError)) return false
+  if (!reason.requestSent) return true
   const receipt = GenericObjectSchema.safeParse(reason.payload)
   if (
     receipt.success &&

@@ -277,10 +277,12 @@ export async function loadMarkets(
 export function loadFundingRate(
   instrumentId: string,
   productLine: ProductLine,
+  signal?: AbortSignal,
 ): Promise<ApiFundingRate> {
   const query = new URLSearchParams({ instrumentId })
   return request(`/api/v1/gateway/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
     productLine,
+    ...(signal ? { signal } : {}),
   })
 }
 
@@ -298,13 +300,17 @@ export function loadIndexPrice(instrumentId: string, productLine: ProductLine) {
   })
 }
 
-export function loadUsdValuation(amount: string, asset: string) {
+export function loadUsdValuation(amount: string, asset: string, signal?: AbortSignal) {
   const query = new URLSearchParams({
     amount,
     fromCurrency: asset,
     toCurrency: "USD",
   })
-  return request(`/api/v1/gateway/price-fx/convert?${query.toString()}`, ExchangeRateConvertSchema)
+  return request(
+    `/api/v1/gateway/price-fx/convert?${query.toString()}`,
+    ExchangeRateConvertSchema,
+    { ...(signal ? { signal } : {}) },
+  )
 }
 
 export async function loadFundingRateHistory(instrumentId: string, productLine: ProductLine) {
@@ -342,6 +348,7 @@ export async function loadCandles(
   instrumentId: string,
   period: string,
   productLine?: ProductLine,
+  signal?: AbortSignal,
 ): Promise<readonly ApiCandle[]> {
   const query = new URLSearchParams({ instrumentId, period, limit: "120" })
   const range = candleRange(period, new Date(), 120)
@@ -350,7 +357,7 @@ export async function loadCandles(
   const response = await request(
     `/api/v1/gateway/candlestick/candles?${query.toString()}`,
     CandleListSchema,
-    { ...(productLine ? { productLine } : {}), retry: 0 },
+    { ...(productLine ? { productLine } : {}), ...(signal ? { signal } : {}), retry: 0 },
   )
   return response.candles ?? response.items ?? []
 }
@@ -378,12 +385,17 @@ export async function loadDayWindow(
   return response.candles ?? response.items ?? []
 }
 
-export async function loadRecentTrades(instrumentId: string, productLine: ProductLine, limit = 50) {
+export async function loadRecentTrades(
+  instrumentId: string,
+  productLine: ProductLine,
+  limit = 50,
+  signal?: AbortSignal,
+) {
   const query = new URLSearchParams({ instrumentId, limit: String(limit) })
   const response = await request(
     `/api/v1/gateway/candlestick/trades/recent?${query.toString()}`,
     z.object({ trades: z.array(GenericObjectSchema) }),
-    { productLine },
+    { productLine, ...(signal ? { signal } : {}) },
   )
   return response.trades
 }
@@ -421,8 +433,10 @@ export async function loadBalances(
   return response.balances ?? response.items ?? []
 }
 
-export function loadAssetScales() {
-  return request("/api/v1/gateway/instrument/asset-scales", AssetScalesSchema)
+export function loadAssetScales(signal?: AbortSignal) {
+  return request("/api/v1/gateway/instrument/asset-scales", AssetScalesSchema, {
+    ...(signal ? { signal } : {}),
+  })
 }
 
 export function loadSecurityScenes() {

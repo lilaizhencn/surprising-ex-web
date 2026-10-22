@@ -719,3 +719,28 @@ describe.each([
     expect(send.mock.calls[1]?.[2]?.method).toBeUndefined()
   })
 })
+
+it.each(["place", "cancel", "amend"])(
+  "%s releases an intent when session recovery proves its write was never sent",
+  async (action) => {
+    saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } })
+    const failure = new ApiError(
+      "Session temporarily unavailable. No request was sent.",
+      503,
+      null,
+      false,
+    )
+    send.mockRejectedValue(failure)
+    const operation =
+      action === "place"
+        ? placeOrder(body, "SPOT")
+        : action === "cancel"
+          ? cancelOrder("1", "91", "SPOT")
+          : amendOrder(
+              { ...body, orderId: "91", clientRequestId: "edit-1", newClientOrderId: "new-1" },
+              "SPOT",
+            )
+    await expect(operation).rejects.toBe(failure)
+    expect(readPendingCommand("1")).toBeNull()
+  },
+)

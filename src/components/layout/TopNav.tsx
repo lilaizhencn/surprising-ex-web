@@ -2,7 +2,9 @@ import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu, Moon, Sun } from "
 import { useEffect, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
+import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
+import { writeStoredValue } from "../../lib/storage"
 import { IconButton } from "../ui/Primitives"
 import { LanguagePicker } from "./LanguagePicker"
 import { publicNavigation } from "./navigation"
@@ -25,7 +27,7 @@ export function TopNav({
     const next = !dark
     setDark(next)
     document.documentElement.dataset[THEME_KEY] = next ? "dark" : "light"
-    localStorage.setItem("surprising-ex.theme", next ? "dark" : "light")
+    writeStoredValue("surprising-ex.theme", next ? "dark" : "light")
   }
   useEffect(() => {
     let active = true
@@ -91,7 +93,7 @@ export function TopNav({
           <IconButton
             label={t("Announcements")}
             onClick={() => {
-              window.location.href = "/announcements"
+              navigateInApplication("/announcements")
             }}
           >
             <span className="announcement-nav-icon">
@@ -105,7 +107,7 @@ export function TopNav({
             <IconButton
               label={t("Notifications")}
               onClick={() => {
-                window.location.href = "/notifications"
+                navigateInApplication("/notifications")
               }}
             >
               <Bell size={20} />

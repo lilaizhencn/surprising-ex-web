@@ -14,10 +14,10 @@ export function mapMarket(raw: ApiMarket): Market {
     baseAsset,
     quoteAsset,
     settleAsset: raw.settleAsset ?? quoteAsset,
-    productLine: normalizeProductLine(raw.productLine, raw.contractType),
-    price: positiveNumeric(raw.lastPrice) ?? positiveScaled(raw.lastPriceTicks, 100),
+    productLine: normalizeProductLine(raw.productLine, raw.contractType, raw.instrumentType),
+    price: positiveNumeric(raw.lastPrice),
     change24h: numeric(raw.change24h) ?? scaled(raw.change24hPpm, 10_000),
-    volume24h: numeric(raw.volume24h) ?? scaled(raw.volume24hUnits, 100_000_000),
+    volume24h: numeric(raw.volume24h),
     quoteVolume24h: numeric(raw.quoteVolume24h),
     high24h: positiveNumeric(raw.high24h),
     low24h: positiveNumeric(raw.low24h),
@@ -114,16 +114,37 @@ function integerScale(value: string | number | undefined): string | undefined {
   return /^\d+$/.test(normalized) && normalized !== "0" ? normalized : undefined
 }
 
+/** Only the backend ContractType identifies the product; InstrumentType is a category. */
 function normalizeProductLine(
   productLine?: string,
   contractType?: string,
+  instrumentType?: string,
 ): ProductLine | "UNKNOWN" {
-  const value = `${productLine ?? ""} ${contractType ?? ""}`.toUpperCase()
-  if (value.includes(PRODUCT_LINES.spot)) return PRODUCT_LINES.spot
-  if (value.includes("INVERSE") && value.includes("DELIVERY")) return PRODUCT_LINES.coinMDelivery
-  if (value.includes("LINEAR") && value.includes("DELIVERY")) return PRODUCT_LINES.usdMDelivery
-  if (value.includes("INVERSE")) return PRODUCT_LINES.coinMPerpetual
-  if (value.includes("OPTION")) return PRODUCT_LINES.option
-  if (value.includes("PERPETUAL") || value.includes("LINEAR")) return PRODUCT_LINES.usdMPerpetual
-  return "UNKNOWN"
+  let line: ProductLine
+  let category: "SPOT" | "PERPETUAL" | "DELIVERY" | "OPTION"
+  switch (contractType) {
+    case "SPOT":
+      line = PRODUCT_LINES.spot
+      category = "SPOT"
+      break
+    case "LINEAR_PERPETUAL":
+    case "INVERSE_PERPETUAL":
+      line = contractType
+      category = "PERPETUAL"
+      break
+    case "LINEAR_DELIVERY":
+    case "INVERSE_DELIVERY":
+      line = contractType
+      category = "DELIVERY"
+      break
+    case "VANILLA_OPTION":
+      line = PRODUCT_LINES.option
+      category = "OPTION"
+      break
+    default:
+      return "UNKNOWN"
+  }
+  if (productLine !== undefined && productLine !== line) return "UNKNOWN"
+  if (instrumentType !== undefined && instrumentType !== category) return "UNKNOWN"
+  return line
 }

@@ -1200,5 +1200,19 @@
   "Telegram login expired. Please try again.": "Telegram 登录已过期，请重试。",
   "Sign in again before changing security settings.": "请重新登录后继续安全设置。",
   "Sign in again": "重新登录验证身份",
-  "Configure your login verification methods.": "配置登录验证方式。"
+  "Configure your login verification methods.": "配置登录验证方式。",
+  "This page could not be loaded.": "页面加载失败。",
+  "Check your connection, then reload the page. Your submitted orders are not repeated.": "请检查网络后重新加载页面，已提交的订单不会重复发送。",
+  "Reload page": "重新加载页面",
+  "Back to home": "返回首页",
+  "Session temporarily unavailable. Private operations are paused. Please retry.": "会话暂时无法恢复，账户操作已暂停，请重试。",
+  "Account data is invalid. Waiting for a fresh snapshot.": "账户数据异常，正在重新同步。",
+  "Unable to load the response. Check your connection and try again.": "响应加载失败，请检查网络后重试。",
+  "FX quote has expired": "汇率已过期，暂时无法估值。",
+  "Device pages": "设备列表分页",
+  "The service returned an invalid session. Please sign in again.": "服务返回了无效会话，请重新登录。",
+  "Valuation prices are unavailable or expired.": "估值报价缺失或已过期，现金余额仍可查看。",
+  "The request timed out before it was sent. Please retry.": "请求在发送前超时，请重试。",
+  "Session changed. The previous response was discarded. Check the original account before submitting again.": "账户已切换，已丢弃原账户响应。再次提交前请查询原账户结果。",
+  "The response could not be processed in time. Check the result before retrying.": "响应处理超时，再次操作前请查询原请求结果。"
 }

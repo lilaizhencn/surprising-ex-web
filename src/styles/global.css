@@ -1060,6 +1060,7 @@ button:disabled {
   margin-bottom: var(--space-5);
 }
 .balance-hero {
+  container-type: inline-size;
   display: grid;
   min-height: 0;
   align-content: center;
@@ -1074,8 +1075,14 @@ button:disabled {
   text-transform: uppercase;
 }
 .balance-number {
-  font-size: clamp(26px, 3vw, 38px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: clamp(18px, 5.6cqi, 32px);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .balance-number small {
   color: var(--color-ink-muted);
@@ -1122,6 +1129,7 @@ button:disabled {
   color: var(--color-primary);
 }
 .donut span strong {
+  white-space: nowrap;
   max-width: 86px;
   overflow: hidden;
   color: var(--color-ink);
@@ -1160,6 +1168,9 @@ button:disabled {
   font-size: 12px;
 }
 .distribution-value small {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: right;
   color: var(--color-ink-muted);
   font-size: 10px;
 }
@@ -1229,8 +1240,11 @@ button:disabled {
   border-color: var(--color-primary);
 }
 .asset-product-card strong {
-  font-size: clamp(13px, 1.2vw, 17px);
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(12px, 1.1vw, 16px);
 }
 .asset-product-card small {
   color: var(--color-ink-muted);
@@ -1488,7 +1502,6 @@ button:disabled {
   justify-content: center;
   margin: var(--space-5);
 }
-.distribution-rows div,
 .row-between {
   display: flex;
   align-items: center;
@@ -2835,7 +2848,7 @@ button:disabled {
     height: 128px;
   }
   .distribution-rows {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 768px) {
@@ -4187,29 +4200,6 @@ body,
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
-.device-management-table .ant-table,
-.device-management-table .ant-table-container,
-.device-management-table .ant-table-content table {
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-.device-management-table .ant-table-thead > tr > th {
-  background: var(--color-surface-muted);
-  color: var(--color-ink-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-.device-management-table .ant-table-tbody > tr > td {
-  border-color: var(--color-border-soft);
-  color: var(--color-ink);
-}
-.device-management-table .ant-table-tbody > tr:hover > td {
-  /* biome-ignore lint/complexity/noImportantStyles: Override the Ant Design table hover background with the selected theme. */
-  background: var(--color-surface-active) !important;
-}
-.device-management-table .ant-pagination {
-  margin: 10px 12px;
-}
 .device-table-identity {
   display: grid;
   min-width: 0;
@@ -4229,7 +4219,7 @@ body,
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.device-table-title .ant-tag {
+.device-table-title .badge {
   flex: 0 0 auto;
   margin-inline-end: 0;
   padding-inline: 5px;
@@ -4243,14 +4233,14 @@ body,
   color: var(--color-ink-muted);
   font-size: 11px;
 }
-.device-management-table .ant-table-cell {
+.device-management-table td {
   padding: 10px 12px;
 }
 @media (max-width: 540px) {
-  .device-management-table .ant-table-cell {
+  .device-management-table td {
     padding: 8px 6px;
   }
-  .device-management-table .ant-tag {
+  .device-management-table .badge {
     margin-inline-end: 0;
     padding-inline: 5px;
     font-size: 10px;
@@ -4423,4 +4413,22 @@ body,
     max-width: 44px;
     font-size: 11px;
   }
+}
+
+.device-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.device-table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+.device-management-table td:first-child {
+  min-width: 220px;
+  white-space: normal;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { loadRuntimeProducts } from "../api/endpoints"
 import type { AuthSession } from "../api/types"
+import { t } from "../i18n"
 import { config } from "../lib/config"
 import {
   newerPublicEvent,
@@ -17,6 +18,7 @@ import {
   acquireRealtimeConnections,
   type RealtimeConnectionHandle,
 } from "../sharedRealtimeConnections"
+import { sessionAccessExpired, useSessionRefreshIssue } from "../state/session"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
@@ -81,7 +83,9 @@ export function useRealtimeFeed(
   const key = subscriptions.map(subscriptionKey).sort().join("|")
   const latest = useRef(new Map<string, WsEnvelope>())
   const depthViewSerial = useRef(0)
-  const accessToken = session?.accessToken ?? null
+  const refreshIssue = useSessionRefreshIssue()
+  const accessToken =
+    refreshIssue || sessionAccessExpired(session) ? null : (session?.accessToken ?? null)
   const userId = session ? String(session.user.userId) : null
   const identity = `${userId ?? ""}:${accessToken ?? ""}`
   const [owner, setOwner] = useState(identity)
@@ -161,9 +165,16 @@ export function useRealtimeFeed(
           (raw.op === "snapshot" || PRIVATE_CHANNELS.has(raw.channel ?? "")) &&
           raw.productLine
         ) {
-          current[raw.productLine] ??= new PrivateView()
-          if (current[raw.productLine]?.apply(raw)) {
+          const view = current[raw.productLine] ?? new PrivateView()
+          current[raw.productLine] = view
+          const previousStatus = view.status
+          const accepted = view.apply(raw)
+          if (accepted || previousStatus !== view.status) {
             privateDirty = true
+            if (view.status === "STALE") {
+              setError(t("Account data is invalid. Waiting for a fresh snapshot."))
+              manager.refresh()
+            } else if (view.ready()) setError(null)
             publish()
           }
         }

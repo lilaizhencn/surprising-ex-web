@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react"
 import { useEffect, useState } from "react"
+import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t } from "../../i18n"
 import { storageKeys } from "../../lib/config"
 import { formatNumber, formatPercent, formatUsd } from "../../lib/format"
@@ -173,7 +174,9 @@ export function MarketTable({
                   <Button
                     tone="primary"
                     onClick={() => {
-                      window.location.href = `/trade/${routeProduct(market.productLine)}?instrumentId=${encodeURIComponent(market.instrumentId)}`
+                      navigateInApplication(
+                        `/trade/${routeProduct(market.productLine)}?instrumentId=${encodeURIComponent(market.instrumentId)}`,
+                      )
                     }}
                   >
                     {" "}

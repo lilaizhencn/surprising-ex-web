@@ -1,30 +1,39 @@
 import { z } from "zod"
-import { t } from "../i18n"
 
-const NumericSchema = z.union([z.string(), z.number()])
+const NumericSchema = z.union([z.string().max(256), z.number()])
 const NullableNumericSchema = NumericSchema.nullable().optional()
 const IdentifierSchema = z.union([z.string(), z.number()])
-const SafeIntegerWireSchema = z
+// Keep the existing string/number DTO shape while bounding primitive Core units.
+const Int64WireSchema = z
   .union([
-    z.string().regex(/^\d+$/),
     z
-      .number()
-      .int()
-      .nonnegative()
-      .refine(Number.isSafeInteger, t("Integers must be transmitted as strings.")),
+      .string()
+      .max(20)
+      .regex(/^-?\d+$/),
+    z.number().int().refine(Number.isSafeInteger),
   ])
-  .transform(String)
-const SignedIntegerWireSchema = z
-  .union([
-    z.string().regex(/^-?\d+$/),
-    z.number().int().refine(Number.isSafeInteger, t("Integers must be transmitted as strings.")),
-  ])
-  .transform(String)
+  .refine((value) => {
+    const text = String(value)
+    const negative = text.startsWith("-")
+    const digits = negative ? text.slice(1) : text
+    return (
+      digits.length <= 19 &&
+      (digits.length < 19 || digits <= (negative ? "9223372036854775808" : "9223372036854775807"))
+    )
+  })
+const UserIdSchema = Int64WireSchema.refine((value) => /^[1-9]\d{0,18}$/.test(String(value)))
+const NonnegativeInt64WireSchema = Int64WireSchema.refine((value) => !String(value).startsWith("-"))
+const NonnegativeInt64TextSchema = NonnegativeInt64WireSchema.transform(String)
+const Int64TextSchema = Int64WireSchema.transform(String)
 
 export const GenericObjectSchema = z.record(z.string(), z.unknown())
 
-const PositiveInt64Schema = SafeIntegerWireSchema.refine(
-  (value) => BigInt(value) > 0n && BigInt(value) <= 9223372036854775807n,
+const PositiveInt64Schema = NonnegativeInt64TextSchema.refine(
+  (value) =>
+    value.length <= 19 &&
+    /^\d+$/.test(value) &&
+    BigInt(value) > 0n &&
+    BigInt(value) <= 9223372036854775807n,
 )
 export const TradeFillPageSchema = z
   .object({
@@ -42,8 +51,12 @@ export const TradeFillPageSchema = z
         liquidityRole: z.enum(["MAKER", "TAKER"]),
         priceTicks: PositiveInt64Schema,
         quantitySteps: PositiveInt64Schema,
-        feeRatePpm: SignedIntegerWireSchema.refine(
-          (value) => BigInt(value) >= -1000000n && BigInt(value) <= 1000000n,
+        feeRatePpm: Int64TextSchema.refine(
+          (value) =>
+            value.length <= 20 &&
+            /^-?\d+$/.test(value) &&
+            BigInt(value) >= -1000000n &&
+            BigInt(value) <= 1000000n,
         ),
         eventTime: z.iso.datetime(),
       }),
@@ -67,7 +80,7 @@ export const TradeFillPageSchema = z
 
 export const UserSchema = z
   .object({
-    userId: z.union([z.string(), z.number()]),
+    userId: UserIdSchema,
     username: z.string().nullable().optional(),
     displayName: z.string().nullable().optional(),
     email: z.string().nullable().optional(),
@@ -92,7 +105,7 @@ export const AuthSessionSchema = z
 
 export const JwtPrincipalSchema = z
   .object({
-    userId: z.union([z.string(), z.number()]),
+    userId: UserIdSchema,
     username: z.string().nullable().optional(),
     status: z.string(),
     roles: z.array(z.string()),
@@ -112,44 +125,45 @@ export const MarketSchema = z
   .object({
     status: z.string().optional(),
     symbol: z.string(),
-    instrumentId: SafeIntegerWireSchema,
-    changeId: SafeIntegerWireSchema.optional(),
+    instrumentId: NonnegativeInt64TextSchema,
+    changeId: NonnegativeInt64TextSchema.optional(),
     baseAsset: z.string().optional(),
     quoteAsset: z.string().optional(),
     settleAsset: z.string().optional(),
+    // Preserve unknown wire enums for mapMarket to quarantine as UNKNOWN, never a guessed product.
     contractType: z.string().optional(),
     productLine: z.string().optional(),
     lastPrice: NumericSchema.optional(),
-    lastPriceTicks: SafeIntegerWireSchema.optional(),
+    lastPriceTicks: NonnegativeInt64TextSchema.optional(),
     change24h: NumericSchema.optional(),
-    change24hPpm: SafeIntegerWireSchema.optional(),
+    change24hPpm: NonnegativeInt64TextSchema.optional(),
     volume24h: NumericSchema.optional(),
     quoteVolume24h: NumericSchema.optional(),
-    volume24hUnits: SafeIntegerWireSchema.optional(),
+    volume24hUnits: NonnegativeInt64TextSchema.optional(),
     high24h: NumericSchema.optional(),
     low24h: NumericSchema.optional(),
     trend: z.array(z.number().finite().positive()).max(32).optional(),
-    notionalMultiplierUnits: SafeIntegerWireSchema.optional(),
-    minQuantitySteps: SafeIntegerWireSchema.optional(),
-    maxQuantitySteps: SafeIntegerWireSchema.optional(),
-    minNotionalUnits: SafeIntegerWireSchema.optional(),
-    maxNotionalUnits: SafeIntegerWireSchema.optional(),
-    maxPositionNotionalUnits: SafeIntegerWireSchema.optional(),
-    userOpenInterestLimitFloorUnits: SafeIntegerWireSchema.optional(),
-    priceTickUnits: SafeIntegerWireSchema.optional(),
-    quantityStepUnits: SafeIntegerWireSchema.optional(),
+    notionalMultiplierUnits: NonnegativeInt64TextSchema.optional(),
+    minQuantitySteps: NonnegativeInt64TextSchema.optional(),
+    maxQuantitySteps: NonnegativeInt64TextSchema.optional(),
+    minNotionalUnits: NonnegativeInt64TextSchema.optional(),
+    maxNotionalUnits: NonnegativeInt64TextSchema.optional(),
+    maxPositionNotionalUnits: NonnegativeInt64TextSchema.optional(),
+    userOpenInterestLimitFloorUnits: NonnegativeInt64TextSchema.optional(),
+    priceTickUnits: NonnegativeInt64TextSchema.optional(),
+    quantityStepUnits: NonnegativeInt64TextSchema.optional(),
     pricePrecision: z.number().optional(),
     quantityPrecision: z.number().optional(),
-    maxLeveragePpm: SafeIntegerWireSchema.optional(),
+    maxLeveragePpm: NonnegativeInt64TextSchema.optional(),
     fundingRate: NumericSchema.optional(),
     nextFundingTime: z.string().optional(),
     instrumentType: z.string().optional(),
     contractValueAsset: z.string().optional(),
-    contractMultiplierPpm: SafeIntegerWireSchema.optional(),
-    initialMarginRatePpm: SafeIntegerWireSchema.optional(),
-    maintenanceMarginRatePpm: SafeIntegerWireSchema.optional(),
-    makerFeeRatePpm: SafeIntegerWireSchema.optional(),
-    takerFeeRatePpm: SafeIntegerWireSchema.optional(),
+    contractMultiplierPpm: NonnegativeInt64TextSchema.optional(),
+    initialMarginRatePpm: NonnegativeInt64TextSchema.optional(),
+    maintenanceMarginRatePpm: NonnegativeInt64TextSchema.optional(),
+    makerFeeRatePpm: NonnegativeInt64TextSchema.optional(),
+    takerFeeRatePpm: NonnegativeInt64TextSchema.optional(),
     fundingIntervalHours: z.number().optional(),
     expiryTime: z.string().nullable().optional(),
     deliveryTime: z.string().nullable().optional(),
@@ -165,7 +179,7 @@ export const MarketSchema = z
       ])
       .nullable()
       .optional(),
-    strikePriceUnits: SafeIntegerWireSchema.nullable().optional(),
+    strikePriceUnits: NonnegativeInt64TextSchema.nullable().optional(),
     optionType: z.string().nullable().optional(),
     optionExerciseStyle: z.string().nullable().optional(),
     settlementMethod: z.string().nullable().optional(),
@@ -204,8 +218,8 @@ export const BalanceSchema = z
   .object({
     asset: z.string(),
     accountType: z.string().optional(),
-    availableUnits: NumericSchema.optional(),
-    lockedUnits: NumericSchema.optional(),
+    availableUnits: Int64WireSchema.optional(),
+    lockedUnits: Int64WireSchema.optional(),
     free: NumericSchema.optional(),
     locked: NumericSchema.optional(),
   })
@@ -220,14 +234,14 @@ export const BalanceListSchema = z
 
 export const PositionSchema = z
   .object({
-    userId: SafeIntegerWireSchema.optional(),
+    userId: NonnegativeInt64TextSchema.optional(),
     instrumentId: z.string(),
-    instrumentChangeId: SafeIntegerWireSchema.optional(),
+    instrumentChangeId: NonnegativeInt64TextSchema.optional(),
     marginMode: z.string().optional(),
     positionSide: z.string().optional(),
-    signedQuantitySteps: SignedIntegerWireSchema,
-    entryPriceTicks: SafeIntegerWireSchema,
-    realizedPnlUnits: SignedIntegerWireSchema,
+    signedQuantitySteps: Int64TextSchema,
+    entryPriceTicks: NonnegativeInt64TextSchema,
+    realizedPnlUnits: Int64TextSchema,
     updatedAt: z.string().optional(),
   })
   .passthrough()
@@ -236,7 +250,7 @@ export const PositionSchema = z
 export const PositionRiskSchema = PositionSchema.omit({ realizedPnlUnits: true }).extend({
   marginMode: z.string(),
   positionSide: z.string(),
-  liquidationPriceTicks: SafeIntegerWireSchema.nullable(),
+  liquidationPriceTicks: NonnegativeInt64TextSchema.nullable(),
 })
 export const PositionRiskListSchema = z.object({ positions: z.array(PositionRiskSchema) })
 
@@ -257,17 +271,17 @@ export const AssetScalesSchema = z.record(
 
 export const OrderSchema = z
   .object({
-    orderId: z.union([z.string(), z.number()]).optional(),
+    orderId: NonnegativeInt64WireSchema.optional(),
     clientOrderId: z.string().optional(),
     instrumentId: z.string().optional(),
     side: z.string().optional(),
     type: z.string().optional(),
     orderType: z.string().optional(),
     timeInForce: z.string().optional(),
-    priceTicks: SafeIntegerWireSchema.optional(),
-    quantitySteps: SafeIntegerWireSchema.optional(),
-    executedQuantitySteps: SafeIntegerWireSchema.optional(),
-    remainingQuantitySteps: SafeIntegerWireSchema.optional(),
+    priceTicks: NonnegativeInt64TextSchema.optional(),
+    quantitySteps: NonnegativeInt64TextSchema.optional(),
+    executedQuantitySteps: NonnegativeInt64TextSchema.optional(),
+    remainingQuantitySteps: NonnegativeInt64TextSchema.optional(),
     marginMode: z.string().optional(),
     positionSide: z.string().optional(),
     reduceOnly: z.boolean().optional(),
@@ -302,11 +316,11 @@ export const OrderHistoryPageSchema = z
         side: z.enum(["BUY", "SELL"]),
         orderType: z.enum(["LIMIT", "MARKET"]),
         status: z.enum(["FILLED", "CANCELED", "REJECTED"]),
-        priceTicks: SafeIntegerWireSchema,
+        priceTicks: NonnegativeInt64TextSchema,
         quantitySteps: PositiveInt64Schema,
-        executedQuantitySteps: SafeIntegerWireSchema,
-        remainingQuantitySteps: SafeIntegerWireSchema,
-        cumulativeFeeUnits: SignedIntegerWireSchema,
+        executedQuantitySteps: NonnegativeInt64TextSchema,
+        remainingQuantitySteps: NonnegativeInt64TextSchema,
+        cumulativeFeeUnits: Int64TextSchema,
         averagePriceTicks: z
           .string()
           .regex(/^\d+(?:\.\d+)?$/)
@@ -315,6 +329,9 @@ export const OrderHistoryPageSchema = z
         updatedAt: z.iso.datetime(),
       }).refine(
         (order) =>
+          [order.executedQuantitySteps, order.quantitySteps, order.remainingQuantitySteps].every(
+            (value) => value.length <= 19 && /^\d+$/.test(value),
+          ) &&
           BigInt(order.executedQuantitySteps) <= BigInt(order.quantitySteps) &&
           BigInt(order.remainingQuantitySteps) <= BigInt(order.quantitySteps),
       ),
@@ -367,21 +384,21 @@ export const OrderListSchema = z.union([
 
 export const TriggerOrderSchema = z
   .object({
-    triggerOrderId: SafeIntegerWireSchema,
-    userId: SafeIntegerWireSchema.optional(),
+    triggerOrderId: NonnegativeInt64TextSchema,
+    userId: NonnegativeInt64TextSchema.optional(),
     clientTriggerOrderId: z.string().optional(),
     instrumentId: z.string(),
     side: z.enum(["BUY", "SELL"]),
     triggerType: z.enum(["TAKE_PROFIT", "STOP_LOSS", "TRAILING_STOP"]),
     priceSource: z.enum(["MARK", "LAST", "INDEX"]).optional(),
     triggerCondition: z.enum(["GREATER_OR_EQUAL", "LESS_OR_EQUAL"]).optional(),
-    triggerPriceTicks: SafeIntegerWireSchema,
-    activationPriceTicks: SafeIntegerWireSchema.nullable().optional(),
-    callbackRatePpm: SafeIntegerWireSchema.nullable().optional(),
+    triggerPriceTicks: NonnegativeInt64TextSchema,
+    activationPriceTicks: NonnegativeInt64TextSchema.nullable().optional(),
+    callbackRatePpm: NonnegativeInt64TextSchema.nullable().optional(),
     orderType: z.enum(["LIMIT", "MARKET"]),
     timeInForce: z.enum(["GTC", "IOC", "FOK", "GTX"]),
-    priceTicks: SafeIntegerWireSchema,
-    quantitySteps: SafeIntegerWireSchema,
+    priceTicks: NonnegativeInt64TextSchema,
+    quantitySteps: NonnegativeInt64TextSchema,
     marginMode: z.string().optional(),
     positionSide: z.string().optional(),
     status: z.enum(["PENDING", "TRIGGERING", "TRIGGERED", "TRIGGER_FAILED", "CANCELED", "EXPIRED"]),
@@ -408,17 +425,17 @@ export const OrderBookLevelSchema = z.union([
   z.tuple([NumericSchema, NumericSchema]),
   z
     .object({
-      priceTicks: IdentifierSchema,
-      quantitySteps: IdentifierSchema,
-      orderCount: IdentifierSchema.optional(),
+      priceTicks: NonnegativeInt64WireSchema,
+      quantitySteps: NonnegativeInt64WireSchema,
+      orderCount: NonnegativeInt64WireSchema.optional(),
     })
     .passthrough(),
 ])
 export const OrderBookSchema = z
   .object({
     instrumentId: z.string().optional(),
-    sequence: IdentifierSchema.optional(),
-    previousSequence: IdentifierSchema.nullish(),
+    sequence: NonnegativeInt64WireSchema.optional(),
+    previousSequence: NonnegativeInt64WireSchema.nullish(),
     updateType: z.enum(["SNAPSHOT", "DELTA"]).optional(),
     depth: z.number().optional(),
     lastUpdateId: z.union([z.string(), z.number()]).optional(),
@@ -430,10 +447,10 @@ export const OrderBookSchema = z
 export const FundingRateSchema = z
   .object({
     instrumentId: z.string(),
-    sequence: IdentifierSchema,
-    fundingRatePpm: IdentifierSchema,
-    premiumRatePpm: IdentifierSchema.nullable(),
-    interestRatePpm: IdentifierSchema.nullable(),
+    sequence: NonnegativeInt64WireSchema,
+    fundingRatePpm: Int64WireSchema,
+    premiumRatePpm: Int64WireSchema.nullable(),
+    interestRatePpm: Int64WireSchema.nullable(),
     fundingTime: z.string(),
     fundingIntervalHours: z.number().nullable(),
     status: z.string(),
@@ -473,10 +490,10 @@ export const FundingPaymentSchema = z
     asset: z.string(),
     marginMode: z.string(),
     positionSide: z.string(),
-    signedQuantitySteps: IdentifierSchema,
-    notionalUnits: IdentifierSchema,
-    fundingRatePpm: IdentifierSchema,
-    amountUnits: IdentifierSchema,
+    signedQuantitySteps: Int64WireSchema,
+    notionalUnits: Int64WireSchema,
+    fundingRatePpm: Int64WireSchema,
+    amountUnits: Int64WireSchema,
     createdAt: z.string(),
   })
   .passthrough()
@@ -497,15 +514,15 @@ export const AccountLedgerEntrySchema = z
     entryId: IdentifierSchema,
     userId: IdentifierSchema,
     asset: z.string(),
-    amountUnits: IdentifierSchema,
-    balanceAfterUnits: IdentifierSchema,
+    amountUnits: Int64WireSchema,
+    balanceAfterUnits: Int64WireSchema,
     referenceType: z.string(),
     referenceId: z.string().nullable().optional(),
     reason: z.string().nullable().optional(),
     tradeId: IdentifierSchema.nullable().optional(),
     orderId: IdentifierSchema.nullable().optional(),
     instrumentId: z.string().nullable().optional(),
-    feeRatePpm: IdentifierSchema.nullable().optional(),
+    feeRatePpm: Int64WireSchema.nullable().optional(),
     createdAt: z.string(),
   })
   .passthrough()
@@ -528,7 +545,7 @@ export const ProductTransferRecordSchema = z
     sourceAccountType: z.string(),
     targetAccountType: z.string(),
     asset: z.string(),
-    amountUnits: IdentifierSchema,
+    amountUnits: Int64WireSchema,
     referenceId: z.string().nullable().optional(),
     status: z.string(),
     reason: z.string().nullable().optional(),
@@ -565,9 +582,9 @@ const ProductBalanceSchema = z
     userId: IdentifierSchema,
     accountType: z.string(),
     asset: z.string(),
-    availableUnits: IdentifierSchema,
-    lockedUnits: IdentifierSchema,
-    equityUnits: IdentifierSchema,
+    availableUnits: Int64WireSchema,
+    lockedUnits: Int64WireSchema,
+    equityUnits: Int64WireSchema,
     updatedAt: z.string(),
   })
   .passthrough()
@@ -579,7 +596,7 @@ export const ProductTransferResponseSchema = z
     sourceAccountType: z.string(),
     targetAccountType: z.string(),
     asset: z.string(),
-    amountUnits: IdentifierSchema,
+    amountUnits: Int64WireSchema,
     referenceId: z.string(),
     status: z.string(),
     sourceBalance: ProductBalanceSchema.optional(),

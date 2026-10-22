@@ -4,11 +4,15 @@ import type { AuthSession } from "../api/types"
 import { config } from "../lib/config"
 import { privateSubscriptions } from "../realtime"
 import { retainRealtimeSession } from "../sharedRealtimeConnections"
+import { sessionAccessExpired, useSessionRefreshIssue } from "../state/session"
 
 /** App owns one transport for its full lifetime, including public and login pages. */
 export function useRealtimeApplication(session: AuthSession | null) {
+  const refreshIssue = useSessionRefreshIssue()
+  const token =
+    refreshIssue || sessionAccessExpired(session) ? null : (session?.accessToken ?? null)
   const owner = useRef<ReturnType<typeof retainRealtimeSession> | null>(null)
-  const initialToken = useRef(session?.accessToken ?? null)
+  const initialToken = useRef(token)
   useLayoutEffect(() => {
     const handle = retainRealtimeSession(config.wsBaseUrlForProductLine, initialToken.current)
     owner.current = handle
@@ -18,7 +22,6 @@ export function useRealtimeApplication(session: AuthSession | null) {
       handle.close()
     }
   }, [])
-  const token = session?.accessToken ?? null
   useLayoutEffect(() => {
     const handle = owner.current
     if (!handle) return

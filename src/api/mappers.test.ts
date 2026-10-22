@@ -23,6 +23,8 @@ describe("market mapper", () => {
       instrumentId: "604",
       symbol: "BTC-USDT",
       productLine: "LINEAR_PERPETUAL",
+      contractType: "LINEAR_PERPETUAL",
+      instrumentType: "PERPETUAL",
       baseAsset: "BTC",
       quoteAsset: "USDT",
     }
@@ -62,21 +64,35 @@ describe("market mapper", () => {
     ).toBeNull()
   })
 
-  it("normalizes integer prices using backend scale metadata", () => {
+  it("keeps raw ticks and units unavailable without the accounting asset scales", () => {
     const market = mapMarket({
       symbol: "BTCUSDT",
       instrumentId: "100",
       baseAsset: "BTC",
       quoteAsset: "USDT",
-      productLine: "SPOT",
+      contractType: "SPOT",
+      priceTickUnits: "25",
       lastPriceTicks: "6424550",
       change24hPpm: "12500",
       volume24hUnits: "12000000000000",
     })
 
-    expect(market.price).toBe(64245.5)
+    expect(market.price).toBeNull()
     expect(market.change24h).toBe(1.25)
-    expect(market.volume24h).toBe(120000)
+    expect(market.volume24h).toBeNull()
+    expect(
+      mapMarket({
+        symbol: "BTCUSDT",
+        instrumentId: "100",
+        baseAsset: "BTC",
+        quoteAsset: "USDT",
+        lastPrice: "64245.5",
+        volume24h: "120000",
+      }),
+    ).toMatchObject({
+      price: 64245.5,
+      volume24h: 120000,
+    })
   })
 
   it("preserves backend price and quantity unit scales", () => {
@@ -119,5 +135,80 @@ describe("balance mapper", () => {
 
     expect(balance.available).toBe(1)
     expect(balance.locked).toBe(0.5)
+  })
+})
+
+describe("strict instrument product identity", () => {
+  const identity = { instrumentId: "604", symbol: "BTC-USDT", baseAsset: "BTC", quoteAsset: "USDT" }
+  const contracts = [
+    { contractType: "SPOT", productLine: "SPOT", instrumentType: "SPOT" },
+    {
+      contractType: "LINEAR_PERPETUAL",
+      productLine: "LINEAR_PERPETUAL",
+      instrumentType: "PERPETUAL",
+    },
+    {
+      contractType: "INVERSE_PERPETUAL",
+      productLine: "INVERSE_PERPETUAL",
+      instrumentType: "PERPETUAL",
+    },
+    { contractType: "LINEAR_DELIVERY", productLine: "LINEAR_DELIVERY", instrumentType: "DELIVERY" },
+    {
+      contractType: "INVERSE_DELIVERY",
+      productLine: "INVERSE_DELIVERY",
+      instrumentType: "DELIVERY",
+    },
+    { contractType: "VANILLA_OPTION", productLine: "OPTION", instrumentType: "OPTION" },
+  ] as const
+  it.each(contracts)("maps exact backend $contractType and validates its category", (metadata) => {
+    expect(mapMarket({ ...identity, ...metadata }).productLine).toBe(metadata.productLine)
+    expect(mapMarket({ ...identity, contractType: metadata.contractType }).productLine).toBe(
+      metadata.productLine,
+    )
+  })
+  it("rejects a missing contract identity rather than guessing from the line or category", () => {
+    for (const productLine of contracts.map((row) => row.productLine)) {
+      expect(mapMarket({ ...identity, productLine }).productLine).toBe("UNKNOWN")
+    }
+    for (const instrumentType of ["SPOT", "PERPETUAL", "DELIVERY", "OPTION"]) {
+      expect(mapMarket({ ...identity, instrumentType }).productLine).toBe("UNKNOWN")
+    }
+  })
+  it.each([
+    "FUTURE_LINEAR_DELIVERY",
+    "UNKNOWN_SPOT",
+    "NOT_AN_OPTION",
+    "linear_perpetual",
+    " LINEAR_DELIVERY",
+    "OPTION",
+    "",
+    "constructor",
+  ])("rejects unknown or aliased contract enum %s", (contractType) => {
+    expect(mapMarket({ ...identity, contractType }).productLine).toBe("UNKNOWN")
+  })
+  it("rejects every disagreement between product line and the known contract", () => {
+    for (const metadata of contracts)
+      for (const other of contracts) {
+        if (metadata.productLine === other.productLine) continue
+        expect(
+          mapMarket({ ...identity, ...metadata, productLine: other.productLine }).productLine,
+        ).toBe("UNKNOWN")
+      }
+  })
+  it("rejects unknown and conflicting instrument categories", () => {
+    for (const metadata of contracts)
+      for (const instrumentType of [
+        "SPOT",
+        "PERPETUAL",
+        "DELIVERY",
+        "OPTION",
+        "LINEAR_PERPETUAL",
+        "FUTURE_DELIVERY",
+        "",
+        "perpetual",
+      ]) {
+        if (metadata.instrumentType === instrumentType) continue
+        expect(mapMarket({ ...identity, ...metadata, instrumentType }).productLine).toBe("UNKNOWN")
+      }
   })
 })

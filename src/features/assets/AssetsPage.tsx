@@ -2,12 +2,13 @@ import { Eye, EyeOff, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAssetScales } from "../../api/endpoints"
 import { productLineLabels } from "../../components/layout/navigation"
-import { AssetIcon, Button, Panel, Price, StateView } from "../../components/ui/Primitives"
+import { AssetIcon, Button, Panel, StateView } from "../../components/ui/Primitives"
+import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
-import { formatUsd } from "../../lib/format"
+import { formatPrice, formatUsd } from "../../lib/format"
 import { useSession } from "../../state/session"
 import { type Balance, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 
@@ -25,14 +26,16 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
   const [error, setError] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [refreshVersion, setRefreshVersion] = useState(0)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
   const session = useSession()
   const realtime = useRealtimeAssets(session, assetScales)
   useEffect(() => {
     if (!session) return
     let cancelled = false
+    const controller = new AbortController()
     setLoading(true)
-    void loadAssetScales()
+    void loadAssetScales(controller.signal)
       .then((scaleResult) => {
         if (cancelled) return
         setAssetScales(scaleResult)
@@ -47,13 +50,15 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       })
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [session])
+  }, [session, refreshVersion])
   const demo = config.demoDataEnabled && !session
   const allRows = session ? realtime.balances : demo ? demoBalances : []
   const rows = allRows.filter((balance) => accountMatches(balance, account))
+  const assetError = error ?? realtime.error
   const hasUsdValuation =
-    (demo || (realtime.ready && !loading && !error)) &&
+    (demo || (realtime.ready && !loading && !assetError)) &&
     rows.every((balance) => balance.estimatedUsd !== null)
   const total = hasUsdValuation
     ? rows.reduce((sum, balance) => sum + (balance.estimatedUsd ?? 0), 0)
@@ -86,9 +91,16 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           {t("Demo data: balances are for local visual checks only.")}
         </div>
       ) : null}
-      {error && rows.length === 0 ? (
+      {assetError ? (
         <Panel>
-          <StateView kind="error" message={error} retry={() => window.location.reload()} />
+          <StateView
+            kind={loading ? "loading" : "error"}
+            message={assetError}
+            retry={() => {
+              setRefreshVersion((version) => version + 1)
+              realtime.refresh()
+            }}
+          />
         </Panel>
       ) : null}
       <div className="asset-overview-grid">
@@ -99,7 +111,11 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
               "••••••"
             ) : session || demo ? (
               total === null ? (
-                <span className="asset-value-skeleton" aria-hidden="true" />
+                assetError ? (
+                  t("Valuation unavailable")
+                ) : (
+                  <span className="asset-value-skeleton" aria-hidden="true" />
+                )
               ) : (
                 formatUsd(total)
               )
@@ -111,7 +127,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           <div className="balance-actions">
             <Button
               onClick={() => {
-                window.location.href = "/assets/deposit"
+                navigateInApplication("/assets/deposit")
               }}
             >
               <Plus size={16} /> {t("Deposit")}{" "}
@@ -119,7 +135,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
             <Button
               tone="outline"
               onClick={() => {
-                window.location.href = "/assets/withdraw"
+                navigateInApplication("/assets/withdraw")
               }}
             >
               <Send size={16} /> {t("Withdraw")}{" "}
@@ -127,7 +143,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
             <Button
               tone="outline"
               onClick={() => {
-                window.location.href = "/assets/transfer"
+                navigateInApplication("/assets/transfer")
               }}
             >
               <Shuffle size={16} /> {t("Transfer")}{" "}
@@ -145,7 +161,9 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 role="img"
               >
                 <span>
-                  <strong className="mono">{hidden ? "••••" : formatUsd(total)}</strong>
+                  <strong className="mono" title={hidden ? undefined : formatUsd(total)}>
+                    {hidden ? "••••" : formatUsd(total)}
+                  </strong>
                   <small>USD</small>
                 </span>
               </div>
@@ -192,9 +210,12 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
           <div className="asset-product-grid">
             {(Object.values(PRODUCT_LINES) as ProductLine[]).map((line) => {
               const lineRows = allRows.filter((row) => row.accountType === productAccounts[line])
-              const value = lineRows.every((row) => row.estimatedUsd !== null)
-                ? lineRows.reduce((sum, row) => sum + (row.estimatedUsd ?? 0), 0)
-                : null
+              const value =
+                realtime.readyProducts.includes(line) &&
+                !assetError &&
+                lineRows.every((row) => row.estimatedUsd !== null)
+                  ? lineRows.reduce((sum, row) => sum + (row.estimatedUsd ?? 0), 0)
+                  : null
               return (
                 <a
                   className="asset-product-card"
@@ -202,7 +223,10 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                   key={line}
                 >
                   <span>{t(productLineLabels[line])}</span>
-                  <strong className="mono">
+                  <strong
+                    className="mono"
+                    title={hidden || value === null ? undefined : formatUsd(value)}
+                  >
                     {hidden
                       ? "••••"
                       : value === null
@@ -250,14 +274,16 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                           </span>
                         </td>
                         <td className="number mono">
-                          {hidden ? (
-                            "••••"
-                          ) : (
-                            <Price value={(balance.available ?? 0) + (balance.locked ?? 0)} />
-                          )}
+                          {hidden
+                            ? "••••"
+                            : formatPrice(
+                                balance.available === null || balance.locked === null
+                                  ? null
+                                  : balance.available + balance.locked,
+                              )}
                         </td>
                         <td className="number mono">
-                          {hidden ? "••••" : <Price value={balance.available} />}
+                          {hidden ? "••••" : formatPrice(balance.available)}
                         </td>
                         <td className="number mono">
                           {hidden
@@ -312,8 +338,11 @@ function aggregateAssets(rows: readonly Balance[]): readonly Balance[] {
     }
     byAsset.set(row.asset, {
       ...current,
-      available: (current.available ?? 0) + (row.available ?? 0),
-      locked: (current.locked ?? 0) + (row.locked ?? 0),
+      available:
+        current.available === null || row.available === null
+          ? null
+          : current.available + row.available,
+      locked: current.locked === null || row.locked === null ? null : current.locked + row.locked,
       estimatedUsd:
         current.estimatedUsd === null || row.estimatedUsd === null
           ? null

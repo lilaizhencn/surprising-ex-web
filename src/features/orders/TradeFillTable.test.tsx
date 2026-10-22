@@ -21,6 +21,8 @@ const market = mapMarket({
   instrumentId: "868",
   symbol: "BTC-USDT",
   productLine: "SPOT",
+  contractType: "SPOT",
+  instrumentType: "SPOT",
   baseAsset: "BTC",
   quoteAsset: "USDT",
   priceTickUnits: "5",

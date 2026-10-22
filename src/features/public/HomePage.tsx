@@ -11,6 +11,7 @@ import {
   Sparkline,
   StateView,
 } from "../../components/ui/Primitives"
+import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { marketWithLiveQuote } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
@@ -110,7 +111,7 @@ export function HomePage() {
           <div className="cluster hero-actions">
             <Button
               onClick={() => {
-                window.location.href = "/trade/usd-perpetual"
+                navigateInApplication("/trade/usd-perpetual")
               }}
             >
               {" "}
@@ -119,7 +120,7 @@ export function HomePage() {
             <Button
               tone="outline"
               onClick={() => {
-                window.location.href = "/markets"
+                navigateInApplication("/markets")
               }}
             >
               {" "}

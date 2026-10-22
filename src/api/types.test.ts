@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   AccountLedgerEntrySchema,
   AccountLedgerPageSchema,
+  AuthSessionSchema,
   DepositAddressSchema,
   FundingPaymentPageSchema,
   FundingPaymentSchema,
   FundingRatePageSchema,
+  JwtPrincipalSchema,
   OrderBookSchema,
   OrderSubmissionSchema,
   PositionRiskListSchema,
@@ -13,6 +15,7 @@ import {
   ProductTransferRecordPageSchema,
   ProductTransferRecordSchema,
   TriggerOrderQuerySchema,
+  UserSchema,
 } from "./types"
 
 describe("gateway financial response schemas", () => {
@@ -216,5 +219,52 @@ describe("position risk response", () => {
       PositionRiskListSchema.safeParse({ positions: [{ ...risk, liquidationPriceTicks: "bad" }] })
         .success,
     ).toBe(false)
+  })
+})
+
+describe("HTTP user identity boundaries", () => {
+  const principal = { status: "ACTIVE", roles: [], expiresAt: "2026-12-31T00:00:00Z" }
+  it("retains the wire type of valid positive int64 identities", () => {
+    for (const userId of [
+      1,
+      Number.MAX_SAFE_INTEGER,
+      "1",
+      "9007199254740993",
+      "9223372036854775807",
+    ]) {
+      expect(UserSchema.parse({ userId }).userId).toBe(userId)
+      expect(JwtPrincipalSchema.parse({ ...principal, userId }).userId).toBe(userId)
+      expect(AuthSessionSchema.parse({ accessToken: "token", user: { userId } }).user.userId).toBe(
+        userId,
+      )
+    }
+  })
+  it("rejects noncanonical, unsafe and oversized identities without BigInt conversion", () => {
+    const convert = vi.spyOn(globalThis, "BigInt")
+    try {
+      for (const userId of [
+        0,
+        -1,
+        1.5,
+        Number.MAX_SAFE_INTEGER + 1,
+        "0",
+        "01",
+        "-1",
+        "1.0",
+        "1e3",
+        " 1",
+        "9223372036854775808",
+        "9".repeat(4 * 1024 * 1024),
+      ]) {
+        expect(UserSchema.safeParse({ userId }).success).toBe(false)
+        expect(JwtPrincipalSchema.safeParse({ ...principal, userId }).success).toBe(false)
+        expect(
+          AuthSessionSchema.safeParse({ accessToken: "token", user: { userId } }).success,
+        ).toBe(false)
+      }
+      expect(convert).not.toHaveBeenCalled()
+    } finally {
+      convert.mockRestore()
+    }
   })
 })

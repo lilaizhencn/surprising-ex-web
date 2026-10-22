@@ -3,7 +3,7 @@ import { mapCandle } from "../../api/mappers"
 import { CandleSchema } from "../../api/types"
 import { prepareChartCandles } from "../../components/trading/PriceChart"
 import type { Candle } from "../../types/domain"
-import { mergeCandleSnapshot } from "./TradePage"
+import { mergeCandleSnapshot } from "./marketData"
 
 const snapshot: Candle = {
   time: "2026-09-26T13:30:00.000Z",

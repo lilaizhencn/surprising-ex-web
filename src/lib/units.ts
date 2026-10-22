@@ -123,7 +123,7 @@ export function decimalStepUnitsToDecimal(
 
 function parseDecimal(value: string): Decimal {
   const normalized = value.trim()
-  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
+  if (normalized.length > 256 || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
     throw new Error(t("Enter a valid decimal quantity."))
   }
   const [integerPart, fractionPart = ""] = normalized.split(".")
@@ -133,7 +133,7 @@ function parseDecimal(value: string): Decimal {
 
 function scaleToBigInt(scale: UnitScale): bigint {
   const normalized = typeof scale === "number" ? integerNumber(scale) : scale.trim()
-  if (!/^\d+$/.test(normalized) || normalized === "0") {
+  if (normalized.length > 256 || !/^\d+$/.test(normalized) || normalized === "0") {
     throw new Error(t("Invalid asset precision."))
   }
   return BigInt(normalized)
@@ -141,7 +141,8 @@ function scaleToBigInt(scale: UnitScale): bigint {
 
 function integerToBigInt(value: string | number): bigint {
   const normalized = typeof value === "number" ? integerNumber(value) : value.trim()
-  if (!/^\d+$/.test(normalized)) throw new Error(t("Invalid balance units."))
+  if (normalized.length > 256 || !/^\d+$/.test(normalized))
+    throw new Error(t("Invalid balance units."))
   return BigInt(normalized)
 }
 

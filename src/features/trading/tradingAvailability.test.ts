@@ -46,3 +46,19 @@ it("new conditional protection is forbidden at settlement, expiry and unavailabl
   expect(canSubmitTriggerOrder(market("TRADING", "LINEAR_PERPETUAL"), now)).toBe(true)
   expect(canSubmitTriggerOrder(null, now)).toBe(false)
 })
+
+it("never admits unknown or future product identities, even with a TRADING status", () => {
+  for (const productLine of [
+    "UNKNOWN",
+    "FUTURE_LINEAR_DELIVERY",
+    "UNKNOWN_SPOT",
+    "OPTION_FUTURE",
+    "",
+  ]) {
+    for (const reduceOnly of [false, true]) {
+      expect(canSubmitTradingOrder(market("TRADING", productLine), reduceOnly)).toBe(false)
+      expect(canSubmitTradingOrder(market("SETTLING", productLine), reduceOnly)).toBe(false)
+    }
+    expect(canSubmitTriggerOrder(market("TRADING", productLine))).toBe(false)
+  }
+})

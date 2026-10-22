@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Subscription } from "./realtime"
 import { RealtimeConnections } from "./realtimeConnections"
+import { saveSession } from "./state/session"
 
 class Socket {
   static OPEN = 1
@@ -8,7 +9,7 @@ class Socket {
   readyState = 0
   sent: Record<string, unknown>[] = []
   onopen: (() => void) | null = null
-  onclose: (() => void) | null = null
+  onclose: ((event?: { code: number }) => void) | null = null
   onerror: (() => void) | null = null
   onmessage: ((event: { data: string }) => void) | null = null
   constructor(readonly url: string) {
@@ -48,6 +49,7 @@ describe("realtime connection lifecycle", () => {
     vi.stubGlobal("WebSocket", Socket)
   })
   afterEach(() => {
+    saveSession(null)
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
@@ -285,6 +287,115 @@ describe("realtime connection lifecycle", () => {
     expect(socket().sent.filter((c) => c["op"] === "subscribe")).toEqual([
       expect.objectContaining({ channel: "trades" }),
     ])
+    manager.close()
+  })
+  it("retires a policy-rejected token before reconnecting public subscriptions", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", "retired", vi.fn(), vi.fn())
+    manager.update([publicTrade, account])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    socket().onclose?.({ code: 1008 })
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    expect(socket(1).sent.some((message) => message["op"] === "authenticate")).toBe(false)
+    expect(socket(1).sent.filter((message) => message["op"] === "subscribe")).toEqual([
+      expect.objectContaining({ channel: "trades" }),
+    ])
+    manager.close()
+  })
+  it("reconnects with backoff when the receiver rejects subscriptions during recovery", () => {
+    const state = vi.fn()
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), state)
+    manager.update([publicTrade])
+    socket().open()
+    socket().receive({ op: "error", error: "realtime receiver unavailable" })
+    vi.advanceTimersByTime(1000)
+    socket(1).open()
+    socket(1).receive({ op: "error", error: "realtime receiver unavailable" })
+    vi.advanceTimersByTime(1000)
+    expect(Socket.instances).toHaveLength(2)
+    vi.advanceTimersByTime(1000)
+    socket(2).open()
+    expect(socket(2).sent).toContainEqual(
+      expect.objectContaining({ channel: "trades", op: "subscribe" }),
+    )
+    expect(state).toHaveBeenCalledWith(["SPOT"], false)
+    manager.close()
+  })
+  it("stops sockets and timers on pagehide, then reauthenticates once on pageshow", () => {
+    const page = new EventTarget()
+    const doc = Object.assign(new EventTarget(), { visibilityState: "visible" })
+    vi.stubGlobal("window", page)
+    vi.stubGlobal("document", doc)
+    saveSession({
+      accessToken: "secret",
+      user: { userId: "1" },
+      accessTokenExpiresAt: "2999-01-01T00:00:00Z",
+    })
+    const state = vi.fn()
+    const manager = new RealtimeConnections(() => "ws://fixture", "secret", vi.fn(), state)
+    manager.update([publicTrade, account])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    const oldMessage = socket().onmessage
+    page.dispatchEvent(new Event("pagehide"))
+    expect(socket().readyState).toBe(3)
+    expect(vi.getTimerCount()).toBe(0)
+    expect(state).toHaveBeenLastCalledWith(["SPOT"], false)
+    vi.advanceTimersByTime(60_000)
+    expect(Socket.instances).toHaveLength(1)
+    page.dispatchEvent(new Event("pageshow"))
+    page.dispatchEvent(new Event("pageshow"))
+    expect(Socket.instances).toHaveLength(2)
+    socket(1).open()
+    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth", token: "secret" })
+    socket(1).receive({ op: "authenticated" })
+    expect(socket(1).sent).toContainEqual(
+      expect.objectContaining({ op: "subscribe", channel: "accountState" }),
+    )
+    oldMessage?.({ data: JSON.stringify({ op: "snapshot", userId: 1 }) })
+    manager.close()
+    page.dispatchEvent(new Event("pageshow"))
+    expect(Socket.instances).toHaveLength(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it("retires an oversized realtime frame before parsing and requests a new connection", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const manager = new RealtimeConnections(() => "ws://fixture", null, vi.fn(), vi.fn())
+    manager.update([publicTrade])
+    socket().open()
+    const parse = vi.spyOn(JSON, "parse")
+    try {
+      socket().onmessage?.({ data: "x".repeat(32 * 1024 * 1024 + 1) })
+      expect(parse).not.toHaveBeenCalled()
+      expect(socket().readyState).toBe(3)
+    } finally {
+      parse.mockRestore()
+      warning.mockRestore()
+    }
+    vi.advanceTimersByTime(1000)
+    expect(Socket.instances).toHaveLength(2)
+    manager.close()
+  })
+  it("does not reauthenticate a BFCache page with an expired access-only identity", () => {
+    const page = new EventTarget()
+    const doc = Object.assign(new EventTarget(), { visibilityState: "visible" })
+    vi.stubGlobal("window", page)
+    vi.stubGlobal("document", doc)
+    saveSession({
+      accessToken: "retired",
+      user: { userId: "1" },
+      accessTokenExpiresAt: new Date(Date.now() + 500).toISOString(),
+    })
+    const manager = new RealtimeConnections(() => "ws://fixture", "retired", vi.fn(), vi.fn())
+    manager.update([publicTrade, account])
+    socket().open()
+    socket().receive({ op: "authenticated" })
+    page.dispatchEvent(new Event("pagehide"))
+    vi.advanceTimersByTime(1000)
+    page.dispatchEvent(new Event("pageshow"))
+    socket(1).open()
+    expect(socket(1).sent.some((message) => message["op"] === "authenticate")).toBe(false)
     manager.close()
   })
 })

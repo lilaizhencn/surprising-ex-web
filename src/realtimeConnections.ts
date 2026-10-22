@@ -1,3 +1,5 @@
+import { refreshStoredSession } from "./api/client"
+import { t } from "./i18n"
 import {
   isC2cSubscription,
   isPrivateRealtimeChannel,
@@ -7,14 +9,36 @@ import {
   subscriptionProducts,
   type WsEnvelope,
 } from "./realtime"
+import {
+  loadSession,
+  SESSION_CHANGED_EVENT,
+  sessionAccessExpired,
+  sessionRefreshIssue,
+  setSessionRefreshIssue,
+} from "./state/session"
 import type { ProductLine } from "./types/domain"
 
 /** One application transport; product/channel isolation lives in subscription metadata. */
 export class RealtimeConnections {
   private connection: Connection | null = null
   private token: string | null
+  private readonly suspend = () => this.connection?.suspend()
   private readonly resume = () => {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return
+    if (this.token) {
+      const session = loadSession()
+      if (
+        !session ||
+        session.accessToken !== this.token ||
+        sessionAccessExpired(session) ||
+        sessionRefreshIssue()
+      ) {
+        this.updateToken(null)
+        if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
+        if (sessionAccessExpired(session)) void refreshStoredSession().catch(() => {})
+      }
+    }
+    this.connection?.resume()
     this.connection?.checkLiveness()
   }
   constructor(
@@ -25,7 +49,10 @@ export class RealtimeConnections {
   ) {
     this.token = token
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.resume)
-    if (typeof window !== "undefined") window.addEventListener("pageshow", this.resume)
+    if (typeof window !== "undefined") {
+      window.addEventListener("pageshow", this.resume)
+      window.addEventListener("pagehide", this.suspend)
+    }
   }
   updateToken(token: string | null) {
     if (this.token === token) return
@@ -60,7 +87,10 @@ export class RealtimeConnections {
   close() {
     if (typeof document !== "undefined")
       document.removeEventListener("visibilitychange", this.resume)
-    if (typeof window !== "undefined") window.removeEventListener("pageshow", this.resume)
+    if (typeof window !== "undefined") {
+      window.removeEventListener("pageshow", this.resume)
+      window.removeEventListener("pagehide", this.suspend)
+    }
     this.connection?.close()
     this.connection = null
   }
@@ -73,6 +103,7 @@ class Connection {
   private authenticated = false
   private awaitingAuthentication = false
   private closed = false
+  private suspended = false
   private reconnect: ReturnType<typeof setTimeout> | undefined
   private heartbeat: ReturnType<typeof setInterval> | undefined
   private attempt = 0
@@ -92,7 +123,7 @@ class Connection {
   update(subscriptions: readonly RealtimeSubscription[]) {
     const previousProducts = new Set(this.products())
     this.desired = new Map(subscriptions.map((s) => [subscriptionKey(s), s]))
-    if (!this.socket && !this.reconnect) this.connect()
+    if (!this.suspended && !this.socket && !this.reconnect) this.connect()
     const addedProducts = this.products().filter((product) => !previousProducts.has(product))
     if (addedProducts.length && this.socket?.readyState === WebSocket.OPEN)
       this.state(addedProducts, !this.token || this.authenticated)
@@ -117,7 +148,7 @@ class Connection {
     socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: this.token }))
   }
   private connect() {
-    if (this.closed) return
+    if (this.closed || this.suspended) return
     const socket = new WebSocket(this.url)
     this.socket = socket
     this.lastReceivedAt = Date.now()
@@ -130,7 +161,6 @@ class Connection {
     this.state(this.products(), false)
     socket.onopen = () => {
       if (this.closed || this.socket !== socket) return
-      this.attempt = 0
       this.lastReceivedAt = Date.now()
       if (this.token) this.authenticate(socket)
       else this.state(this.products(), true)
@@ -139,8 +169,11 @@ class Connection {
     socket.onmessage = (message) => {
       if (this.closed || this.socket !== socket) return
       try {
-        const event = parseRealtimeJson(String(message.data))
+        if (typeof message.data !== "string" || message.data.length > 32 * 1024 * 1024)
+          throw new Error("Invalid realtime message type or size")
+        const event = parseRealtimeJson(message.data)
         this.lastReceivedAt = Date.now()
+        if (["event", "snapshot", "pong"].includes(event.op ?? "")) this.attempt = 0
         if (event.op === "event" && event.channel === "depth" && event.productLine) {
           const key = subscriptionKey({
             channel: "depth",
@@ -162,9 +195,12 @@ class Connection {
           this.reconcile()
         }
         if (event.op === "error") {
+          if (event["error"] === "realtime receiver unavailable") {
+            this.disconnect(socket)
+            return
+          }
           if (this.awaitingAuthentication) {
-            this.awaitingAuthentication = false
-            this.authenticated = false
+            this.retireAuthentication()
           }
           this.state(this.products(), false)
         }
@@ -175,12 +211,28 @@ class Connection {
         )
           return
         this.message(event)
-      } catch {
-        this.state(this.products(), false)
+      } catch (error) {
+        console.warn("Realtime message rejected; reconnecting", error)
+        this.disconnect(socket)
       }
     }
     socket.onerror = () => this.disconnect(socket)
-    socket.onclose = () => this.disconnect(socket)
+    socket.onclose = (event) => {
+      if (event?.code === 1008 && this.token && this.socket === socket) this.retireAuthentication()
+      this.disconnect(socket)
+    }
+  }
+  private retireAuthentication() {
+    const rejectedToken = this.token
+    this.token = null
+    this.awaitingAuthentication = false
+    this.authenticated = false
+    if (rejectedToken && loadSession()?.accessToken === rejectedToken) {
+      setSessionRefreshIssue(
+        t("Session temporarily unavailable. Private operations are paused. Please retry."),
+      )
+      void refreshStoredSession().catch(() => {})
+    }
   }
   checkLiveness() {
     const socket = this.socket
@@ -286,11 +338,35 @@ class Connection {
         socket.send(JSON.stringify({ op: "subscribe", id, ...s }))
       }
   }
-  close() {
-    this.closed = true
+  suspend() {
+    if (this.closed || this.suspended) return
+    this.suspended = true
     clearTimeout(this.reconnect)
     clearInterval(this.heartbeat)
-    this.socket?.close()
+    this.reconnect = undefined
+    const socket = this.socket
+    this.socket = null
+    this.authenticated = false
+    this.awaitingAuthentication = false
+    this.installed.clear()
+    this.depthProgress.clear()
+    this.state(this.products(), false)
+    if (socket) {
+      socket.onopen = null
+      socket.onmessage = null
+      socket.onclose = null
+      socket.onerror = null
+      socket.close()
+    }
+  }
+  resume() {
+    if (this.closed || !this.suspended) return
+    this.suspended = false
+    this.connect()
+  }
+  close() {
+    this.suspend()
+    this.closed = true
   }
 }
 
