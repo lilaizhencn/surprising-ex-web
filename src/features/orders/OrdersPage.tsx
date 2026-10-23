@@ -1113,13 +1113,19 @@ function AdvancedTradingActions({
               () =>
                 placeAlgoOrder(
                   {
-                    ...baseOrder(),
+                    userId: session.user.userId,
                     clientAlgoOrderId: `web-algo-${crypto.randomUUID()}`,
+                    instrumentId: instrumentId.trim(),
                     algoType,
+                    side,
+                    priceTicks: toLong(priceTicks),
+                    quantitySteps: toLong(quantitySteps),
                     childQuantitySteps: toLong(quantitySteps),
                     ...(algoType === "TWAP" ? { intervalSeconds: 60 } : {}),
                     durationSeconds: 600,
-                    timeInForce: algoType === "TWAP" ? "IOC" : "GTC",
+                    marginMode: "CROSS",
+                    positionSide: "NET",
+                    reduceOnly: false,
                     startAt: new Date().toISOString(),
                   },
                   productLine,

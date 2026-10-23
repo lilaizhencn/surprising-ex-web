@@ -2,9 +2,10 @@
 
 Surprising 交易用户 Web，使用 React、TypeScript 和 Vite，连接 `surprising-ex` 的 REST API 与 WebSocket。
 
-## 算法单间隔（2026-10-24）
+## 算法单请求（2026-10-24）
 
-TWAP创建请求继续携带间隔并使用IOC；ICEBERG不再发送不参与执行的间隔，仍保留时长和每片数量。本轮执行`npm run build`通过（3.380秒），未运行测试、浏览器或真实交易交互。
+高级算法入口只构造算法实际字段，不再生成普通订单clientOrderId或携带其orderType、固定TIF和PostOnly。TWAP继续提交真实间隔，由后端按类型使用IOC；ICEBERG不发送无用间隔，当前入口采用原默认GTC。
+本轮执行`npm run build`通过（2.855秒），未运行测试、浏览器或真实交易交互。
 
 ## 本地运行
 
