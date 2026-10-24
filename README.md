@@ -2,6 +2,11 @@
 
 Surprising 交易用户 Web，使用 React、TypeScript 和 Vite，连接 `surprising-ex` 的 REST API 与 WebSocket。
 
+## 倒计时撤单响应（2026-10-24）
+
+倒计时响应删除无人消费的两项成功计数，保留用户、instrumentId、倒计时、启用状态和触发/更新时间。当前页面只提交设置并显示操作反馈，不依赖被删字段；请求和布局不变。
+本轮执行`npm run build`通过（3.988秒），未运行lint、测试、浏览器或真实撤单交互。
+
 ## 算法单请求（2026-10-24）
 
 高级算法入口只构造算法实际字段，不再生成普通订单clientOrderId或携带其orderType、固定TIF和PostOnly。TWAP继续提交真实间隔，由后端按类型使用IOC；ICEBERG不发送无用间隔，当前入口采用原默认GTC。
