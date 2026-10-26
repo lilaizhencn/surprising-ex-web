@@ -416,6 +416,7 @@ export function candleRange(
 export async function loadBalances(
   productLine?: ProductLine,
   accountType?: string,
+  signal?: AbortSignal,
 ): Promise<readonly ApiBalance[]> {
   const session = typeof window === "undefined" ? null : loadSession()
   const requestedAccountType =
@@ -428,7 +429,7 @@ export async function loadBalances(
   const response = await request(
     `/api/v1/gateway/account/${path}?${query.toString()}`,
     BalanceListSchema,
-    productLine ? { productLine } : {},
+    { ...(productLine ? { productLine } : {}), ...(signal ? { signal } : {}) },
   )
   return response.balances ?? response.items ?? []
 }
@@ -868,14 +869,16 @@ export async function loadProductLedgerPage(
 export async function loadTransferHistory(
   accountType: ProductLine,
   asset?: string,
+  signal?: AbortSignal,
 ): Promise<readonly ApiProductTransferRecord[]> {
-  return (await loadTransferHistoryPage(accountType, asset)).transfers
+  return (await loadTransferHistoryPage(accountType, asset, undefined, signal)).transfers
 }
 
 export async function loadTransferHistoryPage(
   accountType: ProductLine,
   asset?: string,
   cursor?: string,
+  signal?: AbortSignal,
 ) {
   const query = new URLSearchParams({ limit: "100" })
   query.set("accountType", accountTypeForProductLine(accountType))
@@ -884,7 +887,7 @@ export async function loadTransferHistoryPage(
   return request(
     `/api/v1/gateway/account/transfers?${query.toString()}`,
     ProductTransferRecordPageSchema,
-    { productLine: accountType },
+    { productLine: accountType, ...(signal ? { signal } : {}) },
   )
 }
 
@@ -1770,12 +1773,14 @@ export function loadDepositHistory(asset?: string, chain?: string) {
   return request(`/api/v1/wallet/deposits?${query.toString()}`, WalletRecordsSchema)
 }
 
-export function loadWithdrawalHistory(asset?: string, chain?: string) {
+export function loadWithdrawalHistory(asset?: string, chain?: string, signal?: AbortSignal) {
   const query = new URLSearchParams()
   if (asset) query.set("asset", asset)
   if (chain) query.set("chain", chain)
   query.set("limit", "50")
-  return request(`/api/v1/wallet/withdrawals?${query.toString()}`, WalletRecordsSchema)
+  return request(`/api/v1/wallet/withdrawals?${query.toString()}`, WalletRecordsSchema, {
+    ...(signal ? { signal } : {}),
+  })
 }
 
 export function loadNotifications(unreadOnly = false) {

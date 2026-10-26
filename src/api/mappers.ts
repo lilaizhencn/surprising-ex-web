@@ -1,4 +1,4 @@
-import { unitsToDecimal } from "../lib/units"
+import { signedUnitsToDecimal } from "../lib/units"
 import type { Balance, Candle, Market, ProductLine } from "../types/domain"
 import { PRODUCT_LINES } from "../types/domain"
 import type { ApiBalance, ApiCandle, ApiMarket } from "./types"
@@ -74,15 +74,20 @@ export function mapBalance(
   const scale = assetScales[raw.asset]
   const availableUnits =
     raw.availableUnits !== undefined && scale
-      ? numeric(unitsToDecimal(raw.availableUnits, scale))
+      ? numeric(signedUnitsToDecimal(raw.availableUnits, scale))
       : null
   const lockedUnits =
-    raw.lockedUnits !== undefined && scale ? numeric(unitsToDecimal(raw.lockedUnits, scale)) : null
+    raw.lockedUnits !== undefined && scale
+      ? numeric(signedUnitsToDecimal(raw.lockedUnits, scale))
+      : null
   return {
     asset: raw.asset,
-    available: numeric(raw.free) ?? availableUnits,
-    locked: numeric(raw.locked) ?? lockedUnits,
+    available: availableUnits ?? numeric(raw.free),
+    locked: lockedUnits ?? numeric(raw.locked),
     estimatedUsd: null,
+    ...(raw.availableUnits !== undefined ? { availableUnits: String(raw.availableUnits) } : {}),
+    ...(raw.lockedUnits !== undefined ? { lockedUnits: String(raw.lockedUnits) } : {}),
+    ...(scale ? { scaleUnits: scale } : {}),
     ...(accountType ? { accountType } : {}),
   }
 }

@@ -72,6 +72,9 @@ export type Balance = {
   readonly available: number | null
   readonly locked: number | null
   readonly estimatedUsd: number | null
+  readonly availableUnits?: string
+  readonly lockedUnits?: string
+  readonly scaleUnits?: string
 }
 
 export type ApiState<T> =

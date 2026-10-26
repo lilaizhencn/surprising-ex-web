@@ -20,11 +20,12 @@ beforeEach(() =>
 )
 it("shows a real zero cash balance as zero", () => {
   const html = renderToStaticMarkup(<AssetsPage account="spot" />)
-  expect(html.match(/<td class="number mono">0<\/td>/g)).toHaveLength(2)
+  expect(html.match(/<td class="number mono">0<\/td>/g)).toHaveLength(3)
 })
 it("keeps errors visible when cash data already exists", () => {
   vi.mocked(useRealtimeAssets).mockReturnValue({
     ...vi.mocked(useRealtimeAssets)(null, {}),
+    balances: [{ accountType: "SPOT", asset: "USDT", available: 0, locked: 0, estimatedUsd: null }],
     error: "FX unavailable",
   })
   const html = renderToStaticMarkup(<AssetsPage account="spot" />)

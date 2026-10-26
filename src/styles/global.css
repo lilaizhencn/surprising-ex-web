@@ -4463,3 +4463,17 @@ body,
     height: 44px;
   }
 }
+
+.funding-form-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.funding-form-fields > .panel {
+  min-width: 0;
+}
+.funding-page .action-summary p {
+  overflow-wrap: anywhere;
+}

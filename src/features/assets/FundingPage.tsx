@@ -1,6 +1,6 @@
 import { ArrowDownUp, ShieldCheck } from "lucide-react"
 import type { ReactNode } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   createTransfer,
   createWithdrawal,
@@ -11,13 +11,15 @@ import {
   loadWithdrawalHistory,
 } from "../../api/endpoints"
 import { type FundingAsset, loadFundingAssets } from "../../api/funding"
+import { productLineLabels } from "../../components/layout/navigation"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
-import { decimalToUnits, isPositiveDecimal, unitsToDecimal } from "../../lib/units"
+import { decimalToUnits, isPositiveDecimal, signedUnitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
 import { PRODUCT_LINES } from "../../types/domain"
+import { productAccounts } from "./assetPortfolio"
 import { DepositPage } from "./DepositPage"
 import { FundingAssetSelect } from "./FundingAssetSelect"
 
@@ -39,10 +41,28 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
   const [amount, setAmount] = useState("")
   const [emailCode, setEmailCode] = useState("")
   const [totpCode, setTotpCode] = useState("")
-  const [source, setSource] = useState("FUNDING")
-  const [target, setTarget] = useState("SPOT")
+  const [source, setSource] = useState(() => {
+    const value = new URLSearchParams(window.location.search).get("from") ?? "FUNDING"
+    return transferAccounts.includes(value) ? value : "FUNDING"
+  })
+  const [target, setTarget] = useState(source === "FUNDING" ? "SPOT" : "FUNDING")
   const [chains, setChains] = useState<readonly RecordRow[]>([])
-  const [balances, setBalances] = useState<readonly RecordRow[]>([])
+  const [balanceRead, setBalanceRead] = useState<{
+    scope: string
+    rows: readonly RecordRow[]
+    error: string
+    loading: boolean
+  } | null>(null)
+  const balanceScope = `${session?.user.userId ?? ""}:${mode === "transfer" ? source : "FUNDING"}`
+  const balances = balanceRead?.scope === balanceScope ? balanceRead.rows : []
+  const balanceLoading = balanceRead?.scope !== balanceScope || balanceRead.loading
+  const balanceError = balanceRead?.scope === balanceScope ? balanceRead.error : ""
+  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyError, setHistoryError] = useState("")
+  const [precisionError, setPrecisionError] = useState("")
+  const submitting = useRef(false)
+  const submission = useRef<{ signature: string; key: string } | null>(null)
   const [records, setRecords] = useState<readonly RecordRow[]>([])
   const [transferRecords, setTransferRecords] = useState<readonly RecordRow[]>([])
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
@@ -54,36 +74,73 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
 
   useEffect(() => {
     if (!session) return
-    void Promise.all([
-      loadFundingBalances(),
+    const abort = new AbortController()
+    const account = mode === "transfer" ? source : "FUNDING"
+    const line =
+      (Object.keys(productAccounts) as ProductLine[]).find(
+        (line) => productAccounts[line] === account,
+      ) ?? PRODUCT_LINES.spot
+    setBalanceRead({ scope: balanceScope, rows: [], error: "", loading: true })
+    void loadBalances(line, account, abort.signal).then(
+      (rows) => {
+        if (!abort.signal.aborted)
+          setBalanceRead({ scope: balanceScope, rows, error: "", loading: false })
+      },
+      (reason) => {
+        if (!abort.signal.aborted)
+          setBalanceRead({
+            scope: balanceScope,
+            rows: [],
+            error: readError(reason),
+            loading: false,
+          })
+      },
+    )
+    return () => abort.abort()
+  }, [balanceScope, mode, source, session, refreshVersion])
+
+  useEffect(() => {
+    const abort = new AbortController()
+    setAssetScales({})
+    setPrecisionError("")
+    void loadAssetScales(abort.signal).then(
+      (rows) => {
+        if (!abort.signal.aborted) setAssetScales(rows)
+      },
+      (reason) => {
+        if (!abort.signal.aborted) setPrecisionError(readError(reason))
+      },
+    )
+    return () => abort.abort()
+  }, [refreshVersion])
+
+  useEffect(() => {
+    if (!session) return
+    const abort = new AbortController()
+    setRecords([])
+    setTransferRecords([])
+    setHistoryLoading(true)
+    setHistoryError("")
+    const read =
       mode === "withdraw"
-        ? loadWithdrawalHistory(asset)
-        : Promise.resolve([] as readonly RecordRow[]),
-      mode === "transfer"
-        ? loadAllTransferHistory(asset)
-        : Promise.resolve([] as readonly RecordRow[]),
-      loadAssetScales(),
-    ])
-      .then(([balanceRows, recordRows, transferRows, scales]) => {
-        setBalances(balanceRows)
-        if (mode === "transfer") {
-          const availableAssets = [
-            ...new Set(balanceRows.map((row) => text(row, "asset").toUpperCase()).filter(Boolean)),
-          ]
-          setAsset((current) =>
-            availableAssets.includes(current)
-              ? current
-              : availableAssets.includes(requestedAsset)
-                ? requestedAsset
-                : (availableAssets[0] ?? requestedAsset),
-          )
+        ? loadWithdrawalHistory(asset, undefined, abort.signal)
+        : loadAllTransferHistory(asset, abort.signal)
+    void read.then(
+      (rows) => {
+        if (abort.signal.aborted) return
+        if (mode === "withdraw") setRecords(rows)
+        else setTransferRecords(rows)
+        setHistoryLoading(false)
+      },
+      (reason) => {
+        if (!abort.signal.aborted) {
+          setHistoryError(readError(reason))
+          setHistoryLoading(false)
         }
-        setRecords(recordRows)
-        setTransferRecords(transferRows)
-        setAssetScales(scales)
-      })
-      .catch((reason: unknown) => setMessage(readError(reason)))
-  }, [asset, mode, requestedAsset, session])
+      },
+    )
+    return () => abort.abort()
+  }, [asset, mode, session, refreshVersion])
 
   useEffect(() => {
     if (!session || mode !== "withdraw") return
@@ -105,17 +162,35 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
   }, [requestedAsset, session, mode])
 
   const available = useMemo(() => {
+    if (balanceLoading || balanceError) return "—"
     const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
-    const free = text(balance, "free")
-    if (free) return free
-    const availableUnits = valueAt(balance, "availableUnits")
+    const units = valueAt(balance, "availableUnits")
     const scale = assetScales[asset]
-    return (typeof availableUnits === "string" || typeof availableUnits === "number") && scale
-      ? unitsToDecimal(availableUnits, scale)
-      : ""
-  }, [asset, assetScales, balances])
+    if (!scale) return "—"
+    if (!balance) return "0"
+    if (typeof units === "string" || typeof units === "number")
+      return signedUnitsToDecimal(units, scale)
+    return text(balance, "free") || "—"
+  }, [asset, assetScales, balances, balanceLoading, balanceError])
+
+  function requestKey() {
+    const signature = JSON.stringify([
+      session?.user.userId,
+      mode,
+      source,
+      target,
+      asset,
+      amount,
+      network,
+      address.trim(),
+    ])
+    if (submission.current?.signature !== signature)
+      submission.current = { signature, key: `${mode}-${crypto.randomUUID()}` }
+    return submission.current.key
+  }
 
   const submit = async () => {
+    if (submitting.current) return
     if (!session) {
       setState("error")
       setMessage(t("Please sign in before funding operations."))
@@ -132,9 +207,10 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
         setMessage(t("Withdrawals require email and authenticator codes."))
         return
       }
+      submitting.current = true
       setState("loading")
       try {
-        const reference = `withdraw-${crypto.randomUUID()}`
+        const reference = requestKey()
         const response = await createWithdrawal(
           network,
           asset,
@@ -151,16 +227,23 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
             ? `${t("Withdrawal request accepted")}: ${response.status}`
             : `${t("Withdrawal not confirmed")}: ${response.status}`,
         )
-        setAddress("")
-        setAmount("")
-        setEmailCode("")
-        setTotpCode("")
+        if (accepted && !response.status.includes("UNKNOWN")) {
+          submission.current = null
+          setAddress("")
+          setAmount("")
+          setEmailCode("")
+          setTotpCode("")
+        }
+        setRefreshVersion((value) => value + 1)
       } catch (reason: unknown) {
         setState("error")
         setMessage(readError(reason))
+      } finally {
+        submitting.current = false
       }
       return
     }
+    if (!assetScales[asset] || balanceLoading || balanceError || precisionError) return
     if (!isPositiveDecimal(amount) || source === target) {
       setState("error")
       setMessage(
@@ -170,9 +253,10 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
       )
       return
     }
+    submitting.current = true
     setState("loading")
     try {
-      const key = `transfer-${crypto.randomUUID()}`
+      const key = requestKey()
       const scale = assetScales[asset]
       if (!scale) throw new Error(t("Asset precision is unavailable. Transfer not submitted."))
       const response = await createTransfer(
@@ -191,10 +275,18 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
           ? `${t("Transfer request accepted")}: ${response.status}`
           : `${t("Transfer not confirmed")}: ${response.status}`,
       )
-      setAmount("")
+      if (accepted && !response.status.includes("UNKNOWN")) {
+        submission.current = null
+        setAmount("")
+        setEmailCode("")
+        setTotpCode("")
+      }
+      setRefreshVersion((value) => value + 1)
     } catch (reason: unknown) {
       setState("error")
       setMessage(readError(reason))
+    } finally {
+      submitting.current = false
     }
   }
 
@@ -220,6 +312,7 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
   if (mode === "withdraw")
     return (
       <FundingLayout
+        busy={state === "loading"}
         title={t("Withdraw Crypto")}
         description={t("Submit a verified withdrawal request to the custody service.")}
       >
@@ -311,7 +404,13 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
             {challengeMessage ? <small>{challengeMessage}</small> : null}
           </div>
         </Panel>
-        <RecordPanel title={t("Withdrawal history")} records={records} />
+        <RecordPanel
+          title={t("Withdrawal history")}
+          records={records}
+          scales={assetScales}
+          loading={historyLoading}
+          error={historyError}
+        />
         <ActionSummary
           title={t("Summary")}
           message={message}
@@ -324,6 +423,7 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
 
   return (
     <FundingLayout
+      busy={state === "loading"}
       title={t("Internal Transfer")}
       description={t("Move funds between product accounts with an idempotent request.")}
     >
@@ -331,31 +431,54 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
         <h2>{t("Transfer accounts")}</h2>
         <div className="grid-2">
           <Field label={t("From")}>
-            <DropdownSelect value={source} onChange={(event) => setSource(event.target.value)}>
-              <option>{t("FUNDING")}</option>
-              <option>{t("SPOT")}</option>
-              <option>{t("USDT_PERPETUAL")}</option>
-              <option>{t("COIN_PERPETUAL")}</option>
-              <option>{t("USDT_DELIVERY")}</option>
-              <option>{t("COIN_DELIVERY")}</option>
-              <option>{t("OPTION")}</option>
+            <DropdownSelect
+              aria-label={t("Source account")}
+              value={source}
+              onChange={(event) => {
+                setSource(event.target.value)
+                setAmount("")
+                setMessage("")
+              }}
+            >
+              {transferAccounts.map((account) => (
+                <option key={account} value={account}>
+                  {accountLabel(account)}
+                </option>
+              ))}
             </DropdownSelect>
           </Field>
           <Field label={t("To")}>
-            <DropdownSelect value={target} onChange={(event) => setTarget(event.target.value)}>
-              <option>{t("SPOT")}</option>
-              <option>{t("FUNDING")}</option>
-              <option>{t("USDT_PERPETUAL")}</option>
-              <option>{t("COIN_PERPETUAL")}</option>
-              <option>{t("USDT_DELIVERY")}</option>
-              <option>{t("COIN_DELIVERY")}</option>
-              <option>{t("OPTION")}</option>
+            <DropdownSelect
+              aria-label={t("Destination account")}
+              value={target}
+              onChange={(event) => {
+                setTarget(event.target.value)
+                setMessage("")
+              }}
+            >
+              {transferAccounts.map((account) => (
+                <option key={account} value={account}>
+                  {accountLabel(account)}
+                </option>
+              ))}
             </DropdownSelect>
           </Field>
         </div>
         <Field label={t("Asset")}>
-          <DropdownSelect value={asset} onChange={(event) => setAsset(event.target.value)}>
-            {[...new Set(balances.map((row) => text(row, "asset").toUpperCase()).filter(Boolean))]
+          <DropdownSelect
+            aria-label={t("Asset")}
+            value={asset}
+            onChange={(event) => setAsset(event.target.value)}
+          >
+            {[
+              ...new Set(
+                [
+                  asset,
+                  ...Object.keys(assetScales),
+                  ...balances.map((row) => text(row, "asset").toUpperCase()),
+                ].filter(Boolean),
+              ),
+            ]
               .sort()
               .map((code) => (
                 <option key={code} value={code}>
@@ -371,11 +494,30 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
             const current = source
             setSource(target)
             setTarget(current)
+            setAmount("")
+            setMessage("")
           }}
         >
           <ArrowDownUp size={18} /> {t("Swap accounts")}{" "}
         </button>
-        <Field label={`Amount (${asset})`}>
+        <div className="row-between funding-available" role="status">
+          <span>
+            {t("Available:")} <strong className="mono">{available}</strong> {asset}
+          </span>
+          <Button
+            tone="ghost"
+            loading={balanceLoading}
+            onClick={() => setRefreshVersion((value) => value + 1)}
+          >
+            {t("Refresh")}
+          </Button>
+        </div>
+        {balanceError || precisionError ? (
+          <p className="negative" role="alert">
+            {balanceError || precisionError}
+          </p>
+        ) : null}
+        <Field label={`${t("Amount")} (${asset})`}>
           <div className="number-input">
             <input
               value={amount}
@@ -426,9 +568,16 @@ function FundingForm({ mode }: { readonly mode: "withdraw" | "transfer" }) {
         message={message}
         state={state}
         onSubmit={submit}
+        disabled={balanceLoading || !!balanceError || !assetScales[asset] || !!precisionError}
         action="Confirm transfer"
       />
-      <RecordPanel title={t("Transfer history")} records={transferRecords} />
+      <RecordPanel
+        title={t("Transfer history")}
+        records={transferRecords}
+        scales={assetScales}
+        loading={historyLoading}
+        error={historyError}
+      />
     </FundingLayout>
   )
 
@@ -448,7 +597,9 @@ function FundingLayout({
   title,
   description,
   children,
+  busy = false,
 }: {
+  readonly busy?: boolean
   readonly title: string
   readonly description: string
   readonly children: ReactNode
@@ -463,7 +614,9 @@ function FundingLayout({
         <ShieldCheck size={28} color="var(--color-primary)" />
       </div>
       <div className="funding-layout">
-        <div className="stack">{children}</div>
+        <fieldset className="stack funding-form-fields" disabled={busy} aria-busy={busy}>
+          {children}
+        </fieldset>
         <Panel className="security-tips">
           <h2>
             <ShieldCheck size={20} /> {t("Security tips")}{" "}
@@ -482,17 +635,28 @@ function FundingLayout({
 function RecordPanel({
   title,
   records,
+  scales,
+  loading,
+  error,
 }: {
+  readonly loading: boolean
+  readonly error: string
   readonly title: string
+  readonly scales: Readonly<Record<string, string>>
   readonly records: readonly RecordRow[]
 }) {
+  const transfers = records.some((row) => text(row, "sourceAccountType"))
   return (
     <Panel>
       <div className="panel-heading">
         <h2>{title}</h2>
         <span className="muted">{t("Backend records")}</span>
       </div>
-      {records.length === 0 ? (
+      {loading ? (
+        <StateView kind="loading" message="Loading records" />
+      ) : error ? (
+        <StateView kind="error" message={error} />
+      ) : records.length === 0 ? (
         <StateView kind="empty" message="No records returned by the custody service." />
       ) : (
         <div className="table-wrap">
@@ -501,6 +665,7 @@ function RecordPanel({
               <tr>
                 <th>ID</th>
                 <th>{t("Asset")}</th>
+                {transfers ? <th>{t("Transfer route")}</th> : null}
                 <th>{t("Amount")}</th>
                 <th>{t("Status")}</th>
                 <th>{t("Created")}</th>
@@ -508,15 +673,45 @@ function RecordPanel({
             </thead>
             <tbody>
               {records.map((record, index) => (
-                <tr key={text(record, "id") || text(record, "withdrawalId") || String(index)}>
+                <tr
+                  key={
+                    text(record, "id") ||
+                    (text(record, "transferId")
+                      ? [
+                          text(record, "transferId"),
+                          text(record, "sourceAccountType"),
+                          text(record, "targetAccountType"),
+                          text(record, "referenceId"),
+                          text(record, "createdAt"),
+                        ].join(":")
+                      : "") ||
+                    text(record, "withdrawalId") ||
+                    String(index)
+                  }
+                >
                   <td className="mono">
                     {text(record, "id") ||
+                      text(record, "transferId") ||
                       text(record, "depositId") ||
                       text(record, "withdrawalId") ||
                       "—"}
                   </td>
                   <td>{text(record, "asset") || text(record, "assetSymbol") || "—"}</td>
-                  <td className="mono">{text(record, "amount") || "—"}</td>
+                  {transfers ? (
+                    <td>
+                      {accountLabel(text(record, "sourceAccountType"))} →{" "}
+                      {accountLabel(text(record, "targetAccountType"))}
+                    </td>
+                  ) : null}
+                  <td className="mono">
+                    {text(record, "amount") ||
+                      (text(record, "amountUnits") && scales[text(record, "asset")]
+                        ? signedUnitsToDecimal(
+                            text(record, "amountUnits"),
+                            scales[text(record, "asset")] ?? "1",
+                          )
+                        : "—")}
+                  </td>
                   <td>{text(record, "status") || "—"}</td>
                   <td>{text(record, "createdAt") || text(record, "updatedAt") || "—"}</td>
                 </tr>
@@ -535,11 +730,13 @@ function ActionSummary({
   state,
   onSubmit,
   action,
+  disabled = false,
 }: {
   readonly title: string
   readonly message: string
   readonly state: RequestState
   readonly onSubmit: () => void
+  readonly disabled?: boolean
   readonly action: string
 }) {
   return (
@@ -552,8 +749,8 @@ function ActionSummary({
       ) : (
         <p className="muted">{t("No request submitted.")}</p>
       )}
-      <Button loading={state === "loading"} onClick={() => void onSubmit()}>
-        {action}
+      <Button disabled={disabled} loading={state === "loading"} onClick={() => void onSubmit()}>
+        {t(action)}
       </Button>
     </Panel>
   )
@@ -594,21 +791,26 @@ function requestStatusAccepted(status: string): boolean {
     "PENDING",
     "PENDING_APPROVAL",
     "PROCESSING",
-    "DEBIT_UNKNOWN",
     "DEBITED",
     "SUBMITTED",
-    "BROADCAST_UNKNOWN",
     "SOURCE_DEBITED",
-    "TARGET_CREDIT_UNKNOWN",
     "COMPLETED",
   ].includes(status.trim().toUpperCase())
 }
 
-async function loadFundingBalances(): Promise<readonly RecordRow[]> {
-  return loadBalances(PRODUCT_LINES.spot, "FUNDING")
+const transferAccounts = ["FUNDING", ...Object.values(productAccounts)]
+function accountLabel(account: string) {
+  if (account === "FUNDING") return t("Funding account")
+  const line = (Object.keys(productAccounts) as ProductLine[]).find(
+    (line) => productAccounts[line] === account,
+  )
+  return line ? t(productLineLabels[line]) : account
 }
 
-async function loadAllTransferHistory(asset: string): Promise<readonly RecordRow[]> {
+async function loadAllTransferHistory(
+  asset: string,
+  signal: AbortSignal,
+): Promise<readonly RecordRow[]> {
   const productLines: readonly ProductLine[] = [
     PRODUCT_LINES.spot,
     PRODUCT_LINES.usdMPerpetual,
@@ -617,6 +819,23 @@ async function loadAllTransferHistory(asset: string): Promise<readonly RecordRow
     PRODUCT_LINES.coinMDelivery,
     PRODUCT_LINES.option,
   ]
-  const rows = await Promise.all(productLines.map((line) => loadTransferHistory(line, asset)))
-  return rows.flat()
+  const rows = await Promise.all(
+    productLines.map((line) => loadTransferHistory(line, asset, signal)),
+  )
+  const unique = new Map<string, RecordRow>()
+  for (const row of rows.flat())
+    unique.set(
+      JSON.stringify([
+        row.transferId,
+        row.sourceAccountType,
+        row.targetAccountType,
+        row.asset,
+        row.referenceId,
+        row.createdAt,
+      ]),
+      row,
+    )
+  return [...unique.values()].sort((left, right) =>
+    text(right, "createdAt").localeCompare(text(left, "createdAt")),
+  )
 }

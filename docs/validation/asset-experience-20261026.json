@@ -1,0 +1,2191 @@
+{
+  "browser": "153.0.8010.12",
+  "viewport": [
+    "1440x1000",
+    "390x844",
+    "320x760"
+  ],
+  "checks": [
+    "exact integer balances and totals; hiding removes amounts, allocation and percentages and persists on reload",
+    "search clear, zero filter, 320/390px complete balance cards and light/dark layout",
+    "a synced selected account remains usable while another enabled product is still syncing; overview does not show a partial total",
+    "FX failure preserves exact cash balances, hides USD estimates, and retries without navigating",
+    "history preserves exact transfer ID and amount; duplicate product reads merge identical records; failures clear records and recover on refresh",
+    "URL source preset; available balance follows funding/spot/linear accounts and clears while loading; cancelled old source cannot overwrite current balance",
+    "pending transfer locks fields and duplicate submission; explicit account enums and one minimal unit reach captured request; accepted response refreshes balances/history",
+    "unknown transfer response is not success, retains form and reuses the same reference on an unchanged in-tab retry",
+    "mobile balance cards show all cash fields and actions; transfer history scrolls horizontally to the remaining fields",
+    "Chinese labels keep raw account enums on the wire"
+  ],
+  "errors": [],
+  "samples": [
+    {
+      "second": 0,
+      "Nodes": 614,
+      "TaskDuration": 1.4e-05,
+      "JSHeapUsedSize": 27784460,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 10,
+      "Nodes": 614,
+      "TaskDuration": 0.171194,
+      "JSHeapUsedSize": 44055944,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 20,
+      "Nodes": 523,
+      "TaskDuration": 0.317019,
+      "JSHeapUsedSize": 22979076,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 30,
+      "Nodes": 523,
+      "TaskDuration": 0.392562,
+      "JSHeapUsedSize": 23787944,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 40,
+      "Nodes": 523,
+      "TaskDuration": 0.462457,
+      "JSHeapUsedSize": 24831644,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 50,
+      "Nodes": 523,
+      "TaskDuration": 0.531315,
+      "JSHeapUsedSize": 25497452,
+      "sockets": 1,
+      "subscriptions": 12
+    },
+    {
+      "second": 60,
+      "Nodes": 523,
+      "TaskDuration": 0.61135,
+      "JSHeapUsedSize": 25725808,
+      "sockets": 1,
+      "subscriptions": 12
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=en-US&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/balances",
+      "query": "?userId=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=SPOT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "",
+      "body": "{\"userId\":\"1\",\"sourceAccountType\":\"USDT_PERPETUAL\",\"targetAccountType\":\"FUNDING\",\"asset\":\"USDT\",\"amountUnits\":\"1\",\"referenceId\":\"transfer-ac8cfdf1-9986-401e-8f9f-b8cbdd24885a\",\"reason\":\"web product transfer\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "",
+      "body": "{\"userId\":\"1\",\"sourceAccountType\":\"USDT_PERPETUAL\",\"targetAccountType\":\"FUNDING\",\"asset\":\"USDT\",\"amountUnits\":\"2\",\"referenceId\":\"transfer-9440d529-d661-4855-a019-3322fb5297f2\",\"reason\":\"web product transfer\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "",
+      "body": "{\"userId\":\"1\",\"sourceAccountType\":\"USDT_PERPETUAL\",\"targetAccountType\":\"FUNDING\",\"asset\":\"USDT\",\"amountUnits\":\"2\",\"referenceId\":\"transfer-9440d529-d661-4855-a019-3322fb5297f2\",\"reason\":\"web product transfer\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=USDT_PERPETUAL"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=SPOT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "",
+      "body": "{\"userId\":\"1\",\"sourceAccountType\":\"SPOT\",\"targetAccountType\":\"FUNDING\",\"asset\":\"USDT\",\"amountUnits\":\"100000000\",\"referenceId\":\"transfer-384b1496-0e9c-4553-84a7-e7673c1e3533\",\"reason\":\"web product transfer\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/product-balances",
+      "query": "?userId=1&accountType=SPOT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/balances",
+      "query": "?userId=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/balances",
+      "query": "?userId=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/balances",
+      "query": "?userId=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/balances",
+      "query": "?userId=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=SPOT&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_PERPETUAL&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=USDT_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=COIN_DELIVERY&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/account/transfers",
+      "query": "?limit=100&accountType=OPTION&asset=USDT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=CENTER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=BANNER&offset=0&limit=1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/announcements",
+      "query": "?locale=zh-CN&productLine=ALL&platform=WEB&placement=MODAL&offset=0&limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/list",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/price-fx/convert",
+      "query": "?amount=1&fromCurrency=USDT&toCurrency=USD"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/gateway/instrument/asset-scales",
+      "query": ""
+    }
+  ],
+  "limitations": [
+    "Intercepted HTTP/WS contracts; no live exchange, custody, funds or transfer recovery verification.",
+    "Retry reference is retained only for the mounted form, not persisted across reloads."
+  ],
+  "commands": {
+    "bun run lint": "exit 0; 676 informational diagnostics, no errors or warnings",
+    "bun run test": "518 pass, 0 fail, 57 files",
+    "bun run build": "exit 0; includes tsc -b",
+    "browser": "10 checks, 0 page errors",
+    "bun run typecheck": "exit 0",
+    "Chinese asset browser smoke": "exact cards, translated labels and unknown-account recovery: pass"
+  },
+  "screenshots": [
+    "assets-balance-cards-mobile-light.png",
+    "assets-cards-mobile-zh.png",
+    "assets-desktop-light.png",
+    "assets-invalid-account.png",
+    "assets-invalid-mobile-zh.png",
+    "assets-mobile-dark.png",
+    "assets-mobile-light.png",
+    "transfer-desktop-dark.png",
+    "transfer-history-mobile-zh.png",
+    "transfer-mobile-dark.png",
+    "transfer-mobile-zh.png"
+  ],
+  "artifactDirectory": "/Users/atomex/.codex/artifacts/surprising-assets-20261026/client"
+}

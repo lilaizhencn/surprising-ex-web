@@ -342,3 +342,8 @@ The market list now selects all six product lines explicitly, shares favorites w
 and provides precise quotes, two-way sorting and responsive cards. Fifty-item pages bound live subscriptions;
 filtering and global pagination use the latest ten-second catalog snapshot. See the
 [market validation record](docs/validation/market-experience-20261026.md) for browser coverage and limits.
+
+Asset accounts now retain exact integer quantities, offer persistent privacy controls and responsive balance cards,
+and keep incomplete USD totals unavailable. Transfer balances follow the selected source account and product;
+pending forms lock their target, and unresolved in-tab retries retain the original reference. See the
+[Chinese guide](README_CN.md#资产账户与划转体验) and [isolated browser record](docs/validation/asset-experience-20261026.md).
