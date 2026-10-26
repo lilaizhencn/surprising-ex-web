@@ -35,6 +35,7 @@ export function DepositPage() {
   const [qr, setQr] = useState({ key: "", url: "" })
   const [qrError, setQrError] = useState("")
   const [notice, setNotice] = useState("")
+  const [historyRevision, setHistoryRevision] = useState(0)
   const [history, setHistory] = useState<{
     key: string
     rows: readonly (Readonly<Record<string, unknown>> & {
@@ -48,7 +49,7 @@ export function DepositPage() {
     error: string
   } | null>(null)
   const assets = catalog?.token === session?.accessToken ? (catalog?.rows ?? []) : []
-  const asset = assets.find((row) => row.asset === selection.asset) ?? assets[0]
+  const asset = selection.asset ? assets.find((row) => row.asset === selection.asset) : assets[0]
   const network = asset?.networks.find((row) => row.networkCode === selection.network)
   const assetCode = asset?.asset ?? ""
   const networkCode = network?.networkCode ?? ""
@@ -65,10 +66,20 @@ export function DepositPage() {
       (rows) => {
         if (abort.signal.aborted) return
         setCatalog({ token, rows })
-        const selected = rows.find((row) => row.asset === requestedAsset) ?? rows[0]
-        setSelection({
-          asset: selected?.asset ?? "",
-          network: selected?.networks.length === 1 ? (selected.networks[0]?.networkCode ?? "") : "",
+        setSelection((current) => {
+          const code = current.asset || requestedAsset
+          const selected = code ? rows.find((row) => row.asset === code) : rows[0]
+          const selectedNetwork = selected?.networks.find(
+            (row) => row.networkCode === current.network,
+          )
+          return {
+            asset: selected?.asset ?? code,
+            network:
+              selectedNetwork?.networkCode ??
+              (!current.network && selected?.networks.length === 1
+                ? (selected.networks[0]?.networkCode ?? "")
+                : ""),
+          }
         })
       },
       (reason) => {
@@ -122,19 +133,20 @@ export function DepositPage() {
 
   useEffect(() => {
     if (!token || !assetCode || !networkCode) return
-    let active = true
-    void loadDepositHistory(assetCode, networkCode).then(
+    const controller = new AbortController()
+    setHistory(null)
+    void loadDepositHistory(assetCode, networkCode, controller.signal).then(
       (rows) => {
-        if (active) setHistory({ key, rows, error: "" })
+        if (!controller.signal.aborted) setHistory({ key, rows, error: "" })
       },
       (reason) => {
-        if (active) setHistory({ key, rows: [], error: readError(reason) })
+        if (!controller.signal.aborted) setHistory({ key, rows: [], error: readError(reason) })
       },
     )
     return () => {
-      active = false
+      controller.abort()
     }
-  }, [key, token, assetCode, networkCode])
+  }, [key, token, assetCode, networkCode, historyRevision])
 
   const copy = async (value: string) => {
     try {
@@ -169,40 +181,47 @@ export function DepositPage() {
             ) : !assets.length ? (
               <p role="status">{t("No deposit assets are currently available.")}</p>
             ) : (
-              <div className="grid-2">
-                <Field label={t("Asset")}>
-                  <FundingAssetSelect
-                    assets={assets}
-                    value={assetCode}
-                    onChange={(value) => {
-                      const nextAsset = assets.find((row) => row.asset === value)
-                      setSelection({
-                        asset: value,
-                        network:
-                          nextAsset?.networks.length === 1
-                            ? (nextAsset.networks[0]?.networkCode ?? "")
-                            : "",
-                      })
-                    }}
-                  />
-                </Field>
-                <Field label={t("Network")}>
-                  <DropdownSelect
-                    aria-label={t("Network")}
-                    value={networkCode}
-                    onChange={(event) =>
-                      setSelection({ asset: assetCode, network: event.target.value })
-                    }
-                  >
-                    <option value="">{t("Select network")}</option>
-                    {asset?.networks.map((row) => (
-                      <option
-                        key={row.networkCode}
-                        value={row.networkCode}
-                      >{`${row.displayName} (${row.networkCode})`}</option>
-                    ))}
-                  </DropdownSelect>
-                </Field>
+              <div className="stack">
+                {!asset && selection.asset ? (
+                  <p role="status">
+                    {t("This asset is not enabled for deposits. Select an available asset.")}
+                  </p>
+                ) : null}
+                <div className="grid-2">
+                  <Field label={t("Asset")}>
+                    <FundingAssetSelect
+                      assets={assets}
+                      value={assetCode}
+                      onChange={(value) => {
+                        const nextAsset = assets.find((row) => row.asset === value)
+                        setSelection({
+                          asset: value,
+                          network:
+                            nextAsset?.networks.length === 1
+                              ? (nextAsset.networks[0]?.networkCode ?? "")
+                              : "",
+                        })
+                      }}
+                    />
+                  </Field>
+                  <Field label={t("Network")}>
+                    <DropdownSelect
+                      aria-label={t("Network")}
+                      value={networkCode}
+                      onChange={(event) =>
+                        setSelection({ asset: assetCode, network: event.target.value })
+                      }
+                    >
+                      <option value="">{t("Select network")}</option>
+                      {asset?.networks.map((row) => (
+                        <option
+                          key={row.networkCode}
+                          value={row.networkCode}
+                        >{`${row.displayName} (${row.networkCode})`}</option>
+                      ))}
+                    </DropdownSelect>
+                  </Field>
+                </div>
               </div>
             )}
           </Panel>
@@ -292,8 +311,17 @@ export function DepositPage() {
           ) : null}
           <Panel>
             <h2>{t("Deposit history")}</h2>
-            {history?.key === key && history.error ? (
-              <p role="alert">{history.error}</p>
+            {!assetCode || !networkCode ? (
+              <p>{t("Choose an asset and network to view deposit records.")}</p>
+            ) : history?.key !== key ? (
+              <p role="status">{t("Loading records")}</p>
+            ) : history.error ? (
+              <div role="alert">
+                <p>{history.error}</p>
+                <Button onClick={() => setHistoryRevision((value) => value + 1)}>
+                  {t("Retry deposit records")}
+                </Button>
+              </div>
             ) : history?.key === key && history.rows.length ? (
               <div className="table-wrap">
                 <table className="data-table">

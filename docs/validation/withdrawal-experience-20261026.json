@@ -1,0 +1,131 @@
+{
+  "browser": "153.0.8010.12",
+  "checks": [
+    "catalog failure/retry; exact available balance, minimum, precision and insufficient-funds validation before sending",
+    "a disabled selected network clears the selection and requires a new explicit network choice",
+    "the funding top-up link preserves the asset and presets a product source and funding destination",
+    "configured network fee stays precise; review shows complete address/network/amount/fee, Escape restores focus, and no POST occurs before confirmation",
+    "another tab’s stored request invalidates an open confirmation; unavailable clipboard is recoverable without crashing or sending another request",
+    "denied durable storage prevents POST; unknown response preserves original details/reference across reload without saving security codes or allowing a new request",
+    "cross-tab lock allows only one in-flight retry; the original body/reference is reused; recorded response synchronizes across tabs without claiming blockchain completion",
+    "an explicit first-request policy rejection is shown separately and requires an explicit new-request action",
+    "asset-scoped history cancels stale reads, failure clears old records and retries; disabled SPOT does not show a spendable zero balance",
+    "failed receipt removal retains the original request; switching login owners hides another user’s pending request and restoring the owner restores its reference without POST",
+    "an unsupported requested asset never silently switches to another asset or allocates its deposit address; an explicit available-asset selection is required",
+    "deposit network amounts normalize exactly; records distinguish loading, error and real empty; retry does not reassign the deposit address",
+    "light/dark and Chinese layouts at 1440/390/320px fit; corrupt stored intent blocks a replacement submission and offers recovery"
+  ],
+  "errors": [],
+  "samples": [
+    {
+      "second": 0,
+      "Nodes": 414,
+      "TaskDuration": 3.5e-05,
+      "JSHeapUsedSize": 23356392,
+      "requests": 270
+    },
+    {
+      "second": 10,
+      "Nodes": 387,
+      "TaskDuration": 0.092959,
+      "JSHeapUsedSize": 21676752,
+      "requests": 281
+    },
+    {
+      "second": 20,
+      "Nodes": 387,
+      "TaskDuration": 0.094398,
+      "JSHeapUsedSize": 21697608,
+      "requests": 281
+    },
+    {
+      "second": 30,
+      "Nodes": 387,
+      "TaskDuration": 0.095632,
+      "JSHeapUsedSize": 21708932,
+      "requests": 281
+    },
+    {
+      "second": 40,
+      "Nodes": 387,
+      "TaskDuration": 0.097099,
+      "JSHeapUsedSize": 21725040,
+      "requests": 281
+    },
+    {
+      "second": 50,
+      "Nodes": 387,
+      "TaskDuration": 0.098329,
+      "JSHeapUsedSize": 21726160,
+      "requests": 281
+    },
+    {
+      "second": 60,
+      "Nodes": 387,
+      "TaskDuration": 0.100489,
+      "JSHeapUsedSize": 21745328,
+      "requests": 281
+    }
+  ],
+  "limitations": [
+    "HTTP fixtures only; no real funds, custody, KYC, security-code or approval execution.",
+    "No live crash/restart or blockchain recovery verified."
+  ],
+  "requestCounts": {
+    "GET /api/v1/runtime": 43,
+    "GET /api/v1/announcements": 138,
+    "GET /api/v1/wallet/withdrawals": 22,
+    "GET /api/v1/wallet/assets": 22,
+    "GET /api/v1/gateway/account/balances": 21,
+    "GET /api/v1/gateway/instrument/asset-scales": 22,
+    "GET /api/v1/gateway/account/product-balances": 1,
+    "GET /api/v1/gateway/account/transfers": 6,
+    "POST /api/v1/wallet/withdrawals": 3,
+    "POST /api/v1/wallet/deposit-address": 1,
+    "GET /api/v1/wallet/deposits": 2
+  },
+  "writes": [
+    {
+      "path": "/api/v1/wallet/withdrawals",
+      "body": "{\"chain\":\"ETH\",\"assetSymbol\":\"USDT\",\"toAddress\":\"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"amount\":\"0.05\",\"externalReference\":\"withdraw-67a1a9df-d121-4cd5-9612-ed8f1d5a2756\"}",
+      "reference": "withdraw-67a1a9df-d121-4cd5-9612-ed8f1d5a2756",
+      "approvalId": null
+    },
+    {
+      "path": "/api/v1/wallet/withdrawals",
+      "body": "{\"chain\":\"ETH\",\"assetSymbol\":\"USDT\",\"toAddress\":\"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"amount\":\"0.05\",\"externalReference\":\"withdraw-67a1a9df-d121-4cd5-9612-ed8f1d5a2756\"}",
+      "reference": "withdraw-67a1a9df-d121-4cd5-9612-ed8f1d5a2756",
+      "approvalId": null
+    },
+    {
+      "path": "/api/v1/wallet/withdrawals",
+      "body": "{\"chain\":\"ETH\",\"assetSymbol\":\"USDT\",\"toAddress\":\"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"amount\":\"0.05\",\"externalReference\":\"withdraw-affcfecf-8d57-444d-84e3-2b4f4e8f11cf\"}",
+      "reference": "withdraw-affcfecf-8d57-444d-84e3-2b4f4e8f11cf",
+      "approvalId": null
+    },
+    {
+      "path": "/api/v1/wallet/deposit-address",
+      "body": "{\"asset\":\"USDT\",\"network\":\"ETH\"}",
+      "reference": null,
+      "approvalId": null
+    }
+  ],
+  "commands": {
+    "bun run lint": "exit 0; no warnings/errors; 694 infos",
+    "bun run typecheck": "exit 0",
+    "bun run test": "524 passed, 0 failed; 58 files",
+    "bun run build": "exit 0",
+    "browser": "13 checks; 0 uncaught/unexpected console errors",
+    "asset/transfer regression": "10 checks; 0 errors"
+  },
+  "screenshots": [
+    "deposit-records-mobile-light.png",
+    "withdraw-desktop-dark-zh.png",
+    "withdraw-desktop-light.png",
+    "withdraw-mobile-320-light.png",
+    "withdraw-mobile-dark-zh.png",
+    "withdraw-recorded-mobile-light.png",
+    "withdraw-review-mobile-light.png"
+  ],
+  "artifactDirectory": "/Users/atomex/.codex/artifacts/surprising-withdrawal-20261026/client"
+}

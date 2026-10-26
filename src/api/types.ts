@@ -231,6 +231,10 @@ export const BalanceListSchema = z
     items: z.array(BalanceSchema).optional(),
   })
   .passthrough()
+  .refine(
+    (value) => Array.isArray(value.balances) || Array.isArray(value.items),
+    "Missing balance collection",
+  )
 
 export const PositionSchema = z
   .object({

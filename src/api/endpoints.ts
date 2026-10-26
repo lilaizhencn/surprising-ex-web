@@ -218,7 +218,7 @@ export const authApi = {
   me: () => request("/api/v1/auth/me", JwtPrincipalSchema),
 }
 
-export async function loadRuntimeProducts(): Promise<readonly ProductLine[]> {
+export async function loadRuntimeProducts(signal?: AbortSignal): Promise<readonly ProductLine[]> {
   const result = await request(
     "/api/v1/runtime",
     z.object({
@@ -235,6 +235,7 @@ export async function loadRuntimeProducts(): Promise<readonly ProductLine[]> {
         )
         .min(1),
     }),
+    signal ? { signal } : {},
   )
   return result.productLines
 }
@@ -1765,12 +1766,16 @@ export function createDepositAddress(chain: string) {
   })
 }
 
-export function loadDepositHistory(asset?: string, chain?: string) {
+export function loadDepositHistory(asset?: string, chain?: string, signal?: AbortSignal) {
   const query = new URLSearchParams()
   if (asset) query.set("asset", asset)
   if (chain) query.set("chain", chain)
   query.set("limit", "50")
-  return request(`/api/v1/wallet/deposits?${query.toString()}`, WalletRecordsSchema)
+  return request(
+    `/api/v1/wallet/deposits?${query.toString()}`,
+    WalletRecordsSchema,
+    signal ? { signal } : {},
+  )
 }
 
 export function loadWithdrawalHistory(asset?: string, chain?: string, signal?: AbortSignal) {

@@ -347,3 +347,8 @@ Asset accounts now retain exact integer quantities, offer persistent privacy con
 and keep incomplete USD totals unavailable. Transfer balances follow the selected source account and product;
 pending forms lock their target, and unresolved in-tab retries retain the original reference. See the
 [Chinese guide](README_CN.md#资产账户与划转体验) and [isolated browser record](docs/validation/asset-experience-20261026.md).
+
+Withdrawals now review the complete recipient/network details and retain an owner-bound request reference before sending.
+Refresh and cross-tab recovery reuse the original request without storing security codes. Deposit records distinguish loading,
+failed reads and real empty results; unsupported requested assets require an explicit new selection. See the
+[Chinese guide](README_CN.md) and [browser validation](docs/validation/withdrawal-experience-20261026.md).

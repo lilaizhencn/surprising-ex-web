@@ -1,0 +1,329 @@
+.withdraw-page p {
+  font-size: var(--font-body-small);
+  line-height: 1.7;
+}
+.withdraw-page {
+  max-width: 1200px;
+}
+.withdraw-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  font-size: var(--font-body-small);
+}
+.withdraw-page .page-heading {
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+}
+.withdraw-page .page-heading > div {
+  min-width: 0;
+}
+.withdraw-page .page-heading > svg {
+  color: var(--color-ink-subtle);
+  flex-shrink: 0;
+  margin-top: var(--space-2);
+}
+.withdraw-page .page-heading p {
+  color: var(--color-ink-muted);
+  line-height: 1.7;
+  max-width: 62ch;
+}
+.withdraw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: var(--space-5);
+  align-items: start;
+}
+.withdraw-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+.withdraw-main > .panel,
+.withdraw-fields > .panel {
+  min-width: 0;
+}
+.withdraw-page h2 {
+  margin: 0;
+  font-size: var(--font-h3);
+  font-weight: 600;
+}
+.withdraw-panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.withdraw-step {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  font-size: var(--font-label);
+  color: var(--color-ink-muted);
+}
+.withdraw-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.withdraw-network-note {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  color: var(--color-ink-subtle);
+  margin-bottom: 0;
+}
+.withdraw-page .withdraw-network-note > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.withdraw-available {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+}
+.withdraw-available > strong {
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.withdraw-available > .button {
+  margin-left: auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: var(--space-2);
+}
+.withdraw-page .number-input {
+  min-height: 52px;
+}
+.withdraw-limits,
+.withdraw-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-5) 0;
+}
+.withdraw-limits dt,
+.withdraw-details dt,
+.withdraw-history dt {
+  color: var(--color-ink-subtle);
+  font-size: var(--font-label);
+  margin-bottom: var(--space-2);
+}
+.withdraw-limits dd,
+.withdraw-details dd,
+.withdraw-history dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-body-small);
+  line-height: 1.6;
+}
+.withdraw-wide {
+  grid-column: 1 / -1;
+}
+.withdraw-side .panel {
+  padding: var(--space-5);
+}
+.withdraw-page .withdraw-side svg {
+  color: var(--color-ink-muted);
+}
+.withdraw-side h2 {
+  margin-top: var(--space-4);
+}
+.withdraw-side ol {
+  padding-left: var(--space-5);
+  margin: var(--space-5) 0;
+  display: grid;
+  gap: var(--space-4);
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+  line-height: 1.7;
+}
+.withdraw-side .route-link {
+  display: inline-flex;
+  gap: var(--space-2);
+  font-size: var(--font-body-small);
+  line-height: 1.6;
+}
+.withdraw-code-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.withdraw-page .withdraw-code-action p {
+  flex: 1;
+  margin: 0;
+  min-width: 180px;
+  color: var(--color-ink-muted);
+}
+.withdraw-submit > .button {
+  width: 100%;
+  min-height: 48px;
+}
+.withdraw-submit > p:last-child {
+  color: var(--color-ink-subtle);
+  margin-bottom: 0;
+}
+.withdraw-receipt-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.withdraw-page .withdraw-receipt-title > svg {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+.withdraw-page .withdraw-receipt-title p {
+  margin-bottom: 0;
+  color: var(--color-ink-muted);
+}
+.withdraw-reference {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  font-size: var(--font-label);
+}
+.withdraw-reference > span {
+  width: 100%;
+  color: var(--color-ink-subtle);
+}
+.withdraw-reference code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.withdraw-reference .button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-2);
+}
+.withdraw-status {
+  overflow-wrap: anywhere;
+}
+.withdraw-receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.withdraw-history-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.withdraw-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.withdraw-history > li {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border-soft);
+}
+.withdraw-history > li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.withdraw-history-title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-body-small);
+  overflow-wrap: anywhere;
+}
+.withdraw-history-title > span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-label);
+}
+.withdraw-history dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: 0;
+}
+.withdraw-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.withdraw-dialog-actions .button {
+  min-height: 44px;
+}
+.withdraw-notice {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 960px) {
+  .withdraw-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .withdraw-side {
+    order: 1;
+  }
+}
+@media (max-width: 600px) {
+  .withdraw-page .page-heading {
+    flex-direction: row;
+  }
+  .withdraw-page .page-heading h1 {
+    font-size: var(--font-h2);
+  }
+  .withdraw-main .panel {
+    padding: var(--space-5);
+  }
+  .withdraw-main .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .withdraw-limits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .withdraw-receipt-actions > .button {
+    width: 100%;
+  }
+  .withdraw-dialog-actions > .button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .withdraw-dialog-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .withdraw-dialog-actions .button {
+    width: 100%;
+    white-space: nowrap;
+  }
+}
+
+.withdraw-receipt.unconfirmed .withdraw-receipt-title > svg {
+  color: var(--color-warning);
+}
+.withdraw-receipt.rejected .withdraw-receipt-title > svg {
+  color: var(--color-negative);
+}
+
+.withdraw-receipt {
+  scroll-margin-top: 90px;
+}
