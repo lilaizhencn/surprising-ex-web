@@ -1,0 +1,140 @@
+{
+  "recordedAt": "2026-10-26T16:15:04.457389+00:00",
+  "localDate": "2026-10-27",
+  "baseCommit": "9ad79ba23c98121a78524c822ec3e226f3572762",
+  "fixtureOnly": true,
+  "artifacts": "/Users/atomex/.codex/artifacts/surprising-security-20261026/client",
+  "commands": [
+    {
+      "command": "npm run lint -- --diagnostic-level=error",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "unitTests": {
+    "passed": 533,
+    "failed": 0,
+    "files": 61
+  },
+  "browser": {
+    "checks": [
+      "key list error never becomes empty; permission/IP review, one create, pending dialog lock, masked one-time receipt, copy failure/retry and explicit secret dismissal",
+      "editing an exact key IP/CIDR allowlist sends one PATCH and refreshes the saved addresses",
+      "incomplete create receipt cannot silently succeed; full revoke target is shown and unknown result requires a fresh key read",
+      "owner change cancels old key reads; device/IP partial failure preserves devices; exact session/device target sign-out and verified blocking refresh actual state",
+      "missing MFA requirements disable sensitive writes; password confirmation and single submit, failed scene refresh/retry, mandatory withdrawal protection, no password/secret persistence",
+      "1440/390/320 light/dark layouts, guest sign-in, repeated navigation and 60-second runtime observation"
+    ],
+    "errors": [],
+    "samples": [
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0,
+        "TaskDuration": 0.026428,
+        "JSHeapUsedSize": 20181468
+      },
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0.000704,
+        "TaskDuration": 0.042216,
+        "JSHeapUsedSize": 20206888
+      },
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0.001135,
+        "TaskDuration": 0.062081,
+        "JSHeapUsedSize": 20221064
+      },
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0.001444,
+        "TaskDuration": 0.063133,
+        "JSHeapUsedSize": 20222876
+      },
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0.001732,
+        "TaskDuration": 0.064397,
+        "JSHeapUsedSize": 20233600
+      },
+      {
+        "JSEventListeners": 211,
+        "Nodes": 310,
+        "ScriptDuration": 0.001856,
+        "TaskDuration": 0.065691,
+        "JSHeapUsedSize": 20234720
+      },
+      {
+        "JSEventListeners": 234,
+        "Nodes": 310,
+        "ScriptDuration": 0.011295,
+        "TaskDuration": 0.07858,
+        "JSHeapUsedSize": 21003320
+      }
+    ],
+    "retained": {
+      "JSEventListeners": 211,
+      "Nodes": 310,
+      "ScriptDuration": 0.011295,
+      "TaskDuration": 0.090768,
+      "JSHeapUsedSize": 20247300
+    },
+    "browser": "153.0.8010.12",
+    "fixtureOnly": true
+  },
+  "observation": {
+    "durationSeconds": 60,
+    "sampleIntervalSeconds": 10,
+    "taskDurationDeltaMs": 52.152,
+    "scriptDurationDeltaMs": 11.295,
+    "nodesBefore": 310,
+    "nodesAfterGc": 310,
+    "listenersBefore": 211,
+    "listenersAfterGc": 211,
+    "heapBeforeBytes": 20181468,
+    "heapAfterGcBytes": 20247300,
+    "limitation": "Short local observation; not a production performance or long-term leak conclusion."
+  },
+  "screenshots": [
+    "account-security-desktop-dark.png",
+    "account-security-mobile-320.png",
+    "account-security-mobile-390.png",
+    "account-security-mobile-dark.png",
+    "api-keys-desktop-dark.png",
+    "api-keys-mobile-320.png",
+    "api-keys-mobile-390.png",
+    "api-keys-mobile-dark.png",
+    "api-secret-receipt-desktop-light.png",
+    "api-secret-receipt-mobile-320.png",
+    "api-secret-receipt-mobile-390.png",
+    "devices-desktop-dark.png",
+    "devices-mobile-320.png",
+    "devices-mobile-390.png",
+    "devices-mobile-dark.png"
+  ],
+  "scriptSha256": "9e0b785fa6e776621c20864e03eb1424e3c297f971adcb435557ff8f640f1c24",
+  "limits": [
+    "No real credentials, account security changes, roles or approval decisions.",
+    "No backend financial or six-product contract changes; real integration and recovery were not rerun."
+  ]
+}

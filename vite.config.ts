@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
           ws: true,
           rewrite: (path) => path.replace(/^\/ws\/option/, "/ws"),
         },
-        "/api": {
+        "^/api/": {
           target: env.VITE_API_PROXY_TARGET || "http://localhost:9094",
           changeOrigin: true,
         },

@@ -55,6 +55,8 @@ export function useBrowserNavigation(): string {
     window.addEventListener("popstate", syncLocation)
     window.addEventListener(navigationEvent, syncLocation)
     document.addEventListener("click", navigate)
+    // A child can redirect during its mount effect before these listeners exist.
+    syncLocation()
     return () => {
       document.removeEventListener("click", navigate)
       window.removeEventListener("popstate", syncLocation)

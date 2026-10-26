@@ -639,8 +639,51 @@ export const KycProviderSchema = z.object({
   provider: z.enum(["SELF", "SUMSUB", "VERIFF"]),
   simulationEnabled: z.boolean(),
 })
-export const SecurityApiKeySchema = GenericObjectSchema
-export const SecurityApiKeyListSchema = z.array(SecurityApiKeySchema)
+export const MfaStatusSchema = z.object({ enabled: z.boolean() }).passthrough()
+export const SecuritySceneSchema = z
+  .object({
+    sceneCode: z.enum([
+      "LOGIN",
+      "CHANGE_PASSWORD",
+      "SECURITY_SETTINGS",
+      "WITHDRAWAL",
+      "API_WITHDRAWAL",
+      "WHITELIST",
+      "LARGE_TRANSFER",
+      "TRANSFER",
+    ]),
+    label: z.string(),
+    enabled: z.boolean(),
+  })
+  .refine((scene) => !["WITHDRAWAL", "API_WITHDRAWAL"].includes(scene.sceneCode) || scene.enabled)
+export const SecuritySceneListSchema = z
+  .array(SecuritySceneSchema)
+  .refine((rows) => new Set(rows.map((row) => row.sceneCode)).size === rows.length)
+export const SecurityApiKeySchema = z.object({
+  apiKey: z.string().regex(/^sx_[A-Za-z0-9_-]{20,80}$/),
+  label: z.string().min(1).max(80),
+  permissions: z.string().refine((value) => {
+    const permissions = value.split(",")
+    return (
+      permissions.includes("READ") &&
+      new Set(permissions).size === permissions.length &&
+      permissions.every((permission) => ["READ", "TRADE", "WITHDRAW"].includes(permission))
+    )
+  }),
+  status: z.enum(["ACTIVE", "REVOKED"]),
+  ipAllowlist: z.array(z.string().min(1).max(64)).max(100),
+  createdAt: z.iso.datetime({ offset: true }),
+  lastUsedAt: z.iso.datetime({ offset: true }).nullable(),
+  revokedAt: z.iso.datetime({ offset: true }).nullable(),
+})
+export const SecurityApiKeyListSchema = z
+  .array(SecurityApiKeySchema)
+  .refine((rows) => new Set(rows.map((row) => row.apiKey)).size === rows.length)
+export const CreatedApiKeySchema = z.object({
+  apiKey: SecurityApiKeySchema,
+  secret: z.string().min(1),
+})
+export type ApiSecurityKey = z.infer<typeof SecurityApiKeySchema>
 
 export const UserSessionSchema = z
   .object({
@@ -657,19 +700,19 @@ export const UserSessionSchema = z
   .passthrough()
 
 export const DeviceStatusSchema = z.object({
-  sessionId: IdentifierSchema,
+  sessionId: PositiveInt64Schema,
   deviceId: z.string().nullable(),
   userAgent: z.string().nullable(),
   ipAddress: z.string().nullable(),
-  lastSeen: z.string(),
+  lastSeen: z.iso.datetime({ offset: true }),
   active: z.boolean(),
   current: z.boolean(),
   blocked: z.boolean(),
 })
 export const IpStatusSchema = z.object({
   ipAddress: z.string(),
-  loginCount: z.number(),
-  lastSeen: z.string(),
+  loginCount: NonnegativeInt64TextSchema,
+  lastSeen: z.iso.datetime({ offset: true }),
   blocked: z.boolean(),
 })
 

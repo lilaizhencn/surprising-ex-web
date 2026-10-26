@@ -1,0 +1,100 @@
+.security-action-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.security-target {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+.security-target code,
+.security-target p,
+.security-impact,
+.security-notice {
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.security-target p {
+  margin: 0;
+  font-size: 13px;
+}
+.security-impact {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+.security-notice {
+  padding: 12px 0;
+}
+.api-key-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.api-key-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+.api-key-card .panel-heading {
+  margin: 0;
+  gap: 12px;
+}
+.api-key-card h3 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.api-key-identifier {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.api-key-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.security-tools-page .button-row,
+.security-dialog .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.api-ip-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-left: 20px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.api-secret-input {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+}
+.security-tools-page .page-heading > svg {
+  flex: 0 0 auto;
+}
+@media (max-width: 760px) {
+  .api-key-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .security-tools-page .page-heading > svg {
+    display: none;
+  }
+  .security-tools-page .panel-heading {
+    flex-wrap: wrap;
+  }
+}

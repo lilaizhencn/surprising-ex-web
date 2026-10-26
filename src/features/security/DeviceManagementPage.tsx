@@ -1,5 +1,5 @@
 import { MonitorSmartphone, ShieldBan } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   changeDeviceBlock,
   changeIpBlock,
@@ -11,9 +11,12 @@ import {
   revokeUserSession,
 } from "../../api/endpoints"
 import type { ApiDeviceStatus, ApiIpStatus } from "../../api/types"
-import { Badge, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
+import { Badge, Button, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
+import { useSession } from "../../state/session"
 import { SecurityActionDialog } from "./SecurityActionDialog"
+import { VerificationFields } from "./VerificationFields"
+import "./SecurityPages.css"
 
 type Action = {
   kind: "device" | "ip"
@@ -28,20 +31,51 @@ type DeviceTableRow = {
 }
 
 export function DeviceManagementPage() {
+  const session = useSession()
+  return session ? (
+    <AccountDevices key={String(session.user.userId)} />
+  ) : (
+    <div className="account-content security-tools-page">
+      <h1>{t("Device management")}</h1>
+      <Panel>
+        <p>{t("Sign in to manage account security.")}</p>
+        <a className="button button-primary" href="/auth/login">
+          {t("Go to login")}
+        </a>
+      </Panel>
+    </div>
+  )
+}
+function AccountDevices() {
   const [devices, setDevices] = useState<readonly ApiDeviceStatus[]>([])
   const [ips, setIps] = useState<readonly ApiIpStatus[]>([])
   const [action, setAction] = useState<Action | null>(null)
   const [emailCode, setEmailCode] = useState("")
   const [totpCode, setTotpCode] = useState("")
   const [message, setMessage] = useState("")
+  const [info, setInfo] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [mfaStatusLoaded, setMfaStatusLoaded] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [devicesReady, setDevicesReady] = useState(false)
+  const [ipsReady, setIpsReady] = useState(false)
+  const [writeBlocked, setWriteBlocked] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [notice, setNotice] = useState("")
+  const [reload, setReload] = useState(0)
+  const lock = useRef(false)
+  const lifetime = useRef<AbortController | null>(null)
+  useEffect(() => {
+    const abort = new AbortController()
+    lifetime.current = abort
+    return () => abort.abort()
+  }, [])
   const visibleIps = ips.filter((ip) => !isPrivateIp(ip.ipAddress))
   const rows: DeviceTableRow[] = [
     ...devices.map((device) => ({
-      key: device.deviceId ?? `session-${device.sessionId}`,
+      key: `session-${device.sessionId}`,
       device,
       ip: device.ipAddress
         ? visibleIps.find((item) => item.ipAddress === device.ipAddress)
@@ -55,58 +89,145 @@ export function DeviceManagementPage() {
   const pageSize = 8
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize))
   const currentPage = Math.min(page, pageCount - 1)
-  const refresh = () => {
+  const refresh = () => setReload((value) => value + 1)
+  useEffect(() => {
+    const abort = new AbortController()
+    setLoading(true)
     setMfaStatusLoaded(false)
-    setBusy(true)
-    void Promise.all([loadDevices(), loadLoginIps(), loadMfaStatus()])
-      .then(
-        ([deviceRows, ipRows, mfaStatus]) => {
-          setDevices(deviceRows)
-          setIps(ipRows)
-          setMfaEnabled(mfaStatus["enabled"] === true)
-          setMfaStatusLoaded(true)
-          setError("")
-        },
-        (reason: unknown) => setError(readError(reason)),
-      )
-      .finally(() => setBusy(false))
-  }
-  useEffect(refresh, [])
+    setDevicesReady(false)
+    setIpsReady(false)
+    setDevices([])
+    setIps([])
+    setError("")
+    void Promise.allSettled([
+      loadDevices(abort.signal),
+      loadLoginIps(abort.signal),
+      loadMfaStatus(abort.signal),
+    ]).then(([deviceResult, ipResult, security]) => {
+      if (abort.signal.aborted) return
+      const errors: string[] = []
+      if (deviceResult.status === "fulfilled") {
+        setDevices(deviceResult.value)
+        setDevicesReady(true)
+      } else errors.push(t("Devices") + ": " + readError(deviceResult.reason))
+      if (ipResult.status === "fulfilled") {
+        setIps(ipResult.value)
+        setIpsReady(true)
+      } else errors.push(t("Login IP address") + ": " + readError(ipResult.reason))
+      if (security.status === "fulfilled") {
+        setMfaEnabled(security.value.enabled)
+        setMfaStatusLoaded(true)
+      } else errors.push(t("Security requirements are unavailable. Refresh before making changes."))
+      if (deviceResult.status === "fulfilled" && ipResult.status === "fulfilled")
+        setWriteBlocked(false)
+      setError(errors.join("\n"))
+      setLoading(false)
+    })
+    return () => abort.abort()
+  }, [reload])
   const close = () => {
+    if (lock.current) return
     setAction(null)
     setEmailCode("")
     setTotpCode("")
     setMessage("")
+    setInfo("")
   }
-  const submit = async () => {
-    if (!action) return
-    setBusy(true)
+  const begin = (next: Action) => {
+    if (lock.current || loading || writeBlocked || (next.mode !== "revoke" && !mfaStatusLoaded))
+      return
+    setEmailCode("")
+    setTotpCode("")
     setMessage("")
+    setInfo("")
+    setNotice("")
+    setAction(next)
+  }
+  const send = async () => {
+    const signal = lifetime.current?.signal
+    if (!signal || signal.aborted || lock.current) return
+    lock.current = true
+    setBusy(true)
+    setSending(true)
+    setMessage("")
+    setInfo("")
     try {
-      if (action.kind === "device") {
-        if (action.mode === "revoke") {
-          if (action.value) await revokeDevice(action.value)
-          else if (action.sessionId) await revokeUserSession(action.sessionId)
-        } else {
-          if (!emailCode || (mfaEnabled && !totpCode))
-            throw new Error(t("Complete the required fields."))
-          await changeDeviceBlock(action.value, action.mode === "block", emailCode, totpCode)
-        }
-      } else {
-        if (!emailCode || (mfaEnabled && !totpCode))
-          throw new Error(t("Complete the required fields."))
-        await changeIpBlock(action.value, action.mode === "block", emailCode, totpCode)
-      }
-      close()
-      refresh()
+      await issueSecurityChallenge("SECURITY_SETTINGS", signal)
+      if (!signal.aborted) setInfo(t("Verification code sent. Check your email."))
     } catch (reason) {
-      setMessage(readError(reason))
+      if (!signal.aborted) setMessage(readError(reason))
     } finally {
-      setBusy(false)
+      lock.current = false
+      if (!signal.aborted) {
+        setBusy(false)
+        setSending(false)
+      }
     }
   }
+  const submit = async () => {
+    const signal = lifetime.current?.signal
+    if (!action || !signal || signal.aborted || lock.current || writeBlocked) return
+    if (
+      action.mode !== "revoke" &&
+      (!mfaStatusLoaded || !emailCode.trim() || (mfaEnabled && !totpCode.trim()))
+    ) {
+      setMessage(t("Complete the required fields."))
+      return
+    }
+    lock.current = true
+    setBusy(true)
+    setSending(false)
+    setMessage("")
+    setInfo("")
+    try {
+      if (action.kind === "device" && action.mode === "revoke") {
+        if (action.value) await revokeDevice(action.value, signal)
+        else if (action.sessionId) await revokeUserSession(action.sessionId, signal)
+        else throw new Error(t("The selected device is unavailable. Refresh and try again."))
+      } else if (action.kind === "device")
+        await changeDeviceBlock(
+          action.value,
+          action.mode === "block",
+          emailCode.trim(),
+          totpCode.trim(),
+          signal,
+        )
+      else
+        await changeIpBlock(
+          action.value,
+          action.mode === "block",
+          emailCode.trim(),
+          totpCode.trim(),
+          signal,
+        )
+      if (!signal.aborted) {
+        setAction(null)
+        setEmailCode("")
+        setTotpCode("")
+        setNotice(t("Account access setting updated."))
+        refresh()
+      }
+    } catch (reason) {
+      if (!signal.aborted) {
+        setMessage(readError(reason))
+        setWriteBlocked(true)
+        setEmailCode("")
+        setTotpCode("")
+      }
+    } finally {
+      lock.current = false
+      if (!signal.aborted) setBusy(false)
+    }
+  }
+  const selectedDevice =
+    action?.kind === "device"
+      ? devices.find((device) =>
+          action.value ? device.deviceId === action.value : device.sessionId === action.sessionId,
+        )
+      : null
+  const currentIp = devices.find((device) => device.current)?.ipAddress
   return (
-    <div className="account-content">
+    <div className="account-content security-tools-page">
       <div className="page-heading">
         <div>
           <h1>{t("Device management")}</h1>
@@ -118,6 +239,16 @@ export function DeviceManagementPage() {
         </div>
         <MonitorSmartphone size={28} />
       </div>
+      {notice ? (
+        <p role="status" className="security-notice">
+          {notice}
+        </p>
+      ) : null}
+      {writeBlocked && !action ? (
+        <p role="alert" className="security-impact">
+          {t("Refresh access records and check the operation result before continuing.")}
+        </p>
+      ) : null}
       {error ? (
         <Panel>
           <StateView kind="error" message={error} retry={refresh} />
@@ -126,11 +257,18 @@ export function DeviceManagementPage() {
       <section className="section-block">
         <div className="panel-heading">
           <h2>{t("Devices")}</h2>
-          <Button tone="outline" loading={busy} onClick={refresh}>
+          <Button tone="outline" loading={loading} disabled={busy} onClick={refresh}>
             {t("Refresh")}
           </Button>
         </div>
-        {rows.length ? (
+        {loading ? (
+          <Panel>
+            <div role="status" aria-busy="true">
+              <StateView kind="loading" message="Loading devices" />
+              <span className="sr-only">{t("Loading devices")}</span>
+            </div>
+          </Panel>
+        ) : rows.length ? (
           <div className="device-management-table-shell">
             <div className="table-wrap" aria-busy={busy}>
               <table className="data-table device-management-table">
@@ -186,15 +324,18 @@ export function DeviceManagementPage() {
                                   : "Allowed",
                             )}
                           </Badge>
+                          {row.device && row.ip?.blocked ? (
+                            <Badge tone="negative">{t("IP blocked")}</Badge>
+                          ) : null}
                         </td>
                         <td>
                           <div className="device-table-actions">
                             {row.device?.active && !row.device.current ? (
                               <Button
                                 tone="outline"
-                                disabled={busy}
+                                disabled={busy || loading || writeBlocked}
                                 onClick={() =>
-                                  setAction({
+                                  begin({
                                     kind: "device",
                                     value: row.device?.deviceId ?? "",
                                     mode: "revoke",
@@ -205,12 +346,12 @@ export function DeviceManagementPage() {
                                 {t("Sign out")}
                               </Button>
                             ) : null}
-                            {row.device?.deviceId && !row.device.current ? (
+                            {row.device?.deviceId && !row.device.current && mfaStatusLoaded ? (
                               <Button
                                 tone="outline"
-                                disabled={busy}
+                                disabled={busy || loading || writeBlocked}
                                 onClick={() =>
-                                  setAction({
+                                  begin({
                                     kind: "device",
                                     value: row.device?.deviceId ?? "",
                                     mode: row.device?.blocked ? "unblock" : "block",
@@ -220,12 +361,17 @@ export function DeviceManagementPage() {
                                 {t(row.device.blocked ? "Allow login" : "Block login")}
                               </Button>
                             ) : null}
-                            {row.ip ? (
+                            {row.ip && mfaStatusLoaded ? (
                               <Button
                                 tone="outline"
-                                disabled={busy}
+                                disabled={
+                                  busy ||
+                                  loading ||
+                                  writeBlocked ||
+                                  (!row.ip.blocked && row.ip.ipAddress === currentIp)
+                                }
                                 onClick={() =>
-                                  setAction({
+                                  begin({
                                     kind: "ip",
                                     value: row.ip?.ipAddress ?? "",
                                     mode: row.ip?.blocked ? "unblock" : "block",
@@ -273,10 +419,19 @@ export function DeviceManagementPage() {
           </div>
         ) : (
           <Panel>
-            <StateView kind={busy ? "loading" : "empty"} message={t("No devices yet.")} />
+            {devicesReady && ipsReady ? (
+              <StateView kind="empty" message="No devices yet." />
+            ) : (
+              <p role="status">
+                {t("Some access records are unavailable. Refresh to check the remaining records.")}
+              </p>
+            )}
           </Panel>
         )}
       </section>
+      {(devices.length === 100 || ips.length === 100) && (
+        <p className="muted">{t("Showing up to 100 recent devices and 100 login IP records.")}</p>
+      )}
       {action ? (
         <SecurityActionDialog
           title={t(
@@ -287,58 +442,71 @@ export function DeviceManagementPage() {
                 : "Allow access",
           )}
           onClose={close}
+          closeDisabled={busy}
         >
-          <p>
-            {action.kind === "ip" ? action.value : t("This action affects the selected device.")}
-          </p>
-          {action.mode !== "revoke" ? (
-            <>
-              <div className="security-dialog-code">
-                <Field label={t("Email code")}>
-                  <input
-                    inputMode="numeric"
-                    value={emailCode}
-                    onChange={(event) => setEmailCode(event.target.value)}
-                  />
-                </Field>
+          <fieldset className="security-action-fields" disabled={busy}>
+            <div className="security-target">
+              <strong>
+                {action.kind === "ip"
+                  ? t("Login IP address")
+                  : describeDevice(selectedDevice?.userAgent ?? null)}
+              </strong>
+              <code>{action.value || action.sessionId}</code>
+              {selectedDevice ? (
+                <p>
+                  {t("Last login")}: {formatDate(selectedDevice.lastSeen)}
+                </p>
+              ) : null}
+            </div>
+            <p className="security-impact">
+              {t(
+                action.mode === "revoke"
+                  ? "Signing out ends this device's active sessions."
+                  : action.mode === "block"
+                    ? "Blocking prevents future access for this device or IP."
+                    : "Allowing access removes this device or IP restriction.",
+              )}
+            </p>
+            {action.mode !== "revoke" ? (
+              <VerificationFields
+                email={emailCode}
+                totp={totpCode}
+                onEmail={setEmailCode}
+                onTotp={setTotpCode}
+                mfaEnabled={mfaEnabled}
+                sending={sending}
+                disabled={busy || writeBlocked}
+                onSend={() => void send()}
+              />
+            ) : null}
+            {info ? <p role="status">{info}</p> : null}
+            {message ? (
+              <p role="alert" className="form-message">
+                {message}
+              </p>
+            ) : null}
+            <div className="security-dialog-actions">
+              {writeBlocked ? (
                 <Button
                   tone="outline"
-                  loading={busy}
-                  disabled={!mfaStatusLoaded}
                   onClick={() => {
-                    setBusy(true)
-                    void issueSecurityChallenge("SECURITY_SETTINGS")
-                      .then(
-                        () => setMessage(t("Verification code sent. Check your email.")),
-                        (reason: unknown) => setMessage(readError(reason)),
-                      )
-                      .finally(() => setBusy(false))
+                    close()
+                    refresh()
                   }}
                 >
-                  {t("Send code")}
+                  {t("Refresh and check")}
                 </Button>
-              </div>
-              {mfaEnabled ? (
-                <Field label={t("Authenticator code")}>
-                  <input
-                    inputMode="numeric"
-                    value={totpCode}
-                    onChange={(event) => setTotpCode(event.target.value)}
-                  />
-                </Field>
-              ) : null}
-            </>
-          ) : null}
-          {message ? (
-            <p role="status" className="form-message">
-              {message}
-            </p>
-          ) : null}
-          <div className="security-dialog-actions">
-            <Button loading={busy} disabled={!mfaStatusLoaded} onClick={() => void submit()}>
-              {t("Confirm")}
-            </Button>
-          </div>
+              ) : (
+                <Button
+                  loading={busy && !sending}
+                  disabled={busy || (action.mode !== "revoke" && !mfaStatusLoaded)}
+                  onClick={() => void submit()}
+                >
+                  {t("Confirm")}
+                </Button>
+              )}
+            </div>
+          </fieldset>
         </SecurityActionDialog>
       ) : null}
     </div>

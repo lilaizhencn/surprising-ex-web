@@ -40,6 +40,7 @@ import {
   AuthSessionSchema,
   BalanceListSchema,
   CandleListSchema,
+  CreatedApiKeySchema,
   DepositAddressSchema,
   DeviceStatusSchema,
   EmailVerificationChallengeSchema,
@@ -58,6 +59,7 @@ import {
   LoginHistoryPageSchema,
   MarketListSchema,
   MarketSchema,
+  MfaStatusSchema,
   NotificationListSchema,
   NotificationSchema,
   OrderBookSchema,
@@ -69,6 +71,8 @@ import {
   ProductTransferRecordPageSchema,
   ProductTransferResponseSchema,
   SecurityApiKeyListSchema,
+  SecuritySceneListSchema,
+  SecuritySceneSchema,
   TradeFillPageSchema,
   TriggerOrderQuerySchema,
   TriggerOrderSchema,
@@ -447,12 +451,12 @@ export function loadAssetScales(signal?: AbortSignal) {
   })
 }
 
-export function loadSecurityScenes() {
-  return request("/api/v1/security/scenes", z.array(GenericObjectSchema))
+export function loadSecurityScenes(signal?: AbortSignal) {
+  return request("/api/v1/security/scenes", SecuritySceneListSchema, signal ? { signal } : {})
 }
 
-export function loadMfaStatus() {
-  return request("/api/v1/security/mfa", GenericObjectSchema)
+export function loadMfaStatus(signal?: AbortSignal) {
+  return request("/api/v1/security/mfa", MfaStatusSchema, signal ? { signal } : {})
 }
 
 export function loadMfaRecovery() {
@@ -483,17 +487,20 @@ export function changePassword(
   newPassword: string,
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
   return request("/api/v1/security/password", z.unknown(), {
     method: "POST",
+    ...(signal ? { signal } : {}),
     body: { currentPassword, newPassword, emailCode, totpCode },
   })
 }
 
-export function issueSecurityChallenge(sceneCode: string) {
+export function issueSecurityChallenge(sceneCode: string, signal?: AbortSignal) {
   return request("/api/v1/security/verification/challenge", GenericObjectSchema, {
     method: "POST",
     body: { sceneCode },
+    ...(signal ? { signal } : {}),
   })
 }
 
@@ -509,15 +516,23 @@ export function updateSecurityScene(
   enabled: boolean,
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
-  return request(`/api/v1/security/scenes/${encodeURIComponent(sceneCode)}`, GenericObjectSchema, {
+  return request(`/api/v1/security/scenes/${encodeURIComponent(sceneCode)}`, SecuritySceneSchema, {
     method: "PUT",
+    ...(signal ? { signal } : {}),
     body: { enabled, emailCode, totpCode },
+  }).then((result) => {
+    if (result.sceneCode !== sceneCode || result.enabled !== enabled)
+      throw new Error(
+        t("The service returned an unexpected response. Please refresh and try again."),
+      )
+    return result
   })
 }
 
-export function loadApiKeys() {
-  return request("/api/v1/security/api-keys", SecurityApiKeyListSchema)
+export function loadApiKeys(signal?: AbortSignal) {
+  return request("/api/v1/security/api-keys", SecurityApiKeyListSchema, signal ? { signal } : {})
 }
 
 export function loadUserSessions(active = true) {
@@ -525,13 +540,21 @@ export function loadUserSessions(active = true) {
   return request(`/api/v1/security/sessions?${query.toString()}`, UserSessionPageSchema)
 }
 
-export function loadDevices() {
-  return request("/api/v1/security/devices", z.array(DeviceStatusSchema))
+export function loadDevices(signal?: AbortSignal) {
+  return request(
+    "/api/v1/security/devices",
+    z
+      .array(DeviceStatusSchema)
+      .max(100)
+      .refine((rows) => new Set(rows.map((row) => row.sessionId)).size === rows.length),
+    signal ? { signal } : {},
+  )
 }
 
-export function revokeDevice(deviceId: string) {
+export function revokeDevice(deviceId: string, signal?: AbortSignal) {
   return request(`/api/v1/security/devices/${encodeURIComponent(deviceId)}/revoke`, z.unknown(), {
     method: "POST",
+    ...(signal ? { signal } : {}),
   })
 }
 
@@ -540,19 +563,28 @@ export function changeDeviceBlock(
   blocked: boolean,
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
   return request(
     `/api/v1/security/devices/${encodeURIComponent(deviceId)}/${blocked ? "block" : "unblock"}`,
     z.unknown(),
     {
       method: "POST",
+      ...(signal ? { signal } : {}),
       body: { emailCode, totpCode },
     },
   )
 }
 
-export function loadLoginIps() {
-  return request("/api/v1/security/ips", z.array(IpStatusSchema))
+export function loadLoginIps(signal?: AbortSignal) {
+  return request(
+    "/api/v1/security/ips",
+    z
+      .array(IpStatusSchema)
+      .max(100)
+      .refine((rows) => new Set(rows.map((row) => row.ipAddress)).size === rows.length),
+    signal ? { signal } : {},
+  )
 }
 
 export function changeIpBlock(
@@ -560,19 +592,22 @@ export function changeIpBlock(
   blocked: boolean,
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
   return request(`/api/v1/security/ips/${blocked ? "block" : "unblock"}`, z.unknown(), {
     method: "POST",
+    ...(signal ? { signal } : {}),
     body: { ipAddress, emailCode, totpCode },
   })
 }
 
-export function revokeUserSession(sessionId: string | number) {
+export function revokeUserSession(sessionId: string | number, signal?: AbortSignal) {
   return request(
     `/api/v1/security/sessions/${encodeURIComponent(String(sessionId))}/revoke`,
     z.unknown(),
     {
       method: "POST",
+      ...(signal ? { signal } : {}),
     },
   )
 }
@@ -596,9 +631,11 @@ export function createApiKey(
   ipAllowlist: readonly string[],
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
-  return request("/api/v1/security/api-keys", GenericObjectSchema, {
+  return request("/api/v1/security/api-keys", CreatedApiKeySchema, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,
@@ -612,9 +649,11 @@ export function updateApiKeyIpAllowlist(
   ipAllowlist: readonly string[],
   emailCode: string,
   totpCode: string,
+  signal?: AbortSignal,
 ) {
   return request("/api/v1/security/api-keys", z.unknown(), {
     method: "PATCH",
+    ...(signal ? { signal } : {}),
     headers: {
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,
@@ -623,9 +662,15 @@ export function updateApiKeyIpAllowlist(
   })
 }
 
-export function revokeApiKey(apiKey: string, emailCode: string, totpCode: string) {
+export function revokeApiKey(
+  apiKey: string,
+  emailCode: string,
+  totpCode: string,
+  signal?: AbortSignal,
+) {
   return request("/api/v1/security/api-keys", z.unknown(), {
     method: "DELETE",
+    ...(signal ? { signal } : {}),
     headers: {
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,

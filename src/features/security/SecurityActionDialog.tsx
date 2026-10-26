@@ -5,11 +5,13 @@ export function SecurityActionDialog({
   title,
   subtitle,
   onClose,
+  closeDisabled = false,
   children,
 }: {
   readonly title: string
   readonly subtitle?: string
   readonly onClose: () => void
+  readonly closeDisabled?: boolean
   readonly children: ReactNode
 }) {
   return (
@@ -17,6 +19,7 @@ export function SecurityActionDialog({
       title={title}
       {...(subtitle ? { subtitle } : {})}
       onClose={onClose}
+      closeDisabled={closeDisabled}
       className="security-dialog"
     >
       {children}
