@@ -30,11 +30,12 @@ import {
 import { useRealtime } from "../../hooks/useRealtime"
 import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
-import { config, storageKeys } from "../../lib/config"
+import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent, formatPrice } from "../../lib/format"
 import { isPositiveDecimal, stepUnitsToDecimal, unitsToDecimal } from "../../lib/units"
 import type { WsEnvelope } from "../../realtime"
+import { toggleFavoriteMarket, useFavoriteMarkets } from "../../state/favoriteMarkets"
 import {
   type PendingOrderCommand,
   pendingOrderChanged,
@@ -128,7 +129,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     element.style.left = `${Math.max(16, Math.min(anchor.left, window.innerWidth - element.offsetWidth - 16))}px`
     element.style.top = `${anchor.bottom + 12}px`
   }, [])
-  const [favorites, setFavorites] = useState<readonly string[]>(readFavorites)
+  const favorites = useFavoriteMarkets()
   const [leverageSetting, setLeverageSetting] = useState<LeverageSettings | null>(null)
   const [openOrders, setOpenOrders] = useState<readonly ApiOrder[]>([])
   const [triggerOrders, setTriggerOrders] = useState<readonly ApiTriggerOrder[]>([])
@@ -413,11 +414,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   const toggleFavorite = useCallback(
     (instrumentId: string) => {
       const favoriteKey = `${view.line}:${instrumentId}`
-      setFavorites((currentFavorites) =>
-        currentFavorites.includes(favoriteKey)
-          ? currentFavorites.filter((value) => value !== favoriteKey)
-          : [...currentFavorites, favoriteKey],
-      )
+      toggleFavoriteMarket(favoriteKey)
     },
     [view.line],
   )
@@ -428,12 +425,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     url.searchParams.set("instrumentId", instrumentId)
     window.history.replaceState(null, "", url)
   }, [])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(storageKeys.favorites, JSON.stringify(favorites))
-    } catch {}
-  }, [favorites])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1175,17 +1166,6 @@ function formatDate(value: string | null | undefined): string {
 
 function ppmValue(value: number | undefined): string {
   return value === undefined ? "—" : `${(value / 10_000).toFixed(4)}%`
-}
-
-function readFavorites(): readonly string[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = window.localStorage.getItem(storageKeys.favorites)
-    const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) && parsed.every((value) => typeof value === "string") ? parsed : []
-  } catch {
-    return []
-  }
 }
 
 /** The visible selector owns its subscriptions and one-second display cadence. */

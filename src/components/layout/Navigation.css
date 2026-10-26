@@ -316,3 +316,7 @@ summary:focus-visible {
     animation: none;
   }
 }
+
+.top-nav .language-picker .dropdown-select {
+  gap: 4px;
+}

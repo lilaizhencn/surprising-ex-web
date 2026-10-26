@@ -1,5 +1,5 @@
-import { Check, Copy, LoaderCircle, Search, Star, TriangleAlert } from "lucide-react"
-import type { ButtonHTMLAttributes, ReactNode } from "react"
+import { Check, Copy, Inbox, LoaderCircle, Search, Star, TriangleAlert, X } from "lucide-react"
+import { type ButtonHTMLAttributes, type ReactNode, useRef } from "react"
 import { t } from "../../i18n"
 import { assetLogos } from "../../lib/assetLogos"
 
@@ -100,15 +100,30 @@ export function SearchField({
   readonly onChange: (value: string) => void
   readonly placeholder?: string
 }) {
+  const input = useRef<HTMLInputElement>(null)
   return (
     <div className="search-field">
       <Search size={18} aria-hidden="true" />
       <input
+        ref={input}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
       />
+      {value ? (
+        <button
+          type="button"
+          className="search-clear"
+          aria-label={t("Clear search")}
+          onClick={() => {
+            onChange("")
+            input.current?.focus()
+          }}
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -191,10 +206,12 @@ export function StateView({
   kind,
   message,
   retry,
+  retryLabel = "Retry",
 }: {
   readonly kind: "loading" | "empty" | "error"
   readonly message: string
-  readonly retry?: () => void
+  readonly retry?: (() => void) | undefined
+  readonly retryLabel?: string
 }) {
   if (kind === "loading")
     return (
@@ -205,13 +222,17 @@ export function StateView({
       </div>
     )
   return (
-    <div className="state-view">
-      <TriangleAlert size={22} aria-hidden="true" />
+    <div className="state-view" role={kind === "error" ? "alert" : "status"}>
+      {kind === "error" ? (
+        <TriangleAlert size={22} aria-hidden="true" />
+      ) : (
+        <Inbox size={26} aria-hidden="true" />
+      )}
       <p>{t(message)}</p>
       {retry ? (
         <Button tone="outline" onClick={retry}>
           {" "}
-          {t("Retry")}{" "}
+          {t(retryLabel)}{" "}
         </Button>
       ) : null}
     </div>
@@ -232,12 +253,19 @@ export function CopyButton({ value }: { readonly value: string }) {
 export function FavoriteButton({
   active,
   onClick,
+  symbol,
 }: {
   readonly active: boolean
   readonly onClick: () => void
+  readonly symbol?: string
 }) {
   return (
-    <IconButton label={active ? "Remove from favorites" : "Add to favorites"} onClick={onClick}>
+    <IconButton
+      label={`${t(active ? "Remove from favorites" : "Add to favorites")}${symbol ? `: ${symbol}` : ""}`}
+      aria-pressed={active}
+      className={active ? "favorite-active" : ""}
+      onClick={onClick}
+    >
       <Star size={17} fill={active ? "currentColor" : "none"} />
     </IconButton>
   )

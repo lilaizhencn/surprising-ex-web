@@ -4432,3 +4432,34 @@ body,
   min-width: 220px;
   white-space: normal;
 }
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+}
+.search-clear {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink-subtle);
+}
+.search-clear:hover {
+  color: var(--color-ink);
+  background: var(--color-surface-muted);
+}
+.favorite-active {
+  color: var(--color-warning);
+}
+@media (max-width: 768px) {
+  .search-clear {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}

@@ -337,3 +337,8 @@ The public shell uses coordinated light/dark surfaces and consistent line icons.
 a modal navigation drawer exposes every product variant, traps keyboard focus and restores focus/scrolling on dismissal.
 Shared actions keep their text and disabled state while loading. See [the Chinese guide](README_CN.md#导航与界面细节)
 and [browser validation](docs/validation/navigation-polish-20261026.md) for the isolated UI test and its limits.
+
+The market list now selects all six product lines explicitly, shares favorites with the trading selector,
+and provides precise quotes, two-way sorting and responsive cards. Fifty-item pages bound live subscriptions;
+filtering and global pagination use the latest ten-second catalog snapshot. See the
+[market validation record](docs/validation/market-experience-20261026.md) for browser coverage and limits.

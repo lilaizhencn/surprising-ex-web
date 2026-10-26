@@ -56,6 +56,7 @@ try {
     .getByRole("link", { name: "Coin-M", exact: true })
     .click()
   await page.waitForURL("**/trade/coin-perpetual")
+  await page.locator('.top-links a.active[href="/trade/usd-perpetual"]').waitFor()
   assert(
     await page
       .locator(".top-links")

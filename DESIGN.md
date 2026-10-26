@@ -152,3 +152,16 @@ behavior apply consistently to navigation and shared controls. The base palette 
 auth artwork retains its dedicated blue tokens.
 
 Browser coverage and limits are recorded in `docs/validation/navigation-polish-20261026.md`.
+
+## 11. Market list details (2026-10-26)
+
+The market page explicitly selects one of the six product lines, starting with USD-M perpetuals.
+Desktop tables and mobile cards share price, change, quote-turnover and trend rendering; quote assets stay visible.
+Prices use instrument precision, and small quote amounts stay nonzero. Missing statistics remain unavailable.
+Column sorting is bidirectional with a visible arrow and `aria-sort`; mobile uses a labelled sort selector.
+Empty results distinguish no favorites, no markets and active filters, with a relevant recovery action.
+
+The list refreshes its catalog/summary every ten seconds. Filtering and global pagination use that snapshot;
+the current page receives live quotes and sorts those visible values. Fifty entries per page bound the subscription plan.
+Favorites share one store across the market and trading selectors, including same-tab and cross-tab updates.
+Market cards expose high/low and trend in a native details disclosure with a 44px summary target.

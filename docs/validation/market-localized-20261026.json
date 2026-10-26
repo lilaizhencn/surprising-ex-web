@@ -1,0 +1,21 @@
+{
+  "browser": "153.0.8010.12",
+  "checks": [
+    "initial failure retries in place, keeps query, preserves tiny price and clear-search focus",
+    "bidirectional price sorting, unavailable values last, quote-turnover sorting and visible quote units",
+    "empty filter result resets both search and change threshold",
+    "favorite add/remove, meaningful empty state and persistence across reload",
+    "six products load isolated rows/subscriptions; a delayed old product cannot overwrite the latest selection",
+    "malformed refresh surfaces an error without replacing last loaded markets with fake zero values",
+    "320/390/768px cards fit the page; mobile sorting/details and both themes remain usable",
+    "105 markets paginate 50/50/5; filtering resets pagination and visible subscriptions remain bounded",
+    "favorites synchronize from another browser tab without a reload",
+    "trade-page favorite changes are retained when returning to the market page",
+    "disconnection and malformed realtime input recover subscriptions without losing loaded rows",
+    "blocked browser storage still allows favorites within the current tab",
+    "320px long-symbol and Chinese layouts fit the page; clear-search touch target is at least 44px"
+  ],
+  "errors": [],
+  "lifecycle": [],
+  "limitation": "Controlled HTTP/WebSocket contracts; no live exchange or backend writes."
+}
