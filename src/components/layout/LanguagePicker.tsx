@@ -18,8 +18,8 @@ export function LanguagePicker() {
         aria-label={t("Language")}
         onChange={(event) => setLocale(event.target.value === "zh" ? "zh" : "en")}
       >
-        <option value="en">🇺🇸 English</option>
-        <option value="zh">🇨🇳 简体中文</option>
+        <option value="en">English</option>
+        <option value="zh">简体中文</option>
       </DropdownSelect>
     </div>
   )

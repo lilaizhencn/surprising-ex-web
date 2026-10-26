@@ -41,10 +41,14 @@ export function AppShell({
       {accountArea ? (
         <div className="account-layout">
           <AccountSidebar />
-          <main className="account-main">{session ? children : null}</main>
+          <main className="account-main" id="main-content" tabIndex={-1}>
+            {session ? children : null}
+          </main>
         </div>
       ) : (
-        <main className="page">{children}</main>
+        <main className="page" id="main-content" tabIndex={-1}>
+          {children}
+        </main>
       )}
       {showFooter ? <Footer /> : null}
     </div>

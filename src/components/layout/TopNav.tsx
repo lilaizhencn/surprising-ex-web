@@ -1,5 +1,5 @@
 import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu, Moon, Sun } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
@@ -7,6 +7,7 @@ import { t, useLocale } from "../../i18n"
 import { writeStoredValue } from "../../lib/storage"
 import { IconButton } from "../ui/Primitives"
 import { LanguagePicker } from "./LanguagePicker"
+import { MobileNavigation } from "./MobileNavigation"
 import { publicNavigation } from "./navigation"
 
 const THEME_KEY = "theme"
@@ -21,8 +22,10 @@ export function TopNav({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dark, setDark] = useState(document.documentElement.dataset[THEME_KEY] === "dark")
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0)
+  const closeNavigation = useCallback(() => setMobileOpen(false), [])
   const pathname = window.location.pathname
   const locale = useLocale()
+  useEffect(() => setMobileOpen(false), [pathname])
   const toggleTheme = () => {
     const next = !dark
     setDark(next)
@@ -61,31 +64,17 @@ export function TopNav({
   }, [session?.accessToken, locale])
   return (
     <header className="top-nav">
+      <a className="skip-link" href="#main-content">
+        {t("Skip to content")}
+      </a>
       <div className="top-nav-inner">
         <a className="brand" href="/" aria-label={t("Surprising EX home")}>
           <span className="brand-mark">S</span>
           <span>Surprising EX</span>
         </a>
-        <nav
-          className={`top-links ${mobileOpen ? "top-links-open" : ""}`}
-          aria-label={t("Primary navigation")}
-        >
+        <nav className="top-links" aria-label={t("Primary navigation")}>
           {publicNavigation.map((item) => (
-            <div className="nav-item" key={item.href}>
-              <a className={pathname.startsWith(item.href) ? "active" : ""} href={item.href}>
-                {t(item.label)}
-                {"menu" in item ? <ChevronDown size={15} /> : null}
-              </a>
-              {"menu" in item ? (
-                <div className="nav-menu">
-                  {item.menu.map((child) => (
-                    <a key={child.href} href={child.href}>
-                      {t(child.label)}
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <DesktopNavigationItem key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>
         <div className="nav-actions">
@@ -140,12 +129,95 @@ export function TopNav({
           <IconButton
             label={t("Open navigation")}
             className="mobile-nav-toggle"
+            aria-expanded={mobileOpen}
+            aria-haspopup="dialog"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             <Menu size={20} />
           </IconButton>
         </div>
       </div>
+      {mobileOpen ? (
+        <MobileNavigation onClose={closeNavigation} onLogout={onLogout} signedIn={!!session} />
+      ) : null}
     </header>
+  )
+}
+
+function DesktopNavigationItem({
+  item,
+  pathname,
+}: {
+  readonly item: (typeof publicNavigation)[number]
+  readonly pathname: string
+}) {
+  const [open, setOpen] = useState(false)
+  const container = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const menu = "menu" in item ? item.menu : null
+  const active = menu
+    ? menu.some((child) => pathname.startsWith(child.href))
+    : pathname.startsWith(item.href)
+  useEffect(() => setOpen(false), [pathname])
+  useEffect(() => {
+    if (!open) return
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !container.current?.contains(event.target)) setOpen(false)
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false)
+        trigger.current?.focus()
+      }
+    }
+    const onFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && !container.current?.contains(event.target)) setOpen(false)
+    }
+    document.addEventListener("focusin", onFocus)
+    document.addEventListener("pointerdown", outside)
+    document.addEventListener("keydown", onEscape)
+    return () => {
+      document.removeEventListener("focusin", onFocus)
+      document.removeEventListener("pointerdown", outside)
+      document.removeEventListener("keydown", onEscape)
+    }
+  }, [open])
+  return (
+    <div ref={container} className="nav-item">
+      <a
+        className={active ? "active" : ""}
+        href={item.href}
+        aria-current={pathname === item.href ? "page" : undefined}
+      >
+        {t(item.label)}
+      </a>
+      {menu ? (
+        <>
+          <button
+            ref={trigger}
+            type="button"
+            className="nav-menu-trigger"
+            aria-label={`${t(item.label)}: ${t("Show options")}`}
+            aria-expanded={open}
+            aria-controls={`navigation-${item.label}`}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          <div id={`navigation-${item.label}`} className="nav-menu" hidden={!open}>
+            {menu.map((child) => (
+              <a
+                key={child.href}
+                href={child.href}
+                aria-current={pathname.startsWith(child.href) ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
+                {t(child.label)}
+              </a>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
   )
 }

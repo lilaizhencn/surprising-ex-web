@@ -7,6 +7,7 @@ export function StandardDialog({
   subtitle,
   onClose,
   closeDisabled = false,
+  closeOnBackdrop = false,
   className = "",
   children,
 }: {
@@ -14,6 +15,7 @@ export function StandardDialog({
   readonly subtitle?: string
   readonly onClose: () => void
   readonly closeDisabled?: boolean
+  readonly closeOnBackdrop?: boolean
   readonly className?: string
   readonly children: ReactNode
 }) {
@@ -23,8 +25,13 @@ export function StandardDialog({
 
   useEffect(() => {
     const element = dialog.current
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
     element?.showModal()
-    return () => element?.close()
+    return () => {
+      element?.close()
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true })
+    }
   }, [])
 
   return (
@@ -33,6 +40,36 @@ export function StandardDialog({
       className={`standard-dialog ${className}`.trim()}
       aria-labelledby={titleId}
       aria-describedby={subtitle ? subtitleId : undefined}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab") return
+        const focusable = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((element) => element.getClientRects().length > 0)
+        const first = focusable[0]
+        const last = focusable.at(-1)
+        if (
+          first &&
+          last &&
+          ((event.shiftKey && document.activeElement === first) ||
+            (!event.shiftKey && document.activeElement === last))
+        ) {
+          event.preventDefault()
+          ;(event.shiftKey ? last : first).focus()
+        }
+      }}
+      onPointerDown={(event) => {
+        if (!closeOnBackdrop || closeDisabled || event.target !== event.currentTarget) return
+        const bounds = event.currentTarget.getBoundingClientRect()
+        if (
+          event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom
+        )
+          onClose()
+      }}
       onCancel={(event) => {
         event.preventDefault()
         if (!closeDisabled) onClose()

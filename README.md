@@ -330,3 +330,10 @@ Web 最近订单更新曾在直接切换已登录账户时保留前一账户缓�
 普通单笔下单/撤单与条件单原身份恢复统一覆盖六产品，Web 专用衍生品平仓也沿用普通订单的原请求回执。发送前持久化，未知结果阻止重复提交，重启/刷新后查询原用户、产品和请求；存储失败不发送。客户端持仓 OCO 用于五条衍生产品，不向现货余额显示衍生仓位保护表单。
 
 本轮受控浏览器、组件、真实 AppState 和静态检查的证据见 [恢复验证记录](docs/validation/product-recovery-20261021.json)。测试响应为显式契约样本，不代表本轮真实资金、全部产品 UI 或原生设备已验收；服务器发布继续暂缓。全平台剩余范围见后端 `docs/product-completion-20261021.md`。
+
+## Navigation and interface checks
+
+The public shell uses coordinated light/dark surfaces and consistent line icons. At widths up to 1280px,
+a modal navigation drawer exposes every product variant, traps keyboard focus and restores focus/scrolling on dismissal.
+Shared actions keep their text and disabled state while loading. See [the Chinese guide](README_CN.md#导航与界面细节)
+and [browser validation](docs/validation/navigation-polish-20261026.md) for the isolated UI test and its limits.

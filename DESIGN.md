@@ -17,17 +17,17 @@ Surprising EX is a precise, credible exchange interface: cold mineral surfaces, 
 
 | Role | Token | Light | Dark | Usage |
 |---|---|---:|---:|---|
-| Canvas | `--color-canvas` | `#fbf9fb` | `#111318` | Page background |
+| Canvas | `--color-canvas` | `#f7f8fa` | `#111318` | Page background |
 | Surface | `--color-surface` | `#ffffff` | `#191c23` | Cards and panels |
-| Surface muted | `--color-surface-muted` | `#f5f3f6` | `#222630` | Inputs, table headers |
-| Surface active | `--color-surface-active` | `#e3e8fb` | `#24345d` | Selected navigation |
-| Ink | `--color-ink` | `#1b1c1e` | `#f2f0f3` | Primary text |
-| Ink muted | `--color-ink-muted` | `#434656` | `#aeb4c2` | Secondary text |
-| Ink subtle | `--color-ink-subtle` | `#737688` | `#7f8798` | Metadata and disabled text |
-| Border | `--color-border` | `#c3c5d9` | `#343a49` | Structural dividers |
-| Border soft | `--color-border-soft` | `#e9e7ea` | `#292e39` | Low-contrast panel edges |
-| Primary | `--color-primary` | `#003ec7` | `#5d82ff` | Links, CTA, focus |
-| Primary strong | `--color-primary-strong` | `#0052ff` | `#75a0ff` | Primary button fill |
+| Surface muted | `--color-surface-muted` | `#f0f2f5` | `#222630` | Inputs, table headers |
+| Surface active | `--color-surface-active` | `#eaf0ff` | `#24345d` | Selected navigation |
+| Ink | `--color-ink` | `#182230` | `#f2f0f3` | Primary text |
+| Ink muted | `--color-ink-muted` | `#526071` | `#aeb4c2` | Secondary text |
+| Ink subtle | `--color-ink-subtle` | `#657386` | `#7f8798` | Metadata and disabled text |
+| Border | `--color-border` | `#d5dce6` | `#343a49` | Structural dividers |
+| Border soft | `--color-border-soft` | `#e7ebf0` | `#292e39` | Low-contrast panel edges |
+| Primary | `--color-primary` | `#2859c5` | `#5d82ff` | Links, CTA, focus |
+| Primary strong | `--color-primary-strong` | `#2859c5` | `#75a0ff` | Primary button fill |
 | Positive | `--color-positive` | `#006d3f` | `#55df9a` | Buy/long/positive, always paired with `+`/up |
 | Negative | `--color-negative` | `#9e0d22` | `#ff7d86` | Sell/short/negative, always paired with `-`/down |
 | Warning | `--color-warning` | `#9a5b00` | `#f6bd63` | Risk and attention |
@@ -136,3 +136,19 @@ The default strategy is **mixed but restrained**: structural 1px borders and ton
 - No raw color values outside this document and the token stylesheet.
 - No `any`, silent mock fallback, color-only trading state, or unlabelled icon control.
 - No giant rounded dashboard cards, neon glows, decorative particles, or unbounded horizontal overflow.
+
+## 10. Navigation and action controls (2026-10-26)
+
+Public navigation uses 14px labels, 1.75px Lucide strokes, mineral gray surfaces and blue selection states.
+At 1280px and below, a right-hand native dialog presents every product entry and both settlement variants.
+Its focus cycles within the dialog; Escape, close and backdrop dismissal restore focus and body scrolling.
+Resizing to desktop dismisses the drawer. Coin-M routes highlight their parent product navigation.
+Desktop submenus use explicit buttons with expanded state, keyboard access and Escape dismissal.
+Language selection uses language names without national flag glyphs.
+
+Shared buttons preserve their accessible text while loading, expose busy state and remain disabled even when
+callers pass `disabled={false}`. Caller classes extend the shared button styles. Keyboard focus and reduced-motion
+behavior apply consistently to navigation and shared controls. The base palette is coordinated with the admin console;
+auth artwork retains its dedicated blue tokens.
+
+Browser coverage and limits are recorded in `docs/validation/navigation-polish-20261026.md`.

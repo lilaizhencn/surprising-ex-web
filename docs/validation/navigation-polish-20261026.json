@@ -1,0 +1,53 @@
+{
+  "browser": "156.0.8078.47",
+  "checks": [
+    "desktop submenu keyboard, Escape and focus return",
+    "Coin-M route keeps product navigation active; browser Back",
+    "theme switching and reload persistence",
+    "320/390/768/1024/1280px: no overflow, focus trap, Escape, focus return and scroll restoration",
+    "backdrop closes mobile navigation",
+    "mobile Coin-M delivery selection closes navigation and browser Back restores page",
+    "authenticated 320/390px layout and mobile sign-out",
+    "reduced motion and resize to desktop closes drawer",
+    "navigation lifecycle: 30 open/close cycles over 61731ms; scrolling restored each time"
+  ],
+  "errors": [],
+  "lifecycle": [
+    {
+      "elapsedMs": 29,
+      "JSEventListeners": 209,
+      "Nodes": 223,
+      "TaskDuration": 0.028114,
+      "JSHeapUsedSize": 19631496
+    },
+    {
+      "elapsedMs": 20615,
+      "JSEventListeners": 209,
+      "Nodes": 223,
+      "TaskDuration": 0.475714,
+      "JSHeapUsedSize": 19782468
+    },
+    {
+      "elapsedMs": 41173,
+      "JSEventListeners": 209,
+      "Nodes": 223,
+      "TaskDuration": 0.905556,
+      "JSHeapUsedSize": 19847732
+    },
+    {
+      "elapsedMs": 61716,
+      "JSEventListeners": 209,
+      "Nodes": 223,
+      "TaskDuration": 1.335233,
+      "JSHeapUsedSize": 19863696
+    },
+    {
+      "elapsedMs": 61731,
+      "JSEventListeners": 209,
+      "Nodes": 223,
+      "TaskDuration": 1.347641,
+      "JSHeapUsedSize": 19863696
+    }
+  ],
+  "limitation": "Controlled HTTP/session fixtures; no live trading or backend writes."
+}

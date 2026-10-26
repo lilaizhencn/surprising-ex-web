@@ -2,6 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./app/App"
 import "./styles/global.css"
+import "./components/layout/Navigation.css"
 import { PageErrorBoundary } from "./components/layout/PageErrorBoundary"
 import { readStoredValue } from "./lib/storage"
 

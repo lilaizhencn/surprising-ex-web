@@ -11,6 +11,8 @@ export function Button({
   children,
   tone = "primary",
   loading = false,
+  disabled,
+  className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   readonly tone?: ButtonTone
@@ -19,11 +21,13 @@ export function Button({
   return (
     <button
       type="button"
-      className={`button button-${tone}`}
-      disabled={props.disabled || loading}
       {...props}
+      className={`button button-${tone} ${className}`.trim()}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
     >
-      {loading ? <LoaderCircle className="spin" size={16} aria-hidden="true" /> : children}
+      {loading ? <LoaderCircle className="spin" size={16} aria-hidden="true" /> : null}
+      {children}
     </button>
   )
 }
@@ -31,10 +35,17 @@ export function Button({
 export function IconButton({
   label,
   children,
+  className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { readonly label: string }) {
   return (
-    <button type="button" className="icon-button" aria-label={t(label)} title={t(label)} {...props}>
+    <button
+      type="button"
+      className={`icon-button ${className}`.trim()}
+      aria-label={t(label)}
+      title={t(label)}
+      {...props}
+    >
       {children}
     </button>
   )
