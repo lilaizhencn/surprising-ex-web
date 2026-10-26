@@ -21,10 +21,17 @@ export function TopNav({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dark, setDark] = useState(document.documentElement.dataset[THEME_KEY] === "dark")
-  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0)
+  const [unreadSnapshot, setUnreadSnapshot] = useState<{
+    owner: string
+    locale: string
+    count: number
+  } | null>(null)
   const closeNavigation = useCallback(() => setMobileOpen(false), [])
   const pathname = window.location.pathname
   const locale = useLocale()
+  const owner = String(session?.user.userId ?? "guest")
+  const unreadAnnouncements =
+    unreadSnapshot?.owner === owner && unreadSnapshot.locale === locale ? unreadSnapshot.count : 0
   useEffect(() => setMobileOpen(false), [pathname])
   const toggleTheme = () => {
     const next = !dark
@@ -33,35 +40,45 @@ export function TopNav({
     writeStoredValue("surprising-ex.theme", next ? "dark" : "light")
   }
   useEffect(() => {
-    let active = true
+    let request: AbortController | null = null
     const refreshUnread = () => {
+      request?.abort()
       if (!session) {
-        setUnreadAnnouncements(0)
+        setUnreadSnapshot(null)
         return
       }
-      void loadAnnouncements({
-        locale: locale === "zh" ? "zh-CN" : "en-US",
-        productLine: "ALL",
-        platform: "WEB",
-        placement: "CENTER",
-        limit: 1,
-      })
-        .then((result) => {
-          if (active) setUnreadAnnouncements(result.unreadCount)
-        })
-        .catch(() => {})
+      if (document.visibilityState !== "visible") return
+      const abort = new AbortController()
+      request = abort
+      void loadAnnouncements(
+        {
+          locale: locale === "zh" ? "zh-CN" : "en-US",
+          productLine: "ALL",
+          platform: "WEB",
+          placement: "CENTER",
+          limit: 1,
+        },
+        abort.signal,
+      ).then(
+        (result) => {
+          if (!abort.signal.aborted) setUnreadSnapshot({ owner, locale, count: result.unreadCount })
+        },
+        () => {
+          if (!abort.signal.aborted) setUnreadSnapshot(null)
+        },
+      )
     }
     refreshUnread()
     const timer = window.setInterval(refreshUnread, 60_000)
     window.addEventListener("focus", refreshUnread)
     window.addEventListener("surprising-announcements-updated", refreshUnread)
     return () => {
-      active = false
+      request?.abort()
       window.clearInterval(timer)
       window.removeEventListener("focus", refreshUnread)
       window.removeEventListener("surprising-announcements-updated", refreshUnread)
     }
-  }, [session?.accessToken, locale])
+  }, [session?.accessToken, owner, locale])
   return (
     <header className="top-nav">
       <a className="skip-link" href="#main-content">

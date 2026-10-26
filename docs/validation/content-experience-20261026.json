@@ -1,0 +1,134 @@
+{
+  "checks": [
+    "help accordion/featured focus, debounced search, cancelled old results, error retry, clear search and category filtering",
+    "invalid notification collection does not become zero/empty; exact-ID read is sent once; pending operations lock filter; read-all failure preserves messages and retry refreshes unread view",
+    "late read receipt cannot replace selected article; bounded pagination, failed read retry, locale/user resets, and guest reading without authenticated POSTs",
+    "native announcement modal dismiss/focus, bounded seen-version tracking, denied storage, visible read failure and successful retry",
+    "1440/390/320 light/dark long-body layouts, repeat navigation and 60-second observation without unexpected page/console errors"
+  ],
+  "errors": [],
+  "samples": [
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0,
+      "TaskDuration": 0.026774,
+      "JSHeapUsedSize": 20538852
+    },
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.000298,
+      "TaskDuration": 0.040476,
+      "JSHeapUsedSize": 20539592
+    },
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.000778,
+      "TaskDuration": 0.042304,
+      "JSHeapUsedSize": 20570344
+    },
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.001179,
+      "TaskDuration": 0.043472,
+      "JSHeapUsedSize": 20572156
+    },
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.001467,
+      "TaskDuration": 0.045536,
+      "JSHeapUsedSize": 20582880
+    },
+    {
+      "JSEventListeners": 259,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.001625,
+      "TaskDuration": 0.046791,
+      "JSHeapUsedSize": 20584000
+    },
+    {
+      "JSEventListeners": 282,
+      "Nodes": 793,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 1,
+      "ScriptDuration": 0.010686,
+      "TaskDuration": 0.059742,
+      "JSHeapUsedSize": 21410828
+    }
+  ],
+  "browser": "153.0.8010.12",
+  "fixtureOnly": true,
+  "date": "2026-10-26",
+  "commands": {
+    "npm run lint -- --diagnostic-level=error": "passed",
+    "npm test": "529 passed across 60 files",
+    "npm run build": "passed",
+    "git diff --check": "passed",
+    "npm run typecheck": "passed"
+  },
+  "viewports": [
+    [
+      1440,
+      1000
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      844
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "observationSeconds": 60,
+  "retainedAfterGc": {
+    "JSEventListeners": 259,
+    "Nodes": 793,
+    "LayoutCount": 0,
+    "RecalcStyleCount": 1,
+    "ScriptDuration": 0.010686,
+    "TaskDuration": 0.073381,
+    "JSHeapUsedSize": 20620332
+  },
+  "screenshots": [
+    "announcement-detail-mobile-320.png",
+    "announcement-detail-mobile-390.png",
+    "announcements-desktop-light.png",
+    "announcements-guest-desktop-light.png",
+    "announcements-mobile-dark.png",
+    "help-desktop-light.png",
+    "help-mobile-320.png",
+    "help-mobile-390.png",
+    "notifications-empty-desktop-light.png",
+    "notifications-mobile-320.png",
+    "notifications-mobile-390.png"
+  ],
+  "artifactRoot": "/Users/atomex/.codex/artifacts/surprising-content-20261026/client",
+  "overallGoal": "active",
+  "limits": [
+    "Synthetic local HTTP/session/approval fixtures only; no real messages or content publication",
+    "No production deployment, real multi-client synchronization or real multi-person approval",
+    "Browser TaskDuration/ScriptDuration and 60-second metrics are observations, not production performance claims",
+    "Remaining pages and six-product end-to-end audit still require work"
+  ]
+}

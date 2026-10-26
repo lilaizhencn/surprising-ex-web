@@ -1,170 +1,224 @@
-import { Bell, CheckCheck, RefreshCw } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { Bell, Check, CheckCheck, RefreshCw } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import {
   loadNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from "../../api/endpoints"
+import type { ApiNotification } from "../../api/types"
 import { Button, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 
-type Notification = Readonly<Record<string, unknown>>
-const READ_AT_KEY = "readAt"
-
 export function NotificationsPage() {
   const session = useSession()
-  const [rows, setRows] = useState<readonly Notification[]>([])
+  return session ? (
+    <AccountNotifications key={String(session.user.userId)} />
+  ) : (
+    <div className="container section notifications-page">
+      <div className="page-heading">
+        <div>
+          <h1>{t("Notification Center")}</h1>
+          <p>{t("System and account messages are available after sign in.")}</p>
+        </div>
+        <Bell size={28} aria-hidden="true" />
+      </div>
+      <Panel>
+        <StateView kind="empty" message="Sign in to view account notifications." />
+        <a className="button button-primary" href="/auth/login">
+          {t("Go to login")}
+        </a>
+      </Panel>
+    </div>
+  )
+}
+function AccountNotifications() {
+  const [rows, setRows] = useState<ApiNotification[] | null>(null)
   const [unreadOnly, setUnreadOnly] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const load = () => {
-    if (!session) return
+  const [actionError, setActionError] = useState("")
+  const [notice, setNotice] = useState("")
+  const [busy, setBusy] = useState("")
+  const [reload, setReload] = useState(0)
+  const writing = useRef(false)
+  const lifetime = useRef<AbortController | null>(null)
+  useEffect(() => {
+    const abort = new AbortController()
+    lifetime.current = abort
+    return () => abort.abort()
+  }, [])
+  useEffect(() => {
+    const abort = new AbortController()
+    setRows(null)
     setLoading(true)
     setError("")
-    void loadNotifications(unreadOnly)
-      .then(setRows, (reason: unknown) => setError(readError(reason)))
-      .finally(() => setLoading(false))
+    setActionError("")
+    void loadNotifications(unreadOnly, abort.signal)
+      .then(
+        (value) => {
+          if (!abort.signal.aborted) setRows(value)
+        },
+        (reason) => {
+          if (!abort.signal.aborted) setError(readError(reason))
+        },
+      )
+      .finally(() => {
+        if (!abort.signal.aborted) setLoading(false)
+      })
+    return () => abort.abort()
+  }, [unreadOnly, reload])
+  const unreadCount = rows?.filter((row) => !row.readAt).length
+  const mark = async (id?: string) => {
+    const signal = lifetime.current?.signal
+    if (!signal || signal.aborted || writing.current || loading) return
+    writing.current = true
+    setBusy(id ?? "all")
+    setActionError("")
+    setNotice("")
+    try {
+      if (id) await markNotificationRead(id, signal)
+      else await markAllNotificationsRead(signal)
+      if (!signal.aborted) {
+        setNotice(t(id ? "Notification marked as read." : "All notifications marked as read."))
+        setReload((value) => value + 1)
+      }
+    } catch (reason) {
+      if (!signal.aborted) setActionError(readError(reason))
+    } finally {
+      writing.current = false
+      if (!signal.aborted) setBusy("")
+    }
   }
-  useEffect(load, [session, unreadOnly])
-  const unreadCount = useMemo(() => rows.filter((row) => !row[READ_AT_KEY]).length, [rows])
-  if (!session)
-    return (
-      <div className="container section notifications-page">
-        <div className="page-heading">
-          <div>
-            <h1>{t("Notification Center")}</h1>
-            <p>{t("System and account messages are available after sign in.")}</p>
-          </div>
-          <Bell size={28} color="var(--color-primary)" />
-        </div>
-        <Panel>
-          <StateView kind="error" message="Sign in to view account notifications." />
-          <a className="route-link" href="/auth/login">
-            {" "}
-            {t("Go to login")}{" "}
-          </a>
-        </Panel>
-      </div>
-    )
   return (
     <div className="container section notifications-page">
       <div className="page-heading">
         <div>
           <h1>{t("Notification Center")}</h1>
-          <p>
-            {t(
-              "System and account messages are loaded from the authenticated notification service.",
-            )}
-          </p>
+          <p>{t("Read account updates, security alerts and service messages in one place.")}</p>
         </div>
-        <Bell size={28} color="var(--color-primary)" />
+        <Bell size={28} aria-hidden="true" />
       </div>
-      <div className="history-toolbar">
+      <div className="history-toolbar content-toolbar">
         <label className="checkbox-row">
           <input
             type="checkbox"
             checked={unreadOnly}
-            onChange={(event) => setUnreadOnly(event.target.checked)}
-          />{" "}
-          {t("Unread only")}{" "}
+            disabled={Boolean(busy)}
+            onChange={(event) => {
+              setUnreadOnly(event.target.checked)
+              setNotice("")
+            }}
+          />
+          {t("Unread only")}
         </label>
-        <span className="muted">
-          {unreadCount} {t("unread in this view")}
+        <span className="muted" role="status">
+          {unreadCount ?? "—"} {t("unread in this view")}
         </span>
-        <Button tone="outline" onClick={load}>
-          <RefreshCw size={16} /> {t("Refresh")}{" "}
+        <Button
+          tone="outline"
+          disabled={Boolean(busy)}
+          loading={loading}
+          onClick={() => {
+            setNotice("")
+            setReload((value) => value + 1)
+          }}
+        >
+          <RefreshCw size={16} aria-hidden="true" />
+          {t("Refresh")}
         </Button>
         <Button
           tone="outline"
-          disabled={unreadCount === 0}
-          onClick={() =>
-            void markAllNotificationsRead().then(load, (reason: unknown) =>
-              setError(readError(reason)),
-            )
-          }
+          disabled={loading || !unreadCount || Boolean(busy)}
+          loading={busy === "all"}
+          onClick={() => void mark()}
         >
-          <CheckCheck size={16} /> {t("Mark all read")}{" "}
+          <CheckCheck size={16} aria-hidden="true" />
+          {t("Mark all read")}
         </Button>
       </div>
+      {notice ? (
+        <p className="content-notice" role="status">
+          {notice}
+        </p>
+      ) : null}
+      {actionError ? (
+        <p className="inline-error content-notice" role="alert">
+          {actionError}
+        </p>
+      ) : null}
       <Panel>
-        {error ? (
-          <StateView kind="error" message={error} retry={load} />
-        ) : loading ? (
-          <StateView kind="loading" message="Loading notifications" />
-        ) : rows.length === 0 ? (
+        {loading ? (
+          <div role="status" aria-busy="true">
+            <StateView kind="loading" message="Loading notifications" />
+            <span className="sr-only">{t("Loading notifications")}</span>
+          </div>
+        ) : error ? (
+          <StateView kind="error" message={error} retry={() => setReload((value) => value + 1)} />
+        ) : !rows?.length ? (
           <StateView
             kind="empty"
-            message={
-              unreadOnly ? "No unread notifications." : "No notifications returned by the backend."
-            }
+            message={unreadOnly ? "No unread notifications." : "No notifications yet."}
           />
         ) : (
-          <div className="notification-list">
-            {rows.map((row, index) => (
-              <NotificationRow
-                key={text(row, "notificationId") || String(index)}
-                row={row}
-                onRead={(message) => {
-                  if (message) setError(message)
-                  else load()
-                }}
-              />
-            ))}
-          </div>
+          <>
+            <div className="notification-list">
+              {rows.map((row) => (
+                <article
+                  key={row.notificationId}
+                  className={`notification-item ${row.readAt ? "notification-read" : "notification-unread"}`}
+                >
+                  <div className="notification-content">
+                    <span className="eyebrow">{t(categoryLabel(row.category))}</span>
+                    <h2>{row.title}</h2>
+                    <p>{row.body}</p>
+                    <small className="muted">
+                      <time dateTime={row.createdAt}>
+                        {new Date(row.createdAt).toLocaleString()}
+                      </time>
+                    </small>
+                  </div>
+                  {row.readAt ? (
+                    <span className="notification-read-label">
+                      <Check size={15} aria-hidden="true" />
+                      {t("Read")}
+                    </span>
+                  ) : (
+                    <Button
+                      tone="outline"
+                      loading={busy === row.notificationId}
+                      disabled={Boolean(busy)}
+                      onClick={() => void mark(row.notificationId)}
+                    >
+                      {t("Mark read")}
+                    </Button>
+                  )}
+                </article>
+              ))}
+            </div>
+            {rows.length === 100 ? (
+              <p className="muted content-limit-note">
+                {t("Showing the latest 100 notifications in this view.")}
+              </p>
+            ) : null}
+          </>
         )}
       </Panel>
     </div>
   )
 }
-
-function NotificationRow({
-  row,
-  onRead,
-}: {
-  readonly row: Notification
-  readonly onRead: (message: string) => void
-}) {
-  const [loading, setLoading] = useState(false)
-  const id = text(row, "notificationId")
+function categoryLabel(value: string) {
   return (
-    <article
-      className={`notification-item ${row[READ_AT_KEY] ? "notification-read" : "notification-unread"}`}
-    >
-      <div>
-        <span className="eyebrow">{text(row, "category") || "SYSTEM"}</span>
-        <h2>{text(row, "title") || "Notification"}</h2>
-        <p>{text(row, "body") || "—"}</p>
-        <small className="muted">{text(row, "createdAt") || "—"}</small>
-      </div>
-      {!row[READ_AT_KEY] ? (
-        <Button
-          tone="outline"
-          loading={loading}
-          disabled={!id}
-          onClick={() => {
-            setLoading(true)
-            void markNotificationRead(id)
-              .then(
-                () => onRead(""),
-                (reason: unknown) => onRead(readError(reason)),
-              )
-              .finally(() => setLoading(false))
-          }}
-        >
-          {" "}
-          {t("Mark read")}{" "}
-        </Button>
-      ) : (
-        <span className="muted">{t("Read")}</span>
-      )}
-    </article>
+    (
+      {
+        SYSTEM: "System",
+        SECURITY: "Security",
+        ACCOUNT: "Account",
+        TRADING: "Trading",
+        FUNDING: "Funding",
+      } as Record<string, string>
+    )[value] ?? value
   )
-}
-
-function text(row: Notification | null | undefined, key: string): string {
-  const value = row?.[key]
-  return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 function readError(reason: unknown): string {
   return reason instanceof Error

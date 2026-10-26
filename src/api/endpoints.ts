@@ -34,6 +34,8 @@ import type {
 } from "./types"
 import {
   AccountLedgerPageSchema,
+  AnnouncementPageSchema,
+  AnnouncementSchema,
   AssetScalesSchema,
   AuthSessionSchema,
   BalanceListSchema,
@@ -56,6 +58,8 @@ import {
   LoginHistoryPageSchema,
   MarketListSchema,
   MarketSchema,
+  NotificationListSchema,
+  NotificationSchema,
   OrderBookSchema,
   OrderHistoryPageSchema,
   OrderListSchema,
@@ -1831,9 +1835,13 @@ export function loadWithdrawalHistory(asset?: string, chain?: string, signal?: A
   })
 }
 
-export function loadNotifications(unreadOnly = false) {
+export function loadNotifications(unreadOnly = false, signal?: AbortSignal) {
   const query = new URLSearchParams({ unreadOnly: String(unreadOnly), limit: "100" })
-  return request(`/api/v1/notifications?${query.toString()}`, ArraySchema)
+  return request(
+    `/api/v1/notifications?${query.toString()}`,
+    NotificationListSchema,
+    signal ? { signal } : {},
+  )
 }
 
 export function loadAnnouncements(
@@ -1845,6 +1853,7 @@ export function loadAnnouncements(
     offset?: number
     limit?: number
   } = {},
+  signal?: AbortSignal,
 ) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries({
@@ -1858,15 +1867,8 @@ export function loadAnnouncements(
     query.set(key, String(value))
   return request(
     `/api/v1/announcements?${query.toString()}`,
-    z
-      .object({
-        announcements: ArraySchema,
-        unreadCount: z.number(),
-        offset: z.number(),
-        limit: z.number(),
-        hasMore: z.boolean(),
-      })
-      .passthrough(),
+    AnnouncementPageSchema,
+    signal ? { signal } : {},
   )
 }
 
@@ -1875,49 +1877,68 @@ export function markAnnouncementRead(
   productLine = "ALL",
   placement = "CENTER",
   locale = "en-US",
+  signal?: AbortSignal,
 ) {
   const query = new URLSearchParams({ productLine, platform: "WEB", placement, locale })
   return request(
     `/api/v1/announcements/${encodeURIComponent(announcementId)}/read?${query.toString()}`,
-    GenericObjectSchema,
-    { method: "POST" },
+    AnnouncementSchema,
+    { method: "POST", ...(signal ? { signal } : {}) },
   ).then((result) => {
+    if (result.announcementId !== announcementId || !result.readAt)
+      throw new Error(
+        t("The service returned an unexpected response. Please refresh and try again."),
+      )
     window.dispatchEvent(new Event("surprising-announcements-updated"))
     return result
   })
 }
 
-export function markAllAnnouncementsRead(productLine = "ALL") {
+export function markAllAnnouncementsRead(productLine = "ALL", signal?: AbortSignal) {
   const query = new URLSearchParams({ productLine, platform: "WEB", placement: "CENTER" })
   return request(
     `/api/v1/announcements/read-all?${query.toString()}`,
-    z.object({ updated: z.number() }),
-    { method: "POST" },
+    z.object({ updated: z.number().int().nonnegative() }),
+    { method: "POST", ...(signal ? { signal } : {}) },
   ).then((result) => {
     window.dispatchEvent(new Event("surprising-announcements-updated"))
     return result
   })
 }
 
-export function loadHelpArticles(query = "", category = "") {
+export function loadHelpArticles(query = "", category = "", signal?: AbortSignal) {
   const params = new URLSearchParams()
   if (query.trim()) params.set("query", query.trim())
   if (category) params.set("category", category)
-  return request(`/api/v1/help/articles?${params.toString()}`, HelpArticleListSchema)
-}
-
-export function markNotificationRead(notificationId: string) {
   return request(
-    `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
-    GenericObjectSchema,
-    {
-      method: "POST",
-    },
+    `/api/v1/help/articles?${params.toString()}`,
+    HelpArticleListSchema,
+    signal ? { signal } : {},
   )
 }
 
-export function markAllNotificationsRead() {
-  return request("/api/v1/notifications/read-all", z.number(), { method: "POST" })
+export function markNotificationRead(notificationId: string, signal?: AbortSignal) {
+  return request(
+    `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
+    NotificationSchema,
+    {
+      method: "POST",
+      ...(signal ? { signal } : {}),
+    },
+  ).then((result) => {
+    if (result.notificationId !== notificationId || !result.readAt)
+      throw new Error(
+        t("The service returned an unexpected response. Please refresh and try again."),
+      )
+    return result
+  })
+}
+
+export function markAllNotificationsRead(signal?: AbortSignal) {
+  return request("/api/v1/notifications/read-all", z.number().int().nonnegative(), {
+    method: "POST",
+    ...(signal ? { signal } : {}),
+  })
 }
 
 export function createWithdrawal(

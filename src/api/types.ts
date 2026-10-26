@@ -716,6 +716,53 @@ export const HelpArticleSchema = z.object({
 })
 export const HelpArticleListSchema = z.array(HelpArticleSchema)
 
+export const NotificationSchema = z.object({
+  notificationId: PositiveInt64Schema,
+  category: z.string().min(1).max(64),
+  title: z.string().min(1),
+  body: z.string(),
+  readAt: z.iso.datetime({ offset: true }).nullable(),
+  createdAt: z.iso.datetime({ offset: true }),
+})
+export const NotificationListSchema = z
+  .array(NotificationSchema)
+  .max(100)
+  .refine(
+    (rows) => new Set(rows.map((row) => row.notificationId)).size === rows.length,
+    "Duplicate notification IDs",
+  )
+export const AnnouncementSchema = z
+  .object({
+    announcementId: PositiveInt64Schema,
+    version: PositiveInt64Schema,
+    category: z.enum(["GENERAL", "PRODUCT", "MAINTENANCE", "SECURITY", "RISK"]),
+    title: z.string().min(1),
+    summary: z.string(),
+    body: z.string().min(1),
+    startsAt: z.iso.datetime({ offset: true }),
+    expiresAt: z.iso.datetime({ offset: true }).nullable(),
+    readAt: z.iso.datetime({ offset: true }).nullable(),
+  })
+  .passthrough()
+export const AnnouncementPageSchema = z
+  .object({
+    announcements: z.array(AnnouncementSchema).max(100),
+    unreadCount: z.number().int().nonnegative(),
+    offset: z.number().int().min(0).max(1_000_000),
+    limit: z.number().int().min(1).max(100),
+    hasMore: z.boolean(),
+  })
+  .refine(
+    (page) =>
+      page.announcements.length <= page.limit &&
+      (!page.hasMore || page.announcements.length > 0) &&
+      new Set(page.announcements.map((row) => row.announcementId)).size ===
+        page.announcements.length,
+    "Invalid announcement page",
+  )
+export type ApiNotification = z.infer<typeof NotificationSchema>
+export type ApiAnnouncement = z.infer<typeof AnnouncementSchema>
+
 export type AuthSession = z.infer<typeof AuthSessionSchema>
 export type JwtPrincipal = z.infer<typeof JwtPrincipalSchema>
 export type ApiUserSession = z.infer<typeof UserSessionSchema>

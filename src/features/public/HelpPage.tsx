@@ -1,11 +1,18 @@
-import { BookOpen, ChevronDown, Search } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { BookOpen, ChevronDown } from "lucide-react"
+import { useEffect, useId, useState } from "react"
 import { loadHelpArticles } from "../../api/endpoints"
 import type { ApiHelpArticle } from "../../api/types"
-import { Button, Panel, StateView } from "../../components/ui/Primitives"
+import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 
-const categories = ["", "SECURITY", "TRADING", "FUNDING", "DERIVATIVES", "SUPPORT"] as const
+const categories = [
+  ["", "All topics"],
+  ["SECURITY", "Security"],
+  ["TRADING", "Trading"],
+  ["FUNDING", "Funding"],
+  ["DERIVATIVES", "Derivatives"],
+  ["SUPPORT", "Support"],
+] as const
 
 export function HelpPage() {
   const [query, setQuery] = useState("")
@@ -14,20 +21,43 @@ export function HelpPage() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [reload, setReload] = useState(0)
+  const id = useId()
   useEffect(() => {
+    const abort = new AbortController()
     setLoading(true)
-    void loadHelpArticles(query, category)
-      .then((rows) => {
-        setArticles(rows)
-        setError("")
-      })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : t("Help content unavailable.")),
-      )
-      .finally(() => setLoading(false))
-  }, [category, query, reloadKey])
-  const featured = useMemo(() => articles.slice(0, 3), [articles])
+    setError("")
+    setArticles([])
+    setOpenId(null)
+    const timer = window.setTimeout(() => {
+      void loadHelpArticles(query, category, abort.signal)
+        .then(
+          (rows) => {
+            if (!abort.signal.aborted) setArticles(rows)
+          },
+          (reason) => {
+            if (!abort.signal.aborted)
+              setError(reason instanceof Error ? reason.message : t("Help content unavailable."))
+          },
+        )
+        .finally(() => {
+          if (!abort.signal.aborted) setLoading(false)
+        })
+    }, 200)
+    return () => {
+      window.clearTimeout(timer)
+      abort.abort()
+    }
+  }, [category, query, reload])
+  const articleButtonId = (articleId: string) => id + "-" + encodeURIComponent(articleId)
+  const openFeatured = (articleId: string) => {
+    setOpenId(articleId)
+    requestAnimationFrame(() => {
+      const target = document.getElementById(articleButtonId(articleId))
+      target?.focus({ preventScroll: true })
+      target?.scrollIntoView({ block: "center" })
+    })
+  }
   return (
     <div className="container section help-page">
       <div className="page-heading">
@@ -35,49 +65,41 @@ export function HelpPage() {
           <h1>{t("Help Center")}</h1>
           <p>{t("Clear guidance for account access, trading, funding and risk controls.")}</p>
         </div>
-        <BookOpen size={28} color="var(--color-primary)" />
+        <BookOpen size={28} aria-hidden="true" />
       </div>
       <Panel className="help-search">
-        <div className="search-field">
-          <Search size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("Search help articles")}
-            aria-label={t("Search help articles")}
-          />
-        </div>
-        <div className="segment-control">
-          {categories.map((value) => (
+        <SearchField value={query} onChange={setQuery} placeholder={t("Search help articles")} />
+        <fieldset className="segment-control" aria-label={t("Help categories")}>
+          {categories.map(([value, label]) => (
             <button
               type="button"
               className={category === value ? "active" : ""}
-              key={value || "all"}
+              key={label}
+              aria-pressed={category === value}
               onClick={() => setCategory(value)}
             >
-              {value || "All topics"}
+              {t(label)}
             </button>
           ))}
-        </div>
+        </fieldset>
       </Panel>
-      {error ? (
+      {loading ? (
         <Panel>
-          <StateView
-            kind="error"
-            message={error}
-            retry={() => setReloadKey((value) => value + 1)}
-          />
+          <div role="status" aria-busy="true">
+            <StateView kind="loading" message="Loading help content" />
+            <span className="sr-only">{t("Loading help content")}</span>
+          </div>
         </Panel>
-      ) : loading ? (
+      ) : error ? (
         <Panel>
-          <StateView kind="loading" message="Loading help content" />
+          <StateView kind="error" message={error} retry={() => setReload((value) => value + 1)} />
         </Panel>
       ) : (
         <div className="help-layout">
           <Panel>
             <div className="panel-heading">
               <h2>{t("Articles")}</h2>
-              <span className="muted">
+              <span className="muted" role="status">
                 {articles.length} {t("results")}
               </span>
             </div>
@@ -85,61 +107,83 @@ export function HelpPage() {
               <StateView kind="empty" message="No help articles match this search." />
             ) : (
               <div className="help-articles">
-                {articles.map((article) => (
-                  <article
-                    className={`help-article ${openId === article.articleId ? "open" : ""}`}
-                    key={article.articleId}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenId((current) =>
-                          current === article.articleId ? null : article.articleId,
-                        )
-                      }
+                {articles.map((article) => {
+                  const open = openId === article.articleId
+                  const buttonId = articleButtonId(article.articleId)
+                  return (
+                    <article
+                      className={`help-article ${open ? "open" : ""}`}
+                      key={article.articleId}
                     >
-                      <span>
-                        <small>{article.category}</small>
-                        <strong>{article.title}</strong>
-                        <em>{article.summary}</em>
-                      </span>
-                      <ChevronDown size={18} />
-                    </button>
-                    {openId === article.articleId ? (
-                      <div className="help-article-body">
-                        <p>{article.body}</p>
-                        <small>
-                          {t("Updated")} {article.updatedAt.slice(0, 10)}
-                        </small>
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
+                      <button
+                        type="button"
+                        id={buttonId}
+                        aria-expanded={open}
+                        aria-controls={open ? buttonId + "-body" : undefined}
+                        onClick={() =>
+                          setOpenId((current) =>
+                            current === article.articleId ? null : article.articleId,
+                          )
+                        }
+                      >
+                        <span>
+                          <small>
+                            {t(
+                              categories.find(([value]) => value === article.category)?.[1] ??
+                                article.category,
+                            )}
+                          </small>
+                          <strong>{article.title}</strong>
+                          <em>{article.summary}</em>
+                        </span>
+                        <ChevronDown size={18} aria-hidden="true" />
+                      </button>
+                      {open ? (
+                        <section
+                          id={buttonId + "-body"}
+                          className="help-article-body"
+                          aria-labelledby={buttonId}
+                        >
+                          <p>{article.body}</p>
+                          <small>
+                            {t("Updated")}{" "}
+                            <time dateTime={article.updatedAt}>
+                              {formatDate(article.updatedAt)}
+                            </time>
+                          </small>
+                        </section>
+                      ) : null}
+                    </article>
+                  )
+                })}
               </div>
             )}
           </Panel>
           <Panel>
             <h2>{t("Start here")}</h2>
             <div className="help-featured">
-              {featured.map((article) => (
+              {articles.slice(0, 3).map((article) => (
                 <Button
                   tone="outline"
                   key={article.articleId}
-                  onClick={() => setOpenId(article.articleId)}
+                  onClick={() => openFeatured(article.articleId)}
                 >
                   {article.title}
                 </Button>
               ))}
             </div>
             <p className="muted">
-              {" "}
               {t(
                 "For account-specific issues, include the request ID and time when contacting support. Never share credentials or secrets.",
-              )}{" "}
+              )}
             </p>
           </Panel>
         </div>
       )}
     </div>
   )
+}
+function formatDate(value: string) {
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date.toLocaleDateString() : value
 }
