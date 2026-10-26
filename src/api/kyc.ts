@@ -10,6 +10,9 @@ export type Country = z.infer<typeof CountrySchema>
 export function loadCountries(signal: AbortSignal) {
   return request("/api/v1/compliance/countries", z.array(CountrySchema), { signal })
 }
-export function deleteKycDraft(documentId: number) {
-  return request(`/api/v1/compliance/kyc/documents/${documentId}`, z.null(), { method: "DELETE" })
+export function deleteKycDraft(documentId: string, signal?: AbortSignal) {
+  return request(`/api/v1/compliance/kyc/documents/${encodeURIComponent(documentId)}`, z.null(), {
+    method: "DELETE",
+    ...(signal ? { signal } : {}),
+  })
 }

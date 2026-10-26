@@ -8,8 +8,8 @@ import { Button, Field } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
 import "./KycApplicationForm.css"
 
-type Row = Readonly<Record<string, unknown>> & { documentId?: unknown; profile?: unknown }
-type UploadedDocument = { id: number; name: string; file: File }
+type Row = Awaited<ReturnType<typeof submitKyc>>
+type UploadedDocument = { id: string; name: string; file: File }
 type Slot = {
   type: string
   title: string
@@ -40,12 +40,31 @@ export function KycApplicationForm({
   const [loadingFiles, setLoadingFiles] = useState(0)
   const [countryError, setCountryError] = useState("")
   const [reload, setReload] = useState(0)
+  const [countryLoading, setCountryLoading] = useState(true)
+  const submitting = useRef(false)
+  const fileOperations = useRef(0)
+  const lifetime = useRef<AbortController | null>(null)
+  useEffect(() => {
+    const abort = new AbortController()
+    lifetime.current = abort
+    return () => abort.abort()
+  }, [])
   useEffect(() => {
     const abort = new AbortController()
     setCountryError("")
-    void loadCountries(abort.signal).then(setCountries, (reason) => {
-      if (!abort.signal.aborted) setCountryError(readError(reason))
-    })
+    setCountryLoading(true)
+    void loadCountries(abort.signal)
+      .then(
+        (value) => {
+          if (!abort.signal.aborted) setCountries(value)
+        },
+        (reason) => {
+          if (!abort.signal.aborted) setCountryError(readError(reason))
+        },
+      )
+      .finally(() => {
+        if (!abort.signal.aborted) setCountryLoading(false)
+      })
     return () => abort.abort()
   }, [reload])
   const slots: Slot[] =
@@ -134,6 +153,8 @@ export function KycApplicationForm({
   const last = new Date(Date.UTC(oldest.getUTCFullYear(), oldest.getUTCMonth() + 1, 0)).getUTCDate()
   oldest.setUTCDate(Math.min(day, last))
   const submit = async () => {
+    const signal = lifetime.current?.signal
+    if (!signal || signal.aborted || submitting.current || fileOperations.current > 0) return
     setError("")
     if (!countries.some((row) => row.code === country)) {
       setError(t("Select a country or region."))
@@ -165,25 +186,30 @@ export function KycApplicationForm({
       setError(t("Upload every required document before submitting."))
       return
     }
+    submitting.current = true
     setBusy(true)
     try {
-      const result = await submitKyc({
-        applicantType: applicant,
-        kycLevel: level,
-        country,
-        documentType: type,
-        provider,
-        documentIds: slots.map((slot) => files[slot.key ?? slot.type]?.id),
-        documentExpiresOn: expiry,
-        documentIssuedOn: type === "ID_CARD" ? documentIssued : null,
-        addressIssuedOn: level === "BASIC" ? null : issued,
-        faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
-      })
-      onSubmitted(result)
+      const result = await submitKyc(
+        {
+          applicantType: applicant,
+          kycLevel: level,
+          country,
+          documentType: type,
+          provider,
+          documentIds: slots.map((slot) => files[slot.key ?? slot.type]?.id),
+          documentExpiresOn: expiry,
+          documentIssuedOn: type === "ID_CARD" ? documentIssued : null,
+          addressIssuedOn: level === "BASIC" ? null : issued,
+          faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
+        },
+        signal,
+      )
+      if (!signal.aborted) onSubmitted(result)
     } catch (reason) {
-      setError(readError(reason))
+      if (!signal.aborted) setError(readError(reason))
     } finally {
-      setBusy(false)
+      submitting.current = false
+      if (!signal.aborted) setBusy(false)
     }
   }
   function renderSlots(items: Slot[]) {
@@ -196,8 +222,12 @@ export function KycApplicationForm({
               key={key}
               slot={slot}
               file={files[key]}
-              onBusy={(delta) => setLoadingFiles((value) => value + delta)}
+              onBusy={(delta) => {
+                fileOperations.current += delta
+                if (!lifetime.current?.signal.aborted) setLoadingFiles(fileOperations.current)
+              }}
               onChange={(file) =>
+                !lifetime.current?.signal.aborted &&
                 setFiles((current) => {
                   const next = { ...current }
                   if (file) next[key] = file
@@ -219,7 +249,27 @@ export function KycApplicationForm({
         void submit()
       }}
     >
-      <fieldset disabled={busy || loadingFiles > 0}>
+      <div className="kyc-form-heading">
+        <h2>{t("Application details")}</h2>
+        <p>
+          {t(
+            "Use clear, complete and unedited documents. Your application will be reviewed after submission.",
+          )}
+        </p>
+      </div>
+      {countryLoading ? (
+        <p role="status" className="kyc-section-hint">
+          {t("Loading countries and regions…")}
+        </p>
+      ) : !countryError && !countries.length ? (
+        <p role="alert" className="inline-error">
+          {t("No countries or regions are available. Please retry later.")}
+          <Button tone="ghost" onClick={() => setReload((value) => value + 1)}>
+            {t("Retry")}
+          </Button>
+        </p>
+      ) : null}
+      <fieldset disabled={busy || loadingFiles > 0 || countryLoading}>
         <div className="grid-2">
           <Field label={t("Country or region")}>
             <DropdownSelect
@@ -376,6 +426,12 @@ export function KycApplicationForm({
             {error}
           </p>
         ) : null}
+        {slots.length ? (
+          <p className="kyc-upload-progress" role="status">
+            {t("Required documents uploaded")}:{" "}
+            {slots.filter((slot) => files[slot.key ?? slot.type]).length} / {slots.length}
+          </p>
+        ) : null}
         <Button type="submit" loading={busy} disabled={loadingFiles > 0 || !countries.length}>
           {t("Submit for verification")}
         </Button>
@@ -399,10 +455,15 @@ function DocumentSlot({
   const [busy, setBusy] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const mounted = useRef(true)
+  const operation = useRef(false)
+  const lifetime = useRef<AbortController | null>(null)
   useEffect(() => {
+    const abort = new AbortController()
+    lifetime.current = abort
     mounted.current = true
     return () => {
       mounted.current = false
+      abort.abort()
     }
   }, [])
   useEffect(() => {
@@ -415,6 +476,8 @@ function DocumentSlot({
     return () => URL.revokeObjectURL(url)
   }, [file])
   const upload = async (value: File) => {
+    const signal = lifetime.current?.signal
+    if (!signal || signal.aborted || operation.current) return
     setError("")
     if (
       !["image/png", "image/jpeg", "application/pdf"].includes(value.type) ||
@@ -424,35 +487,40 @@ function DocumentSlot({
       setError(t("Use a JPG, PNG or PDF file up to 15 MB."))
       return
     }
+    operation.current = true
     setBusy(true)
     onBusy(1)
     try {
-      const result = (await uploadKycDocument(slot.type, value)) as { documentId?: unknown }
-      if (typeof result.documentId !== "number") throw new Error(t("Document upload failed."))
+      const result = await uploadKycDocument(slot.type, value, signal)
       if (mounted.current) {
         onChange({ id: result.documentId, name: value.name, file: value })
       }
     } catch (reason) {
       if (mounted.current) setError(readError(reason))
     } finally {
+      operation.current = false
       onBusy(-1)
       if (mounted.current) setBusy(false)
     }
   }
   const remove = async () => {
-    if (!file) return
+    const signal = lifetime.current?.signal
+    if (!file || !signal || signal.aborted || operation.current) return
+    operation.current = true
     setBusy(true)
     onBusy(1)
     setError("")
     try {
-      await deleteKycDraft(file.id)
+      await deleteKycDraft(file.id, signal)
+      if (signal.aborted) return
       onChange()
       setPreview("")
       if (input.current) input.current.value = ""
     } catch (reason) {
-      setError(readError(reason))
+      if (!signal.aborted) setError(readError(reason))
     } finally {
-      setBusy(false)
+      operation.current = false
+      if (!signal.aborted) setBusy(false)
       onBusy(-1)
     }
   }

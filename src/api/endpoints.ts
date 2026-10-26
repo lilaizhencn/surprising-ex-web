@@ -49,7 +49,9 @@ import {
   HelpArticleListSchema,
   IpStatusSchema,
   JwtPrincipalSchema,
+  KycDocumentSchema,
   KycProfileSchema,
+  KycProviderSchema,
   LoginChallengeSchema,
   LoginHistoryPageSchema,
   MarketListSchema,
@@ -628,18 +630,37 @@ export function revokeApiKey(apiKey: string, emailCode: string, totpCode: string
   })
 }
 
-export function loadKyc() {
-  return request("/api/v1/compliance/kyc", KycProfileSchema)
+function checkKycOwner<T extends { userId: string } | null>(profile: T, userId: string): T {
+  if (profile && profile.userId !== userId)
+    throw new Error(t("The service returned an unexpected response. Please refresh and try again."))
+  return profile
 }
 
-export function uploadKycDocument(documentType: string, file: File) {
+export async function loadKyc(signal?: AbortSignal) {
+  const userId = String(loadSession()?.user.userId ?? "")
+  return checkKycOwner(
+    await request("/api/v1/compliance/kyc", KycProfileSchema, {
+      ...(signal ? { signal } : {}),
+      expectedUserId: userId,
+    }),
+    userId,
+  )
+}
+
+export async function uploadKycDocument(documentType: string, file: File, signal?: AbortSignal) {
+  const userId = String(loadSession()?.user.userId ?? "")
   const body = new FormData()
   body.append("documentType", documentType)
   body.append("file", file)
-  return request("/api/v1/compliance/kyc/documents", GenericObjectSchema, {
-    method: "POST",
-    body,
-  })
+  return checkKycOwner(
+    await request("/api/v1/compliance/kyc/documents", KycDocumentSchema, {
+      method: "POST",
+      body,
+      ...(signal ? { signal } : {}),
+      expectedUserId: userId,
+    }),
+    userId,
+  )
 }
 
 export function loadKycDocuments() {
@@ -650,27 +671,49 @@ export function downloadKycDocument(documentId: string | number) {
   return requestBlob(`/api/v1/compliance/kyc/documents/${encodeURIComponent(String(documentId))}`)
 }
 
-export function submitKyc(body: Readonly<Record<string, unknown>>) {
-  return request("/api/v1/compliance/kyc", GenericObjectSchema, {
-    method: "POST",
-    body,
-  })
+export async function submitKyc(body: Readonly<Record<string, unknown>>, signal?: AbortSignal) {
+  const userId = String(loadSession()?.user.userId ?? "")
+  const response = await request(
+    "/api/v1/compliance/kyc",
+    z.object({
+      profile: KycProfileSchema.unwrap(),
+      verificationSession: GenericObjectSchema,
+    }),
+    {
+      method: "POST",
+      body,
+      ...(signal ? { signal } : {}),
+      expectedUserId: userId,
+    },
+  )
+  checkKycOwner(response.profile, userId)
+  return response
 }
 
-export function loadKycProvider() {
-  return request("/api/v1/compliance/kyc/provider", GenericObjectSchema)
+export function loadKycProvider(signal?: AbortSignal) {
+  return request("/api/v1/compliance/kyc/provider", KycProviderSchema, signal ? { signal } : {})
 }
 
-export function completeKycSimulation(decision: "APPROVED" | "REJECTED" | "MANUAL_REVIEW") {
-  return request("/api/v1/compliance/kyc/simulation/complete", GenericObjectSchema, {
-    method: "POST",
-    body: { decision },
-  })
+export async function completeKycSimulation(
+  decision: "APPROVED" | "REJECTED" | "MANUAL_REVIEW",
+  signal?: AbortSignal,
+) {
+  const userId = String(loadSession()?.user.userId ?? "")
+  return checkKycOwner(
+    await request("/api/v1/compliance/kyc/simulation/complete", KycProfileSchema.unwrap(), {
+      method: "POST",
+      body: { decision },
+      ...(signal ? { signal } : {}),
+      expectedUserId: userId,
+    }),
+    userId,
+  )
 }
 
-export function refreshKycSession() {
+export function refreshKycSession(signal?: AbortSignal) {
   return request("/api/v1/compliance/kyc/session/refresh", GenericObjectSchema, {
     method: "POST",
+    ...(signal ? { signal } : {}),
   })
 }
 

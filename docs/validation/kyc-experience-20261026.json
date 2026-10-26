@@ -1,0 +1,117 @@
+{
+  "checks": [
+    "load failure/retry, loading, selections, date calendar, invalid file, upload/remove with exact ID, wrong upload owner rejection, document progress, one submit and pending result",
+    "rejected review displays full reason and supports a fresh application",
+    "verified profile remains usable when provider metadata fails",
+    "expired verified record cannot advertise current verification or offer a backend-forbidden duplicate application",
+    "mismatched profile owner is rejected",
+    "provider failure blocks new application and has a working retry",
+    "country catalogue failure and retry keep submission disabled until real options load",
+    "external SDK fixture opens once, closes/destroys, reopens and cleans up before refresh",
+    "1440/390/320 layouts, light/dark screenshots, 60-second pending polling observation without unexpected console/page errors"
+  ],
+  "errors": [],
+  "samples": [
+    {
+      "JSEventListeners": 350,
+      "Nodes": 252,
+      "JSHeapUsedSize": 25449928
+    },
+    {
+      "JSEventListeners": 356,
+      "Nodes": 252,
+      "JSHeapUsedSize": 25684552
+    },
+    {
+      "JSEventListeners": 356,
+      "Nodes": 252,
+      "JSHeapUsedSize": 25717164
+    },
+    {
+      "JSEventListeners": 362,
+      "Nodes": 252,
+      "JSHeapUsedSize": 25929944
+    },
+    {
+      "JSEventListeners": 368,
+      "Nodes": 252,
+      "JSHeapUsedSize": 26157244
+    },
+    {
+      "JSEventListeners": 374,
+      "Nodes": 252,
+      "JSHeapUsedSize": 25596544
+    },
+    {
+      "JSEventListeners": 386,
+      "Nodes": 252,
+      "JSHeapUsedSize": 26005472
+    }
+  ],
+  "retained": [
+    {
+      "name": "JSEventListeners",
+      "value": 350
+    },
+    {
+      "name": "Nodes",
+      "value": 252
+    },
+    {
+      "name": "JSHeapUsedSize",
+      "value": 25474408
+    }
+  ],
+  "browser": "153.0.8010.12",
+  "fixtureOnly": true,
+  "date": "2026-10-26",
+  "scope": "client identity verification",
+  "commands": {
+    "npm run lint -- --diagnostic-level=error": "passed",
+    "npm run typecheck": "passed",
+    "npm test": "526 passed across 59 files",
+    "npm run build": "passed",
+    "git diff --check": "passed"
+  },
+  "observationSeconds": 60,
+  "viewports": [
+    [
+      1440,
+      1000
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      844
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "languages": [
+    "English",
+    "简体中文"
+  ],
+  "screenshots": [
+    "client-kyc-application-desktop-light.png",
+    "client-kyc-application-mobile-320.png",
+    "client-kyc-application-mobile-390.png",
+    "client-kyc-application-mobile-dark.png",
+    "client-kyc-document-mobile-320.png",
+    "client-kyc-document-mobile-390.png",
+    "client-kyc-pending-desktop-zh-dark.png",
+    "client-kyc-unavailable-light.png"
+  ],
+  "artifactRoot": "/Users/atomex/.codex/artifacts/surprising-kyc-20261026/client",
+  "limits": [
+    "Isolated synthetic HTTP/session/SDK/files only; no real identity data or provider submission",
+    "No real camera/face/PDF viewer or backend identity decisions/notifications",
+    "Existing backend rejects resubmission while stored status is VERIFIED; expired record links to the existing Help Center",
+    "60 seconds is not production-duration reliability or performance evidence"
+  ],
+  "overallGoal": "active"
+}

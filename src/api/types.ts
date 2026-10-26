@@ -624,7 +624,21 @@ export const WithdrawalSubmissionSchema = z
 export const WalletRecordSchema = GenericObjectSchema
 export const WalletRecordsSchema = z.array(WalletRecordSchema)
 
-export const KycProfileSchema = GenericObjectSchema.nullable()
+export const KycProfileSchema = z
+  .object({
+    userId: PositiveInt64Schema,
+    status: z.enum(["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED", "EXPIRED"]),
+    expiresAt: z.iso.datetime({ offset: true }).nullable().optional(),
+  })
+  .passthrough()
+  .nullable()
+export const KycDocumentSchema = z
+  .object({ documentId: PositiveInt64Schema, userId: PositiveInt64Schema })
+  .passthrough()
+export const KycProviderSchema = z.object({
+  provider: z.enum(["SELF", "SUMSUB", "VERIFF"]),
+  simulationEnabled: z.boolean(),
+})
 export const SecurityApiKeySchema = GenericObjectSchema
 export const SecurityApiKeyListSchema = z.array(SecurityApiKeySchema)
 
