@@ -55,7 +55,16 @@ describe("C2C financial request recovery", () => {
   })
   it("receipt recovery is an owner-bound read and never resends the mutation", async () => {
     const original = await prepareTrade("12", "ORDER_CREATE", { quoteId: "abc" })
-    vi.mocked(request).mockResolvedValue({ status: "SUCCEEDED", resultId: "original-order" })
+    vi.mocked(request).mockResolvedValue({
+      ownerUserId: "12",
+      requestKey: original.requestKey,
+      kind: original.kind,
+      requestHash: original.requestHash,
+      status: "SUCCEEDED",
+      resultId: "11111111-1111-4111-8111-111111111111",
+      errorCode: null,
+      message: null,
+    })
     await tradeReceipt("12", original)
     expect(request).toHaveBeenCalledExactlyOnceWith(
       expect.stringContaining(
@@ -70,5 +79,40 @@ describe("C2C financial request recovery", () => {
     expect(c2cDecimal("6.650000000000000000")).toBe("6.65")
     expect(c2cDecimal("92233720368.5477580700")).toBe("92233720368.54775807")
     expect(c2cDecimal("0.0000000100")).toBe("0.00000001")
+  })
+  it("rejects mismatched receipts without clearing the durable original request", async () => {
+    const original = await prepareTrade("12", "ORDER_CREATE", { quoteId: "abc" })
+    vi.mocked(request).mockResolvedValue({
+      ownerUserId: "13",
+      requestKey: original.requestKey,
+      kind: original.kind,
+      requestHash: original.requestHash,
+      status: "SUCCEEDED",
+      resultId: "11111111-1111-4111-8111-111111111111",
+      errorCode: null,
+      message: null,
+    })
+    await expect(tradeReceipt("12", original)).rejects.toThrow("回执身份不匹配")
+    expect(loadPendingTrade("12")).toEqual(original)
+  })
+  it("does not accept a stored body with another request key or verification codes", async () => {
+    const original = await prepareTrade("12", "ORDER_CREATE", { quoteId: "abc" })
+    values.set(
+      "surprising.c2c.trade.12",
+      JSON.stringify({
+        ...original,
+        body: { ...original.body, requestKey: "different-request-key" },
+      }),
+    )
+    expect(() => loadPendingTrade("12")).toThrow()
+    values.set(
+      "surprising.c2c.trade.12",
+      JSON.stringify({
+        ...original,
+        body: { ...original.body, verification: { emailCode: "123456" } },
+      }),
+    )
+    expect(() => loadPendingTrade("12")).toThrow()
+    expect(values.size).toBe(1)
   })
 })

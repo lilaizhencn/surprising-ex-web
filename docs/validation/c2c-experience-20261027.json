@@ -1,0 +1,169 @@
+{
+  "recordedAt": "2026-10-27T00:53:45.725670+00:00",
+  "localDate": "2026-10-27",
+  "baseCommit": "e6ffc7bb16ae961291051df1b289bbfb53144800",
+  "fixtureOnly": true,
+  "artifacts": "/Users/atomex/.codex/artifacts/surprising-c2c-experience-20261027/client",
+  "environment": {
+    "node": "22.23.1",
+    "bun": "1.3.14",
+    "browser": "153.0.8010.12",
+    "viewportCoverage": [
+      "1440x1000",
+      "390x844",
+      "320x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ]
+  },
+  "commands": [
+    {
+      "command": "npm run lint -- --diagnostic-level=error",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "unitTests": {
+    "passed": 541,
+    "failed": 0,
+    "files": 62
+  },
+  "browser": {
+    "checks": [
+      "offer failure never becomes empty; unrelated profile failure preserves market; filters cancel late responses and bounded ad pagination works",
+      "quote identity, monotonic expiry and pre-submit validity are checked; unknown create persists one original identity; receipt reads never resend and explicit stop clears only confirmed original",
+      "one create opens exact receipt order even outside current list; payment snapshot, cancellation confirmation, one paid request and appeal refresh use original targets",
+      "release requires explicit actual-receipt check; failure hides stale actions and clears codes; cached verification remains supported; payment-window expiry does not invent an order terminal; chat errors remain recoverable",
+      "payment form enforces matching field lengths/bank requirements and one submit; sell default chooses an approved account accepted by the ad method",
+      "approved merchant publishing retains one exact ad payload/request identity without storing codes; accepted receipt shows reserving state rather than inventing active funds",
+      "owner transition removes old order details; corrupt original request blocks new creation without crashing and explicit storage re-read restores operations",
+      "1440/390/320, light/dark, long text, repeated tabs and 60-second runtime observation"
+    ],
+    "errors": [],
+    "nativeMessages": [
+      "确认按本次报价下单？\n商家：合成商家 · 长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试\n金额：6.65 CNY\n数量：1 USDT\n报价：11111111-1111-4111-8111-000000000050",
+      "确认按本次报价下单？\n商家：合成商家 · 长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试\n金额：6.65 CNY\n数量：1 USDT\n报价：11111111-1111-4111-8111-000000000050",
+      "确认停止尚未开始的原请求？\n请求：84bb0bca-b5c5-4abe-97f0-ba74af9c53d5\n该操作不会取消已经接收的交易。",
+      "确认停止尚未开始的原请求？\n请求：84bb0bca-b5c5-4abe-97f0-ba74af9c53d5\n该操作不会取消已经接收的交易。",
+      "确认按本次报价下单？\n商家：合成商家 · 长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试长名称测试\n金额：6.65 CNY\n数量：1 USDT\n报价：11111111-1111-4111-8111-000000000050",
+      "取消尚未付款的订单\n订单：11111111-1111-4111-8111-000000000020\n金额：8.3125 CNY\n数量：1.25 USDT",
+      "确认已经实际完成付款并通知卖家\n订单：11111111-1111-4111-8111-000000000020\n金额：8.3125 CNY\n数量：1.25 USDT",
+      "提交订单申诉\n订单：11111111-1111-4111-8111-000000000020\n金额：8.3125 CNY\n数量：1.25 USDT\n原因：合成争议原因",
+      "确认已核实实际到账并放币\n订单：11111111-1111-4111-8111-000000000021\n金额：13.3 CNY\n数量：2 USDT",
+      "确认已核实实际到账并放币\n订单：11111111-1111-4111-8111-000000000021\n金额：13.3 CNY\n数量：2 USDT",
+      "确认发布广告？\n方向：出售\n单价：6.65 CNY\n数量：3 USDT\n出售广告会按原请求进行资金确认。"
+    ],
+    "samples": [
+      {
+        "JSEventListeners": 217,
+        "Nodes": 282,
+        "ScriptDuration": 0,
+        "TaskDuration": 0.029254,
+        "JSHeapUsedSize": 21405620
+      },
+      {
+        "JSEventListeners": 329,
+        "Nodes": 282,
+        "ScriptDuration": 0.054913,
+        "TaskDuration": 0.105982,
+        "JSHeapUsedSize": 22111284
+      },
+      {
+        "JSEventListeners": 273,
+        "Nodes": 282,
+        "ScriptDuration": 0.133011,
+        "TaskDuration": 0.223506,
+        "JSHeapUsedSize": 22363744
+      },
+      {
+        "JSEventListeners": 385,
+        "Nodes": 282,
+        "ScriptDuration": 0.182872,
+        "TaskDuration": 0.292461,
+        "JSHeapUsedSize": 22895152
+      },
+      {
+        "JSEventListeners": 553,
+        "Nodes": 282,
+        "ScriptDuration": 0.264839,
+        "TaskDuration": 0.404391,
+        "JSHeapUsedSize": 23285368
+      },
+      {
+        "JSEventListeners": 665,
+        "Nodes": 282,
+        "ScriptDuration": 0.314786,
+        "TaskDuration": 0.474066,
+        "JSHeapUsedSize": 23827604
+      },
+      {
+        "JSEventListeners": 856,
+        "Nodes": 282,
+        "ScriptDuration": 0.395485,
+        "TaskDuration": 0.591258,
+        "JSHeapUsedSize": 25101244
+      }
+    ],
+    "retained": {
+      "JSEventListeners": 217,
+      "Nodes": 282,
+      "ScriptDuration": 0.395485,
+      "TaskDuration": 0.609551,
+      "JSHeapUsedSize": 21687692
+    },
+    "browser": "153.0.8010.12",
+    "fixtureOnly": true
+  },
+  "observation": {
+    "durationSeconds": 60,
+    "sampleIntervalSeconds": 10,
+    "mainThreadTaskDeltaMs": 562.004,
+    "scriptDeltaMs": 395.485,
+    "nodesBefore": 282,
+    "nodesAfterGc": 282,
+    "listenersBefore": 217,
+    "listenersAfterGc": 217,
+    "heapBeforeBytes": 21405620,
+    "heapAfterGcBytes": 21687692,
+    "limitation": "Short synthetic local observation; task duration is a main-thread activity proxy, not measured production CPU or a long-term no-leak guarantee."
+  },
+  "screenshots": [
+    "accounts-mobile-320.png",
+    "accounts-mobile-390.png",
+    "buyer-appeal-desktop-light.png",
+    "market-desktop-light.png",
+    "market-mobile-320.png",
+    "market-mobile-390.png",
+    "market-mobile-dark.png",
+    "merchant-mobile-320.png",
+    "merchant-mobile-390.png",
+    "merchant-publish-desktop-light.png",
+    "order-desktop-dark.png",
+    "order-mobile-dark.png",
+    "orders-mobile-320.png",
+    "orders-mobile-390.png"
+  ],
+  "scriptSha256": "39dbc9c13d53abf8ba95afea48baa99f73185ba113cc880d7f9ed36f0283b038",
+  "limitations": [
+    "No actual credentials, payments, escrow transfer, releases, adjudication or initialization.",
+    "Backend/Core/native client were not changed; real financial and database recovery integration was not rerun.",
+    "Visitor, all merchant lifecycle branches and complete chat/attachment flows remain outside this batch."
+  ]
+}

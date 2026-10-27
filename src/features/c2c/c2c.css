@@ -609,3 +609,203 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.c2c-trading-workspace,
+.c2c-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.c2c-trading-heading,
+.c2c-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.c2c-trading-heading h1,
+.c2c-panel-heading h2 {
+  margin-top: 0;
+}
+.c2c-trading-heading p,
+.c2c-muted {
+  color: var(--color-ink-muted);
+  line-height: 1.7;
+}
+.c2c-trading-body button,
+.c2c-trading-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  transition:
+    background-color var(--duration-fast, 160ms),
+    border-color var(--duration-fast, 160ms);
+}
+.c2c-trading-body button.c2c-primary {
+  background: var(--color-primary-strong);
+  border-color: var(--color-primary-strong);
+  color: var(--color-on-accent);
+}
+.c2c-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 12px;
+}
+.c2c-action-row button {
+  margin: 0;
+}
+.c2c-trading .c2c-order-detail {
+  scroll-margin-top: 96px;
+}
+.c2c-order-summary,
+.c2c-payment-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block: 24px;
+}
+.c2c-order-summary > div,
+.c2c-payment-details > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+.c2c-order-summary dt,
+.c2c-payment-details dt {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+.c2c-order-summary dd,
+.c2c-payment-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.c2c-order-terms {
+  padding-block: 12px;
+  border-top: 1px solid var(--color-border-soft);
+}
+.c2c-order-terms p {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+.c2c-order-terms article + article {
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 10px;
+}
+.c2c-trading label.c2c-check {
+  flex-direction: row;
+  align-items: flex-start;
+}
+.c2c-trading .c2c-check input {
+  width: 16px;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.c2c-warning {
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  background: var(--color-surface-muted);
+  line-height: 1.7;
+}
+@media (max-width: 600px) {
+  .c2c-trading-heading > svg {
+    display: none;
+  }
+  .c2c-panel-heading {
+    flex-wrap: wrap;
+  }
+  .c2c-order-summary,
+  .c2c-payment-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .c2c-trading-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .c2c-trading-tabs button {
+    flex: 0 0 auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c2c-trading button {
+    transition: none;
+  }
+}
+
+.c2c-trading-body button.c2c-panel {
+  display: block;
+  text-align: left;
+  line-height: 1.8;
+  width: 100%;
+}
+.c2c-order-detail h2[tabindex],
+.c2c-trade-confirmation {
+  scroll-margin-top: 96px;
+}
+
+.c2c-offer-card h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.c2c-offer-card .c2c-offer-price {
+  display: block;
+  margin-block: 14px;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.c2c-offer-card p {
+  margin-block: 8px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+.c2c-offer-card button {
+  margin: 14px 0 0;
+}
+
+.c2c-merchant-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+.c2c-ad-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.c2c-ad-fields > label {
+  margin: 0;
+}
+.c2c-ad-fields > .c2c-ad-terms,
+.c2c-ad-fields > .c2c-form-row,
+.c2c-ad-fields > button {
+  grid-column: 1 / -1;
+}
+.c2c-ad-fields > button {
+  justify-self: start;
+  margin: 0;
+}
+.c2c-account-form {
+  max-width: 760px;
+}
+@media (max-width: 1000px) {
+  .c2c-merchant-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .c2c-ad-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
