@@ -7,6 +7,7 @@ import { Button, Field } from "../../components/ui/Primitives"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
+import { authDestination, authReturnPath } from "./authReturn"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
 
 import { TelegramLoginButton } from "./TelegramLoginButton"
@@ -14,6 +15,10 @@ import { TelegramLoginButton } from "./TelegramLoginButton"
 type AuthMode = "login" | "register" | "forgot" | "reset" | "verify"
 
 export function AuthPage({ mode }: { readonly mode: AuthMode }) {
+  const returnQuery =
+    authReturnPath(window.location.search) === "/assets"
+      ? ""
+      : `?redirect=${encodeURIComponent(authReturnPath(window.location.search))}`
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
@@ -53,11 +58,15 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         }
         if (!("accessToken" in session)) return
         saveSession(session)
-        navigateInApplication(session.requiresEmailVerification ? "/auth/verify-email" : "/assets")
+        navigateInApplication(
+          authDestination(session.requiresEmailVerification, window.location.search),
+        )
       } else if (mode === "register") {
         const session = await authApi.register(identifier, password, contactMode)
         saveSession(session)
-        navigateInApplication(session.requiresEmailVerification ? "/auth/verify-email" : "/assets")
+        navigateInApplication(
+          authDestination(session.requiresEmailVerification, window.location.search),
+        )
       } else if (mode === "forgot") {
         await authApi.forgotPassword(identifier)
         setMessage("If the account exists, recovery instructions have been sent.")
@@ -67,7 +76,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
       } else {
         await authApi.verifyEmail(identifier, code)
         setMessage("Email verified. Your account is ready.")
-        navigateInApplication("/assets")
+        navigateInApplication(authReturnPath(window.location.search))
       }
     } catch (reason: unknown) {
       if (mode === "login" && reason instanceof ApiError && reason.status === 401) {
@@ -103,7 +112,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             const session = await authApi.verifyLogin(codes)
             saveSession(session)
             navigateInApplication(
-              session.requiresEmailVerification ? "/auth/verify-email" : "/assets",
+              authDestination(session.requiresEmailVerification, window.location.search),
             )
           }}
         />
@@ -242,7 +251,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 }
                 if (!("accessToken" in result)) return
                 saveSession(result)
-                navigateInApplication("/assets")
+                navigateInApplication(
+                  authDestination(result.requiresEmailVerification, window.location.search),
+                )
               }}
             />
           ) : null}
@@ -272,14 +283,15 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <div className="auth-links">
           {mode === "login" ? (
             <>
-              <a href="/auth/forgot-password">{t("Forgot password?")}</a>
+              <a href={`/auth/forgot-password${returnQuery}`}>{t("Forgot password?")}</a>
               <span>
                 {" "}
-                {t("Don't have an account?")} <a href="/auth/register">{t("Create Account")}</a>
+                {t("Don't have an account?")}{" "}
+                <a href={`/auth/register${returnQuery}`}>{t("Create Account")}</a>
               </span>
             </>
           ) : (
-            <a href="/auth/login">{t("Back to login")}</a>
+            <a href={`/auth/login${returnQuery}`}>{t("Back to login")}</a>
           )}
         </div>
       </main>

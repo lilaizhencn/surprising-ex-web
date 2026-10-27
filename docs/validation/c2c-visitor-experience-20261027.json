@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-27",
+  "status": "batch-validated",
+  "fixtureOnly": true,
+  "goalComplete": false,
+  "backendChanged": false,
+  "nativeClientChanged": false,
+  "browser": "153.0.8010.12",
+  "sizes": [
+    "1440x1000",
+    "390x844",
+    "320x844"
+  ],
+  "commands": [
+    {
+      "command": "npm run lint -- --diagnostic-level=error",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "testsPassed": 547,
+      "testFiles": 64
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    }
+  ],
+  "browserGroups": 6,
+  "checks": [
+    "visitor opens the public market; incomplete offers remain a recoverable error; no private read, authentication header or write is sent",
+    "offer pagination, both directions, exact amount filters, stale-response cancellation, invalid amount prevention, mismatched data and service failure recovery were clicked",
+    "empty results and business/runtime closure are distinct; complete long merchant names fit desktop/390/320 and light/dark themes",
+    "login/register/back links preserve the C2C destination; normal login returns to the market, verification login returns to the inbox, and neither creates an order",
+    "required email verification retains the market destination until verification completes; logout returns to public discovery",
+    "60-second public page observation sampled every 10 seconds; no background private reads or unnecessary C2C polling"
+  ],
+  "unexpectedBrowserErrors": 0,
+  "observation": {
+    "durationSeconds": 60,
+    "sampleIntervalSeconds": 10,
+    "nodesBefore": 247,
+    "nodesAfterGc": 247,
+    "listenersBefore": 209,
+    "listenersAfterGc": 209,
+    "heapBeforeBytes": 21226300,
+    "heapAfterGcBytes": 21241264,
+    "mainThreadTaskDeltaMs": 26.566,
+    "scriptDeltaMs": 2.902,
+    "samples": [
+      {
+        "seconds": 0,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 1.5e-05,
+        "TaskDuration": 0.045543,
+        "JSHeapUsedSize": 21226300
+      },
+      {
+        "seconds": 10,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 0.000339,
+        "TaskDuration": 0.046582,
+        "JSHeapUsedSize": 21228048
+      },
+      {
+        "seconds": 20,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 0.000946,
+        "TaskDuration": 0.064733,
+        "JSHeapUsedSize": 21240716
+      },
+      {
+        "seconds": 30,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 0.001276,
+        "TaskDuration": 0.065728,
+        "JSHeapUsedSize": 21242440
+      },
+      {
+        "seconds": 40,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 0.001682,
+        "TaskDuration": 0.067234,
+        "JSHeapUsedSize": 21258668
+      },
+      {
+        "seconds": 50,
+        "JSEventListeners": 209,
+        "Nodes": 247,
+        "ScriptDuration": 0.001869,
+        "TaskDuration": 0.068374,
+        "JSHeapUsedSize": 21259788
+      },
+      {
+        "seconds": 60,
+        "JSEventListeners": 213,
+        "Nodes": 247,
+        "ScriptDuration": 0.002917,
+        "TaskDuration": 0.072109,
+        "JSHeapUsedSize": 21324264
+      }
+    ],
+    "limitation": "Short synthetic local observation; task duration is a main-thread proxy, not production CPU or a long-term leak guarantee."
+  },
+  "artifactRoot": "/Users/atomex/.codex/artifacts/surprising-support-visitor-20261027/client",
+  "unverified": [
+    "Real backend integration and long-duration disconnect/recovery",
+    "Real account, email delivery, financial and merchant operations",
+    "Other application routes not revisited in this batch",
+    "Telegram login and full new-account registration delivery"
+  ]
+}

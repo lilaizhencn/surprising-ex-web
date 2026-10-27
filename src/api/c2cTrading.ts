@@ -168,26 +168,66 @@ export function c2cWrite(owner: string, path: string, body: unknown, signal?: Ab
     ...(signal ? { signal } : {}),
   })
 }
+export const c2cCatalogSchema = z.object({
+  markets: z.array(marketSchema).refine((rows) => unique(rows, (row) => row.marketId)),
+  paymentMethods: z
+    .array(
+      z.object({
+        code: z.string(),
+        label: z.string(),
+        currencies: z.array(z.string()),
+        requiresBankName: z.boolean(),
+        supportsQr: z.boolean(),
+      }),
+    )
+    .refine((rows) => unique(rows, (row) => row.code)),
+})
 export const c2cMarkets = (owner: string, signal?: AbortSignal) =>
-  c2cRead(
-    owner,
-    "/markets",
+  c2cRead(owner, "/markets", c2cCatalogSchema, signal)
+export const c2cPublicMarkets = (signal?: AbortSignal) =>
+  request(`${base}/markets`, c2cCatalogSchema, signal ? { signal } : {})
+export async function c2cPublicOffers(
+  filters: {
+    marketId: string
+    side: "BUY" | "SELL"
+    amount: string
+    methodCode: string
+    offset: number
+  },
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({
+    marketId: filters.marketId,
+    side: filters.side,
+    limit: "20",
+    offset: String(filters.offset),
+  })
+  if (filters.amount) query.set("amount", filters.amount)
+  if (filters.methodCode) query.set("methodCode", filters.methodCode)
+  const page = await request(
+    `${base}/ads?${query}`,
     z.object({
-      markets: z.array(marketSchema).refine((rows) => unique(rows, (row) => row.marketId)),
-      paymentMethods: z
-        .array(
-          z.object({
-            code: z.string(),
-            label: z.string(),
-            currencies: z.array(z.string()),
-            requiresBankName: z.boolean(),
-            supportsQr: z.boolean(),
-          }),
-        )
-        .refine((rows) => unique(rows, (row) => row.code)),
+      items: z
+        .array(adSchema)
+        .max(20)
+        .refine((rows) => unique(rows, (row) => row.adId)),
+      hasMore: z.boolean(),
+      offset: z.number().int().nonnegative(),
     }),
-    signal,
+    signal ? { signal } : {},
   )
+  if (
+    page.offset !== filters.offset ||
+    page.items.some(
+      (row) =>
+        row.market.marketId !== filters.marketId ||
+        row.side !== (filters.side === "BUY" ? "SELL" : "BUY") ||
+        row.status !== "ACTIVE",
+    )
+  )
+    throw new Error("广告响应与当前市场或方向不匹配，请重新查询。")
+  return page
+}
 export const c2cAccounts = (owner: string, signal?: AbortSignal) =>
   c2cRead(
     owner,

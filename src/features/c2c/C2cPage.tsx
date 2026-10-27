@@ -30,7 +30,7 @@ export function C2cPage({ initialConversation }: { initialConversation?: C2cConv
         <MessageCircle size={36} />
         <h1>{t("C2C messages")}</h1>
         <p>{t("Sign in to view your conversations and orders.")}</p>
-        <a className="button button-primary" href="/auth/login?redirect=%2Fc2c">
+        <a className="button button-primary" href="/auth/login?redirect=%2Fc2c%2Fmessages">
           {t("Sign in")}
         </a>
       </div>

@@ -773,6 +773,51 @@
   margin: 14px 0 0;
 }
 
+.c2c-preview .c2c-trading-tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+.c2c-preview .c2c-trading-tabs a[aria-current="page"] {
+  color: var(--color-primary-strong);
+  background: var(--color-surface-active);
+}
+.c2c-preview-signin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.c2c-preview-signin p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-muted);
+  font-size: var(--font-body-small);
+  line-height: 1.7;
+}
+.c2c-preview .c2c-offer-card > a {
+  margin-top: var(--space-4);
+}
+@media (max-width: 600px) {
+  .c2c-preview .c2c-trading-heading {
+    flex-wrap: wrap;
+  }
+  .c2c-preview .c2c-offer-card .c2c-offer-price {
+    font-size: 18px;
+  }
+  .c2c-preview .c2c-trading-body .c2c-preview-signin > a {
+    width: 100%;
+  }
+}
+
 .c2c-merchant-workspace {
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 2fr);

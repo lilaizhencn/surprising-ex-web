@@ -39,6 +39,7 @@ import {
 import { request } from "../../api/client"
 import { unitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
+import { C2cMarketPreview } from "./C2cMarketPreview"
 import { C2cOrderPanel, responseDeadline, c2cStatusText as statusText } from "./C2cOrderPanel"
 import { C2cPage } from "./C2cPage"
 import "./c2c.css"
@@ -48,8 +49,10 @@ export function C2cTradingPage() {
   const session = useSession()
   return session ? (
     <C2cTradingHome key={String(session.user.userId)} owner={String(session.user.userId)} />
-  ) : (
+  ) : location.pathname.endsWith("/messages") ? (
     <C2cPage />
+  ) : (
+    <C2cMarketPreview />
   )
 }
 function C2cTradingHome({ owner }: { owner: string }) {
