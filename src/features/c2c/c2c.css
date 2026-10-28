@@ -718,6 +718,7 @@
   line-height: 1.7;
 }
 @media (max-width: 600px) {
+  /* biome-ignore lint/style/noDescendingSpecificity: Heading and composer icons belong to separate DOM scopes. */
   .c2c-trading-heading > svg {
     display: none;
   }

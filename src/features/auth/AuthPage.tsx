@@ -1,5 +1,6 @@
 import { ArrowRight, Eye, EyeOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { type AffiliateInvitation, affiliateApi } from "../../api/affiliate"
 import { ApiError } from "../../api/client"
 import { authApi } from "../../api/endpoints"
 import { type LoginChallenge, LoginChallengeSchema } from "../../api/types"
@@ -7,6 +8,7 @@ import { Button, Field } from "../../components/ui/Primitives"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
+import { clearInvitation, invitationCode } from "../affiliate/invitation"
 import { authDestination, authReturnPath } from "./authReturn"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
 
@@ -19,6 +21,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     authReturnPath(window.location.search) === "/assets"
       ? ""
       : `?redirect=${encodeURIComponent(authReturnPath(window.location.search))}`
+  const [inviteCode, setInviteCode] = useState(invitationCode)
+  const [invitePreview, setInvitePreview] = useState<AffiliateInvitation | null>(null)
+  const [inviteError, setInviteError] = useState("")
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
@@ -33,6 +38,24 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
     if (credentialsRejected) loginErrorDialog.current?.showModal()
     else loginErrorDialog.current?.close()
   }, [credentialsRejected])
+  useEffect(() => {
+    if (mode !== "register" || !inviteCode.trim()) {
+      setInvitePreview(null)
+      setInviteError("")
+      return
+    }
+    const controller = new AbortController()
+    setInvitePreview(null)
+    setInviteError("")
+    void affiliateApi
+      .preview(inviteCode.trim(), controller.signal)
+      .then(setInvitePreview)
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted)
+          setInviteError(error instanceof Error ? error.message : "邀请码验证失败")
+      })
+    return () => controller.abort()
+  }, [mode, inviteCode])
   const submitting = useRef(false)
   const submit = async () => {
     if (submitting.current || loading) return
@@ -62,7 +85,8 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           authDestination(session.requiresEmailVerification, window.location.search),
         )
       } else if (mode === "register") {
-        const session = await authApi.register(identifier, password, contactMode)
+        const session = await authApi.register(identifier, password, contactMode, inviteCode)
+        clearInvitation()
         saveSession(session)
         navigateInApplication(
           authDestination(session.requiresEmailVerification, window.location.search),
@@ -221,6 +245,24 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               </div>
             </Field>
           ) : null}
+          {mode === "register" && (
+            <Field label="邀请码（选填）" error={inviteError}>
+              <input
+                aria-label="邀请码（选填）"
+                value={inviteCode}
+                maxLength={64}
+                onChange={(event) => setInviteCode(event.target.value)}
+              />
+              {invitePreview && (
+                <p>
+                  邀请人 UID {invitePreview.inviterId} ·{" "}
+                  {invitePreview.cooperation
+                    ? `接受团队合作，下级比例 ${Number(invitePreview.sharePpm) / 10000}%；本人交易不向团队上级返佣`
+                    : "注册后接受邀请，符合条件的手续费将自动参与返佣核算"}
+                </p>
+              )}
+            </Field>
+          )}
           {message ? (
             <p className="form-message" role="alert">
               {t(message)}

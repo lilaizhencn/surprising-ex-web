@@ -1,0 +1,89 @@
+.affiliate-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.affiliate-page h1 {
+  margin: 0 0 10px;
+}
+.affiliate-page h2 {
+  font-size: 20px;
+  margin: 0 0 14px;
+}
+.affiliate-page p {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.affiliate-page .panel {
+  min-width: 0;
+  padding: 24px;
+}
+.affiliate-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+.affiliate-form {
+  display: grid;
+  gap: 16px;
+  max-width: 700px;
+}
+.affiliate-page input,
+.affiliate-page select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: inherit;
+}
+.affiliate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.affiliate-table {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.affiliate-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.affiliate-table th,
+.affiliate-table td {
+  padding: 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+.affiliate-invitation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--color-border);
+}
+@media (max-width: 600px) {
+  .affiliate-page .panel {
+    padding: 16px;
+  }
+  .affiliate-heading {
+    flex-direction: column;
+  }
+  .affiliate-table td,
+  .affiliate-table th {
+    padding: 10px 8px;
+  }
+}
+
+.affiliate-path {
+  max-height: 320px;
+  overflow: auto;
+}

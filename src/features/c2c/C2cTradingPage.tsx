@@ -463,7 +463,7 @@ function TradingWorkspace({
     if (pendingError) throw Error(pendingError)
     if (
       kind === "ORDER_CREATE" &&
-      (!quote || !quote.valid || quoteDeadline === null || performance.now() >= quoteDeadline)
+      (!quote?.valid || quoteDeadline === null || performance.now() >= quoteDeadline)
     )
       throw Error("报价已失效，请重新获取报价后确认")
     if (kind === "ORDER_CREATE" && quote) {
@@ -1314,7 +1314,7 @@ function TradingWorkspace({
                 const chosenMethod = catalog?.paymentMethods.find(
                   (row) => row.code === data.get("method"),
                 )
-                if (!market || !chosenMethod || !chosenMethod.currencies.includes(market.fiat)) {
+                if (!market || !chosenMethod?.currencies.includes(market.fiat)) {
                   setError("当前法币暂无可用收款方式，请选择其他市场。")
                   return
                 }

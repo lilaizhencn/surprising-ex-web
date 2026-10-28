@@ -10,6 +10,14 @@ describe("authentication return from C2C", () => {
     )
     expect(authDestination(true, "")).toBe("/auth/verify-email")
   })
+  it("preserves the affiliate destination through login and verification", () => {
+    expect(authReturnPath("?redirect=%2Faffiliate")).toBe("/affiliate")
+    expect(authDestination(false, "?redirect=%2Faffiliate")).toBe("/affiliate")
+    expect(authDestination(true, "?redirect=%2Faffiliate")).toBe(
+      "/auth/verify-email?redirect=%2Faffiliate",
+    )
+    expect(authReturnPath("?redirect=%2Faffiliate%2F..%2Fauth")).toBe("/assets")
+  })
   it("keeps unknown, protocol-relative, external and authentication targets at the normal destination", () => {
     for (const target of [
       "https://example.com/c2c",

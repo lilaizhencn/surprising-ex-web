@@ -215,7 +215,7 @@ function AccountSecurityForUser() {
               <span className="sr-only">{t("Loading security settings")}</span>
             </div>
           </Panel>
-        ) : scenes && scenes.length ? (
+        ) : scenes?.length ? (
           <div className="security-preference-list">
             {scenes.map((scene) => {
               const required = ["WITHDRAWAL", "API_WITHDRAWAL"].includes(scene.sceneCode)

@@ -1,7 +1,9 @@
-/** Only the established C2C entry points are accepted as authentication return targets. */
+/** Only explicitly supported application entry points are accepted as authentication return targets. */
 export function authReturnPath(search: string): string {
   const target = new URLSearchParams(search).get("redirect")
-  return target === "/c2c" || target === "/c2c/messages" ? target : "/assets"
+  return target === "/affiliate" || target === "/c2c" || target === "/c2c/messages"
+    ? target
+    : "/assets"
 }
 
 export function authDestination(

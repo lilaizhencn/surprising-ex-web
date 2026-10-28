@@ -201,10 +201,15 @@ export const authApi = {
       method: "POST",
       body: { refreshToken },
     }),
-  register: (identifier: string, password: string, contactMode: "email" | "phone" = "email") =>
+  register: (
+    identifier: string,
+    password: string,
+    contactMode: "email" | "phone" = "email",
+    inviteCode?: string,
+  ) =>
     request<AuthSession>("/api/v1/auth/register", AuthSessionSchema, {
       method: "POST",
-      body: { [contactMode]: identifier, password },
+      body: { [contactMode]: identifier, password, inviteCode: inviteCode?.trim() || undefined },
     }),
   forgotPassword: (identifier: string) =>
     request("/api/v1/auth/forgot-password", GenericObjectSchema, {

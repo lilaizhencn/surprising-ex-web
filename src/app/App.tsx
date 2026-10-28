@@ -14,6 +14,11 @@ import {
   useSessionRefreshIssue,
 } from "../state/session"
 
+const AffiliatePage = lazy(() =>
+  import("../features/affiliate/AffiliatePage").then((module) => ({
+    default: module.AffiliatePage,
+  })),
+)
 const AssetsPage = lazy(() =>
   import("../features/assets/AssetsPage").then((module) => ({ default: module.AssetsPage })),
 )
@@ -164,6 +169,12 @@ function AppRoutes() {
     return (
       <AppShell>
         <div className="container section" aria-busy="true" />
+      </AppShell>
+    )
+  if (path === "/affiliate")
+    return (
+      <AppShell accountArea>
+        <AffiliatePage key={String(session?.user.userId ?? "guest")} />
       </AppShell>
     )
   if (path === "/assets")
