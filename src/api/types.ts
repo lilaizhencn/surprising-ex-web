@@ -94,7 +94,8 @@ export const UserSchema = z
 export const AuthSessionSchema = z
   .object({
     accessToken: z.string(),
-    refreshToken: z.string().optional(),
+    refreshToken: z.string().nullish(),
+    browserSession: z.boolean().optional(),
     expiresAt: z.string().optional(),
     accessTokenExpiresAt: z.string().optional(),
     refreshTokenExpiresAt: z.string().optional(),

@@ -196,10 +196,10 @@ export const authApi = {
       body: { codes, currentPassword },
       expectedUserId: String(loadSession()?.user.userId ?? ""),
     }),
-  logout: (refreshToken: string) =>
-    request("/api/v1/auth/logout", z.unknown(), {
+  logout: () =>
+    request("/api/v1/auth/browser/logout", z.unknown(), {
       method: "POST",
-      body: { refreshToken },
+      body: {},
     }),
   register: (
     identifier: string,
@@ -617,10 +617,10 @@ export function revokeUserSession(sessionId: string | number, signal?: AbortSign
   )
 }
 
-export function revokeAllUserSessions(refreshToken: string) {
-  return request("/api/v1/security/sessions/revoke-all", GenericObjectSchema, {
+export function revokeAllUserSessions() {
+  return request("/api/v1/auth/browser/revoke-others", GenericObjectSchema, {
     method: "POST",
-    body: { refreshToken },
+    body: {},
   })
 }
 

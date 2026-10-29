@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b --pretty false",
     "lint": "biome check src --error-on-warnings",
     "test": "vitest run",
@@ -14,28 +14,35 @@
   },
   "dependencies": {
     "@daypicker/react": "^10.0.2",
-    "@vitejs/plugin-react": "latest",
-    "ky": "latest",
+    "@vitejs/plugin-react": "6.0.5",
+    "ky": "2.0.2",
     "lightweight-charts": "5.2.1",
-    "lucide-react": "latest",
+    "lucide-react": "1.31.0",
     "qrcode": "^1.5.4",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "latest",
+    "@biomejs/biome": "2.5.8",
     "@types/qrcode": "^1.5.6",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "react-doctor": "latest",
-    "react-grab": "latest",
-    "react-scan": "latest",
-    "typescript": "latest",
-    "vite": "latest",
-    "vitest": "latest"
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "react-doctor": "0.9.11",
+    "react-grab": "0.1.37",
+    "react-scan": "0.5.7",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22.16.0"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.12",
+    "fast-uri": "3.1.9",
+    "smol-toml": "1.9.1",
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7"
   }
 }

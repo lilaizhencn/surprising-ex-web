@@ -1,12 +1,10 @@
 import { useSyncExternalStore } from "react"
 import type { AuthSession } from "../api/types"
-import { AuthSessionSchema } from "../api/types"
 import { storageKeys } from "../lib/config"
-import { readStoredValue, writeStoredValue } from "../lib/storage"
+import { writeStoredValue } from "../lib/storage"
 
 export const SESSION_CHANGED_EVENT = "surprising-ex.session-changed"
 
-let cachedRaw: string | null | undefined
 let cachedSession: AuthSession | null = null
 let refreshIssue: string | null = null
 
@@ -32,35 +30,8 @@ function subscribeSession(onStoreChange: () => void): () => void {
 
 export function loadSession(): AuthSession | null {
   if (typeof window === "undefined") return null
-  const value = readStoredValue(storageKeys.session, cachedRaw ?? null)
-  if (value === cachedRaw) {
-    if (cachedSession && sessionRefreshExpired(cachedSession)) {
-      writeStoredValue(storageKeys.session, null)
-      cachedRaw = null
-      cachedSession = null
-    }
-    return cachedSession
-  }
-  refreshIssue = null
-  cachedRaw = value
-  if (!value) {
-    cachedSession = null
-    return cachedSession
-  }
-  const parsed: unknown = parseJson(value)
-  const result = AuthSessionSchema.safeParse(parsed)
-  if (!result.success || !validStoredSession(result.data)) {
-    writeStoredValue(storageKeys.session, null)
-    cachedRaw = null
-    cachedSession = null
-    return cachedSession
-  }
-  cachedSession = result.data
-  if (sessionRefreshExpired(cachedSession)) {
-    writeStoredValue(storageKeys.session, null)
-    cachedRaw = null
-    cachedSession = null
-  }
+  writeStoredValue(storageKeys.session, null)
+  if (cachedSession && sessionRefreshExpired(cachedSession)) cachedSession = null
   return cachedSession
 }
 
@@ -92,7 +63,7 @@ export function sessionAccessExpired(session: AuthSession | null): boolean {
 function sessionRefreshExpired(session: AuthSession): boolean {
   return Boolean(
     (session.refreshTokenExpiresAt && Date.parse(session.refreshTokenExpiresAt) <= Date.now()) ||
-      (!session.refreshToken && sessionAccessExpired(session)),
+      (!session.browserSession && !session.refreshToken && sessionAccessExpired(session)),
   )
 }
 
@@ -101,29 +72,11 @@ export function saveSession(session: AuthSession | null): void {
   if (session && !validStoredSession(session))
     throw new Error("The service returned an invalid session. Please sign in again.")
   refreshIssue = null
-  if (!session) {
-    writeStoredValue(storageKeys.session, null)
-    cachedRaw = null
-    cachedSession = null
-    window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
-    return
-  }
-  const raw = JSON.stringify(session)
-  writeStoredValue(storageKeys.session, raw)
-  cachedRaw = raw
+  writeStoredValue(storageKeys.session, null)
   cachedSession = session
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
 }
 
 export function useSession(): AuthSession | null {
   return useSyncExternalStore(subscribeSession, loadSession, () => null)
-}
-
-function parseJson(value: string): unknown {
-  try {
-    return JSON.parse(value)
-  } catch (error) {
-    if (error instanceof SyntaxError) return null
-    throw error
-  }
 }

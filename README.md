@@ -401,3 +401,7 @@ failed reads and real empty results; unsupported requested assets require an exp
 `/developers` 为无需登录的 REST/WebSocket 文档，桌面顶部及移动菜单共用入口；提供六产品、单位精度、两种签名、权限/IP 策略、回执恢复、WS 挑战认证与重连、统一限流说明。`native-client.mjs` 同时作为下载示例及显示源码，Node.js 22+ 可执行，不在浏览器处理 Secret。
 
 `/api` 编辑 Key 名称、权限和 IP；写权限必须绑定 IP。Secret 只在创建时显示，保存前禁止创建其他 Key，离开后无法恢复。429 显示 Retry-After 秒数，未知写结果先刷新核对，不自动重试金融写请求。相关验证记录见后端 `docs/validation/open-platform-20261029/`。
+
+## 安全会话与资源策略
+
+访问令牌只在内存中保留，刷新使用 HttpOnly Cookie 与独立 CSRF；页面重载先恢复身份，Cookie 身份操作使用 Web Locks 串行化。开发服务默认只监听 127.0.0.1；依赖使用提交的锁文件，使用 `bun install --frozen-lockfile` 复现。生产静态资源发布 `public/_headers`，更换 API/Google/Sumsub 来源时同步 CSP。仅本机 HTTP 联调设置后端 `GATEWAY_BROWSER_COOKIE_SECURE=false`。

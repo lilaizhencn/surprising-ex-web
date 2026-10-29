@@ -1,4 +1,7 @@
 {
+  "Update your browser to use secure sign-in.": "请升级浏览器后使用安全登录。",
+  "Unable to sign out. Check your network and retry.": "退出未完成，请检查网络后重试。",
+  "Restoring your secure session…": "正在恢复安全会话…",
   "Price scale": "价格轴",
   "Zoom price out": "缩小价格轴",
   "Zoom price in": "放大价格轴",

@@ -49,7 +49,7 @@ export type RequestOptions = {
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
 
 function credentialRequest(path: string): boolean {
-  return /^\/api\/v1\/auth\/(?:login(?:\/verify)?|logout|register|forgot-password|reset-password|verify-email|refresh|telegram\/(?:config|start|complete))(?:\?|$)/.test(
+  return /^\/api\/v1\/auth\/(?:login(?:\/verify)?|logout|register|forgot-password|reset-password|verify-email|refresh|browser\/(?:refresh|logout|revoke-others)|google\/(?:config|challenge|login)|telegram\/(?:config|start|complete))(?:\?|$)/.test(
     path,
   )
 }
@@ -60,17 +60,18 @@ let refreshInFlight: { token: string; userId: string; operation: Promise<AuthSes
 
 export function refreshStoredSession(): Promise<AuthSession> {
   const session = loadSession()
-  if (!session?.refreshToken) return Promise.reject(new ApiError(t("Sign in required."), 401))
-  const refreshToken = session.refreshToken
+  if (!session || (!session.browserSession && !session.refreshToken))
+    return Promise.reject(new ApiError(t("Sign in required."), 401))
+  const refreshToken = session.accessToken
   const userId = String(session.user.userId)
   const stillCurrent = () =>
-    loadSession()?.refreshToken === refreshToken && String(loadSession()?.user.userId) === userId
+    loadSession()?.accessToken === refreshToken && String(loadSession()?.user.userId) === userId
   if (refreshInFlight?.token === refreshToken && refreshInFlight.userId === userId)
     return refreshInFlight.operation
   const operation = request<AuthSession>(
-    "/api/v1/auth/refresh",
+    "/api/v1/auth/browser/refresh",
     AuthSessionSchema,
-    { method: "POST", body: { refreshToken } },
+    { method: "POST", body: {} },
     false,
   )
     .then((refreshed) => {
@@ -130,6 +131,7 @@ export async function request<T>(
     /^\/api\/v1\/gateway\/instrument\/(list|latest|asset-scales)(?:\?|$)/.test(path)
   if (
     !publicMarket &&
+    loadSession() !== null &&
     allowRefresh &&
     !credentialRequest(path) &&
     (sessionAccessExpired(loadSession()) || sessionRefreshIssue() !== null)
@@ -177,7 +179,7 @@ export async function request<T>(
   if (
     response.status === 401 &&
     allowRefresh &&
-    session?.refreshToken &&
+    (session?.browserSession || session?.refreshToken) &&
     !credentialRequest(path)
   ) {
     if (loadSession()?.accessToken === session.accessToken)
@@ -272,7 +274,7 @@ export async function requestBlob(
   if (
     response.status === 401 &&
     allowRefresh &&
-    session?.refreshToken &&
+    (session?.browserSession || session?.refreshToken) &&
     !credentialRequest(path)
   ) {
     if (loadSession()?.accessToken === session.accessToken)
@@ -489,6 +491,7 @@ async function send(
   )
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   let rejectAbort: (() => void) | undefined
+  let requestSent = false
   try {
     const aborted = new Promise<never>((_resolve, reject) => {
       rejectAbort = () =>
@@ -496,10 +499,47 @@ async function send(
       if (controller.signal.aborted) rejectAbort()
       else controller.signal.addEventListener("abort", rejectAbort, { once: true })
     })
+    const browserAuth = path.startsWith("/api/v1/auth/") && options.method !== "GET"
     const operation = async () => {
       controller.signal.throwIfAborted()
+      const headers = new Headers(options.headers as HeadersInit | undefined)
+      if (browserAuth) {
+        const csrfResponse = await ky.get(`${config.apiBaseUrl}/api/v1/auth/csrf`, {
+          credentials: "include",
+          headers: { "X-Auth-Client": "web" },
+          signal: controller.signal,
+          retry: 0,
+          timeout: false,
+          throwHttpErrors: false,
+        })
+        if (!csrfResponse.ok)
+          throw new ApiError(
+            responseErrorMessage(null, csrfResponse, false),
+            csrfResponse.status,
+            null,
+            false,
+            retryAfterSeconds(csrfResponse),
+          )
+        const csrfText = await csrfResponse.text()
+        if (csrfText.length > 2048) throw new Error("Invalid CSRF response")
+        const csrf = JSON.parse(csrfText) as { token?: unknown }
+        if (typeof csrf.token !== "string" || csrf.token.length > 512)
+          throw new Error("Invalid CSRF response")
+        headers.set("X-XSRF-TOKEN", csrf.token)
+        headers.set("X-Auth-Transport", "cookie")
+        headers.set("X-Auth-Client", "web")
+        if (
+          !path.endsWith("/verify-email") &&
+          !path.endsWith("/resend-email-verification") &&
+          !path.endsWith("/revoke-others")
+        )
+          headers.delete("Authorization")
+      }
+      requestSent = true
       const response = await ky(`${config.apiBaseUrl}${path}`, {
         ...options,
+        headers,
+        credentials: browserAuth ? "include" : "omit",
         timeout: false,
         signal: controller.signal,
       })
@@ -525,7 +565,16 @@ async function send(
       }
       return { response, bytes }
     }
-    return await Promise.race([operation(), aborted])
+    if (browserAuth && (typeof navigator === "undefined" || !navigator.locks))
+      throw new ApiError(t("Update your browser to use secure sign-in."), 0, null, false)
+    const sending = browserAuth
+      ? navigator.locks.request(
+          "surprising-web-browser-session",
+          { signal: controller.signal },
+          operation,
+        )
+      : operation()
+    return await Promise.race([sending, aborted])
   } catch (error) {
     controller.abort(error)
     if (
@@ -533,6 +582,7 @@ async function send(
       (!deadlineExpired && error instanceof Error && error.name === "AbortError")
     )
       throw error
+    if (error instanceof ApiError) throw error
     throw new ApiError(
       options.method === "GET"
         ? t("Unable to load the response. Check your connection and try again.")
@@ -540,6 +590,8 @@ async function send(
             "The result is not yet confirmed. Check your orders or settings before submitting again.",
           ),
       0,
+      null,
+      requestSent,
     )
   } finally {
     clearTimeout(timer)
@@ -547,5 +599,23 @@ async function send(
     if (rejectAbort) controller.signal.removeEventListener("abort", rejectAbort)
     if (controller.signal.aborted) void reader?.cancel().catch(() => {})
     else reader?.releaseLock()
+  }
+}
+
+/** Called before mounting protected routes, so a reload restores identity from the HttpOnly cookie. */
+export async function restoreBrowserSession(): Promise<void> {
+  try {
+    const restored = await request(
+      "/api/v1/auth/browser/refresh",
+      AuthSessionSchema,
+      { method: "POST", body: {} },
+      false,
+    )
+    saveSession(restored)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return
+    setSessionRefreshIssue(
+      t("Session temporarily unavailable. Private operations are paused. Please retry."),
+    )
   }
 }

@@ -133,16 +133,14 @@ function AppRoutes() {
   }, [sessionReady])
   useEffect(() => {
     if (!session?.accessTokenExpiresAt) return
-    const refreshAt = Date.parse(session.accessTokenExpiresAt) - Date.now() - 30_000
-    if (!Number.isFinite(refreshAt)) return
-    const timer = window.setTimeout(
-      () => {
-        void refreshStoredSession().catch(() => {})
-      },
-      Math.max(0, refreshAt),
-    )
+    const remaining = Date.parse(session.accessTokenExpiresAt) - Date.now()
+    if (!Number.isFinite(remaining)) return
+    const refreshIn = Math.max(1000, remaining - Math.min(30_000, remaining / 2))
+    const timer = window.setTimeout(() => {
+      void refreshStoredSession().catch(() => {})
+    }, refreshIn)
     return () => window.clearTimeout(timer)
-  }, [session?.accessToken, session?.accessTokenExpiresAt])
+  }, [session?.accessTokenExpiresAt])
   const path = window.location.pathname
   if (path === "/developers")
     return (

@@ -1,5 +1,5 @@
 import ky, { type Options } from "ky"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import { loadSession, saveSession, sessionRefreshIssue } from "../state/session"
 import {
@@ -12,7 +12,19 @@ import {
 import { authApi } from "./endpoints"
 import { AuthSessionSchema, BalanceSchema } from "./types"
 
-vi.mock("ky", () => ({ default: vi.fn() }))
+vi.mock("ky", () => ({ default: Object.assign(vi.fn(), { get: vi.fn() }) }))
+beforeEach(() => {
+  vi.stubGlobal("navigator", {
+    locks: {
+      request: (_name: string, _options: unknown, run: () => unknown) => Promise.resolve(run()),
+    },
+  })
+})
+beforeEach(() => {
+  vi.mocked(ky.get).mockImplementation(
+    (async () => new Response('{"token":"csrf-test"}')) as unknown as typeof ky.get,
+  )
+})
 
 afterEach(() => {
   saveSession(null)
@@ -150,6 +162,8 @@ describe("session refresh", () => {
                   { challengeToken: "challenge", emailCode: "123456" },
                   "",
                 )
+      void sent.catch(() => {})
+      await vi.waitFor(() => expect(complete).toBeTypeOf("function"))
       saveSession({
         ...session("other", "2999-01-01T00:00:00Z"),
         refreshToken: "other-refresh",
@@ -192,6 +206,8 @@ describe("session refresh", () => {
       body: { userId: 1 },
       expectedUserId: "1",
     })
+    void sent.catch(() => {})
+    await vi.waitFor(() => expect(complete).toBeTypeOf("function"))
     saveSession({
       ...session("other", "2999-01-01T00:00:00Z"),
       refreshToken: "other-refresh",
@@ -256,7 +272,8 @@ describe("session refresh", () => {
 function session(accessToken: string, accessTokenExpiresAt: string) {
   return {
     accessToken,
-    refreshToken: "refresh",
+    browserSession: true,
+    refreshToken: null,
     accessTokenExpiresAt,
     refreshTokenExpiresAt: "2999-01-01T00:00:00Z",
     user: { userId: 1 },
@@ -397,7 +414,7 @@ describe("request identity and budget across asynchronous phases", () => {
     saveSession(session("old", "2000-01-01T00:00:00Z"))
     let complete!: (response: Response) => void
     vi.mocked(ky).mockImplementation((async (url: unknown) => {
-      if (String(url).endsWith("/auth/refresh"))
+      if (String(url).endsWith("/auth/browser/refresh"))
         return await new Promise<Response>((resolve) => {
           complete = resolve
         })
@@ -429,7 +446,7 @@ describe("request identity and budget across asynchronous phases", () => {
     saveSession(session("old", "2000-01-01T00:00:00Z"))
     let businessSignal: AbortSignal | undefined
     vi.mocked(ky).mockImplementation((async (url: unknown, options?: Options) => {
-      if (String(url).endsWith("/auth/refresh")) {
+      if (String(url).endsWith("/auth/browser/refresh")) {
         await new Promise((resolve) => setTimeout(resolve, 8000))
         return json(session("new", "2999-01-01T00:00:00Z"))
       }

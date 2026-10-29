@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef } from "react"
 import { authApi } from "../../api/endpoints"
 import { AnnouncementSurfaces } from "../../features/announcements/AnnouncementsPage"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
+import { t } from "../../i18n"
 import { saveSession, useSession } from "../../state/session"
 import { AccountSidebar } from "./AccountSidebar"
 import { Footer } from "./Footer"
@@ -24,15 +25,15 @@ export function AppShell({
     }
   }, [accountArea, session])
   const logout = async () => {
-    const refreshToken = session?.refreshToken
     try {
-      if (refreshToken) await authApi.logout(refreshToken)
+      if (session) await authApi.logout()
     } catch {
-    } finally {
-      redirectingRef.current = true
-      saveSession(null)
-      navigateInApplication("/")
+      window.alert(t("Unable to sign out. Check your network and retry."))
+      return
     }
+    redirectingRef.current = true
+    saveSession(null)
+    navigateInApplication("/")
   }
   return (
     <div className="app-shell">
