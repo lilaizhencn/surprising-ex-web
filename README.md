@@ -402,6 +402,12 @@ failed reads and real empty results; unsupported requested assets require an exp
 
 `/api` 编辑 Key 名称、权限和 IP；写权限必须绑定 IP。Secret 只在创建时显示，保存前禁止创建其他 Key，离开后无法恢复。429 显示 Retry-After 秒数，未知写结果先刷新核对，不自动重试金融写请求。相关验证记录见后端 `docs/validation/open-platform-20261029/`。
 
+## Google 登录与个性主题
+
+Google 登录连接交易 Gateway 的 `/api/v1/auth/google`，沿用现有会话与二次验证。Web 提供 Google 标准按钮及首页 One Tap，App 使用 Android/iOS 原生账号选择；未配置时入口不可用。首次授权创建独立账号，不自动合并相同邮箱的资金账户。配置步骤和验证边界见 [Google 登录说明](../surprising-ex/docs/google-login.md)。
+
+外观入口提供经典石墨、明亮晨光、深海蓝、森林绿、暮光紫、暖沙色六套主题及预览，覆盖整套界面和图表，并保留涨跌语义色。Web 入口为顶部“外观主题”，选择在本机保存并同步浏览器标签页。浏览器验证脚本为 `scripts/google-themes-browser.mjs`，其中 Google SDK/API 响应为合成夹具。
+
 ## 安全会话与资源策略
 
 访问令牌只在内存中保留，刷新使用 HttpOnly Cookie 与独立 CSRF；页面重载先恢复身份，Cookie 身份操作使用 Web Locks 串行化。开发服务默认只监听 127.0.0.1；依赖使用提交的锁文件，使用 `bun install --frozen-lockfile` 复现。生产静态资源发布 `public/_headers`，更换 API/Google/Sumsub 来源时同步 CSP。仅本机 HTTP 联调设置后端 `GATEWAY_BROWSER_COOKIE_SECURE=false`。

@@ -235,6 +235,27 @@ describe("session refresh", () => {
     expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
   })
 
+  it.each(["config", "challenge", "login"])(
+    "requests Google %s without an expired trading identity or session refresh",
+    async (action) => {
+      browserStorage()
+      saveSession(session("expired", "2000-01-01T00:00:00Z"))
+      vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
+        const headers = new Headers(options?.headers as HeadersInit)
+        expect(headers.has("Authorization")).toBe(false)
+        expect(headers.has("X-User-Id")).toBe(false)
+        return json({ ok: true })
+      }) as unknown as typeof ky)
+      await expect(
+        request(`/api/v1/auth/google/${action}`, z.object({ ok: z.boolean() }), {
+          method: action === "config" ? "GET" : "POST",
+        }),
+      ).resolves.toEqual({ ok: true })
+      expect(ky).toHaveBeenCalledTimes(1)
+      expect(loadSession()?.accessToken).toBe("expired")
+    },
+  )
+
   it("refreshes an expired session before making a private request", async () => {
     browserStorage()
     saveSession(session("old", "2000-01-01T00:00:00Z"))

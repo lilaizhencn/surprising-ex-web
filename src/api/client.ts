@@ -137,7 +137,7 @@ export async function request<T>(
     (sessionAccessExpired(loadSession()) || sessionRefreshIssue() !== null)
   )
     await waitForSessionRefresh(options.signal, deadline)
-  const session = publicMarket ? null : loadSession()
+  const session = publicMarket || path.startsWith("/api/v1/auth/google/") ? null : loadSession()
   if (
     !publicMarket &&
     !credentialRequest(path) &&

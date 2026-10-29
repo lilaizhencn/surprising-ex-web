@@ -1,16 +1,14 @@
-import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu, Moon, Sun } from "lucide-react"
+import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
-import { writeStoredValue } from "../../lib/storage"
 import { IconButton } from "../ui/Primitives"
 import { LanguagePicker } from "./LanguagePicker"
 import { MobileNavigation } from "./MobileNavigation"
 import { publicNavigation } from "./navigation"
-
-const THEME_KEY = "theme"
+import { ThemePicker } from "./ThemePicker"
 
 export function TopNav({
   session,
@@ -20,7 +18,6 @@ export function TopNav({
   readonly onLogout: () => void
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [dark, setDark] = useState(document.documentElement.dataset[THEME_KEY] === "dark")
   const [unreadSnapshot, setUnreadSnapshot] = useState<{
     owner: string
     locale: string
@@ -32,13 +29,8 @@ export function TopNav({
   const owner = String(session?.user.userId ?? "guest")
   const unreadAnnouncements =
     unreadSnapshot?.owner === owner && unreadSnapshot.locale === locale ? unreadSnapshot.count : 0
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Route changes close the open navigation.
   useEffect(() => setMobileOpen(false), [pathname])
-  const toggleTheme = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.dataset[THEME_KEY] = next ? "dark" : "light"
-    writeStoredValue("surprising-ex.theme", next ? "dark" : "light")
-  }
   useEffect(() => {
     let request: AbortController | null = null
     const refreshUnread = () => {
@@ -78,7 +70,7 @@ export function TopNav({
       window.removeEventListener("focus", refreshUnread)
       window.removeEventListener("surprising-announcements-updated", refreshUnread)
     }
-  }, [session?.accessToken, owner, locale])
+  }, [session, owner, locale])
   return (
     <header className="top-nav">
       <a className="skip-link" href="#main-content">
@@ -119,12 +111,7 @@ export function TopNav({
               <Bell size={20} />
             </IconButton>
           ) : null}
-          <IconButton
-            label={dark ? t("Use light theme") : t("Use dark theme")}
-            onClick={toggleTheme}
-          >
-            {dark ? <Sun size={20} /> : <Moon size={20} />}
-          </IconButton>
+          <ThemePicker />
           <a
             className={session?.user.displayName ? "nav-account nav-account-named" : "nav-account"}
             href={session ? "/assets" : "/auth/login"}
@@ -175,6 +162,7 @@ function DesktopNavigationItem({
   const active = menu
     ? menu.some((child) => pathname.startsWith(child.href))
     : pathname.startsWith(item.href)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Route changes close the open dropdown.
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => {
     if (!open) return

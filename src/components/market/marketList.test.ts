@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Market } from "../../types/domain"
 import { filterMarkets, marketTradeUrl, sortMarkets } from "./marketList"
 
-export const sampleMarket: Market = {
+const sampleMarket: Market = {
   productLine: "LINEAR_PERPETUAL",
   instrumentId: "9007199254740993",
   symbol: "BTC/USDT",

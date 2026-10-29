@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef } from "react"
 import { authApi } from "../../api/endpoints"
 import { AnnouncementSurfaces } from "../../features/announcements/AnnouncementsPage"
+import { GoogleLogin } from "../../features/auth/GoogleLogin"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t } from "../../i18n"
 import { saveSession, useSession } from "../../state/session"
@@ -32,6 +33,7 @@ export function AppShell({
       return
     }
     redirectingRef.current = true
+    window.google?.accounts.id.disableAutoSelect()
     saveSession(null)
     navigateInApplication("/")
   }
@@ -39,6 +41,7 @@ export function AppShell({
     <div className="app-shell">
       <TopNav session={session} onLogout={logout} />
       <AnnouncementSurfaces />
+      {!session && window.location.pathname === "/" ? <GoogleLogin oneTapOnly /> : null}
       {accountArea ? (
         <div className="account-layout">
           <AccountSidebar />

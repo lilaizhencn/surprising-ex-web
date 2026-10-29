@@ -10,8 +10,8 @@ import { t } from "../../i18n"
 import { saveSession } from "../../state/session"
 import { clearInvitation, invitationCode } from "../affiliate/invitation"
 import { authDestination, authReturnPath } from "./authReturn"
+import { GoogleLogin } from "./GoogleLogin"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
-
 import { TelegramLoginButton } from "./TelegramLoginButton"
 
 type AuthMode = "login" | "register" | "forgot" | "reset" | "verify"
@@ -171,6 +171,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <h1 className="sr-only">{t(title)}</h1>
         <form
           className="auth-form"
+          onFocusCapture={() => window.google?.accounts.id.cancel()}
           onSubmit={(event) => {
             event.preventDefault()
             void submit()
@@ -286,6 +287,26 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                     : "Verify Email"}{" "}
             <ArrowRight size={16} />
           </Button>
+          {(mode === "login" || mode === "register") && !challenge ? (
+            <GoogleLogin
+              inviteCode={inviteCode}
+              disabled={loading}
+              onBusyChange={setLoading}
+              onError={setMessage}
+              onLogin={(result) => {
+                setPassword("")
+                if ("requiresVerification" in result && result.requiresVerification) {
+                  setChallenge(LoginChallengeSchema.parse(result))
+                  return
+                }
+                if (!("accessToken" in result)) return
+                saveSession(result)
+                navigateInApplication(
+                  authDestination(result.requiresEmailVerification, window.location.search),
+                )
+              }}
+            />
+          ) : null}
           {(mode === "login" || mode === "register") && !challenge ? (
             <TelegramLoginButton
               disabled={loading}

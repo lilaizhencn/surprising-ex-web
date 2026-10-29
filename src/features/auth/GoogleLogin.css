@@ -1,0 +1,30 @@
+.google-login {
+  display: grid;
+  justify-items: stretch;
+  gap: 8px;
+  text-align: center;
+  min-width: 0;
+}
+.google-login-button {
+  min-height: 40px;
+  width: 100%;
+}
+.google-login-button[inert] {
+  opacity: 0.55;
+}
+.google-login-notice {
+  position: fixed;
+  right: 16px;
+  bottom: 20px;
+  z-index: 80;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+.google-login-notice a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
