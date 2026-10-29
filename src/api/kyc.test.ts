@@ -9,9 +9,13 @@ describe("identity verification response boundaries", () => {
     for (const status of ["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED", "EXPIRED"])
       expect(KycProfileSchema.parse({ userId: 1, status })?.status).toBe(status)
     expect(KycProfileSchema.parse(null)).toBeNull()
-    expect(KycProviderSchema.parse({ provider: "SELF", simulationEnabled: false }).provider).toBe(
-      "SELF",
-    )
+    expect(
+      KycProviderSchema.parse({
+        provider: "SELF",
+        simulationEnabled: false,
+        verificationOptions: [{ applicantType: "INDIVIDUAL", kycLevel: "BASIC" }],
+      }).provider,
+    ).toBe("SELF")
   })
   it("rejects malformed states, IDs, expiry dates and unknown provider modes", () => {
     for (const value of [

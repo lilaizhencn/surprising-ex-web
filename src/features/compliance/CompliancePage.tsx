@@ -1,5 +1,5 @@
 import { Check, CircleAlert, Clock, LoaderCircle, ShieldCheck } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   completeKycSimulation,
   loadKyc,
@@ -41,7 +41,7 @@ function AuthenticatedKyc() {
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const [sdkOpen, setSdkOpen] = useState(false)
-  const [reload, setReload] = useState(0)
+  const readRequest = useRef<AbortController | null>(null)
   const [now, setNow] = useState(Date.now)
   const lifetime = useRef<AbortController | null>(null)
   const actionBusy = useRef(false)
@@ -56,8 +56,10 @@ function AuthenticatedKyc() {
       sdk.current = null
     }
   }, [])
-  useEffect(() => {
+  const load = useCallback(() => {
+    readRequest.current?.abort()
     const abort = new AbortController()
+    readRequest.current = abort
     setLoading(true)
     setProviderLoading(true)
     setLoadError("")
@@ -93,8 +95,11 @@ function AuthenticatedKyc() {
       .finally(() => {
         if (!abort.signal.aborted) setProviderLoading(false)
       })
-    return () => abort.abort()
-  }, [reload])
+  }, [])
+  useEffect(() => {
+    load()
+    return () => readRequest.current?.abort()
+  }, [load])
   const status = profile?.status ?? "UNVERIFIED"
   const expiry = profile?.expiresAt ? Date.parse(profile.expiresAt) : null
   const expired =
@@ -127,7 +132,7 @@ function AuthenticatedKyc() {
       abort.abort()
       window.clearTimeout(timer)
     }
-  }, [status, loading, reload])
+  }, [status, loading])
   useEffect(() => {
     if (status !== "PENDING") {
       sdkRequest.current?.abort()
@@ -141,7 +146,7 @@ function AuthenticatedKyc() {
     sdk.current?.destroy()
     sdk.current = null
     setSdkOpen(false)
-    setReload((value) => value + 1)
+    load()
   }
   const resume = async () => {
     if (!lifetime.current || lifetime.current.signal.aborted || actionBusy.current || sdk.current)
@@ -256,7 +261,7 @@ function AuthenticatedKyc() {
           <p role="alert">{loadError}</p>
           <Button onClick={retry}>{t("Retry")}</Button>
         </Panel>
-      ) : status === "VERIFIED" ? (
+      ) : (status === "VERIFIED" || status === "EXPIRED") && !editing ? (
         <Panel className={`kyc-result ${expired ? "" : "kyc-verified"}`}>
           {expired ? (
             <CircleAlert size={38} aria-hidden="true" />
@@ -280,9 +285,20 @@ function AuthenticatedKyc() {
             </p>
           ) : null}
           <div className="button-row kyc-result-actions">
-            <a className="button button-primary" href={expired ? "/help" : "/assets"}>
-              {t(expired ? "Help Center" : "View assets")}
-            </a>
+            {expired ? (
+              <Button
+                onClick={() => {
+                  setEditing(true)
+                  setError("")
+                }}
+              >
+                {t("Verify again")}
+              </Button>
+            ) : (
+              <a className="button button-primary" href="/assets">
+                {t("View assets")}
+              </a>
+            )}
             <a className="button button-outline" href="/security/account">
               {t("Account security")}
             </a>
@@ -379,6 +395,7 @@ function AuthenticatedKyc() {
           ) : null}
           <KycApplicationForm
             provider={provider.provider}
+            verificationOptions={provider.verificationOptions}
             onSubmitted={(response) => {
               setProfile(response.profile)
               setEditing(false)

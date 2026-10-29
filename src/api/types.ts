@@ -639,6 +639,14 @@ export const KycDocumentSchema = z
 export const KycProviderSchema = z.object({
   provider: z.enum(["SELF", "SUMSUB", "VERIFF"]),
   simulationEnabled: z.boolean(),
+  verificationOptions: z
+    .array(
+      z.object({
+        applicantType: z.enum(["INDIVIDUAL", "BUSINESS"]),
+        kycLevel: z.enum(["BASIC", "STANDARD", "ENHANCED"]),
+      }),
+    )
+    .min(1),
 })
 export const MfaStatusSchema = z.object({ enabled: z.boolean() }).passthrough()
 export const SecuritySceneSchema = z

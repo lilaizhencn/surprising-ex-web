@@ -411,3 +411,9 @@ Google 登录连接交易 Gateway 的 `/api/v1/auth/google`，沿用现有会话
 ## 安全会话与资源策略
 
 访问令牌只在内存中保留，刷新使用 HttpOnly Cookie 与独立 CSRF；页面重载先恢复身份，Cookie 身份操作使用 Web Locks 串行化。开发服务默认只监听 127.0.0.1；依赖使用提交的锁文件，使用 `bun install --frozen-lockfile` 复现。生产静态资源发布 `public/_headers`，更换 API/Google/Sumsub 来源时同步 CSP。仅本机 HTTP 联调设置后端 `GATEWAY_BROWSER_COOKIE_SECURE=false`。
+
+## 身份认证闭环
+
+身份认证页面按 Gateway `verificationOptions` 过滤主体与等级，未配置的流程不可提交。人工认证在本站上传本次材料；Sumsub/Veriff 在服务商流程采集材料，本站不重复要求上传同一套证据。驳回展示完整原因并支持重新提交；VERIFIED 但到期时间已过，或状态为 EXPIRED 时，提供重新认证入口。有效认证仍禁止重复申请。读取与重试显式取消上一次请求，离开页面销毁 SDK，状态轮询只在页面可见时运行。
+
+`node scripts/kyc-experience-qa.mjs` 使用合成响应验证异常分支；`node scripts/kyc-closure-live-qa.mjs` 配合本机 `KycClosureBrowserQaTest` 验证真实上传、后台原件预览、审核、补正与过期重认证，认证启动及非 KYC 目录为明确夹具。执行环境、截图与未测范围见 [验收记录](../surprising-ex/docs/validation/kyc-adaptive-themes-20261029/README.md)。

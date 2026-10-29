@@ -22,7 +22,12 @@ await context.route(url => url.pathname.startsWith("/api/"), async route => {
   const request = route.request(), url = new URL(request.url()), endpoint = url.pathname.split("/").at(-1)
   requests.push({ path: url.pathname, method: request.method(), body: request.postData() })
   let status = 200, data = {}
-  if (url.pathname === "/api/v1/compliance/kyc") {
+  if (url.pathname === "/api/v1/auth/csrf") data = { token: "synthetic-csrf" }
+  else if (url.pathname === "/api/v1/auth/browser/refresh") data = {
+    accessToken: "kyc-fixture", browserSession: true, accessTokenExpiresAt: "2030-01-01T00:00:00Z",
+    refreshTokenExpiresAt: "2030-01-01T00:00:00Z", user: { userId: "1", username: "fixture", status: "NORMAL", roles: ["USER"] }
+  }
+  else if (url.pathname === "/api/v1/compliance/kyc") {
     if (request.method() === "POST") {
       if (holdSubmit) await new Promise(resolve => releaseSubmit = resolve)
       profile = { userId: "1", status: "PENDING", kycLevel: "BASIC", provider }
@@ -34,7 +39,7 @@ await context.route(url => url.pathname.startsWith("/api/"), async route => {
     }
   } else if (endpoint === "provider") {
     status = failProvider ? 503 : 200
-    data = failProvider ? {} : { provider, simulationEnabled: false }
+    data = failProvider ? {} : { provider, simulationEnabled: false, verificationOptions: ["INDIVIDUAL", "BUSINESS"].flatMap(applicantType => ["BASIC", "STANDARD", "ENHANCED"].map(kycLevel => ({ applicantType, kycLevel }))) }
   } else if (endpoint === "countries") {
     status = failCountries ? 503 : 200
     data = failCountries ? {} : [{ code: "SG", flag: "🇸🇬", names: { en: "Singapore", zh: "新加坡" } }]
@@ -129,9 +134,9 @@ try {
   await go()
   await page.getByRole("heading", { name: "Verification has expired", exact: true }).waitFor()
   assert.equal(await page.locator(".kyc-application").count(), 0)
-  await page.locator(".kyc-result").getByRole("link", { name: "Help Center", exact: true }).click()
-  await page.getByRole("heading", { name: "Help Center", exact: true }).waitFor()
-  checks.push("expired verified record cannot advertise current verification or offer a backend-forbidden duplicate application")
+  await page.getByRole("button", { name: "Verify again", exact: true }).click()
+  await page.locator(".kyc-application").waitFor()
+  checks.push("expired verified record offers a fresh application with current provider requirements")
   badOwner = true
   await go()
   await page.getByRole("heading", { name: "Verification status unavailable" }).waitFor()

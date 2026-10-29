@@ -1,5 +1,5 @@
 import { Check, FileCheck, Trash2, Upload, UserRound } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { submitKyc, uploadKycDocument } from "../../api/endpoints"
 import { type Country, deleteKycDraft, loadCountries } from "../../api/kyc"
 import { DatePicker } from "../../components/ui/DatePicker"
@@ -19,9 +19,11 @@ type Slot = {
 }
 export function KycApplicationForm({
   provider,
+  verificationOptions,
   onSubmitted,
 }: {
   readonly provider: string
+  readonly verificationOptions: readonly { applicantType: string; kycLevel: string }[]
   readonly onSubmitted: (response: Row) => void
 }) {
   const locale = useLocale()
@@ -39,8 +41,9 @@ export function KycApplicationForm({
   const [busy, setBusy] = useState(false)
   const [loadingFiles, setLoadingFiles] = useState(0)
   const [countryError, setCountryError] = useState("")
-  const [reload, setReload] = useState(0)
+  const countryRequest = useRef<AbortController | null>(null)
   const [countryLoading, setCountryLoading] = useState(true)
+  const manual = provider === "SELF"
   const submitting = useRef(false)
   const fileOperations = useRef(0)
   const lifetime = useRef<AbortController | null>(null)
@@ -49,8 +52,10 @@ export function KycApplicationForm({
     lifetime.current = abort
     return () => abort.abort()
   }, [])
-  useEffect(() => {
+  const reloadCountries = useCallback(() => {
+    countryRequest.current?.abort()
     const abort = new AbortController()
+    countryRequest.current = abort
     setCountryError("")
     setCountryLoading(true)
     void loadCountries(abort.signal)
@@ -65,8 +70,11 @@ export function KycApplicationForm({
       .finally(() => {
         if (!abort.signal.aborted) setCountryLoading(false)
       })
-    return () => abort.abort()
-  }, [reload])
+  }, [])
+  useEffect(() => {
+    reloadCountries()
+    return () => countryRequest.current?.abort()
+  }, [reloadCountries])
   const slots: Slot[] =
     type === "ID_CARD"
       ? [
@@ -160,15 +168,22 @@ export function KycApplicationForm({
       setError(t("Select a country or region."))
       return
     }
-    if (!type || !applicant || !level || (level !== "BASIC" && !proof)) {
+    if (
+      !type ||
+      !verificationOptions.some(
+        (option) => option.applicantType === applicant && option.kycLevel === level,
+      ) ||
+      (manual && level !== "BASIC" && !proof)
+    ) {
       setError(t("Choose the applicant, verification level and required document types."))
       return
     }
-    if (!expiry || expiry < today) {
+    if (manual && (!expiry || expiry < today)) {
       setError(t("Your identity document must not be expired."))
       return
     }
     if (
+      manual &&
       type === "ID_CARD" &&
       (!documentIssued || documentIssued > today || documentIssued > expiry)
     ) {
@@ -176,13 +191,14 @@ export function KycApplicationForm({
       return
     }
     if (
+      manual &&
       level !== "BASIC" &&
       (!issued || issued < oldest.toISOString().slice(0, 10) || issued > today)
     ) {
       setError(t("Address proof must be issued within the last three months."))
       return
     }
-    if (slots.some((slot) => !files[slot.key ?? slot.type])) {
+    if (manual && slots.some((slot) => !files[slot.key ?? slot.type])) {
       setError(t("Upload every required document before submitting."))
       return
     }
@@ -196,10 +212,10 @@ export function KycApplicationForm({
           country,
           documentType: type,
           provider,
-          documentIds: slots.map((slot) => files[slot.key ?? slot.type]?.id),
-          documentExpiresOn: expiry,
-          documentIssuedOn: type === "ID_CARD" ? documentIssued : null,
-          addressIssuedOn: level === "BASIC" ? null : issued,
+          documentIds: manual ? slots.map((slot) => files[slot.key ?? slot.type]?.id) : [],
+          documentExpiresOn: manual ? expiry : null,
+          documentIssuedOn: manual && type === "ID_CARD" ? documentIssued : null,
+          addressIssuedOn: manual && level !== "BASIC" ? issued : null,
           faceVerificationStatus: level === "ENHANCED" ? "PENDING" : "NOT_REQUIRED",
         },
         signal,
@@ -264,7 +280,7 @@ export function KycApplicationForm({
       ) : !countryError && !countries.length ? (
         <p role="alert" className="inline-error">
           {t("No countries or regions are available. Please retry later.")}
-          <Button tone="ghost" onClick={() => setReload((value) => value + 1)}>
+          <Button tone="ghost" onClick={reloadCountries}>
             {t("Retry")}
           </Button>
         </p>
@@ -294,12 +310,19 @@ export function KycApplicationForm({
           <Field label={t("Applicant type")}>
             <DropdownSelect
               value={applicant}
-              onChange={(event) => setApplicant(event.target.value)}
+              onChange={(event) => {
+                setApplicant(event.target.value)
+                setLevel("")
+              }}
               aria-label={t("Applicant type")}
             >
               <option value="">{t("Please select")}</option>
-              <option value="INDIVIDUAL">{t("Individual")}</option>
-              <option value="BUSINESS">{t("Business")}</option>
+              {verificationOptions.some((option) => option.applicantType === "INDIVIDUAL") && (
+                <option value="INDIVIDUAL">{t("Individual")}</option>
+              )}
+              {verificationOptions.some((option) => option.applicantType === "BUSINESS") && (
+                <option value="BUSINESS">{t("Business")}</option>
+              )}
             </DropdownSelect>
           </Field>
           <Field label={t("Verification level")}>
@@ -309,16 +332,27 @@ export function KycApplicationForm({
               aria-label={t("Verification level")}
             >
               <option value="">{t("Please select")}</option>
-              <option value="BASIC">{t("Basic")}</option>
-              <option value="STANDARD">{t("Standard")}</option>
-              <option value="ENHANCED">{t("Enhanced")}</option>
+              {verificationOptions
+                .filter((option) => option.applicantType === applicant)
+                .map((option) => (
+                  <option key={option.kycLevel} value={option.kycLevel}>
+                    {t(
+                      (
+                        { BASIC: "Basic", STANDARD: "Standard", ENHANCED: "Enhanced" } as Record<
+                          string,
+                          string
+                        >
+                      )[option.kycLevel] ?? option.kycLevel,
+                    )}
+                  </option>
+                ))}
             </DropdownSelect>
           </Field>
         </div>
         {countryError ? (
           <p role="alert">
             {countryError}{" "}
-            <button type="button" onClick={() => setReload((value) => value + 1)}>
+            <button type="button" onClick={reloadCountries}>
               {t("Retry")}
             </button>
           </p>
@@ -345,7 +379,7 @@ export function KycApplicationForm({
                 <option value="RESIDENCE_PERMIT">{t("Residence permit")}</option>
               </DropdownSelect>
             </Field>
-            {type === "ID_CARD" ? (
+            {manual && type === "ID_CARD" ? (
               <Field label={t("Document issue date")}>
                 <DatePicker
                   label={t("Document issue date")}
@@ -356,7 +390,7 @@ export function KycApplicationForm({
                 />
               </Field>
             ) : null}
-            {type ? (
+            {manual && type ? (
               <Field label={t("Document expiry date")}>
                 <DatePicker
                   label={t("Document expiry date")}
@@ -367,9 +401,13 @@ export function KycApplicationForm({
               </Field>
             ) : null}
           </div>
-          {renderSlots(slots.filter((slot) => slot.type !== "ADDRESS_PROOF"))}
+          {manual ? (
+            renderSlots(slots.filter((slot) => slot.type !== "ADDRESS_PROOF"))
+          ) : (
+            <p>{t("Your verification provider will collect and verify the required documents.")}</p>
+          )}
         </section>
-        {level && level !== "BASIC" ? (
+        {manual && level && level !== "BASIC" ? (
           <section className="kyc-evidence-section">
             <h2>{t("Proof of address")}</h2>
             <p className="kyc-section-hint">
@@ -426,7 +464,7 @@ export function KycApplicationForm({
             {error}
           </p>
         ) : null}
-        {slots.length ? (
+        {manual && slots.length ? (
           <p className="kyc-upload-progress" role="status">
             {t("Required documents uploaded")}:{" "}
             {slots.filter((slot) => files[slot.key ?? slot.type]).length} / {slots.length}

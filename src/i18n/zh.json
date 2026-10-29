@@ -1341,7 +1341,7 @@
   "Loading countries and regions…": "正在读取国家和地区…",
   "No countries or regions are available. Please retry later.": "暂时没有可选的国家或地区，请稍后重试。",
   "Required documents uploaded": "必需材料已上传",
-  "Your verification is no longer current. Check the Help Center for guidance on updating your identity documents.": "当前认证已过期，请前往帮助中心查看身份材料更新指引。",
+  "Your verification is no longer current. Check the Help Center for guidance on updating your identity documents.": "认证已过期，请重新提交有效证件完成认证。",
   "Help categories": "帮助主题",
   "Notification marked as read.": "消息已标为已读。",
   "All notifications marked as read.": "所有消息已标为已读。",
@@ -1470,5 +1470,6 @@
   "Google authorization is invalid or expired": "Google 授权无效或已过期，请重试。",
   "Google login expired or already used": "本次 Google 登录已过期或已使用，请重新发起。",
   "Too many Google login attempts; please try again later": "Google 登录尝试过多，请稍后重试。",
-  "Google login is not permitted": "当前账户无法通过 Google 登录，请联系客服。"
+  "Google login is not permitted": "当前账户无法通过 Google 登录，请联系客服。",
+  "Your verification provider will collect and verify the required documents.": "认证服务商将采集并核验所需材料。"
 }
