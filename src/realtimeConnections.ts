@@ -195,6 +195,24 @@ class Connection {
           this.reconcile()
         }
         if (event.op === "error") {
+          const data = event.data as { code?: string; retryAfterSeconds?: number } | null
+          if (
+            data &&
+            [
+              "RATE_LIMITED",
+              "GATEWAY_BUSY",
+              "RATE_LIMIT_STORAGE_UNAVAILABLE",
+              "WEBSOCKET_CONNECTION_LIMIT",
+            ].includes(data.code ?? "")
+          ) {
+            const seconds = Number(data.retryAfterSeconds)
+            this.disconnect(
+              socket,
+              Number.isFinite(seconds) ? Math.min(86400, Math.max(1, seconds)) * 1000 : 1000,
+            )
+            this.message(event)
+            return
+          }
           if (event["error"] === "realtime receiver unavailable") {
             this.disconnect(socket)
             return
@@ -256,7 +274,7 @@ class Connection {
       this.lastPingAt = now
     }
   }
-  private disconnect(socket: WebSocket) {
+  private disconnect(socket: WebSocket, retryAfter = 0) {
     if (this.closed || this.socket !== socket) return
     clearInterval(this.heartbeat)
     this.socket = null
@@ -268,7 +286,7 @@ class Connection {
         this.reconnect = undefined
         this.connect()
       },
-      Math.min(1000 * 2 ** this.attempt++, 15000),
+      Math.max(retryAfter, Math.min(1000 * 2 ** this.attempt++, 15000)),
     )
   }
   private reconcile() {

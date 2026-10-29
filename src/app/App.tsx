@@ -60,6 +60,11 @@ const DeveloperApiPage = lazy(() =>
     default: module.DeveloperApiPage,
   })),
 )
+const DevelopersPage = lazy(() =>
+  import("../features/developers/DevelopersPage").then((module) => ({
+    default: module.DevelopersPage,
+  })),
+)
 const DeviceManagementPage = lazy(() =>
   import("../features/security/DeviceManagementPage").then((module) => ({
     default: module.DeviceManagementPage,
@@ -139,6 +144,12 @@ function AppRoutes() {
     return () => window.clearTimeout(timer)
   }, [session?.accessToken, session?.accessTokenExpiresAt])
   const path = window.location.pathname
+  if (path === "/developers")
+    return (
+      <AppShell showFooter>
+        <DevelopersPage />
+      </AppShell>
+    )
   if (path.startsWith("/auth/"))
     return (
       <AppShell>

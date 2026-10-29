@@ -82,6 +82,14 @@ register(
 )
 register("INVALID_ORDER_PRICE", "Please enter a valid price within the contract limits.")
 register("REQUEST_NOT_ACCEPTED", "The request was not accepted. Please try again shortly.")
+register(
+  "REQUEST_EXCEEDS_RATE_BURST",
+  "Reduce the batch size or requested rows before trying again.",
+)
+register(
+  "GATEWAY_BUSY RATE_LIMIT_STORAGE_UNAVAILABLE",
+  "The gateway is temporarily busy. Check the result before retrying.",
+)
 
 const validationMessages: Record<string, string> = {
   "leveragePpm exceeds instrument max leverage":

@@ -1,12 +1,13 @@
 import { Copy, Eye, EyeOff, KeyRound, RefreshCw } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { ApiError } from "../../api/client"
 import {
   createApiKey,
   issueSecurityChallenge,
   loadApiKeys,
   loadMfaStatus,
   revokeApiKey,
-  updateApiKeyIpAllowlist,
+  updateApiKey,
 } from "../../api/endpoints"
 import type { ApiSecurityKey } from "../../api/types"
 import { Badge, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
@@ -16,7 +17,7 @@ import { SecurityActionDialog } from "./SecurityActionDialog"
 import { VerificationFields } from "./VerificationFields"
 import "./SecurityPages.css"
 
-type Action = { kind: "create" } | { kind: "allowlist" | "revoke"; key: ApiSecurityKey }
+type Action = { kind: "create" } | { kind: "edit" | "revoke"; key: ApiSecurityKey }
 export function DeveloperApiPage() {
   const session = useSession()
   return session ? (
@@ -99,10 +100,10 @@ function AccountApiKeys() {
   const begin = (next: Action) => {
     if (lock.current || created || writeBlocked || loading || mfa === null || !keys) return
     setAction(next)
-    setLabel("")
-    setTrade(false)
-    setWithdraw(false)
-    setAllowlist(next.kind === "allowlist" ? next.key.ipAllowlist.join(", ") : "")
+    setLabel(next.kind === "edit" ? next.key.label : "")
+    setTrade(next.kind === "edit" && next.key.permissions.split(",").includes("TRADE"))
+    setWithdraw(next.kind === "edit" && next.key.permissions.split(",").includes("WITHDRAW"))
+    setAllowlist(next.kind === "edit" ? next.key.ipAllowlist.join(", ") : "")
     setEmail("")
     setTotp("")
     setMessage("")
@@ -145,8 +146,12 @@ function AccountApiKeys() {
       setMessage(t("Use up to 100 IP addresses or CIDR ranges, each up to 64 characters."))
       return
     }
-    if (action.kind === "create" && (!label.trim() || label.trim().length > 80)) {
+    if (action.kind !== "revoke" && (!label.trim() || label.trim().length > 80)) {
       setMessage(t("Use a key name from 1 to 80 characters."))
+      return
+    }
+    if (action.kind !== "revoke" && (trade || withdraw) && addresses.length === 0) {
+      setMessage(t("An IP allowlist is required for trading or withdrawals."))
       return
     }
     lock.current = true
@@ -167,9 +172,11 @@ function AccountApiKeys() {
         setCreated(result)
         setRevealed(false)
         setCopyStatus("")
-      } else if (action.kind === "allowlist")
-        await updateApiKeyIpAllowlist(
+      } else if (action.kind === "edit")
+        await updateApiKey(
           action.key.apiKey,
+          label.trim(),
+          ["READ", ...(trade ? ["TRADE"] : []), ...(withdraw ? ["WITHDRAW"] : [])],
           addresses,
           email.trim(),
           totp.trim(),
@@ -188,7 +195,9 @@ function AccountApiKeys() {
         setMessage(readError(reason))
         setEmail("")
         setTotp("")
-        setWriteBlocked(true)
+        setWriteBlocked(
+          !(reason instanceof ApiError && [400, 401, 403, 404, 422, 429].includes(reason.status)),
+        )
       }
     } finally {
       lock.current = false
@@ -345,9 +354,9 @@ function AccountApiKeys() {
                     <Button
                       tone="outline"
                       disabled={mfa === null || writeBlocked || Boolean(busy)}
-                      onClick={() => begin({ kind: "allowlist", key })}
+                      onClick={() => begin({ kind: "edit", key })}
                     >
-                      {t("Edit IPs")}
+                      {t("Edit API key")}
                     </Button>
                     <Button
                       tone="negative"
@@ -389,8 +398,8 @@ function AccountApiKeys() {
           title={t(
             action.kind === "create"
               ? "Create API key"
-              : action.kind === "allowlist"
-                ? "Edit IP allowlist"
+              : action.kind === "edit"
+                ? "Edit API key"
                 : "Revoke API key",
           )}
           onClose={close}
@@ -405,7 +414,8 @@ function AccountApiKeys() {
                   {t("Permissions")}: {action.key.permissions}
                 </p>
               </div>
-            ) : (
+            ) : null}
+            {action.kind !== "revoke" ? (
               <>
                 <Field label={t("Name")}>
                   <input
@@ -446,12 +456,12 @@ function AccountApiKeys() {
                   </p>
                 ) : null}
               </>
-            )}
+            ) : null}
             {action.kind !== "revoke" ? (
               <>
                 <Field
                   label={t("IP allowlist")}
-                  hint="IP addresses or CIDR ranges, separated by commas. Empty means any IP can use the key."
+                  hint="IP addresses or CIDR ranges, separated by commas. Trading and withdrawals require an IP allowlist."
                 >
                   <textarea
                     aria-label={t("IP allowlist")}

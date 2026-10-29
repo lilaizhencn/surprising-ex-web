@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BookOpen,
   ChartNoAxesCombined,
   ChevronRight,
   CircleDot,
@@ -22,6 +23,7 @@ const icons = {
   Perpetuals: Layers,
   Futures: Layers,
   Options: CircleDot,
+  "Open platform": BookOpen,
   Assets: Wallet,
 }
 

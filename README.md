@@ -394,3 +394,10 @@ failed reads and real empty results; unsupported requested assets require an exp
 开关来自登录人本人的后端资料；查看成员时不误用成员开关。刷新关闭状态后退出分支并清除合作草稿；资料读取失败清除旧页面。后台管理员开通后再允许加入团队，接受合作邀请不会自动授予权限。普通注册不要使用尚未获批的合作邀请码；先完成普通注册，获批后接受原合作邀请。
 
 本轮权限、截图、Web 和设备验证及未测范围见[开通边界验证](../surprising-ex/docs/validation/affiliate-access-20261029/README.md)。
+
+
+## 开放平台与 API Key（2026-10-29）
+
+`/developers` 为无需登录的 REST/WebSocket 文档，桌面顶部及移动菜单共用入口；提供六产品、单位精度、两种签名、权限/IP 策略、回执恢复、WS 挑战认证与重连、统一限流说明。`native-client.mjs` 同时作为下载示例及显示源码，Node.js 22+ 可执行，不在浏览器处理 Secret。
+
+`/api` 编辑 Key 名称、权限和 IP；写权限必须绑定 IP。Secret 只在创建时显示，保存前禁止创建其他 Key，离开后无法恢复。429 显示 Retry-After 秒数，未知写结果先刷新核对，不自动重试金融写请求。相关验证记录见后端 `docs/validation/open-platform-20261029/`。

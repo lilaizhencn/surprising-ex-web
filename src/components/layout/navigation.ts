@@ -22,6 +22,7 @@ export const publicNavigation = [
     ],
   },
   { label: "Options", href: "/trade/options" },
+  { label: "Open platform", href: "/developers" },
   { label: "Assets", href: "/assets" },
 ] as const
 

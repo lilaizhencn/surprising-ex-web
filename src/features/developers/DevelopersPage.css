@@ -1,0 +1,110 @@
+.developers-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-10);
+  align-items: start;
+}
+.developers-toc {
+  position: sticky;
+  top: calc(var(--top-nav-height) + var(--space-6));
+  display: grid;
+  gap: var(--space-2);
+}
+.developers-toc a {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-ink-muted);
+}
+.developers-toc a:hover {
+  color: var(--color-primary);
+  background: var(--color-surface-active);
+}
+.developers-content {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-10);
+}
+.developers-content section {
+  min-width: 0;
+  scroll-margin-top: calc(var(--top-nav-height) + var(--space-6));
+}
+.developers-content h2 {
+  margin-bottom: var(--space-5);
+}
+.developers-content p {
+  line-height: 1.8;
+  margin: var(--space-4) 0;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+.developers-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: var(--space-5);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  font: var(--font-body-small) / 1.7 var(--font-family-mono);
+}
+.developers-content code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-body-small);
+}
+.developers-content dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3) var(--space-5);
+}
+.developers-content dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.developers-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.developers-products code {
+  background: var(--color-surface-active);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.developers-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.developers-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-body-small);
+  text-align: left;
+}
+.developers-table td,
+.developers-table th {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.developers-table th {
+  background: var(--color-surface-muted);
+}
+.developers-content summary {
+  cursor: pointer;
+  padding: var(--space-4) 0;
+  color: var(--color-primary);
+}
+@media (max-width: 800px) {
+  .developers-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+  .developers-toc {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-4);
+  }
+  .developers-content pre {
+    padding: var(--space-3);
+  }
+}

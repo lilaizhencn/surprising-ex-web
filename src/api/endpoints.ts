@@ -649,8 +649,10 @@ export function createApiKey(
   })
 }
 
-export function updateApiKeyIpAllowlist(
+export function updateApiKey(
   apiKey: string,
+  label: string,
+  permissions: readonly string[],
   ipAllowlist: readonly string[],
   emailCode: string,
   totpCode: string,
@@ -663,7 +665,7 @@ export function updateApiKeyIpAllowlist(
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,
     },
-    body: { apiKey, ipAllowlist },
+    body: { apiKey, label, permissions, ipAllowlist },
   })
 }
 

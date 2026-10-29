@@ -55,6 +55,28 @@ describe("gateway JSON integer decoding", () => {
 })
 
 describe("public request failures", () => {
+  it("exposes Retry-After for JSON and downloads without retrying a financial mutation", async () => {
+    browserStorage()
+    vi.mocked(ky).mockImplementation(
+      (async () =>
+        new Response('{"code":"RATE_LIMITED"}', {
+          status: 429,
+          headers: { "Retry-After": "12" },
+        })) as unknown as typeof ky,
+    )
+    for (const operation of [
+      () => request("/api/v1/gateway/trading", z.unknown(), { method: "POST", body: {} }),
+      () => requestBlob("/download"),
+    ]) {
+      await expect(operation()).rejects.toMatchObject({
+        status: 429,
+        retryAfterSeconds: 12,
+        message: expect.stringContaining("12"),
+      })
+    }
+    expect(ky).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(ky).mock.calls[0]?.[1]?.retry).toEqual({ limit: 0 })
+  })
   it("never fetches a private attachment under a different signed-in owner", async () => {
     browserStorage()
     saveSession(session("current", "2999-01-01T00:00:00Z"))

@@ -22,6 +22,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly payload: unknown = null,
     readonly requestSent: boolean = true,
+    readonly retryAfterSeconds: number | null = null,
   ) {
     super(message)
   }
@@ -200,9 +201,11 @@ export async function request<T>(
 
   if (!response.ok)
     throw new ApiError(
-      apiErrorMessage(payload, response.status, method !== "GET"),
+      responseErrorMessage(payload, response, method !== "GET"),
       response.status,
       payload,
+      true,
+      retryAfterSeconds(response),
     )
   if (response.status === 204) {
     const empty = schema.parse(null)
@@ -292,9 +295,11 @@ export async function requestBlob(
     const raw = new TextDecoder().decode(bytes)
     const payload = parseResponse(raw)
     throw new ApiError(
-      apiErrorMessage(payload, response.status, method !== "GET"),
+      responseErrorMessage(payload, response, method !== "GET"),
       response.status,
       payload,
+      true,
+      retryAfterSeconds(response),
     )
   }
   const blob = new Blob([bytes], {
@@ -310,6 +315,23 @@ function checkResponseDeadline(deadline: number): void {
       t("The response could not be processed in time. Check the result before retrying."),
       0,
     )
+}
+
+function retryAfterSeconds(response: Response): number | null {
+  const value = response.headers.get("Retry-After")?.trim()
+  if (!value) return null
+  const seconds = /^\d+$/.test(value) ? Number(value) : (Date.parse(value) - Date.now()) / 1000
+  return Number.isFinite(seconds) ? Math.max(1, Math.ceil(seconds)) : null
+}
+
+function responseErrorMessage(payload: unknown, response: Response, mutating: boolean): string {
+  const seconds = retryAfterSeconds(response)
+  if (response.status === 429 && seconds !== null)
+    return t("Too many requests. Retry after {seconds} seconds.").replace(
+      "{seconds}",
+      String(seconds),
+    )
+  return apiErrorMessage(payload, response.status, mutating)
 }
 
 function checkBeforeSend(signal: AbortSignal | undefined, deadline: number): void {

@@ -289,6 +289,24 @@ describe("realtime connection lifecycle", () => {
     ])
     manager.close()
   })
+  it("honors WS Retry-After without discarding valid authentication", () => {
+    const manager = new RealtimeConnections(() => "ws://fixture", "valid", vi.fn(), vi.fn())
+    manager.update([account])
+    socket().open()
+    socket().receive({ op: "error", data: { code: "RATE_LIMITED", retryAfterSeconds: 26 } })
+    expect(socket().readyState).toBe(3)
+    vi.advanceTimersByTime(25_999)
+    expect(Socket.instances).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(Socket.instances).toHaveLength(2)
+    socket(1).open()
+    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth", token: "valid" })
+    socket(1).receive({ op: "authenticated", userId: 7 })
+    expect(socket(1).sent).toContainEqual(
+      expect.objectContaining({ op: "subscribe", channel: "accountState" }),
+    )
+    manager.close()
+  })
   it("retires a policy-rejected token before reconnecting public subscriptions", () => {
     const manager = new RealtimeConnections(() => "ws://fixture", "retired", vi.fn(), vi.fn())
     manager.update([publicTrade, account])
