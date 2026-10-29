@@ -28,6 +28,7 @@ export function AffiliatePage() {
   const session = useSession()
   const owner = String(session?.user.userId ?? "")
   const [data, setData] = useState<AffiliateOverview | null>(null)
+  const [access, setAccess] = useState({ owner: "", kolEnabled: false })
   const [members, setMembers] = useState<AffiliateMember[]>([])
   const [entries, setEntries] = useState<AffiliateEntry[]>([])
   const [scales, setScales] = useState<Record<string, string>>({})
@@ -76,13 +77,24 @@ export function AffiliatePage() {
       queryScope.current = scope
     }
     void Promise.all([
-      affiliateApi.overview(line, subject || undefined, controller.signal),
-      affiliateApi.members(subject || undefined, memberCursor, controller.signal),
+      affiliateApi.overview(line, undefined, controller.signal).then(async (self) => {
+        if (self.profile.userId !== owner) throw new Error("邀请资料与当前用户不匹配")
+        const branch = self.profile.kolEnabled && subject && subject !== owner ? subject : undefined
+        const [overview, page] = await Promise.all([
+          branch ? affiliateApi.overview(line, branch, controller.signal) : Promise.resolve(self),
+          affiliateApi.members(
+            branch,
+            !self.profile.kolEnabled && subject ? "0" : memberCursor,
+            controller.signal,
+          ),
+        ])
+        return { self, overview, page }
+      }),
       affiliateApi.entries(line, entryCursor, controller.signal),
       affiliateApi.payouts(controller.signal),
       loadAssetScales(controller.signal),
     ])
-      .then(([overview, page, history, payments, assetScales]) => {
+      .then(([{ self, overview, page }, history, payments, assetScales]) => {
         if (controller.signal.aborted) return
         for (const row of [
           ...overview.balances,
@@ -95,6 +107,15 @@ export function AffiliatePage() {
             throw new Error(`币种 ${row.asset} 的精度尚未就绪，请刷新重试`)
         }
         setScales(assetScales)
+        setAccess({ owner, kolEnabled: self.profile.kolEnabled })
+        if (!self.profile.kolEnabled) {
+          setSubject("")
+          setSelected(null)
+          setCreated(null)
+          setTarget("")
+          setShare("50")
+          if (subject) setMemberCursor("0")
+        }
         setData(overview)
         setMembers(page.items)
         setMemberNext(page.nextCursor)
@@ -103,7 +124,16 @@ export function AffiliatePage() {
         setPayouts(payments.items)
       })
       .catch((reason: unknown) => {
-        if (!controller.signal.aborted) setError(errorText(reason))
+        if (!controller.signal.aborted) {
+          setError(errorText(reason))
+          setAccess({ owner, kolEnabled: false })
+          setData(null)
+          setMembers([])
+          setSelected(null)
+          setCreated(null)
+          setTarget("")
+          setShare("50")
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)
@@ -126,14 +156,19 @@ export function AffiliatePage() {
       setBusy(false)
     }
   }
-  const viewingOwn = !subject || subject === owner
+  const kolEnabled = access.owner === owner && access.kolEnabled
+  const viewingOwn = !kolEnabled || !subject || subject === owner
   const registrationQuery = `invite=${encodeURIComponent(code)}&redirect=%2Faffiliate`
   return (
     <main className="container section affiliate-page">
       <div className="affiliate-heading">
         <div>
-          <h1>邀请与合作</h1>
-          <p>邀请好友，查看交易贡献与佣金。团队按约定比例逐级分配。</p>
+          <h1>{kolEnabled ? "邀请与合作" : "邀请返佣"}</h1>
+          <p>
+            {kolEnabled
+              ? "邀请好友，查看交易贡献与佣金。团队按约定比例逐级分配。"
+              : "邀请好友，查看邀请记录和每位好友为你产生的返佣。"}
+          </p>
         </div>
         {owner && (
           <Button
@@ -167,11 +202,17 @@ export function AffiliatePage() {
           </Field>
           {preview && (
             <p>
-              邀请人 UID {preview.inviterId} ·{" "}
-              {preview.cooperation
-                ? `团队合作：你获得所在分支上级佣金的 ${Number(preview.sharePpm) / 10000}%`
-                : "普通邀请"}
-              {preview.cooperation && "。加入后，你本人交易不再给团队上级返佣。"}
+              {preview.cooperation && !kolEnabled ? (
+                "该邀请暂不可用，请联系邀请人。"
+              ) : (
+                <>
+                  邀请人 UID {preview.inviterId} ·{" "}
+                  {preview.cooperation
+                    ? `团队合作：你获得所在分支上级佣金的 ${Number(preview.sharePpm) / 10000}%`
+                    : "普通邀请"}
+                  {preview.cooperation && "。加入后，你本人交易不再给团队上级返佣。"}
+                </>
+              )}
             </p>
           )}
           {preview && (
@@ -184,7 +225,7 @@ export function AffiliatePage() {
           )}
           {owner ? (
             <Button
-              disabled={!preview || busy}
+              disabled={!preview || busy || (preview.cooperation && !kolEnabled)}
               onClick={() =>
                 void act(async () => {
                   await affiliateApi.accept(code.trim())
@@ -220,8 +261,8 @@ export function AffiliatePage() {
               {viewingOwn && (
                 <>
                   <p>
-                    当前平台顶层比例：{data.rootRatePpm / 10000}% ·{" "}
-                    {data.profile.autoSettlement ? "自动结算已开启" : "自动结算已关闭"}
+                    {kolEnabled ? "当前平台顶层比例" : "邀请返佣比例"}：{data.rootRatePpm / 10000}%
+                    · {data.profile.autoSettlement ? "自动结算已开启" : "自动结算已关闭"}
                   </p>
                   <Field label="我的邀请码">
                     <input readOnly value={data.profile.inviteCode} aria-label="我的邀请码" />
@@ -243,8 +284,8 @@ export function AffiliatePage() {
                 </>
               )}
               <p>
-                直接邀请 {data.counts.directInviteCount} 人 · 团队邀请 {data.counts.teamInviteCount}{" "}
-                人
+                直接邀请 {data.counts.directInviteCount} 人
+                {kolEnabled && <> · 团队邀请 {data.counts.teamInviteCount} 人</>}
               </p>
               {!viewingOwn && (
                 <Button
@@ -259,33 +300,35 @@ export function AffiliatePage() {
                 </Button>
               )}
             </Panel>
+            {kolEnabled && (
+              <Panel>
+                <h2>当前合作分配</h2>
+                <p>
+                  平台顶层比例 {data.rootRatePpm / 10000}%。
+                  {data.teamPath.length
+                    ? "你邀请的用户产生的佣金，还将沿以下合作路径分配。"
+                    : "你目前直接获得对应邀请分支的平台佣金。"}
+                </p>
+                {!data.teamActive && (
+                  <p role="status">顶层团队已暂停，新团队佣金暂不分配，历史记录保留。</p>
+                )}
+                {data.teamPath.length > 0 && (
+                  <details>
+                    <summary>查看我的合作路径（{data.teamPath.length} 层）</summary>
+                    <div className="affiliate-path">
+                      {data.teamPath.map((edge) => (
+                        <p key={edge.childId}>
+                          UID {edge.parentId} → UID {edge.childId}：上级额度的{" "}
+                          {edge.sharePpm / 10000}%
+                        </p>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </Panel>
+            )}
             <Panel>
-              <h2>当前合作分配</h2>
-              <p>
-                平台顶层比例 {data.rootRatePpm / 10000}%。
-                {data.teamPath.length
-                  ? "你邀请的用户产生的佣金，还将沿以下合作路径分配。"
-                  : "你目前直接获得对应邀请分支的平台佣金。"}
-              </p>
-              {!data.teamActive && (
-                <p role="status">顶层团队已暂停，新团队佣金暂不分配，历史记录保留。</p>
-              )}
-              {data.teamPath.length > 0 && (
-                <details>
-                  <summary>查看我的合作路径（{data.teamPath.length} 层）</summary>
-                  <div className="affiliate-path">
-                    {data.teamPath.map((edge) => (
-                      <p key={edge.childId}>
-                        UID {edge.parentId} → UID {edge.childId}：上级额度的 {edge.sharePpm / 10000}
-                        %
-                      </p>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </Panel>
-            <Panel>
-              <h2>贡献与收益</h2>
+              <h2>{kolEnabled ? "贡献与收益" : "我的返佣"}</h2>
               <Field label="产品线">
                 <select
                   aria-label="产品线"
@@ -303,7 +346,11 @@ export function AffiliatePage() {
                   ))}
                 </select>
               </Field>
-              <p>收益按产品线与币种分别展示。获得额度包含分给下级的份额，可结算的是本人留存。</p>
+              <p>
+                {kolEnabled
+                  ? "收益按产品线与币种分别展示。获得额度包含分给下级的份额，可结算的是本人留存。"
+                  : "返佣按产品线与币种分别展示，包含历史记录；待结算和到账确认中的金额尚未到账。"}
+              </p>
               {data.balances.length === 0 ? (
                 <p>暂无已确认佣金。产生符合条件的交易手续费后自动更新。</p>
               ) : (
@@ -313,11 +360,9 @@ export function AffiliatePage() {
                       <tr>
                         {[
                           "产品 / 资产",
-                          "团队费用贡献",
-                          "直接费用贡献",
-                          "获得额度",
-                          "下级分配",
-                          "本人留存",
+                          ...(kolEnabled
+                            ? ["团队费用贡献", "直接费用贡献", "获得额度", "下级分配", "本人留存"]
+                            : ["累计返佣"]),
                           "待结算",
                           "在途",
                           "已到账",
@@ -333,11 +378,15 @@ export function AffiliatePage() {
                             {row.productLine} / {row.asset}
                           </td>
                           {[
-                            row.teamFeeUnits,
-                            row.directFeeUnits,
-                            row.receivedUnits,
-                            row.delegatedUnits,
-                            row.retainedUnits,
+                            ...(kolEnabled
+                              ? [
+                                  row.teamFeeUnits,
+                                  row.directFeeUnits,
+                                  row.receivedUnits,
+                                  row.delegatedUnits,
+                                  row.retainedUnits,
+                                ]
+                              : [row.retainedUnits]),
                             row.pendingUnits,
                             row.inFlightUnits,
                             row.paidUnits,
@@ -354,78 +403,104 @@ export function AffiliatePage() {
               )}
             </Panel>
             <Panel>
-              <h2>邀请用户与团队成员</h2>
+              <h2>{kolEnabled ? "邀请用户与团队成员" : "我邀请的好友"}</h2>
               <p>
-                点击成员查看其邀请和贡献。成为合作下级需要对方接受；比例以对应分支的上级佣金为基数。
+                {kolEnabled
+                  ? "点击成员查看其邀请和贡献。成为合作下级需要对方接受；比例以对应分支的上级佣金为基数。"
+                  : "按好友查看已确认返佣，分别列出产品和币种；未到账金额以结算状态为准。"}
               </p>
               {members.length === 0 ? (
-                <p>这个分支还没有邀请用户。</p>
+                <p>{kolEnabled ? "这个分支还没有邀请用户。" : "你还没有邀请好友。"}</p>
               ) : (
-                <div className="affiliate-table">
+                <div className={`affiliate-table${kolEnabled ? "" : " affiliate-basic-members"}`}>
                   <table>
                     <thead>
                       <tr>
                         <th>UID</th>
-                        <th>直接邀请</th>
-                        <th>合作身份</th>
-                        <th>分配比例</th>
-                        <th>对本级的贡献</th>
-                        <th>操作</th>
+                        <th>邀请时间</th>
+                        {kolEnabled && (
+                          <>
+                            <th>直接邀请</th>
+                            <th>合作身份</th>
+                            <th>分配比例</th>
+                          </>
+                        )}
+                        <th>{kolEnabled ? "对本级的贡献" : "为我产生的返佣"}</th>
+                        {kolEnabled && <th>操作</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {members.map((member) => (
                         <tr key={member.userId}>
                           <td>{member.userId}</td>
-                          <td>{member.directInviteCount}</td>
-                          <td>{member.teamParentId ? "团队下级" : "普通邀请用户"}</td>
-                          <td>{member.sharePpm === null ? "—" : `${member.sharePpm / 10000}%`}</td>
+                          <td>{new Date(member.acceptedAt).toLocaleString()}</td>
+                          {kolEnabled && (
+                            <>
+                              <td>{member.directInviteCount}</td>
+                              <td>{member.teamParentId ? "团队下级" : "普通邀请用户"}</td>
+                              <td>
+                                {member.sharePpm === null ? "—" : `${member.sharePpm / 10000}%`}
+                              </td>
+                            </>
+                          )}
                           <td>
                             {member.contributions.length === 0
-                              ? "暂无交易贡献"
+                              ? kolEnabled
+                                ? "暂无交易贡献"
+                                : "暂无已确认返佣"
                               : member.contributions.map((row) => (
                                   <p key={`${row.productLine}:${row.asset}`}>
-                                    {row.productLine} / {row.asset}：手续费{" "}
-                                    {unitsToDecimal(row.feeUnits, scales[row.asset] as string)} ·
-                                    获得{" "}
-                                    {unitsToDecimal(row.receivedUnits, scales[row.asset] as string)}{" "}
-                                    · 留存{" "}
+                                    {row.productLine} / {row.asset}：
+                                    {kolEnabled && (
+                                      <>
+                                        手续费{" "}
+                                        {unitsToDecimal(row.feeUnits, scales[row.asset] as string)}{" "}
+                                        · 获得{" "}
+                                        {unitsToDecimal(
+                                          row.receivedUnits,
+                                          scales[row.asset] as string,
+                                        )}{" "}
+                                        · 留存{" "}
+                                      </>
+                                    )}
                                     {unitsToDecimal(row.retainedUnits, scales[row.asset] as string)}
                                   </p>
                                 ))}
                           </td>
-                          <td>
-                            <div className="affiliate-actions">
-                              {member.teamParentId && (
-                                <Button
-                                  tone="ghost"
-                                  onClick={() => {
-                                    setSubject(member.userId)
-                                    setMemberCursor("0")
-                                    setSelected(null)
-                                  }}
-                                >
-                                  查看贡献
-                                </Button>
-                              )}
-                              {viewingOwn && data.profile.kolEnabled && (
-                                <Button
-                                  tone="outline"
-                                  onClick={() => {
-                                    setSelected(member)
-                                    setTarget(member.userId)
-                                    setShare(
-                                      member.sharePpm === null
-                                        ? "50"
-                                        : String(member.sharePpm / 10000),
-                                    )
-                                  }}
-                                >
-                                  {member.teamParentId ? "调整比例" : "邀请成为下级"}
-                                </Button>
-                              )}
-                            </div>
-                          </td>
+                          {kolEnabled && (
+                            <td>
+                              <div className="affiliate-actions">
+                                {member.teamParentId && (
+                                  <Button
+                                    tone="ghost"
+                                    onClick={() => {
+                                      setSubject(member.userId)
+                                      setMemberCursor("0")
+                                      setSelected(null)
+                                    }}
+                                  >
+                                    查看贡献
+                                  </Button>
+                                )}
+                                {viewingOwn && kolEnabled && (
+                                  <Button
+                                    tone="outline"
+                                    onClick={() => {
+                                      setSelected(member)
+                                      setTarget(member.userId)
+                                      setShare(
+                                        member.sharePpm === null
+                                          ? "50"
+                                          : String(member.sharePpm / 10000),
+                                      )
+                                    }}
+                                  >
+                                    {member.teamParentId ? "调整比例" : "邀请成为下级"}
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -449,80 +524,76 @@ export function AffiliatePage() {
                 </Button>
               </div>
             </Panel>
-            {viewingOwn && (
+            {viewingOwn && kolEnabled && (
               <Panel>
                 <h2>KOL 合作管理</h2>
-                {!data.profile.kolEnabled ? (
-                  <p>KOL 尚未开通。普通邀请返佣已可使用；请联系平台开通团队合作管理。</p>
-                ) : (
-                  <div className="affiliate-form">
-                    <Field label="合作用户 UID（留空生成合作链接）">
-                      <input
-                        aria-label="合作用户 UID"
-                        inputMode="numeric"
-                        value={target}
-                        onChange={(event) => {
-                          setTarget(event.target.value)
-                          setSelected(null)
-                        }}
-                      />
-                    </Field>
-                    <Field label="下级获得上级佣金的比例（%）">
-                      <input
-                        aria-label="下级分配比例"
-                        inputMode="decimal"
-                        value={share}
-                        onChange={(event) => setShare(event.target.value)}
-                      />
-                    </Field>
-                    <Button
-                      loading={busy}
-                      onClick={() =>
-                        void act(
-                          async () => {
-                            const ppm = percentPpm(share)
-                            if (selected?.teamParentId) {
-                              await affiliateApi.share(selected.userId, ppm)
-                              setSelected(null)
-                              setTarget("")
-                              setCreated(null)
-                            } else setCreated(await affiliateApi.invite(target, ppm))
-                          },
-                          selected?.teamParentId
-                            ? "未来分配比例已更新，历史佣金保持原结果"
-                            : "合作邀请已创建，接受后生效",
-                        )
-                      }
-                    >
-                      {selected?.teamParentId ? "保存分配比例" : "生成合作邀请"}
-                    </Button>
-                    {created && (
-                      <>
-                        <Field label="合作邀请链接">
-                          <input
-                            readOnly
-                            value={invitationLink(created.code)}
-                            aria-label="合作邀请链接"
-                          />
-                        </Field>
-                        <Button
-                          tone="outline"
-                          onClick={() =>
-                            void act(
-                              () => navigator.clipboard.writeText(invitationLink(created.code)),
-                              "合作邀请链接已复制",
-                            )
-                          }
-                        >
-                          复制合作链接
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
+                <div className="affiliate-form">
+                  <Field label="合作用户 UID（留空生成合作链接）">
+                    <input
+                      aria-label="合作用户 UID"
+                      inputMode="numeric"
+                      value={target}
+                      onChange={(event) => {
+                        setTarget(event.target.value)
+                        setSelected(null)
+                      }}
+                    />
+                  </Field>
+                  <Field label="下级获得上级佣金的比例（%）">
+                    <input
+                      aria-label="下级分配比例"
+                      inputMode="decimal"
+                      value={share}
+                      onChange={(event) => setShare(event.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    loading={busy}
+                    onClick={() =>
+                      void act(
+                        async () => {
+                          const ppm = percentPpm(share)
+                          if (selected?.teamParentId) {
+                            await affiliateApi.share(selected.userId, ppm)
+                            setSelected(null)
+                            setTarget("")
+                            setCreated(null)
+                          } else setCreated(await affiliateApi.invite(target, ppm))
+                        },
+                        selected?.teamParentId
+                          ? "未来分配比例已更新，历史佣金保持原结果"
+                          : "合作邀请已创建，接受后生效",
+                      )
+                    }
+                  >
+                    {selected?.teamParentId ? "保存分配比例" : "生成合作邀请"}
+                  </Button>
+                  {created && (
+                    <>
+                      <Field label="合作邀请链接">
+                        <input
+                          readOnly
+                          value={invitationLink(created.code)}
+                          aria-label="合作邀请链接"
+                        />
+                      </Field>
+                      <Button
+                        tone="outline"
+                        onClick={() =>
+                          void act(
+                            () => navigator.clipboard.writeText(invitationLink(created.code)),
+                            "合作邀请链接已复制",
+                          )
+                        }
+                      >
+                        复制合作链接
+                      </Button>
+                    </>
+                  )}
+                </div>
               </Panel>
             )}
-            {viewingOwn && data.invitations.length > 0 && (
+            {viewingOwn && kolEnabled && data.invitations.length > 0 && (
               <Panel>
                 <h2>待接受的合作邀请</h2>
                 {data.invitations.map((invite) => (
@@ -572,7 +643,7 @@ export function AffiliatePage() {
                           <th>时间</th>
                           <th>产品 / 资产</th>
                           <th>来源用户</th>
-                          <th>本人留存</th>
+                          <th>{kolEnabled ? "本人留存" : "返佣金额"}</th>
                           <th>状态</th>
                         </tr>
                       </thead>

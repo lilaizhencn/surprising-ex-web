@@ -85,6 +85,13 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           authDestination(session.requiresEmailVerification, window.location.search),
         )
       } else if (mode === "register") {
+        if (inviteCode.trim()) {
+          const invitation = await affiliateApi.preview(inviteCode.trim())
+          if (invitation.cooperation) {
+            setInviteError("此邀请码不能用于普通注册，请清空后注册。")
+            return
+          }
+        }
         const session = await authApi.register(identifier, password, contactMode, inviteCode)
         clearInvitation()
         saveSession(session)
@@ -255,10 +262,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               />
               {invitePreview && (
                 <p>
-                  邀请人 UID {invitePreview.inviterId} ·{" "}
                   {invitePreview.cooperation
-                    ? `接受团队合作，下级比例 ${Number(invitePreview.sharePpm) / 10000}%；本人交易不向团队上级返佣`
-                    : "注册后接受邀请，符合条件的手续费将自动参与返佣核算"}
+                    ? "此邀请码不能用于普通注册，请清空后注册。"
+                    : `邀请人 UID ${invitePreview.inviterId} · 注册后接受邀请，符合条件的手续费将自动参与返佣核算`}
                 </p>
               )}
             </Field>

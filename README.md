@@ -385,3 +385,12 @@ Withdrawals now review the complete recipient/network details and retain an owne
 Refresh and cross-tab recovery reuse the original request without storing security codes. Deposit records distinguish loading,
 failed reads and real empty results; unsupported requested assets require an explicit new selection. See the
 [Chinese guide](README_CN.md) and [browser validation](docs/validation/withdrawal-experience-20261026.md).
+
+
+## 邀请返佣与 KOL 开通边界（2026-10-29）
+
+未开通时入口为“邀请返佣”，保留邀请码/复制链接、普通邀请、好友列表、逐人已确认返佣及个人明细/结算；金额按产品和币种展示，累计返佣不代表已到账。团队数量、合作身份/路径、下级比例、KOL 管理及合作邀请列表均不显示，也不显示“尚未开通 KOL”提示。
+
+开关来自登录人本人的后端资料；查看成员时不误用成员开关。刷新关闭状态后退出分支并清除合作草稿；资料读取失败清除旧页面。后台管理员开通后再允许加入团队，接受合作邀请不会自动授予权限。普通注册不要使用尚未获批的合作邀请码；先完成普通注册，获批后接受原合作邀请。
+
+本轮权限、截图、Web 和设备验证及未测范围见[开通边界验证](../surprising-ex/docs/validation/affiliate-access-20261029/README.md)。

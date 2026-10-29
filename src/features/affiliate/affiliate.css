@@ -87,3 +87,20 @@
   max-height: 320px;
   overflow: auto;
 }
+
+@media (max-width: 600px) {
+  .affiliate-basic-members table {
+    table-layout: fixed;
+  }
+  .affiliate-basic-members th,
+  .affiliate-basic-members td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .affiliate-basic-members th:first-child {
+    width: 20%;
+  }
+  .affiliate-basic-members th:nth-child(2) {
+    width: 32%;
+  }
+}
