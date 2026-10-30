@@ -18,7 +18,7 @@ export function WithdrawalHistory({
 }) {
   const session = useSession()
   const token = session?.accessToken ?? ""
-  const scope = `${token}:${asset}`
+  const scope = `${token}:${asset}:${refreshVersion}`
   const [history, setHistory] = useState<{
     key: string
     value?: readonly Row[]
@@ -46,7 +46,7 @@ export function WithdrawalHistory({
       },
     )
     return () => controller.abort()
-  }, [token, asset, scope, refreshVersion])
+  }, [token, asset, scope])
   return (
     <Panel>
       <div className="withdraw-history-heading">
@@ -84,6 +84,24 @@ export function WithdrawalHistory({
                 <div>
                   <dt>{t("Created")}</dt>
                   <dd>{String(row["createdAt"] ?? "—")}</dd>
+                </div>
+                <div>
+                  <dt>{t("Platform withdrawal fee")}</dt>
+                  <dd>{String(row["platformFee"] ?? "—")}</dd>
+                </div>
+                <div>
+                  <dt>{t("Recipient receives")}</dt>
+                  <dd>{String(row["receivedAmount"] ?? "—")}</dd>
+                </div>
+                <div>
+                  <dt>{t("On-chain network fee")}</dt>
+                  <dd>
+                    {String(row["networkFee"] ?? "—")} {String(row["networkFeeAsset"] ?? "")}
+                  </dd>
+                </div>
+                <div className="withdraw-wide">
+                  <dt>{t("Transaction hash")}</dt>
+                  <dd className="mono">{String(row["txHash"] ?? "—")}</dd>
                 </div>
                 <div className="withdraw-wide">
                   <dt>{t("Recipient address")}</dt>

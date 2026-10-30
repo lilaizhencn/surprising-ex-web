@@ -78,6 +78,7 @@ import {
   TriggerOrderSchema,
   UserSessionPageSchema,
   WalletRecordsSchema,
+  WithdrawalQuoteSchema,
   WithdrawalSubmissionSchema,
 } from "./types"
 
@@ -1993,6 +1994,27 @@ export function markAllNotificationsRead(signal?: AbortSignal) {
   })
 }
 
+export function quoteWithdrawal(
+  chain: string,
+  assetSymbol: string,
+  amount: string,
+  signal?: AbortSignal,
+) {
+  return request("/api/v1/wallet/withdrawals/quote", WithdrawalQuoteSchema, {
+    method: "POST",
+    body: { chain, assetSymbol, amount },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+export function loadWithdrawalSubmission(reference: string, signal?: AbortSignal) {
+  return request(
+    `/api/v1/wallet/withdrawals/submission?${new URLSearchParams({ reference })}`,
+    WithdrawalSubmissionSchema,
+    { ...(signal ? { signal } : {}), retry: 0 },
+  )
+}
+
 export function createWithdrawal(
   chain: string,
   assetSymbol: string,
@@ -2001,6 +2023,7 @@ export function createWithdrawal(
   externalReference: string,
   emailCode: string,
   totpCode: string,
+  networkRevision: number,
 ): Promise<ApiWithdrawalSubmission> {
   return request("/api/v1/wallet/withdrawals", WithdrawalSubmissionSchema, {
     method: "POST",
@@ -2009,7 +2032,7 @@ export function createWithdrawal(
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,
     },
-    body: { chain, assetSymbol, toAddress, amount, externalReference },
+    body: { chain, assetSymbol, toAddress, amount, externalReference, networkRevision },
   })
 }
 

@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { fundingDecimal } from "../../api/funding"
+import type { ApiWithdrawalSubmission } from "../../api/types"
 import { t } from "../../i18n"
 
 const Receipt = z.object({
@@ -17,11 +19,42 @@ const Intent = z.object({
     .max(120)
     .regex(/^\d+(?:\.\d+)?$/)
     .refine((value) => /[1-9]/.test(value)),
+  fee: z
+    .string()
+    .max(120)
+    .regex(/^\d+(?:\.\d+)?$/),
+  receivedAmount: z
+    .string()
+    .max(120)
+    .regex(/^\d+(?:\.\d+)?$/)
+    .refine((value) => /[1-9]/.test(value)),
+  networkRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   createdAt: z.iso.datetime(),
   rejected: z.boolean().optional(),
   receipt: Receipt.optional(),
 })
 export type WithdrawalIntent = z.infer<typeof Intent>
+/** A server receipt cannot silently replace the approved amount or fee snapshot. */
+export function confirmedWithdrawalIntent(
+  intent: WithdrawalIntent,
+  receipt: ApiWithdrawalSubmission,
+): WithdrawalIntent {
+  if (
+    fundingDecimal(receipt.amount) !== fundingDecimal(intent.amount) ||
+    fundingDecimal(receipt.platformFee) !== fundingDecimal(intent.fee) ||
+    fundingDecimal(receipt.receivedAmount) !== fundingDecimal(intent.receivedAmount) ||
+    receipt.networkRevision !== intent.networkRevision
+  ) {
+    throw new Error(
+      t("The withdrawal receipt does not match the approved quote. Keep the original reference."),
+    )
+  }
+  return {
+    ...intent,
+    receipt: { id: receipt.id, withdrawalId: receipt.withdrawalId, status: receipt.status },
+  }
+}
+
 export const withdrawalIntentChanged = "surprising-ex.withdrawal-intent-changed"
 export const withdrawalIntentKey = (userId: string) => `surprising-ex.withdrawal-intent:${userId}`
 

@@ -1471,5 +1471,11 @@
   "Google login expired or already used": "本次 Google 登录已过期或已使用，请重新发起。",
   "Too many Google login attempts; please try again later": "Google 登录尝试过多，请稍后重试。",
   "Google login is not permitted": "当前账户无法通过 Google 登录，请联系客服。",
-  "Your verification provider will collect and verify the required documents.": "认证服务商将采集并核验所需材料。"
+  "Your verification provider will collect and verify the required documents.": "认证服务商将采集并核验所需材料。",
+  "Total debit": "总扣款",
+  "Platform withdrawal fee": "平台提现手续费",
+  "Recipient receives": "净到账",
+  "On-chain network fee": "实际链上手续费",
+  "The withdrawal quote is invalid. Refresh before continuing.": "提币报价无效，请刷新后重试。",
+  "The platform fee is included in the total debit. Blockchain Gas is accounted separately.": "平台手续费包含在总扣款中，链上 Gas 独立记账。"
 }

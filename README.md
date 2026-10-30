@@ -417,3 +417,7 @@ Google 登录连接交易 Gateway 的 `/api/v1/auth/google`，沿用现有会话
 身份认证页面按 Gateway `verificationOptions` 过滤主体与等级，未配置的流程不可提交。人工认证在本站上传本次材料；Sumsub/Veriff 在服务商流程采集材料，本站不重复要求上传同一套证据。驳回展示完整原因并支持重新提交；VERIFIED 但到期时间已过，或状态为 EXPIRED 时，提供重新认证入口。有效认证仍禁止重复申请。读取与重试显式取消上一次请求，离开页面销毁 SDK，状态轮询只在页面可见时运行。
 
 `node scripts/kyc-experience-qa.mjs` 使用合成响应验证异常分支；`node scripts/kyc-closure-live-qa.mjs` 配合本机 `KycClosureBrowserQaTest` 验证真实上传、后台原件预览、审核、补正与过期重认证，认证启动及非 KYC 目录为明确夹具。执行环境、截图与未测范围见 [验收记录](../surprising-ex/docs/validation/kyc-adaptive-themes-20261029/README.md)。
+
+## 钱包提现金额与原单恢复
+
+提现先获取服务端报价，确认总扣款、平台手续费、净到账及网络版本。结果未知时，刷新、切页和跨标签页继续同一持久引用，安全验证码不写入本地存储。历史记录区分平台费用和实际链上 Gas。交易所使用 Core 授权的租户本金池，前端不指定出资地址。

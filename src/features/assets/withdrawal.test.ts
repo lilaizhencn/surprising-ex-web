@@ -4,6 +4,7 @@ import { BalanceListSchema } from "../../api/types"
 import { withdrawalAmount } from "./withdrawalAmount"
 import {
   clearWithdrawalIntent,
+  confirmedWithdrawalIntent,
   readWithdrawalIntent,
   saveWithdrawalIntent,
   type WithdrawalIntent,
@@ -18,6 +19,9 @@ const intent: WithdrawalIntent = {
   network: "ETH",
   address: "0x123",
   amount: "0.00000001",
+  fee: "0",
+  receivedAmount: "0.00000001",
+  networkRevision: 0,
   createdAt: "2026-10-26T12:00:00Z",
 }
 let storage: Map<string, string>
@@ -87,4 +91,26 @@ it("only a recorded matching request may be acknowledged; failed persistence kee
     throw new Error("denied")
   }
   expect(() => saveWithdrawalIntent(intent)).toThrow("Cannot save")
+})
+
+it("binds a recovery receipt to the originally approved fee and net amount", () => {
+  const receipt = {
+    id: "wallet-1",
+    withdrawalId: "gateway-1",
+    status: "COMPLETED" as const,
+    success: true as const,
+    amount: intent.amount,
+    platformFee: intent.fee,
+    receivedAmount: intent.receivedAmount,
+    networkRevision: intent.networkRevision,
+  }
+  expect(confirmedWithdrawalIntent(intent, receipt).receipt?.status).toBe("COMPLETED")
+  for (const changed of [
+    { ...receipt, platformFee: "1" },
+    { ...receipt, receivedAmount: "1" },
+    { ...receipt, amount: "1" },
+    { ...receipt, networkRevision: 1 },
+  ]) {
+    expect(() => confirmedWithdrawalIntent(intent, changed)).toThrow("approved quote")
+  }
 })

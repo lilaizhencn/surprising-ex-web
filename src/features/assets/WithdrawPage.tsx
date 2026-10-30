@@ -15,6 +15,8 @@ import {
   loadAssetScales,
   loadBalances,
   loadRuntimeProducts,
+  loadWithdrawalSubmission,
+  quoteWithdrawal,
 } from "../../api/endpoints"
 import { type FundingAsset, loadFundingAssets } from "../../api/funding"
 import type { ApiWithdrawalSubmission, AuthSession } from "../../api/types"
@@ -29,6 +31,7 @@ import { WithdrawalHistory } from "./WithdrawalHistory"
 import { withdrawalAmount } from "./withdrawalAmount"
 import {
   clearWithdrawalIntent,
+  confirmedWithdrawalIntent,
   readWithdrawalIntent,
   saveWithdrawalIntent,
   type WithdrawalIntent,
@@ -88,17 +91,20 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
   const inFlight = useRef(false)
   const receiptHeading = useRef<HTMLHeadingElement | null>(null)
   const alive = useRef(true)
+  const quoteController = useRef<AbortController | null>(null)
+  const reviewOpener = useRef<HTMLElement | null>(null)
+  const outcomeController = useRef<AbortController | null>(null)
   const [message, setMessage] = useState("")
   const [challengeBusy, setChallengeBusy] = useState(false)
   const challengeFlight = useRef(false)
   const [challengeMessage, setChallengeMessage] = useState("")
   const token = session.accessToken
-  const assets = catalog?.key === token ? (catalog.value ?? []) : []
+  const readScope = `${token}:${revision}`
+  const assets = catalog?.key === readScope ? (catalog.value ?? []) : []
   const asset = pending?.asset ?? selection.asset
   const selectedAsset = assets.find((row) => row.asset === asset)
-  const reviewNetwork = selectedAsset?.networks.find((row) => row.networkCode === review?.network)
   const network = selectedAsset?.networks.find((row) => row.networkCode === selection.network)
-  const balances = cash?.key === token ? cash.value : undefined
+  const balances = cash?.key === readScope ? cash.value : undefined
   const scale = balances?.scales[asset]
   const balance = balances?.rows.find((row) => row["asset"] === asset)
   const rawAvailable = balance?.["availableUnits"]
@@ -118,8 +124,8 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
   }
   const available =
     availableUnits !== null && scale ? signedUnitsToDecimal(availableUnits, scale) : "—"
-  const catalogError = catalog?.key === token ? catalog.error : ""
-  const cashError = cash?.key === token ? cash.error : ""
+  const catalogError = catalog?.key === readScope ? catalog.error : ""
+  const cashError = cash?.key === readScope ? cash.error : ""
 
   useEffect(() => {
     alive.current = true
@@ -131,6 +137,8 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
     window.addEventListener(withdrawalIntentChanged, sync)
     return () => {
       alive.current = false
+      quoteController.current?.abort()
+      outcomeController.current?.abort()
       window.removeEventListener("storage", storage)
       window.removeEventListener(withdrawalIntentChanged, sync)
     }
@@ -138,11 +146,11 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    setCatalog({ key: token })
+    setCatalog({ key: readScope })
     void loadFundingAssets("withdraw", controller.signal).then(
       (rows) => {
         if (controller.signal.aborted) return
-        setCatalog({ key: token, value: rows })
+        setCatalog({ key: readScope, value: rows })
         setSelection((current) => {
           const row = current.asset ? rows.find((row) => row.asset === current.asset) : rows[0]
           const currentNetwork = row?.networks.find(
@@ -159,15 +167,15 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         })
       },
       (error) => {
-        if (!controller.signal.aborted) setCatalog({ key: token, error: errorText(error) })
+        if (!controller.signal.aborted) setCatalog({ key: readScope, error: errorText(error) })
       },
     )
     return () => controller.abort()
-  }, [token, requestedAsset, revision])
+  }, [readScope])
 
   useEffect(() => {
     const controller = new AbortController()
-    setCash({ key: token })
+    setCash({ key: readScope })
     void Promise.all([
       loadBalances("SPOT", "FUNDING", controller.signal),
       loadAssetScales(controller.signal),
@@ -177,30 +185,30 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         if (!products.includes("SPOT")) {
           if (!controller.signal.aborted)
             setCash({
-              key: token,
+              key: readScope,
               error: t("The SPOT funding account is not enabled for withdrawals."),
             })
           return
         }
-        if (!controller.signal.aborted) setCash({ key: token, value: { rows, scales } })
+        if (!controller.signal.aborted) setCash({ key: readScope, value: { rows, scales } })
       },
       (error) => {
-        if (!controller.signal.aborted) setCash({ key: token, error: errorText(error) })
+        if (!controller.signal.aborted) setCash({ key: readScope, error: errorText(error) })
       },
     )
     return () => controller.abort()
-  }, [token, revision])
+  }, [readScope])
 
   useEffect(() => {
     if (recovery.error || (pending && review && pending.reference !== review.reference))
       setReview(null)
-  }, [pending?.reference, review?.reference, recovery.error])
+  }, [pending, review, recovery.error])
   useEffect(() => {
     if (pending && !busy && !review) {
       receiptHeading.current?.focus({ preventScroll: true })
       receiptHeading.current?.scrollIntoView({ block: "start" })
     }
-  }, [pending?.reference, pending?.receipt?.status, busy, review])
+  }, [pending, busy, review])
   async function copyReference(reference: string) {
     try {
       await navigator.clipboard.writeText(reference)
@@ -210,8 +218,15 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
     }
   }
 
-  function openReview() {
+  async function openReview() {
+    reviewOpener.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
     setMessage("")
+    const controller = new AbortController()
+    quoteController.current = controller
     try {
       if (
         !selectedAsset ||
@@ -234,17 +249,73 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         network.minWithdrawal,
         availableUnits,
       )
+      const quote = await quoteWithdrawal(
+        network.networkCode,
+        asset,
+        normalizedAmount,
+        controller.signal,
+      )
+      if (controller.signal.aborted || !alive.current) return
+      const gross = BigInt(decimalToUnits(quote.amount, scale))
+      const received = BigInt(decimalToUnits(quote.receivedAmount, scale))
+      const fee = /^0*(?:\.0*)?$/.test(quote.fee) ? 0n : BigInt(decimalToUnits(quote.fee, scale))
+      if (
+        quote.asset !== asset ||
+        quote.chain !== network.networkCode ||
+        gross !== BigInt(decimalToUnits(normalizedAmount, scale)) ||
+        gross !== fee + received
+      )
+        throw new Error(t("The withdrawal quote is invalid. Refresh before continuing."))
       setReview({
         userId,
         reference: `withdraw-${crypto.randomUUID()}`,
         asset,
         network: network.networkCode,
         address: normalizedAddress,
-        amount: normalizedAmount,
+        amount: quote.amount,
+        fee: quote.fee,
+        receivedAmount: quote.receivedAmount,
+        networkRevision: quote.networkRevision,
         createdAt: new Date().toISOString(),
       })
     } catch (error) {
-      setMessage(errorText(error))
+      if (alive.current && !controller.signal.aborted) setMessage(errorText(error))
+    } finally {
+      if (quoteController.current === controller) quoteController.current = null
+      inFlight.current = false
+      if (alive.current) setBusy(false)
+    }
+  }
+
+  async function refreshOutcome() {
+    setRevision((value) => value + 1)
+    if (!pending || inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    try {
+      const controller = new AbortController()
+      outcomeController.current = controller
+      const response = await loadWithdrawalSubmission(pending.reference, controller.signal)
+      if (
+        !alive.current ||
+        controller.signal.aborted ||
+        String(loadSession()?.user.userId) !== userId
+      )
+        return
+      await withWithdrawalLock(userId, async () => {
+        if (readWithdrawalIntent(userId)?.reference !== pending.reference) return
+        saveWithdrawalIntent(confirmedWithdrawalIntent(pending, response))
+      })
+      if (alive.current) setMessage("")
+    } catch (error) {
+      if (alive.current) setMessage(errorText(error))
+    } finally {
+      outcomeController.current = null
+      inFlight.current = false
+      if (alive.current) {
+        setBusy(false)
+        setRecovery(readRecovery(userId))
+      }
     }
   }
 
@@ -256,7 +327,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
     let firstAttempt = false
     let didSend = false
     try {
-      if (!/^\d{6}$/.test(emailCode.trim()) || !/^\d{6}$/.test(totpCode.trim()))
+      if (!retry && (!/^\d{6}$/.test(emailCode.trim()) || !/^\d{6}$/.test(totpCode.trim())))
         throw new Error(t("Enter the six-digit email and authenticator codes."))
       await withWithdrawalLock(userId, async () => {
         if (String(loadSession()?.user.userId) !== userId)
@@ -283,6 +354,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
             intent.reference,
             emailCode.trim(),
             totpCode.trim(),
+            intent.networkRevision,
           )
         } catch (error) {
           // A first, explicitly rejected HTTP request is different from a failed replay of an unknown result.
@@ -295,14 +367,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
             saveWithdrawalIntent({ ...intent, rejected: true })
           throw error
         }
-        saveWithdrawalIntent({
-          ...intent,
-          receipt: {
-            id: response.id,
-            withdrawalId: response.withdrawalId,
-            status: response.status,
-          },
-        })
+        saveWithdrawalIntent(confirmedWithdrawalIntent(intent, response))
         if (alive.current) {
           setEmailCode("")
           setTotpCode("")
@@ -477,16 +542,12 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                 </strong>
               </p>
               <div className="withdraw-receipt-actions">
-                <Button
-                  tone="outline"
-                  onClick={() => setRevision((value) => value + 1)}
-                  disabled={busy}
-                >
+                <Button tone="outline" onClick={() => void refreshOutcome()} disabled={busy}>
                   <RefreshCw size={16} aria-hidden="true" />
                   {t("Refresh records")}
                 </Button>
                 {withdrawalRecorded(pending) ? (
-                  <Button onClick={() => void startNew()} loading={busy}>
+                  <Button key="start-new-withdrawal" onClick={() => void startNew()} loading={busy}>
                     {t("Start a new withdrawal")}
                   </Button>
                 ) : null}
@@ -505,7 +566,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                     message={catalogError}
                     retry={() => setRevision((value) => value + 1)}
                   />
-                ) : catalog?.key !== token || !catalog.value ? (
+                ) : catalog?.key !== readScope || !catalog.value ? (
                   <StateView kind="loading" message="Loading assets…" />
                 ) : assets.length === 0 ? (
                   <StateView kind="empty" message="No withdrawal assets are currently available." />
@@ -617,7 +678,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                     <dd className="mono">{network ? `${network.minWithdrawal} ${asset}` : "—"}</dd>
                   </div>
                   <div>
-                    <dt>{t("Configured network fee")}</dt>
+                    <dt>{t("Platform withdrawal fee")}</dt>
                     <dd className="mono">{network ? `${network.withdrawalFee} ${asset}` : "—"}</dd>
                   </div>
                 </dl>
@@ -637,6 +698,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                   </p>
                 ) : null}
                 <Button
+                  key={pending ? "retry-original-withdrawal" : "review-new-withdrawal"}
                   loading={busy}
                   disabled={
                     !pending &&
@@ -647,7 +709,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                       !!catalogError ||
                       !!cashError)
                   }
-                  onClick={() => (pending ? void send(pending, true) : openReview())}
+                  onClick={() => (pending ? void send(pending, true) : void openReview())}
                 >
                   {t(pending ? "Retry original withdrawal" : "Review withdrawal")}
                   <ArrowUpRight size={16} aria-hidden="true" />
@@ -692,6 +754,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
       </div>
       {review ? (
         <StandardDialog
+          returnFocus={reviewOpener.current}
           title={t("Review withdrawal")}
           subtitle={t("Check the complete recipient address and network before confirming.")}
           onClose={() => setReview(null)}
@@ -699,12 +762,11 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
           className="withdraw-review"
         >
           <WithdrawalDetails intent={review} />
-          <dl className="withdraw-limits">
-            <div>
-              <dt>{t("Configured network fee")}</dt>
-              <dd>{reviewNetwork ? `${reviewNetwork.withdrawalFee} ${review.asset}` : "—"}</dd>
-            </div>
-          </dl>
+          <p className="muted">
+            {t(
+              "The platform fee is included in the total debit. Blockchain Gas is accounted separately.",
+            )}
+          </p>
           <p className="withdraw-network-note">
             {t("The transfer cannot be reversed after it is broadcast.")}
           </p>
@@ -734,9 +796,21 @@ function WithdrawalDetails({ intent }: { readonly intent: WithdrawalIntent }) {
         <dd>{intent.network}</dd>
       </div>
       <div>
-        <dt>{t("Withdrawal amount")}</dt>
+        <dt>{t("Total debit")}</dt>
         <dd className="mono">
           {intent.amount} {intent.asset}
+        </dd>
+      </div>
+      <div>
+        <dt>{t("Platform withdrawal fee")}</dt>
+        <dd className="mono">
+          {intent.fee} {intent.asset}
+        </dd>
+      </div>
+      <div>
+        <dt>{t("Recipient receives")}</dt>
+        <dd className="mono">
+          {intent.receivedAmount} {intent.asset}
         </dd>
       </div>
       <div className="withdraw-wide">

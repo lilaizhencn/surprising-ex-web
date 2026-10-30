@@ -9,6 +9,7 @@ export function StandardDialog({
   closeDisabled = false,
   closeOnBackdrop = false,
   className = "",
+  returnFocus,
   children,
 }: {
   readonly title: string
@@ -17,6 +18,7 @@ export function StandardDialog({
   readonly closeDisabled?: boolean
   readonly closeOnBackdrop?: boolean
   readonly className?: string
+  readonly returnFocus?: HTMLElement | null
   readonly children: ReactNode
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -26,13 +28,13 @@ export function StandardDialog({
   useEffect(() => {
     const element = dialog.current
     const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null
+      returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     element?.showModal()
     return () => {
       element?.close()
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true })
     }
-  }, [])
+  }, [returnFocus])
 
   return (
     <dialog

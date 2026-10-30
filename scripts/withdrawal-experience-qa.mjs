@@ -21,8 +21,7 @@ const session = {
   },
 }
 await context.addInitScript((value) => {
-  if (!localStorage.getItem("surprising-ex.session"))
-    localStorage.setItem("surprising-ex.session", JSON.stringify(value))
+  if(!localStorage.getItem("surprising-ex.language")) localStorage.setItem("surprising-ex.language", "en")
   const set = Storage.prototype.setItem,
     remove = Storage.prototype.removeItem
   Storage.prototype.setItem = function (key, value) {
@@ -59,6 +58,12 @@ const catalog = [
     networks: [network("BTC", "Bitcoin", "0.0002", "0.0001")],
   },
 ]
+const quoteFor = (body) => {
+  const fee = body.chain === "TRON" ? "0.00000001" : "0.0001";
+  const units = (value) => { const [whole, fraction=""] = value.split("."); return BigInt(whole + fraction.padEnd(8,"0")); };
+  const net = (units(body.amount)-units(fee)).toString().padStart(9,"0");
+  return {asset:body.assetSymbol, chain:body.chain, amount:body.amount, fee, receivedAmount:net.slice(0,-8)+"."+net.slice(-8), networkRevision:17};
+};
 let failCatalog = true,
   failHistory = false,
   postMode = "unknown",
@@ -90,7 +95,9 @@ await context.route(
     })
     let status = 200,
       data = {}
-    if (endpoint === "assets") {
+    if (endpoint === "csrf") data={token:"test-only-csrf"}
+    else if (url.pathname.endsWith("/browser/refresh")) data={...session,browserSession:true,refreshToken:undefined}
+    else if (endpoint === "assets") {
       status = failCatalog ? 503 : 200
       data = failCatalog
         ? { message: "Synthetic catalog unavailable" }
@@ -133,6 +140,10 @@ await context.route(
           { asset: "BTC", availableUnits: "100000000", lockedUnits: "0" },
         ],
       }
+    else if (endpoint === "quote") data = quoteFor(JSON.parse(req.postData()))
+    else if (endpoint === "submission") {
+      status = 404; data = {message:"Original request is not yet known. Retry only the original reference."}
+    }
     else if (endpoint === "withdrawals" && req.method() === "POST") {
       if (holdPost) await new Promise((resolve) => (releasePost = resolve))
       status = postMode === "unknown" ? 503 : postMode === "rejected" ? 428 : 200
@@ -143,6 +154,10 @@ await context.route(
               withdrawalId: "11111111-1111-4111-8111-111111111111",
               status: "PENDING_APPROVAL",
               success: true,
+              amount: JSON.parse(req.postData()).amount,
+              platformFee: quoteFor(JSON.parse(req.postData())).fee,
+              receivedAmount: quoteFor(JSON.parse(req.postData())).receivedAmount,
+              networkRevision: 17,
             }
           : {
               message:
@@ -489,25 +504,17 @@ try {
   )
   const postCountBeforeSwitch = posts().length
   await page.evaluate(
-    ({ raw, session }) => {
+    async ({ raw, session }) => {
       localStorage.setItem("surprising-ex.withdrawal-intent:1", raw)
-      localStorage.setItem(
-        "surprising-ex.session",
-        JSON.stringify({
-          ...session,
-          accessToken: "owner-2-fixture",
-          user: { ...session.user, userId: "2" },
-        }),
-      )
-      window.dispatchEvent(new Event("surprising-ex.session-changed"))
+      const state=await import('/src/state/session.ts');
+      state.saveSession({...session,accessToken:"owner-2-fixture",user:{...session.user,userId:"2"}});
     },
     { raw: saved, session },
   )
   await page.getByRole("button", { name: "Review withdrawal", exact: true }).waitFor()
   assert.equal(await page.getByText(reference, { exact: true }).count(), 0)
-  await page.evaluate((session) => {
-    localStorage.setItem("surprising-ex.session", JSON.stringify(session))
-    window.dispatchEvent(new Event("surprising-ex.session-changed"))
+  await page.evaluate(async (session) => {
+    (await import("/src/state/session.ts")).saveSession(session)
   }, session)
   await page.getByText(reference, { exact: true }).waitFor()
   assert.equal(posts().length, postCountBeforeSwitch)

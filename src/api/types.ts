@@ -613,12 +613,41 @@ export const ProductTransferResponseSchema = z
   })
   .passthrough()
 
+const WithdrawalDecimalSchema = z
+  .string()
+  .max(120)
+  .regex(/^\d+(?:\.\d+)?$/)
+export const WithdrawalQuoteSchema = z.object({
+  asset: z.string().min(1),
+  chain: z.string().min(1),
+  amount: WithdrawalDecimalSchema,
+  fee: WithdrawalDecimalSchema,
+  receivedAmount: WithdrawalDecimalSchema,
+  networkRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+})
+
 export const WithdrawalSubmissionSchema = z
   .object({
     id: z.string(),
     withdrawalId: z.string(),
-    status: z.string(),
+    status: z.enum([
+      "PENDING_APPROVAL",
+      "PROCESSING",
+      "DEBIT_UNKNOWN",
+      "DEBITED",
+      "SUBMITTED",
+      "BROADCAST_UNKNOWN",
+      "FAILED_PENDING",
+      "REFUND_PENDING",
+      "COMPLETED",
+      "REFUNDED",
+      "REJECTED",
+    ]),
     success: z.literal(true),
+    amount: WithdrawalDecimalSchema,
+    platformFee: WithdrawalDecimalSchema,
+    receivedAmount: WithdrawalDecimalSchema,
+    networkRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   })
   .passthrough()
 
