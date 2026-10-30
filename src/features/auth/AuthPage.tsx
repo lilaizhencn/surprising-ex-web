@@ -6,9 +6,10 @@ import { authApi } from "../../api/endpoints"
 import { type LoginChallenge, LoginChallengeSchema } from "../../api/types"
 import { Button, Field } from "../../components/ui/Primitives"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { saveSession } from "../../state/session"
 import { clearInvitation, invitationCode } from "../affiliate/invitation"
+import { LegalReview } from "../legal/LegalReview"
 import { authDestination, authReturnPath } from "./authReturn"
 import { GoogleLogin } from "./GoogleLogin"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
@@ -33,6 +34,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [credentialsRejected, setCredentialsRejected] = useState(false)
+  const [legalReady, setLegalReady] = useState(false)
   const loginErrorDialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (credentialsRejected) loginErrorDialog.current?.showModal()
@@ -60,6 +62,10 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
   const submit = async () => {
     if (submitting.current || loading) return
     setMessage("")
+    if ((mode === "login" || mode === "register") && !legalReady) {
+      setMessage("Please review and acknowledge the agreements before continuing.")
+      return
+    }
     const passwordRequired = mode === "login" || mode === "register" || mode === "reset"
     if (!identifier || (passwordRequired && !password)) {
       setMessage("Please complete the required fields.")
@@ -246,7 +252,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={t(showPassword ? "Hide password" : "Show password")}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -254,9 +260,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
             </Field>
           ) : null}
           {mode === "register" && (
-            <Field label="邀请码（选填）" error={inviteError}>
+            <Field label={t("邀请码（选填）")} error={inviteError}>
               <input
-                aria-label="邀请码（选填）"
+                aria-label={t("邀请码（选填）")}
                 value={inviteCode}
                 maxLength={64}
                 onChange={(event) => setInviteCode(event.target.value)}
@@ -264,8 +270,10 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               {invitePreview && (
                 <p>
                   {invitePreview.cooperation
-                    ? "此邀请码不能用于普通注册，请清空后注册。"
-                    : `邀请人 UID ${invitePreview.inviterId} · 注册后接受邀请，符合条件的手续费将自动参与返佣核算`}
+                    ? t("此邀请码不能用于普通注册，请清空后注册。")
+                    : tf("邀请人 UID {p0} · 注册后接受邀请，符合条件的手续费将自动参与返佣核算", {
+                        p0: invitePreview.inviterId,
+                      })}
                 </p>
               )}
             </Field>
@@ -275,22 +283,29 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
               {t(message)}
             </p>
           ) : null}
-          <Button type="submit" loading={loading}>
+          {(mode === "login" || mode === "register") && (
+            <LegalReview disabled={loading} onReady={setLegalReady} />
+          )}
+          <Button
+            type="submit"
+            loading={loading}
+            disabled={(mode === "login" || mode === "register") && !legalReady}
+          >
             {mode === "login"
               ? t("Log In")
               : mode === "register"
                 ? t("Create Account")
                 : mode === "forgot"
-                  ? "Send Recovery"
+                  ? t("Send Recovery")
                   : mode === "reset"
-                    ? "Reset Password"
-                    : "Verify Email"}{" "}
+                    ? t("Reset Password")
+                    : t("Verify Email")}{" "}
             <ArrowRight size={16} />
           </Button>
           {(mode === "login" || mode === "register") && !challenge ? (
             <GoogleLogin
               inviteCode={inviteCode}
-              disabled={loading}
+              disabled={loading || !legalReady}
               onBusyChange={setLoading}
               onError={setMessage}
               onLogin={(result) => {
@@ -309,7 +324,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           ) : null}
           {(mode === "login" || mode === "register") && !challenge ? (
             <TelegramLoginButton
-              disabled={loading}
+              disabled={loading || !legalReady}
               onBusyChange={setLoading}
               onError={setMessage}
               onLogin={(result) => {

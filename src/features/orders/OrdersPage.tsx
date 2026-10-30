@@ -1399,7 +1399,8 @@ function OrderRow({
       <td className="mono">{text(row, "displayAveragePrice")}</td>
       <td className="mono">{text(row, "displayQuantity")}</td>
       <td className="mono">
-        {text(row, "displayFilled")} ({text(row, "fillProgress")})
+        {text(row, "displayFilled")} ({text(row, "fillProgress")}
+        {t(")")}
       </td>
       <td className="mono">{text(row, "displayFees")}</td>
       <td>{t(statusLabels[text(row, "status")] ?? text(row, "status"))}</td>

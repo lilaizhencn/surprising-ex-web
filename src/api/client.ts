@@ -3,6 +3,11 @@ import type { z } from "zod"
 import { t } from "../i18n"
 import { config } from "../lib/config"
 import {
+  clearLegalReview,
+  legalAcceptanceHeader,
+  requireLegalReview,
+} from "../state/legalAcceptance"
+import {
   loadSession,
   saveSession,
   sessionAccessExpired,
@@ -201,6 +206,15 @@ export async function request<T>(
   )
     saveSession(null)
 
+  if (
+    response.status === 428 &&
+    path.includes("/refresh") &&
+    payload !== null &&
+    typeof payload === "object" &&
+    "code" in payload &&
+    payload.code === "LEGAL_CONSENT_REQUIRED"
+  )
+    requireLegalReview()
   if (!response.ok)
     throw new ApiError(
       responseErrorMessage(payload, response, method !== "GET"),
@@ -504,6 +518,8 @@ async function send(
       controller.signal.throwIfAborted()
       const headers = new Headers(options.headers as HeadersInit | undefined)
       if (browserAuth) {
+        const acceptance = legalAcceptanceHeader()
+        if (acceptance) headers.set("X-Legal-Acceptance", acceptance)
         const csrfResponse = await ky.get(`${config.apiBaseUrl}/api/v1/auth/csrf`, {
           credentials: "include",
           headers: { "X-Auth-Client": "web" },
@@ -612,6 +628,7 @@ export async function restoreBrowserSession(): Promise<void> {
       false,
     )
     saveSession(restored)
+    clearLegalReview()
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return
     setSessionRefreshIssue(

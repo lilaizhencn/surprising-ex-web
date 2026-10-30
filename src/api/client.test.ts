@@ -1,6 +1,7 @@
 import ky, { type Options } from "ky"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
+import { clearLegalReview, legalReviewStore, setLegalAcceptance } from "../state/legalAcceptance"
 import { loadSession, saveSession, sessionRefreshIssue } from "../state/session"
 import {
   ApiError,
@@ -27,10 +28,57 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  clearLegalReview()
   saveSession(null)
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.resetAllMocks()
+})
+
+describe("legal acknowledgement transport", () => {
+  it.each([
+    "login",
+    "register",
+    "google/login",
+    "telegram/login/exchange",
+    "login/verify",
+    "browser/refresh",
+  ])("attaches the exact reviewed revisions to auth/%s", async (path) => {
+    browserStorage()
+    setLegalAcceptance([
+      { revisionId: "9223372036854775807", locale: "ar-SA" },
+      { revisionId: "30", locale: "ar-SA" },
+    ])
+    vi.mocked(ky).mockImplementation((async () => json({ accepted: true })) as unknown as typeof ky)
+    await request(`/api/v1/auth/${path}`, z.unknown(), { method: "POST", body: {} })
+    const headers = new Headers(vi.mocked(ky).mock.calls[0]?.[1]?.headers as HeadersInit)
+    expect(headers.get("X-Legal-Acceptance")).toBe("9223372036854775807:ar-SA,30:ar-SA")
+  })
+  it("does not send consent on ordinary requests or after the choice is cleared", async () => {
+    browserStorage()
+    vi.mocked(ky).mockImplementation((async () => json({})) as unknown as typeof ky)
+    setLegalAcceptance([{ revisionId: "29", locale: "en-US" }])
+    await request("/api/v1/legal/current?locale=en-US", z.unknown())
+    setLegalAcceptance([])
+    await request("/api/v1/auth/login", z.unknown(), { method: "POST", body: {} })
+    for (const [, options] of vi.mocked(ky).mock.calls)
+      expect(new Headers(options?.headers as HeadersInit).has("X-Legal-Acceptance")).toBe(false)
+  })
+  it.each([
+    ["/api/v1/auth/browser/refresh", 428, "LEGAL_CONSENT_REQUIRED", true],
+    ["/api/v1/auth/browser/refresh", 503, "LEGAL_UNAVAILABLE", false],
+    ["/api/v1/admin/legal/revisions/1/publish", 428, "APPROVAL_REQUIRED", false],
+  ] as const)(
+    "requires review only for the legal refresh condition",
+    async (path, status, code, expected) => {
+      browserStorage()
+      vi.mocked(ky).mockImplementation((async () => json({ code }, status)) as unknown as typeof ky)
+      await expect(request(path, z.unknown(), { method: "POST", body: {} })).rejects.toBeInstanceOf(
+        ApiError,
+      )
+      expect(legalReviewStore.snapshot()).toBe(expected)
+    },
+  )
 })
 
 describe("gateway JSON integer decoding", () => {

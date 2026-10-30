@@ -18,11 +18,13 @@ type Props = Readonly<{
   value: string | number
   onChange: (event: { target: { value: string } }) => void
   children: ReactNode
+  disabled?: boolean
   "aria-label"?: string
   searchable?: boolean
   searchPlaceholder?: string
   noResultsLabel?: string
   maxMenuWidth?: number
+  minMenuWidth?: number
   renderOption?: (option: { value: string; label: string }) => ReactNode
 }>
 
@@ -31,11 +33,13 @@ export function DropdownSelect({
   value,
   onChange,
   children,
+  disabled = false,
   "aria-label": ariaLabel,
   searchable = false,
   searchPlaceholder = "Search",
   noResultsLabel = "No matches",
   maxMenuWidth = 320,
+  minMenuWidth = 0,
   renderOption,
 }: Props) {
   const options: Option[] = Children.toArray(children)
@@ -67,7 +71,11 @@ export function DropdownSelect({
       const above = box.top - 8
       const showAbove = below < 180 && above > below
       const maxHeight = Math.max(0, Math.min(240, showAbove ? above - 4 : below - 4))
-      const width = Math.min(box.width, maxMenuWidth, window.innerWidth - 16)
+      const width = Math.min(
+        Math.max(box.width, minMenuWidth),
+        maxMenuWidth,
+        window.innerWidth - 16,
+      )
       setPosition({
         top: showAbove ? undefined : box.bottom + 4,
         bottom: showAbove ? window.innerHeight - box.top + 4 : undefined,
@@ -93,7 +101,10 @@ export function DropdownSelect({
       window.removeEventListener("scroll", place, true)
       document.removeEventListener("pointerdown", closeOutside)
     }
-  }, [maxMenuWidth, open, searchable])
+  }, [maxMenuWidth, minMenuWidth, open, searchable])
+  useEffect(() => {
+    if (disabled) setOpen(false)
+  }, [disabled])
 
   const filteredOptions = options.filter(
     (option) => !query.trim() || option.searchText.includes(query.trim().toLocaleLowerCase()),
@@ -124,6 +135,7 @@ export function DropdownSelect({
       <button
         ref={trigger}
         type="button"
+        disabled={disabled}
         className="dropdown-select"
         role="combobox"
         aria-label={ariaLabel}

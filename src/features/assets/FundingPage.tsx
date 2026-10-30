@@ -11,7 +11,7 @@ import {
 import { productLineLabels } from "../../components/layout/navigation"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { decimalToUnits, isPositiveDecimal, signedUnitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
@@ -330,7 +330,7 @@ function FundingForm() {
               onChange={(event) => setAmount(event.target.value)}
               inputMode="decimal"
               placeholder="0.00"
-              aria-label={`Transfer amount in ${asset}`}
+              aria-label={tf("Transfer amount in {p0}", { p0: asset })}
             />
             <span>{asset}</span>
           </div>

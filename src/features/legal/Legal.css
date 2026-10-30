@@ -1,0 +1,108 @@
+.legal-center {
+  max-width: 1180px;
+}
+.legal-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 32px;
+  margin-block: 28px;
+}
+.legal-layout nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: start;
+  position: sticky;
+  top: 90px;
+}
+.legal-document {
+  min-width: 0;
+  max-width: 800px;
+}
+.legal-document article h2 {
+  line-height: 1.4;
+}
+.legal-version,
+.legal-contact {
+  color: var(--text-secondary, #7a7f87);
+  font-size: 0.875rem;
+}
+.legal-cards {
+  display: grid;
+  gap: 12px;
+}
+.legal-cards > a {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border, #d4d8de);
+  border-radius: 12px;
+}
+.legal-review {
+  display: grid;
+  gap: 12px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-block: 12px;
+}
+.legal-review-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.legal-review a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-review small {
+  opacity: 0.65;
+}
+.legal-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.legal-check input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 3px;
+}
+.legal-update {
+  max-width: 540px;
+}
+.legal-contact {
+  margin-block-start: 32px;
+}
+.legal-contact a {
+  color: inherit;
+}
+.legal-layout nav a {
+  padding: 10px 14px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.legal-layout nav a[aria-current="page"] {
+  background: var(--surface-alt, #f0f2f5);
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .legal-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .legal-layout nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .legal-layout nav a {
+    border: 1px solid var(--border, #d4d8de);
+    font-size: 0.875rem;
+  }
+  .legal-center {
+    padding-inline: 18px;
+  }
+}

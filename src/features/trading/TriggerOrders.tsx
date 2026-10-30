@@ -2,7 +2,7 @@ import { useState } from "react"
 import { cancelTriggerOrder } from "../../api/endpoints"
 import type { ApiTriggerOrder } from "../../api/types"
 import { Badge } from "../../components/ui/Primitives"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { stepUnitsToDecimal } from "../../lib/units"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import { marketQuantitySpec } from "./marketQuantity"
@@ -92,7 +92,7 @@ function TriggerOrderRow({
         <b>{triggerTypeLabel(row.triggerType)}</b>
         <small className="table-subline mono">#{String(row.triggerOrderId)}</small>
       </td>
-      <td className="mono" title={`ticks: ${String(row.triggerPriceTicks)}`}>
+      <td className="mono" title={tf("ticks: {p0}", { p0: String(row.triggerPriceTicks) })}>
         {row.triggerCondition === "GREATER_OR_EQUAL" ? "≥" : "≤"} {triggerPrice}
         <small className="table-subline">
           {t(

@@ -11,7 +11,8 @@ const evidence = { provider: "synthetic", scenarios: [], errors: [] }
 const session = {
   user: { userId: "7", username: null, email: null, displayName: "小李 🚀", roles: ["USER"] },
   accessToken: "synthetic-access",
-  refreshToken: "synthetic-refresh",
+  refreshToken: null,
+  browserSession: true,
   accessTokenExpiresAt: "2099-01-01T00:00:00Z",
   refreshTokenExpiresAt: "2099-01-01T00:00:00Z",
 }
@@ -33,6 +34,10 @@ try {
         const path = new URL(route.request().url()).pathname
         if (!path.startsWith("/api/")) return route.continue()
         const respond = (body) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) })
+        if (path.endsWith("/auth/csrf")) return respond({ token: "synthetic-csrf" })
+        if (path.endsWith("/browser/refresh")) return route.fulfill({status:401,contentType:"application/json",body:'{"message":"No synthetic session"}'})
+        if (path.endsWith("/google/config")) return respond({enabled:false,webClientId:""})
+        if (path==="/api/v1/legal/current") return respond(["USER_AGREEMENT","PRIVACY_POLICY"].map((type,index)=>({revisionId:String(101+index),type,slug:index?"privacy-policy":"user-agreement",revisionLabel:"synthetic-1",locale:"zh-CN",title:index?"隐私政策":"用户协议",bodyHtml:"<p>Explicit synthetic agreement fixture.</p>",registrationRequired:true,publishedAt:"2026-10-31T00:00:00Z"})))
         if (path.endsWith("/telegram/config")) return respond({ enabled: true })
         if (path.endsWith("/telegram/start")) return respond({
           flowId: "s".repeat(43), verifier: "v".repeat(43),
@@ -40,6 +45,7 @@ try {
           expiresAt: new Date(Date.now() + 300_000).toISOString(),
         })
         if (path.endsWith("/telegram/complete")) {
+          assert.equal(route.request().headers()["x-legal-acceptance"],"101:zh-CN,102:zh-CN")
           bodies.push(route.request().postDataJSON())
           return respond(authorized ? session : { pending: true })
         }
@@ -53,19 +59,18 @@ try {
       await button.waitFor()
       await page.screenshot({ path: `${dir}/register-${width}-${theme}.png`, fullPage: true })
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
-      assert.equal(await button.isEnabled(), true)
+      assert.equal(await button.isDisabled(), true)
+      await page.locator(".legal-review").getByRole("checkbox").check()
       await button.click()
       await page.waitForURL("**/assets", { timeout: 15_000 })
-      await page.locator(".nav-display-name").waitFor()
-      assert.equal(await page.locator(".nav-display-name").textContent().then((v) => v.trim()), "小李 🚀")
+      await page.getByText("小李 🚀", {exact:true}).first().waitFor({state:"attached"})
+
       assert.ok(bodies.length > 0)
       assert.deepEqual(bodies[0], { flowId: "s".repeat(43), verifier: "v".repeat(43) })
-      const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("surprising-ex.session")))
-      assert.equal(stored.user.displayName, "小李 🚀")
-      assert.equal(stored.user.email, null)
+      assert.equal(await page.evaluate(() => localStorage.getItem("surprising-ex.session")), null)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
       await page.screenshot({ path: `${dir}/signed-in-${width}-${theme}.png`, fullPage: true })
-      evidence.scenarios.push({ width, theme, password: "not entered", nickname: stored.user.displayName, passed: true })
+      evidence.scenarios.push({ width, theme, password: "not entered", nickname: "小李 🚀", passed: true })
       await context.close()
     }
   }

@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useState } from "react"
 import { refreshStoredSession } from "../api/client"
 import { AppShell } from "../components/layout/AppShell"
 import { AnnouncementsPage } from "../features/announcements/AnnouncementsPage"
+import { LegalPage } from "../features/legal/LegalPage"
+import { LegalUpdateDialog } from "../features/legal/LegalUpdateDialog"
 import { HomePage } from "../features/public/HomePage"
 import { MarketsPage } from "../features/public/MarketsPage"
 import { useBrowserNavigation } from "../hooks/useBrowserNavigation"
@@ -82,6 +84,7 @@ export function App() {
   const [retrying, setRetrying] = useState(false)
   return (
     <>
+      <LegalUpdateDialog />
       {refreshIssue ? (
         <div className="demo-banner" role="alert">
           {refreshIssue}{" "}
@@ -142,6 +145,12 @@ function AppRoutes() {
     return () => window.clearTimeout(timer)
   }, [session?.accessTokenExpiresAt])
   const path = window.location.pathname
+  if (path === "/legal" || path.startsWith("/legal/"))
+    return (
+      <AppShell showFooter>
+        <LegalPage />
+      </AppShell>
+    )
   if (path === "/developers")
     return (
       <AppShell showFooter>

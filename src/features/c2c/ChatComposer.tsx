@@ -180,7 +180,7 @@ export function ChatComposer({
             <small>{t("Ready")}</small>
           )}
           <IconButton
-            label="Remove attachment"
+            label={t("Remove attachment")}
             disabled={sending || uploading || pending !== null}
             onClick={() => {
               setAttachment(null)
@@ -198,7 +198,7 @@ export function ChatComposer({
       ) : null}
       <div className="c2c-compose-row">
         <IconButton
-          label="Attach a file"
+          label={t("Attach a file")}
           disabled={pending !== null || uploading || sending}
           onClick={() => fileInput.current?.click()}
         >

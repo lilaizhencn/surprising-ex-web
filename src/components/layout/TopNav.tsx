@@ -4,6 +4,7 @@ import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import { IconButton } from "../ui/Primitives"
 import { LanguagePicker } from "./LanguagePicker"
 import { MobileNavigation } from "./MobileNavigation"
@@ -44,7 +45,7 @@ export function TopNav({
       request = abort
       void loadAnnouncements(
         {
-          locale: locale === "zh" ? "zh-CN" : "en-US",
+          locale: contentLocale(locale),
           productLine: "ALL",
           platform: "WEB",
           placement: "CENTER",
@@ -79,7 +80,7 @@ export function TopNav({
       <div className="top-nav-inner">
         <a className="brand" href="/" aria-label={t("Surprising EX home")}>
           <span className="brand-mark">S</span>
-          <span>Surprising EX</span>
+          <span className="brand-name">Surprising EX</span>
         </a>
         <nav className="top-links" aria-label={t("Primary navigation")}>
           {publicNavigation.map((item) => (

@@ -4,12 +4,14 @@ import { googleApi } from "../../api/google"
 import { type AuthSession, type LoginChallenge, LoginChallengeSchema } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import { saveSession } from "../../state/session"
 import { clearInvitation, invitationCode } from "../affiliate/invitation"
 import { authDestination } from "./authReturn"
 import { loadGoogleIdentity } from "./googleIdentity"
 import { LoginVerificationDialog, verificationMessage } from "./LoginVerificationDialog"
 import "./GoogleLogin.css"
+import { LegalReview } from "../legal/LegalReview"
 
 export function GoogleLogin({
   oneTapOnly = false,
@@ -34,6 +36,13 @@ export function GoogleLogin({
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
   const [challenge, setChallenge] = useState<LoginChallenge | null>(null)
+  const [legalPromptOpen, setLegalPromptOpen] = useState(false)
+  const legalDecision = useRef<((accepted: boolean) => void) | null>(null)
+  const reviewLegal = () =>
+    new Promise<boolean>((resolve) => {
+      legalDecision.current = resolve
+      setLegalPromptOpen(true)
+    })
   const locale = useLocale()
 
   const accept = (result: AuthSession | LoginChallenge) => {
@@ -64,6 +73,7 @@ export function GoogleLogin({
     }
     setStatus("loading")
     setMessage("")
+    setLegalPromptOpen(false)
     void (async () => {
       const config = await googleApi.config(controller.signal)
       if (controller.signal.aborted) return
@@ -94,15 +104,21 @@ export function GoogleLogin({
           api.cancel()
           setBusy(true)
           callbacks.current.onBusyChange?.(true)
-          void googleApi
-            .login(
+          let needsVerification = false
+          void (async () => {
+            if (oneTapOnly && !(await reviewLegal())) return null
+            if (controller.signal.aborted) return null
+            if (Date.now() >= expires) throw new Error(t("Google sign-in expired. Please retry."))
+            return googleApi.login(
               credential,
               flow.nonce,
               controller.signal,
               callbacks.current.inviteCode ?? invitationCode(),
             )
+          })()
             .then((result) => {
-              if (!controller.signal.aborted) {
+              if (!controller.signal.aborted && result) {
+                needsVerification = "requiresVerification" in result
                 setBusy(false)
                 callbacks.current.onBusyChange?.(false)
                 acceptRef.current(result)
@@ -112,6 +128,7 @@ export function GoogleLogin({
               pending = false
               if (!controller.signal.aborted) {
                 setBusy(false)
+                if (!needsVerification) setLegalPromptOpen(false)
                 callbacks.current.onBusyChange?.(false)
               }
             })
@@ -130,7 +147,7 @@ export function GoogleLogin({
           text: "continue_with",
           shape: "rectangular",
           width: Math.max(200, Math.min(400, button.current.clientWidth)),
-          locale: locale === "zh" ? "zh_CN" : "en",
+          locale: contentLocale(locale).replace("-", "_"),
         })
       }
       render()
@@ -157,6 +174,8 @@ export function GoogleLogin({
     })().catch(report)
     return () => {
       controller.abort()
+      legalDecision.current?.(false)
+      legalDecision.current = null
       window.clearTimeout(timer)
       stopObserving()
       window.google?.accounts.id.cancel()
@@ -168,6 +187,15 @@ export function GoogleLogin({
 
   return (
     <>
+      {oneTapOnly && legalPromptOpen && (
+        <GoogleLegalDialog
+          hidden={challenge !== null}
+          onDecision={(accepted) => {
+            legalDecision.current?.(accepted)
+            legalDecision.current = null
+          }}
+        />
+      )}
       {!oneTapOnly && (
         <div className="google-login" aria-busy={busy}>
           <div
@@ -208,13 +236,69 @@ export function GoogleLogin({
       {challenge && (
         <LoginVerificationDialog
           challenge={challenge}
-          onCancel={() => setChallenge(null)}
+          onCancel={() => {
+            setChallenge(null)
+            setLegalPromptOpen(false)
+          }}
           onVerify={async (codes) => {
             const session = await authApi.verifyLogin(codes)
+            setLegalPromptOpen(false)
             acceptRef.current(session)
           }}
         />
       )}
     </>
+  )
+}
+
+function GoogleLegalDialog({
+  hidden,
+  onDecision,
+}: {
+  readonly hidden: boolean
+  readonly onDecision: (accepted: boolean) => void
+}) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [ready, setReady] = useState(false),
+    [confirmed, setConfirmed] = useState(false)
+  useEffect(() => {
+    if (hidden) dialog.current?.close()
+    else dialog.current?.showModal()
+  }, [hidden])
+  return (
+    <dialog
+      ref={dialog}
+      className="standard-dialog legal-update"
+      aria-labelledby="google-legal-title"
+      onCancel={(event) => {
+        event.preventDefault()
+        if (!confirmed) onDecision(false)
+      }}
+    >
+      <h2 id="google-legal-title">{t("Continue with Google")}</h2>
+      <p>{t("Before continuing with Google, review the current agreements.")}</p>
+      <LegalReview disabled={confirmed} onReady={setReady} />
+      <div className="button-row">
+        <button
+          type="button"
+          className="button button-outline"
+          disabled={confirmed}
+          onClick={() => onDecision(false)}
+        >
+          {t("Cancel")}
+        </button>
+        <button
+          type="button"
+          className="button button-primary"
+          disabled={!ready || confirmed}
+          onClick={() => {
+            setConfirmed(true)
+            onDecision(true)
+          }}
+        >
+          {confirmed ? t("Signing in with Google…") : t("Agree and continue")}
+        </button>
+      </div>
+    </dialog>
   )
 }

@@ -37,6 +37,7 @@ import {
   type Verification,
 } from "../../api/c2cTrading"
 import { request } from "../../api/client"
+import { t, tf } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 import { useSession } from "../../state/session"
 import { C2cMarketPreview } from "./C2cMarketPreview"
@@ -86,7 +87,7 @@ function C2cTradingHome({ owner }: { owner: string }) {
   }
   return (
     <div className="container section c2c-trading">
-      <nav className="c2c-trading-tabs" aria-label="C2C 功能">
+      <nav className="c2c-trading-tabs" aria-label={t("C2C 功能")}>
         {(
           [
             ["market", "自选交易", ArrowLeftRight],
@@ -557,7 +558,7 @@ function TradingWorkspace({
         disabled={busy}
         onClick={() => void act(() => challengeC2c(owner), "验证码已发送")}
       >
-        获取资金验证码
+        {t("获取资金验证码")}
       </button>
       {field(
         "邮箱验证码",
@@ -578,9 +579,9 @@ function TradingWorkspace({
       <div className="c2c-trading-heading">
         <div>
           <h1 ref={pageHeading} tabIndex={-1}>
-            C2C 交易
+            {t("C2C 交易")}
           </h1>
-          <p>核对交易对象、金额与收款资料，在订单内完成付款确认和售后沟通。</p>
+          <p>{t("核对交易对象、金额与收款资料，在订单内完成付款确认和售后沟通。")}</p>
         </div>
         <ArrowLeftRight size={28} aria-hidden="true" />
       </div>
@@ -599,7 +600,7 @@ function TradingWorkspace({
         }}
       >
         <RefreshCw size={16} aria-hidden="true" />
-        {loading ? "正在同步状态…" : "刷新状态"}
+        {loading ? t("正在同步状态…") : t("刷新状态")}
       </button>
       {loadError && (
         <p role="alert" className="c2c-error">
@@ -623,21 +624,23 @@ function TradingWorkspace({
               }
             }}
           >
-            重新读取本地请求
+            {t("重新读取本地请求")}
           </button>
         </div>
       )}
       {pending && (
         <div className="c2c-panel">
           <p>
-            原请求结果{receiptState ? `：${receiptState}` : "待确认"}，请先查询，勿另建订单或广告。
+            {t("原请求结果")}
+            {receiptState ? `：${receiptState}` : t("待确认")}
+            {t("，请先查询，勿另建订单或广告。")}
           </p>
           <button
             type="button"
             disabled={busy}
             onClick={() => void act(() => confirmReceipt(pending), "已查询原请求")}
           >
-            查询原请求
+            {t("查询原请求")}
           </button>
           <button
             type="button"
@@ -659,7 +662,7 @@ function TradingWorkspace({
               }, "已查询并停止尚未开始的原请求")
             }}
           >
-            停止未开始的请求
+            {t("停止未开始的请求")}
           </button>
           {receiptState === "UNKNOWN" && (
             <>
@@ -669,7 +672,7 @@ function TradingWorkspace({
                 disabled={busy}
                 onClick={() => void act(() => sendOriginal(pending))}
               >
-                按原请求重试
+                {t("按原请求重试")}
               </button>
             </>
           )}
@@ -680,9 +683,9 @@ function TradingWorkspace({
   if (runtime === false)
     return (
       <section>
-        <h1>C2C 交易</h1>
+        <h1>{t("C2C 交易")}</h1>
         <p className="c2c-panel" role="status">
-          C2C 暂未开放
+          {t("C2C 暂未开放")}
         </p>
       </section>
     )
@@ -697,15 +700,15 @@ function TradingWorkspace({
         >
           {workspaceErrors.length ? (
             <>
-              <p>当前业务资料暂不可用，请刷新后继续。</p>
+              <p>{t("当前业务资料暂不可用，请刷新后继续。")}</p>
               {workspaceErrors.map((error, index) => (
                 <p key={required[index]}>{error}</p>
               ))}
             </>
           ) : loadError ? (
-            <p>读取未完成，请重试，当前数据未用于操作。</p>
+            <p>{t("读取未完成，请重试，当前数据未用于操作。")}</p>
           ) : (
-            <p>正在读取交易资料…</p>
+            <p>{t("正在读取交易资料…")}</p>
           )}
         </div>
       )}
@@ -733,7 +736,7 @@ function TradingWorkspace({
                   clearOfferSelection()
                 }}
               >
-                我要买
+                {t("我要买")}
               </button>
               <button
                 type="button"
@@ -744,10 +747,10 @@ function TradingWorkspace({
                   clearOfferSelection()
                 }}
               >
-                我要卖
+                {t("我要卖")}
               </button>
               <label>
-                交易市场
+                {t("交易市场")}
                 <select
                   value={marketId}
                   onChange={(event) => {
@@ -774,7 +777,7 @@ function TradingWorkspace({
                 { inputMode: "decimal", maxLength: 80 },
               )}
               <label>
-                支付方式
+                {t("支付方式")}
                 <select
                   value={method}
                   onChange={(event) => {
@@ -782,7 +785,7 @@ function TradingWorkspace({
                     clearOfferSelection()
                   }}
                 >
-                  <option value="">全部方式</option>
+                  <option value="">{t("全部方式")}</option>
                   {catalog?.paymentMethods
                     .filter((m) => !market || m.currencies.includes(market.fiat))
                     .map((m) => (
@@ -796,17 +799,19 @@ function TradingWorkspace({
             <div className="c2c-offers">
               {adsLoading && ads.length === 0 ? (
                 <p role="status" aria-busy="true">
-                  正在查询广告…
+                  {t("正在查询广告…")}
                 </p>
               ) : adsError ? (
                 <div role="alert">
                   <p>{adsError}</p>
                   <button type="button" onClick={refresh}>
-                    重新查询广告
+                    {t("重新查询广告")}
                   </button>
                 </div>
               ) : (
-                ads.length === 0 && <p>{available ? "暂无符合条件的广告" : "C2C 市场暂未开放"}</p>
+                ads.length === 0 && (
+                  <p>{available ? t("暂无符合条件的广告") : t("C2C 市场暂未开放")}</p>
+                )
               )}
               {ads
                 .filter(
@@ -821,10 +826,12 @@ function TradingWorkspace({
                       {c2cDecimal(ad.price)} {ad.market.fiat}
                     </strong>
                     <p>
-                      可交易 {ad.availableQuantity} {ad.market.asset}
+                      {t("可交易 ")}
+                      {ad.availableQuantity} {ad.market.asset}
                     </p>
                     <p>
-                      限额 {c2cDecimal(ad.minFiat)} – {c2cDecimal(ad.maxFiat)} {ad.market.fiat}
+                      {t("限额 ")}
+                      {c2cDecimal(ad.minFiat)} – {c2cDecimal(ad.maxFiat)} {ad.market.fiat}
                     </p>
                     <p>
                       {ad.methodCodes
@@ -848,13 +855,17 @@ function TradingWorkspace({
                       }
                       onClick={() => void act(() => choose(ad), "请确认数量和收款方式")}
                     >
-                      {ad.makerUserId === owner ? "本人广告" : ad.side === "SELL" ? "购买" : "出售"}
+                      {ad.makerUserId === owner
+                        ? t("本人广告")
+                        : ad.side === "SELL"
+                          ? t("购买")
+                          : t("出售")}
                     </button>
                   </article>
                 ))}
             </div>
             {(adMore || adOffset > 0) && (
-              <nav className="c2c-action-row" aria-label="广告分页">
+              <nav className="c2c-action-row" aria-label={t("广告分页")}>
                 <button
                   type="button"
                   disabled={adsLoading || adOffset === 0}
@@ -864,9 +875,12 @@ function TradingWorkspace({
                     setAdOffset((value) => Math.max(0, value - 20))
                   }}
                 >
-                  上一页
+                  {t("上一页")}
                 </button>
-                <span>第 {adOffset / 20 + 1} 页</span>
+                <span>
+                  {t("第 ")}
+                  {adOffset / 20 + 1} {t(" 页")}
+                </span>
                 <button
                   type="button"
                   disabled={adsLoading || !adMore}
@@ -876,7 +890,7 @@ function TradingWorkspace({
                     setAdOffset((value) => value + 20)
                   }}
                 >
-                  下一页
+                  {t("下一页")}
                 </button>
               </nav>
             )}
@@ -885,15 +899,17 @@ function TradingWorkspace({
         {workspaceReady && selected && !order && tab === "market" && (
           <section
             className="c2c-panel c2c-trade-confirmation"
-            aria-label="确认交易"
+            aria-label={t("确认交易")}
             ref={confirmationPanel}
             tabIndex={-1}
           >
             <h2>
-              确认{selected.side === "SELL" ? "购买" : "出售"} {selected.market.asset}
+              {t("确认")}
+              {selected.side === "SELL" ? t("购买") : t("出售")} {selected.market.asset}
             </h2>
             <p>
-              商家：{selected.merchant?.nickname || selected.makerUserId} · 广告{" "}
+              {t("商家：")}
+              {selected.merchant?.nickname || selected.makerUserId} {t(" · 广告")}{" "}
               <code>{selected.adId}</code>
             </p>
             <button
@@ -904,7 +920,7 @@ function TradingWorkspace({
                 setVerification({ emailCode: "", totpCode: "" })
               }}
             >
-              取消本次选择
+              {t("取消本次选择")}
             </button>
             {field(
               "交易数量",
@@ -916,16 +932,16 @@ function TradingWorkspace({
               { inputMode: "decimal", maxLength: 80 },
             )}
             <label>
-              收款方式
+              {t("收款方式")}
               <select
-                aria-label="收款方式"
+                aria-label={t("收款方式")}
                 value={payment}
                 onChange={(event) => {
                   setPayment(event.target.value)
                   setQuote(null)
                 }}
               >
-                <option value="">请选择</option>
+                <option value="">{t("请选择")}</option>
                 {selected.side === "SELL"
                   ? selected.paymentOptions?.map((a) => (
                       <option key={a.accountId} value={a.accountId}>
@@ -986,23 +1002,28 @@ function TradingWorkspace({
                 }, "报价已生成，请核对费用和实收数量")
               }
             >
-              获取报价
+              {t("获取报价")}
             </button>
             {quote && (
               <>
                 <p>
-                  {selected.side === "SELL" ? "应付" : "应收"} {c2cDecimal(quote.fiatAmount)}{" "}
-                  {quote.market.fiat} · 数量 {quote.quantity} {quote.market.asset}
+                  {selected.side === "SELL" ? t("应付") : t("应收")} {c2cDecimal(quote.fiatAmount)}{" "}
+                  {quote.market.fiat} {t(" · 数量 ")}
+                  {quote.quantity} {quote.market.asset}
                 </p>
                 <p>
-                  手续费 {unitsToDecimal(quote.buyerFeeUnits, quote.market.assetScale)} · 买方实收{" "}
+                  {t("手续费 ")}
+                  {unitsToDecimal(quote.buyerFeeUnits, quote.market.assetScale)} {t(" · 买方实收")}{" "}
                   {unitsToDecimal(quote.buyerReceivesUnits, quote.market.assetScale)}{" "}
                   {quote.market.asset}
                 </p>
-                <p>报价有效至 {new Date(quote.expiresAt).toLocaleTimeString()}</p>
+                <p>
+                  {t("报价有效至 ")}
+                  {new Date(quote.expiresAt).toLocaleTimeString()}
+                </p>
                 {quoteExpired && (
                   <p role="status" className="c2c-warning">
-                    报价已到期，请重新获取报价后确认。
+                    {t("报价已到期，请重新获取报价后确认。")}
                   </p>
                 )}
                 {selected.side === "BUY" && verify}
@@ -1027,7 +1048,7 @@ function TradingWorkspace({
                       void act(() => submit("ORDER_CREATE", { quoteId: quote.quoteId }))
                   }}
                 >
-                  确认下单
+                  {t("确认下单")}
                 </button>
               </>
             )}
@@ -1035,9 +1056,9 @@ function TradingWorkspace({
         )}
         {workspaceReady && !order && tab === "orders" && (
           <>
-            <p className="c2c-muted">每页最多 30 条订单，点击后读取最新状态。</p>
+            <p className="c2c-muted">{t("每页最多 30 条订单，点击后读取最新状态。")}</p>
             <div className="c2c-offers">
-              {orders.length === 0 && <p>当前页暂无订单</p>}
+              {orders.length === 0 && <p>{t("当前页暂无订单")}</p>}
               {orders.map((row) => (
                 <button
                   type="button"
@@ -1048,8 +1069,8 @@ function TradingWorkspace({
                     setOrder(row.orderId)
                   }}
                 >
-                  {row.buyerUserId === owner ? "购买" : "出售"} {row.quantity} {row.market.asset} ·{" "}
-                  {c2cDecimal(row.fiatAmount)} {row.market.fiat}
+                  {row.buyerUserId === owner ? t("购买") : t("出售")} {row.quantity}{" "}
+                  {row.market.asset} · {c2cDecimal(row.fiatAmount)} {row.market.fiat}
                   <br />
                   {statusText[row.status] || row.status}
                   <small>{row.orderId}</small>
@@ -1057,7 +1078,7 @@ function TradingWorkspace({
               ))}
             </div>
             {(orderMore || orderOffset > 0) && (
-              <nav className="c2c-action-row" aria-label="订单分页">
+              <nav className="c2c-action-row" aria-label={t("订单分页")}>
                 <button
                   type="button"
                   disabled={loading || orderOffset === 0}
@@ -1067,9 +1088,12 @@ function TradingWorkspace({
                     setOrderOffset((value) => Math.max(0, value - 30))
                   }}
                 >
-                  上一页
+                  {t("上一页")}
                 </button>
-                <span>第 {orderOffset / 30 + 1} 页</span>
+                <span>
+                  {t("第 ")}
+                  {orderOffset / 30 + 1} {t(" 页")}
+                </span>
                 <button
                   type="button"
                   disabled={loading || !orderMore}
@@ -1079,7 +1103,7 @@ function TradingWorkspace({
                     setOrderOffset((value) => value + 30)
                   }}
                 >
-                  下一页
+                  {t("下一页")}
                 </button>
               </nav>
             )}
@@ -1089,9 +1113,10 @@ function TradingWorkspace({
           <>
             <div className="c2c-merchant-workspace">
               <div className="c2c-panel">
-                <h2>商家资格与质押</h2>
+                <h2>{t("商家资格与质押")}</h2>
                 <p>
-                  身份认证：{me?.kycVerified ? "已认证" : "待认证"} · 商家：
+                  {t("身份认证：")}
+                  {me?.kycVerified ? t("已认证") : t("待认证")} {t(" · 商家：")}
                   {statusText[me?.merchant?.status || ""] || "未申请"}
                 </p>
                 {me?.merchant?.reviewReason && <p>{me.merchant.reviewReason}</p>}
@@ -1110,18 +1135,18 @@ function TradingWorkspace({
                     }}
                   >
                     <label>
-                      商家申请资料
+                      {t("商家申请资料")}
                       <textarea name="application" minLength={10} maxLength={2000} required />
                     </label>
                     <button type="submit" disabled={busy}>
-                      提交申请
+                      {t("提交申请")}
                     </button>
                   </form>
                 )}
                 <p>
                   {bond?.policy.configured
-                    ? `保证金：${bond.policy.amount} ${bond.policy.asset}`
-                    : "质押规则尚未配置，请等待平台开放"}
+                    ? tf("保证金：{p0} {p1}", { p0: bond.policy.amount, p1: bond.policy.asset })
+                    : t("质押规则尚未配置，请等待平台开放")}
                 </p>
                 {bond?.bond && (
                   <p>
@@ -1154,7 +1179,7 @@ function TradingWorkspace({
                         })
                       }
                     >
-                      确认质押
+                      {t("确认质押")}
                     </button>
                   </>
                 )}
@@ -1173,7 +1198,7 @@ function TradingWorkspace({
                         )
                     }}
                   >
-                    退出商家并退押
+                    {t("退出商家并退押")}
                   </button>
                 )}
               </div>
@@ -1204,15 +1229,15 @@ function TradingWorkspace({
               />
             </div>
             <div className="c2c-offers">
-              {ownAds.length === 0 && <p>暂无已发布广告</p>}
+              {ownAds.length === 0 && <p>{t("暂无已发布广告")}</p>}
               {ownAds.map((ad) => (
                 <article key={ad.adId} className="c2c-panel">
                   <h3>
-                    {ad.side === "SELL" ? "出售" : "购买"} {ad.market.asset}
+                    {ad.side === "SELL" ? t("出售") : t("购买")} {ad.market.asset}
                   </h3>
                   <p>
-                    {c2cDecimal(ad.price)} {ad.market.fiat} · 剩余 {ad.availableQuantity} ·{" "}
-                    {statusText[ad.status || ""] || ad.status}
+                    {c2cDecimal(ad.price)} {ad.market.fiat} {t(" · 剩余 ")}
+                    {ad.availableQuantity} · {statusText[ad.status || ""] || ad.status}
                   </p>
                   {["ACTIVE", "PAUSED"].includes(ad.status || "") &&
                     [ad.status === "ACTIVE" ? "PAUSE" : "RESUME", "CLOSE"].map((action) => (
@@ -1238,10 +1263,10 @@ function TradingWorkspace({
                         }}
                       >
                         {action === "PAUSE"
-                          ? "暂停广告"
+                          ? t("暂停广告")
                           : action === "RESUME"
-                            ? "恢复广告"
-                            : "关闭广告"}
+                            ? t("恢复广告")
+                            : t("关闭广告")}
                       </button>
                     ))}
                 </article>
@@ -1252,7 +1277,7 @@ function TradingWorkspace({
         {workspaceReady && !order && tab === "accounts" && (
           <>
             <div className="c2c-offers">
-              {accounts.length === 0 && <p>暂无收款账户，添加实名资料后等待审核。</p>}
+              {accounts.length === 0 && <p>{t("暂无收款账户，添加实名资料后等待审核。")}</p>}
               {accounts.slice(currentAccountPage * 8, (currentAccountPage + 1) * 8).map((a) => (
                 <article key={a.accountId} className="c2c-panel">
                   <h2>
@@ -1279,29 +1304,30 @@ function TradingWorkspace({
                       )
                     }}
                   >
-                    停用账户
+                    {t("停用账户")}
                   </button>
                 </article>
               ))}
             </div>
             {accounts.length > 8 && (
-              <nav className="c2c-action-row" aria-label="收款账户分页">
+              <nav className="c2c-action-row" aria-label={t("收款账户分页")}>
                 <button
                   type="button"
                   disabled={currentAccountPage === 0}
                   onClick={() => setAccountPage(Math.max(0, currentAccountPage - 1))}
                 >
-                  上一页
+                  {t("上一页")}
                 </button>
                 <span>
-                  第 {currentAccountPage + 1} / {accountPages} 页
+                  {t("第 ")}
+                  {currentAccountPage + 1} / {accountPages} {t(" 页")}
                 </span>
                 <button
                   type="button"
                   disabled={currentAccountPage >= accountPages - 1}
                   onClick={() => setAccountPage(currentAccountPage + 1)}
                 >
-                  下一页
+                  {t("下一页")}
                 </button>
               </nav>
             )}
@@ -1348,9 +1374,9 @@ function TradingWorkspace({
                 }, "收款资料已提交，审核通过后可使用")
               }}
             >
-              <h2>添加实名收款账户</h2>
+              <h2>{t("添加实名收款账户")}</h2>
               <label>
-                收款法币
+                {t("收款法币")}
                 <select value={marketId} onChange={(event) => setMarketId(event.target.value)}>
                   {catalog?.markets.map((row) => (
                     <option key={row.marketId} value={row.marketId}>
@@ -1360,7 +1386,7 @@ function TradingWorkspace({
                 </select>
               </label>
               <label>
-                收款方式
+                {t("收款方式")}
                 <select name="method">
                   {catalog?.paymentMethods
                     .filter((m) => market && m.currencies.includes(market.fiat))
@@ -1372,15 +1398,15 @@ function TradingWorkspace({
                 </select>
               </label>
               <label>
-                本人姓名
+                {t("本人姓名")}
                 <input name="holder" required minLength={2} maxLength={80} autoComplete="name" />
               </label>
               <label>
-                收款账号
+                {t("收款账号")}
                 <input name="number" required minLength={3} maxLength={128} autoComplete="off" />
               </label>
               <label>
-                开户银行（银行卡必填）
+                {t("开户银行（银行卡必填）")}
                 <input name="bank" maxLength={120} />
               </label>
               <button
@@ -1390,7 +1416,7 @@ function TradingWorkspace({
                   void act(() => challengeC2c(owner, "SECURITY_SETTINGS"), "验证码已发送")
                 }
               >
-                获取设置验证码
+                {t("获取设置验证码")}
               </button>
               {field("邮箱验证码", verification.emailCode, (emailCode) =>
                 setVerification({ ...verification, emailCode }),
@@ -1399,7 +1425,7 @@ function TradingWorkspace({
                 setVerification({ ...verification, totpCode }),
               )}
               <button type="submit" disabled={busy || !market}>
-                提交实名收款审核
+                {t("提交实名收款审核")}
               </button>
             </form>
           </>
@@ -1451,11 +1477,11 @@ function AdForm({
         })
       }}
     >
-      <h2>发布广告</h2>
-      <p className="c2c-muted">商家审核与质押完成后，可发布当前市场的交易广告。</p>
+      <h2>{t("发布广告")}</h2>
+      <p className="c2c-muted">{t("商家审核与质押完成后，可发布当前市场的交易广告。")}</p>
       <fieldset className="c2c-fields c2c-ad-fields" disabled={disabled}>
         <label>
-          市场
+          {t("市场")}
           <select
             value={market?.marketId || ""}
             onChange={(event) => selectMarket(event.target.value)}
@@ -1468,10 +1494,10 @@ function AdForm({
           </select>
         </label>
         <label>
-          广告方向
+          {t("广告方向")}
           <select value={side} onChange={(event) => setSide(event.target.value)}>
-            <option value="SELL">商家出售</option>
-            <option value="BUY">商家购买</option>
+            <option value="SELL">{t("商家出售")}</option>
+            <option value="BUY">{t("商家购买")}</option>
           </select>
         </label>
         {[
@@ -1487,9 +1513,9 @@ function AdForm({
         ))}
         {side === "SELL" ? (
           <label>
-            收款账户
-            <select name="account" aria-label="收款账户" required>
-              <option value="">请选择</option>
+            {t("收款账户")}
+            <select name="account" aria-label={t("收款账户")} required>
+              <option value="">{t("请选择")}</option>
               {accounts
                 .filter((a) => a.status === "APPROVED" && a.fiat === market?.fiat)
                 .map((a) => (
@@ -1501,7 +1527,7 @@ function AdForm({
           </label>
         ) : (
           <label>
-            付款方式
+            {t("付款方式")}
             <select name="method">
               {paymentMethods
                 .filter((method) => market && method.currencies.includes(market.fiat))
@@ -1514,12 +1540,12 @@ function AdForm({
           </label>
         )}
         <label className="c2c-ad-terms">
-          交易条款
+          {t("交易条款")}
           <textarea name="terms" maxLength={2000} />
         </label>
         {verify}
         <button type="submit" disabled={disabled || !market}>
-          确认发布广告
+          {t("确认发布广告")}
         </button>
       </fieldset>
     </form>

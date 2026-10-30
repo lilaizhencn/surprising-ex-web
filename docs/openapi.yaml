@@ -6,6 +6,30 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /legal/current:
+    $ref: ./api/content.openapi.json#/paths/~1legal~1current
+  /legal/documents/{slug}:
+    $ref: ./api/content.openapi.json#/paths/~1legal~1documents~1{slug}
+  /legal/revisions/{revisionId}:
+    $ref: ./api/content.openapi.json#/paths/~1legal~1revisions~1{revisionId}
+  /legal/status:
+    $ref: ./api/content.openapi.json#/paths/~1legal~1status
+  /legal/consents:
+    $ref: ./api/content.openapi.json#/paths/~1legal~1consents
+  /admin/legal/revisions:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1legal~1revisions
+  /admin/legal/revisions/{revisionId}:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}
+  /admin/legal/revisions/{revisionId}/publish:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1publish
+  /admin/legal/revisions/{revisionId}/withdraw:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1withdraw
+  /admin/legal/revisions/{revisionId}/audit:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1audit
+  /admin/content/media:
+    $ref: ./api/content.openapi.json#/paths/~1admin~1content~1media
+  /content/media/{mediaId}:
+    $ref: ./api/content.openapi.json#/paths/~1content~1media~1{mediaId}
   /auth/login:
     $ref: ./api/openapi.yaml#/paths/~1auth~1login
   /security/sessions:

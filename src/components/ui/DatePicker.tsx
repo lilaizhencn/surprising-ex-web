@@ -1,12 +1,28 @@
 import { DayPicker } from "@daypicker/react"
-import { enUS, zhCN } from "@daypicker/react/locale"
+import { arSA, de, enUS, es, fr, hi, ja, ko, ptBR, ru, zhCN, zhTW } from "@daypicker/react/locale"
 import { CalendarDays } from "lucide-react"
 import { type CSSProperties, useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import { DropdownSelect } from "./DropdownSelect"
 import "@daypicker/react/style.css"
 import "./DatePicker.css"
+
+const calendarLocales = {
+  en: enUS,
+  zh: zhCN,
+  "zh-TW": zhTW,
+  es,
+  fr,
+  de,
+  pt: ptBR,
+  ru,
+  ar: arSA,
+  ja,
+  ko,
+  hi,
+}
 
 const parse = (value: string) => new Date(`${value}T12:00:00`)
 const format = (value: Date) =>
@@ -133,7 +149,7 @@ export function DatePicker({
                 >
                   {Array.from({ length: 12 }, (_, index) => (
                     <option key={index} value={index}>
-                      {new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", {
+                      {new Intl.DateTimeFormat(contentLocale(locale), {
                         month: "long",
                       }).format(new Date(2026, index, 1))}
                     </option>
@@ -142,7 +158,8 @@ export function DatePicker({
               </div>
               <DayPicker
                 mode="single"
-                locale={locale === "zh" ? zhCN : enUS}
+                locale={calendarLocales[locale]}
+                dir={locale === "ar" ? "rtl" : "ltr"}
                 selected={value ? parse(value) : undefined}
                 month={month}
                 onMonthChange={setMonth}

@@ -820,6 +820,8 @@ export const AnnouncementSchema = z
     title: z.string().min(1),
     summary: z.string(),
     body: z.string().min(1),
+    bodyHtml: z.string().max(64000).nullable().optional(),
+    locale: z.string().max(32).optional(),
     startsAt: z.iso.datetime({ offset: true }),
     expiresAt: z.iso.datetime({ offset: true }).nullable(),
     readAt: z.iso.datetime({ offset: true }).nullable(),

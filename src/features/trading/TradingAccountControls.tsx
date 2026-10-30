@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { adjustPositionMargin, loadPositionRisk, updatePositionMode } from "../../api/endpoints"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { decimalToUnits, signedUnitsToDecimal, stepUnitsToDecimal } from "../../lib/units"
 import { integer, type PrivateView } from "../../realtime"
 import type { ProductLine } from "../../types/domain"
@@ -251,7 +251,7 @@ export function TradingAccountControls({
             </DropdownSelect>
           </Field>
         ) : null}
-        <Field label={`Position margin (${settleAsset})`}>
+        <Field label={tf("Position margin ({p0})", { p0: settleAsset })}>
           <div className="inline-field">
             <input
               value={marginAmount}
@@ -273,7 +273,7 @@ export function TradingAccountControls({
       </div>
       <p className="muted">
         {accountView?.ready()
-          ? `Selected position risk · ${symbol} · ${positionSide}`
+          ? tf("Selected position risk · {p0} · {p1}", { p0: symbol, p1: positionSide })
           : t("Account syncing")}
       </p>
       <div className="risk-summary-grid">

@@ -1,11 +1,12 @@
 import { Check, FileCheck, Trash2, Upload, UserRound } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { submitKyc, uploadKycDocument } from "../../api/endpoints"
 import { type Country, deleteKycDraft, loadCountries } from "../../api/kyc"
 import { DatePicker } from "../../components/ui/DatePicker"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import "./KycApplicationForm.css"
 
 type Row = Awaited<ReturnType<typeof submitKyc>>
@@ -27,6 +28,10 @@ export function KycApplicationForm({
   readonly onSubmitted: (response: Row) => void
 }) {
   const locale = useLocale()
+  const regionNames = useMemo(
+    () => new Intl.DisplayNames([contentLocale(locale)], { type: "region" }),
+    [locale],
+  )
   const [countries, setCountries] = useState<Country[]>([])
   const [country, setCountry] = useState("")
   const [type, setType] = useState("")
@@ -303,7 +308,7 @@ export function KycApplicationForm({
                   key={row.code}
                   value={row.code}
                   data-search={`${row.code} ${row.names.en} ${row.names.zh}`}
-                >{`${row.flag} ${row.names[locale]}`}</option>
+                >{`${row.flag} ${locale === "en" || locale === "zh" ? row.names[locale] : regionNames.of(row.code)}`}</option>
               ))}
             </DropdownSelect>
           </Field>

@@ -154,7 +154,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
         </div>
         <div className="assets-page-controls">
           <IconButton
-            label={hidden ? "Show balances" : "Hide balances"}
+            label={hidden ? t("Show balances") : t("Hide balances")}
             aria-pressed={hidden}
             onClick={() => {
               const next = !hidden
@@ -165,7 +165,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
             {hidden ? <Eye size={20} /> : <EyeOff size={20} />}
           </IconButton>
           <IconButton
-            label="Refresh balances"
+            label={t("Refresh balances")}
             disabled={loading}
             aria-busy={loading}
             onClick={refresh}

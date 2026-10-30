@@ -289,7 +289,8 @@ export function DepositPage() {
                       </>
                     ) : null}
                     <p>
-                      {t("Only send")} {assetCode} · {network.displayName} ({networkCode})
+                      {t("Only send")} {assetCode} · {network.displayName} ({networkCode}
+                      {t(")")}
                     </p>
                     <div className="deposit-facts">
                       <div>

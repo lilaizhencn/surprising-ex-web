@@ -5,11 +5,13 @@ import type { ApiAnnouncement } from "../../api/types"
 import { Button } from "../../components/ui/Primitives"
 import { StandardDialog } from "../../components/ui/StandardDialog"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import { useSession } from "../../state/session"
+import { ArticleView } from "./ArticleView"
 import { announcementCategory, contentError, pageProductLine } from "./presentation"
 
 export function AnnouncementSurfaces() {
-  const locale = useLocale() === "zh" ? "zh-CN" : "en-US"
+  const locale = contentLocale(useLocale())
   const session = useSession()
   const owner = String(session?.user.userId ?? "guest")
   const line = pageProductLine()
@@ -168,7 +170,7 @@ function ScopedSurfaces({
             <BellRing size={20} aria-hidden="true" />
             <span className="eyebrow">{t(announcementCategory(modal.category))}</span>
           </div>
-          <div className="announcement-body">{modal.body}</div>
+          <ArticleView html={modal.bodyHtml} text={modal.body} locale={modal.locale} />
           {error ? (
             <p className="inline-error" role="alert">
               {error}

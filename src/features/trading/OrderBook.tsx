@@ -115,15 +115,18 @@ export const OrderBook = memo(function OrderBook({
           <div className="order-book-columns">
             <span>
               {t("Price (")}
-              {quoteAsset})
+              {quoteAsset}
+              {t(")")}
             </span>
             <span>
               {t("Quantity (")}
-              {baseAsset})
+              {baseAsset}
+              {t(")")}
             </span>
             <span>
               {t("Total (")}
-              {baseAsset})
+              {baseAsset}
+              {t(")")}
             </span>
           </div>
           <div ref={askSideRef} className="order-book-scroll order-book-asks">
@@ -159,15 +162,18 @@ export const OrderBook = memo(function OrderBook({
           <div className="order-book-columns">
             <span>
               {t("Price (")}
-              {quoteAsset})
+              {quoteAsset}
+              {t(")")}
             </span>
             <span>
               {t("Quantity (")}
-              {baseAsset})
+              {baseAsset}
+              {t(")")}
             </span>
             <span>
               {t("Total (")}
-              {baseAsset})
+              {baseAsset}
+              {t(")")}
             </span>
           </div>
           <div className="order-book-scroll">

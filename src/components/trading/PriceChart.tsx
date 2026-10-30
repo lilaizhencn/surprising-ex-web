@@ -10,7 +10,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts"
 import { useEffect, useRef, useState } from "react"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { formatPrice as displayPrice } from "../../lib/format"
 import type { Candle } from "../../types/domain"
 import "./PriceChart.css"
@@ -463,7 +463,7 @@ export function PriceChart({
         ref={containerRef}
         className="chart-canvas"
         role="img"
-        aria-label={`${period} candlestick and volume chart`}
+        aria-label={tf("{p0} candlestick and volume chart", { p0: period })}
       />
       <div className="chart-volume-info" aria-live="polite">
         {" "}

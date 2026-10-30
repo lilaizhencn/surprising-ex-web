@@ -86,11 +86,13 @@ export const TradeMarketPanel = memo(function TradeMarketPanel({
           <div className="recent-trade-columns">
             <span>
               {t("Price (")}
-              {current?.quoteAsset ?? "—"})
+              {current?.quoteAsset ?? "—"}
+              {t(")")}
             </span>
             <span>
               {t("Quantity (")}
-              {productLine === PRODUCT_LINES.spot ? (current?.baseAsset ?? "—") : t("Contracts")})
+              {productLine === PRODUCT_LINES.spot ? (current?.baseAsset ?? "—") : t("Contracts")}
+              {t(")")}
             </span>
             <span>{t("Time")}</span>
           </div>

@@ -19,6 +19,30 @@ tags:
   - name: Announcements
   - name: Help
 paths:
+  /legal/current:
+    $ref: ./content.openapi.json#/paths/~1legal~1current
+  /legal/documents/{slug}:
+    $ref: ./content.openapi.json#/paths/~1legal~1documents~1{slug}
+  /legal/revisions/{revisionId}:
+    $ref: ./content.openapi.json#/paths/~1legal~1revisions~1{revisionId}
+  /legal/status:
+    $ref: ./content.openapi.json#/paths/~1legal~1status
+  /legal/consents:
+    $ref: ./content.openapi.json#/paths/~1legal~1consents
+  /admin/legal/revisions:
+    $ref: ./content.openapi.json#/paths/~1admin~1legal~1revisions
+  /admin/legal/revisions/{revisionId}:
+    $ref: ./content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}
+  /admin/legal/revisions/{revisionId}/publish:
+    $ref: ./content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1publish
+  /admin/legal/revisions/{revisionId}/withdraw:
+    $ref: ./content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1withdraw
+  /admin/legal/revisions/{revisionId}/audit:
+    $ref: ./content.openapi.json#/paths/~1admin~1legal~1revisions~1{revisionId}~1audit
+  /admin/content/media:
+    $ref: ./content.openapi.json#/paths/~1admin~1content~1media
+  /content/media/{mediaId}:
+    $ref: ./content.openapi.json#/paths/~1content~1media~1{mediaId}
   /auth/login:
     post:
       tags: [Auth]
@@ -390,7 +414,7 @@ paths:
     get:
       tags: [Announcements]
       summary: List currently visible public announcements
-      description: Locale content falls back to English, then Chinese. Authenticated users receive readAt and unreadCount; anonymous clients may read the public feed.
+      description: Supports en-US, zh-CN, zh-TW, es-ES, fr-FR, de-DE, pt-BR, ru-RU, ar-SA, ja-JP, ko-KR and hi-IN. Missing announcement translations fall back to English, then Chinese; the response locale identifies the actual content language. Authenticated users receive readAt and unreadCount; anonymous clients may read the public feed.
       security:
         - bearerAuth: []
         - {}
@@ -630,6 +654,7 @@ components:
         title: { type: string }
         summary: { type: string }
         body: { type: string }
+        bodyHtml: { type: [string, 'null'], maxLength: 64000, description: Sanitized HTML with managed public CDN media. }
     Announcement:
       type: object
       required: [announcementId, category, status, effectiveStatus, priority, placements, productLines, platforms, startsAt, version, translations, createdAt, updatedAt]
@@ -650,6 +675,7 @@ components:
         title: { type: string, nullable: true }
         summary: { type: string, nullable: true }
         body: { type: string, nullable: true }
+        bodyHtml: { type: [string, 'null'], maxLength: 64000 }
         readAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

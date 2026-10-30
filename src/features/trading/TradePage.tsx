@@ -29,7 +29,7 @@ import {
 } from "../../components/ui/Primitives"
 import { useRealtime } from "../../hooks/useRealtime"
 import { eventPrice } from "../../hooks/useRealtimeAssets"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
 import { formatPercent, formatPrice } from "../../lib/format"
@@ -787,7 +787,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </div>
               <div>
                 <small>
-                  {t("24h Volume")} ({current?.baseAsset})
+                  {t("24h Volume")} ({current?.baseAsset}
+                  {t(")")}
                 </small>
                 <strong className="mono" title={String(displayedDayStats?.volume ?? "")}>
                   {formatTradeQuantity(displayedDayStats ? String(displayedDayStats.volume) : "")}
@@ -795,7 +796,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </div>
               <div>
                 <small>
-                  {t("24h Turnover")} ({current?.quoteAsset})
+                  {t("24h Turnover")} ({current?.quoteAsset}
+                  {t(")")}
                 </small>
                 <strong className="mono" title={String(displayedDayStats?.quoteVolume ?? "")}>
                   {formatTradeQuantity(
@@ -807,7 +809,8 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               </div>
               <div>
                 <small>
-                  {t("Open interest")} ({t("Contracts")})
+                  {t("Open interest")} ({t("Contracts")}
+                  {t(")")}
                 </small>
                 <strong className="mono" title={openInterestQuantity}>
                   {formatTradeQuantity(openInterestQuantity)}
@@ -1216,7 +1219,10 @@ const PairMarketList = memo(function PairMarketList({
             <button
               type="button"
               className="pair-favorite"
-              aria-label={`${favorites.includes(`${productLine}:${market.instrumentId}`) ? "Remove" : "Add"} ${market.symbol} favorite`}
+              aria-label={tf("{p0} {p1} favorite", {
+                p0: favorites.includes(`${productLine}:${market.instrumentId}`) ? "Remove" : "Add",
+                p1: market.symbol,
+              })}
               onClick={() => onFavorite(market.instrumentId)}
             >
               <Star

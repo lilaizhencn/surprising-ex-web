@@ -2,6 +2,7 @@ import { ArrowLeftRight, LogIn, MessageCircle, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadC2cStatus } from "../../api/c2c"
 import { type C2cAd, c2cDecimal, c2cPublicMarkets, c2cPublicOffers } from "../../api/c2cTrading"
+import { t } from "../../i18n"
 
 const login = "/auth/login?redirect=%2Fc2c"
 export function C2cMarketPreview() {
@@ -85,21 +86,21 @@ export function C2cMarketPreview() {
   }
   return (
     <div className="container section c2c-trading c2c-preview">
-      <nav className="c2c-trading-tabs" aria-label="C2C 功能">
+      <nav className="c2c-trading-tabs" aria-label={t("C2C 功能")}>
         <a href="/c2c" aria-current="page">
           <ArrowLeftRight size={17} aria-hidden="true" />
-          自选交易
+          {t("自选交易")}
         </a>
         <a href="/c2c/messages">
           <MessageCircle size={17} aria-hidden="true" />
-          消息
+          {t("消息")}
         </a>
       </nav>
-      <section className="c2c-trading-body" aria-label="C2C 公开市场">
+      <section className="c2c-trading-body" aria-label={t("C2C 公开市场")}>
         <header className="c2c-trading-heading">
           <div>
-            <h1>C2C 自选交易</h1>
-            <p>浏览公开广告，登录后获取有效报价并核对交易条件。</p>
+            <h1>{t("C2C 自选交易")}</h1>
+            <p>{t("浏览公开广告，登录后获取有效报价并核对交易条件。")}</p>
           </div>
           <button
             type="button"
@@ -110,37 +111,37 @@ export function C2cMarketPreview() {
             }}
           >
             <RefreshCw size={16} aria-hidden="true" />
-            刷新市场
+            {t("刷新市场")}
           </button>
         </header>
         <aside className="c2c-preview-signin">
           <div>
-            <strong>开始点对点交易</strong>
-            <p>登录后可管理订单、收款账户并联系交易对方。</p>
+            <strong>{t("开始点对点交易")}</strong>
+            <p>{t("登录后可管理订单、收款账户并联系交易对方。")}</p>
           </div>
           <a className="button button-primary" href={login}>
             <LogIn size={16} aria-hidden="true" />
-            登录交易
+            {t("登录交易")}
           </a>
         </aside>
         {loading ? (
           <p className="c2c-panel" role="status" aria-busy="true">
-            正在读取 C2C 市场…
+            {t("正在读取 C2C 市场…")}
           </p>
         ) : error ? (
           <div className="c2c-panel" role="alert">
             <p>{error}</p>
             <button type="button" onClick={() => setRevision((value) => value + 1)}>
-              重新读取市场
+              {t("重新读取市场")}
             </button>
           </div>
         ) : !status?.runtimeEnabled || !status.available ? (
           <p className="c2c-panel" role="status">
-            C2C 市场暂未开放
+            {t("C2C 市场暂未开放")}
           </p>
         ) : !catalog?.markets.length ? (
           <p className="c2c-panel" role="status">
-            暂无开放的交易市场
+            {t("暂无开放的交易市场")}
           </p>
         ) : (
           <>
@@ -153,7 +154,7 @@ export function C2cMarketPreview() {
                   resetOffers()
                 }}
               >
-                我要买
+                {t("我要买")}
               </button>
               <button
                 type="button"
@@ -163,10 +164,10 @@ export function C2cMarketPreview() {
                   resetOffers()
                 }}
               >
-                我要卖
+                {t("我要卖")}
               </button>
               <label>
-                交易市场
+                {t("交易市场")}
                 <select
                   value={marketId}
                   onChange={(event) => {
@@ -184,7 +185,8 @@ export function C2cMarketPreview() {
                 </select>
               </label>
               <label>
-                法币金额筛选{market ? `（${market.fiat}）` : ""}
+                {t("法币金额筛选")}
+                {market ? `（${market.fiat}）` : ""}
                 <input
                   value={amount}
                   maxLength={80}
@@ -197,7 +199,7 @@ export function C2cMarketPreview() {
                 />
               </label>
               <label>
-                支付方式
+                {t("支付方式")}
                 <select
                   value={methodCode}
                   onChange={(event) => {
@@ -205,7 +207,7 @@ export function C2cMarketPreview() {
                     resetOffers()
                   }}
                 >
-                  <option value="">全部方式</option>
+                  <option value="">{t("全部方式")}</option>
                   {catalog.paymentMethods
                     .filter((row) => row.currencies.includes(market?.fiat ?? ""))
                     .map((row) => (
@@ -218,22 +220,22 @@ export function C2cMarketPreview() {
             </div>
             {!validAmount ? (
               <p role="alert" className="c2c-error">
-                请输入大于零的法币金额，使用普通十进制格式。
+                {t("请输入大于零的法币金额，使用普通十进制格式。")}
               </p>
             ) : offersLoading ? (
               <p className="c2c-panel" role="status" aria-busy="true">
-                正在查询广告…
+                {t("正在查询广告…")}
               </p>
             ) : offersError ? (
               <div className="c2c-panel" role="alert">
                 <p>{offersError}</p>
                 <button type="button" onClick={() => setRevision((value) => value + 1)}>
-                  重新查询广告
+                  {t("重新查询广告")}
                 </button>
               </div>
             ) : offers && offers.items.length === 0 ? (
               <p className="c2c-panel" role="status">
-                暂无符合条件的广告
+                {t("暂无符合条件的广告")}
               </p>
             ) : null}
             <div className="c2c-offers">
@@ -244,10 +246,12 @@ export function C2cMarketPreview() {
                     {c2cDecimal(ad.price)} {ad.market.fiat}
                   </strong>
                   <p>
-                    可交易 {ad.availableQuantity} {ad.market.asset}
+                    {t("可交易 ")}
+                    {ad.availableQuantity} {ad.market.asset}
                   </p>
                   <p>
-                    限额 {c2cDecimal(ad.minFiat)} – {c2cDecimal(ad.maxFiat)} {ad.market.fiat}
+                    {t("限额 ")}
+                    {c2cDecimal(ad.minFiat)} – {c2cDecimal(ad.maxFiat)} {ad.market.fiat}
                   </p>
                   <p>
                     {ad.methodCodes
@@ -258,13 +262,14 @@ export function C2cMarketPreview() {
                       .join(" · ")}
                   </p>
                   <a className="button button-primary" href={login}>
-                    登录后{side === "BUY" ? "购买" : "出售"}
+                    {t("登录后")}
+                    {side === "BUY" ? t("购买") : t("出售")}
                   </a>
                 </article>
               ))}
             </div>
             {(offers?.hasMore || offset > 0) && (
-              <nav className="c2c-action-row" aria-label="广告分页">
+              <nav className="c2c-action-row" aria-label={t("广告分页")}>
                 <button
                   type="button"
                   disabled={offersLoading || offset === 0}
@@ -273,9 +278,12 @@ export function C2cMarketPreview() {
                     setOffset((value) => Math.max(0, value - 20))
                   }}
                 >
-                  上一页
+                  {t("上一页")}
                 </button>
-                <span>第 {offset / 20 + 1} 页</span>
+                <span>
+                  {t("第 ")}
+                  {offset / 20 + 1} {t(" 页")}
+                </span>
                 <button
                   type="button"
                   disabled={offersLoading || !offers?.hasMore || offset >= 10000}
@@ -284,7 +292,7 @@ export function C2cMarketPreview() {
                     setOffset((value) => Math.min(10000, value + 20))
                   }}
                 >
-                  下一页
+                  {t("下一页")}
                 </button>
               </nav>
             )}

@@ -9,6 +9,7 @@ import {
   orderDetailSchema,
   type Verification,
 } from "../../api/c2cTrading"
+import { t } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 
 export const c2cStatusText: Record<string, string> = {
@@ -206,17 +207,17 @@ export function C2cOrderPanel({
       order.status,
     )
   return (
-    <section className="c2c-panel c2c-order-detail" aria-label="交易订单">
+    <section className="c2c-panel c2c-order-detail" aria-label={t("交易订单")}>
       <div className="c2c-panel-heading">
         <div>
           <h2 ref={heading} tabIndex={-1}>
-            {order ? c2cStatusText[order.status] : "交易订单"}
+            {order ? c2cStatusText[order.status] : t("交易订单")}
           </h2>
           <code>{orderId}</code>
         </div>
         <button type="button" disabled={busy} onClick={close}>
           <ArrowLeft size={16} aria-hidden="true" />
-          返回列表
+          {t("返回列表")}
         </button>
       </div>
       <div className="c2c-action-row">
@@ -226,7 +227,7 @@ export function C2cOrderPanel({
           onClick={() => setReload((value) => value + 1)}
         >
           <RefreshCw size={16} aria-hidden="true" />
-          重新读取订单
+          {t("重新读取订单")}
         </button>
         <button
           type="button"
@@ -238,13 +239,13 @@ export function C2cOrderPanel({
           }
         >
           <Copy size={16} aria-hidden="true" />
-          复制订单编号
+          {t("复制订单编号")}
         </button>
       </div>
       {copied && <p role="status">{copied}</p>}
       {loading && (
         <p role="status" aria-busy="true">
-          正在读取订单状态…
+          {t("正在读取订单状态…")}
         </p>
       )}
       {error && (
@@ -256,48 +257,51 @@ export function C2cOrderPanel({
         <>
           <dl className="c2c-order-summary">
             <div>
-              <dt>交易金额</dt>
+              <dt>{t("交易金额")}</dt>
               <dd>
                 {c2cDecimal(order.fiatAmount)} {order.market.fiat}
               </dd>
             </div>
             <div>
-              <dt>交易数量</dt>
+              <dt>{t("交易数量")}</dt>
               <dd>
                 {order.quantity} {order.market.asset}
               </dd>
             </div>
             <div>
-              <dt>单价</dt>
+              <dt>{t("单价")}</dt>
               <dd>
                 {c2cDecimal(order.price)} {order.market.fiat}
               </dd>
             </div>
             <div>
-              <dt>买方实收</dt>
+              <dt>{t("买方实收")}</dt>
               <dd>
                 {unitsToDecimal(order.buyerReceivesUnits, order.market.assetScale)}{" "}
                 {order.market.asset}
               </dd>
             </div>
             <div>
-              <dt>买方手续费</dt>
+              <dt>{t("买方手续费")}</dt>
               <dd>
                 {unitsToDecimal(order.buyerFeeUnits, order.market.assetScale)} {order.market.asset}
               </dd>
             </div>
           </dl>
           {order.paymentExpiresAt && (
-            <p>付款截止：{new Date(order.paymentExpiresAt).toLocaleString()}</p>
+            <p>
+              {t("付款截止：")}
+              {new Date(order.paymentExpiresAt).toLocaleString()}
+            </p>
           )}
           {order.status === "PAYMENT_PENDING" && expired && (
             <p className="c2c-warning" role="status">
-              付款窗口已结束，勿继续转账；请刷新核对订单终态，已付款争议可发起申诉。
+              {t("付款窗口已结束，勿继续转账；请刷新核对订单终态，已付款争议可发起申诉。")}
             </p>
           )}
           {order.terms && (
             <div className="c2c-order-terms">
-              <strong>本单交易条款</strong>
+              <strong>{t("本单交易条款")}</strong>
               <p>{order.terms}</p>
             </div>
           )}
@@ -307,7 +311,7 @@ export function C2cOrderPanel({
               disabled={busy || loading}
               onClick={() => setReveal((value) => !value)}
             >
-              {reveal ? "收起收款资料" : "查看订单收款资料"}
+              {reveal ? t("收起收款资料") : t("查看订单收款资料")}
             </button>
           )}
           {ongoing && reveal && (
@@ -328,7 +332,7 @@ export function C2cOrderPanel({
           )}
           {order.status === "PAYMENT_PENDING" && order.buyerUserId === owner && (
             <>
-              <p>使用本人账户按本订单收款资料在站外转账，实际完成付款后再确认。</p>
+              <p>{t("使用本人账户按本订单收款资料在站外转账，实际完成付款后再确认。")}</p>
               <div className="c2c-action-row">
                 <button
                   type="button"
@@ -336,10 +340,10 @@ export function C2cOrderPanel({
                   disabled={busy || loading || expired || deadline === null}
                   onClick={() => confirm("paid")}
                 >
-                  我已付款，通知卖家
+                  {t("我已付款，通知卖家")}
                 </button>
                 <button type="button" disabled={busy || loading} onClick={() => confirm("cancel")}>
-                  取消未付款订单
+                  {t("取消未付款订单")}
                 </button>
               </div>
             </>
@@ -348,7 +352,7 @@ export function C2cOrderPanel({
             <fieldset className="c2c-fields" disabled={busy || loading}>
               <p>
                 <ShieldCheck size={16} aria-hidden="true" />
-                核对收款账户实际到账，聊天和凭证不能代替到账记录。
+                {t("核对收款账户实际到账，聊天和凭证不能代替到账记录。")}
               </p>
               <label className="c2c-check">
                 <input
@@ -356,10 +360,10 @@ export function C2cOrderPanel({
                   checked={received}
                   onChange={(event) => setReceived(event.target.checked)}
                 />
-                已核对本订单款项实际到账
+                {t("已核对本订单款项实际到账")}
               </label>
               <label>
-                邮箱验证码
+                {t("邮箱验证码")}
                 <input
                   autoComplete="one-time-code"
                   inputMode="numeric"
@@ -370,7 +374,7 @@ export function C2cOrderPanel({
                 />
               </label>
               <label>
-                验证器验证码（已绑定时）
+                {t("验证器验证码（已绑定时）")}
                 <input
                   autoComplete="one-time-code"
                   inputMode="numeric"
@@ -385,7 +389,7 @@ export function C2cOrderPanel({
                   type="button"
                   onClick={() => void act(() => challengeC2c(owner), "验证码已发送")}
                 >
-                  获取资金验证码
+                  {t("获取资金验证码")}
                 </button>
                 <button
                   type="button"
@@ -393,7 +397,7 @@ export function C2cOrderPanel({
                   disabled={!received}
                   onClick={() => confirm("release")}
                 >
-                  确认到账并放币
+                  {t("确认到账并放币")}
                 </button>
               </div>
             </fieldset>
@@ -401,7 +405,7 @@ export function C2cOrderPanel({
           {["PAYMENT_PENDING", "PAID"].includes(order.status) && (
             <fieldset className="c2c-fields" disabled={busy || loading}>
               <label>
-                取消或申诉原因
+                {t("取消或申诉原因")}
                 <textarea
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
@@ -413,13 +417,16 @@ export function C2cOrderPanel({
                 disabled={reason.trim().length < 5}
                 onClick={() => confirm("appeal")}
               >
-                提交申诉
+                {t("提交申诉")}
               </button>
             </fieldset>
           )}
           {order.appeals.length > 0 && (
             <details className="c2c-order-terms">
-              <summary>申诉记录 · {order.appeals.length}</summary>
+              <summary>
+                {t("申诉记录 · ")}
+                {order.appeals.length}
+              </summary>
               {order.appeals.slice(-20).map((row) => (
                 <article key={row.appealId}>
                   <p>
@@ -430,9 +437,9 @@ export function C2cOrderPanel({
                   {row.decision && (
                     <p>
                       {row.decision === "RELEASE"
-                        ? "裁决放币"
+                        ? t("裁决放币")
                         : row.decision === "REFUND"
-                          ? "退回原卖家"
+                          ? t("退回原卖家")
                           : row.decision}
                       ：{row.decisionReason}
                     </p>
@@ -450,7 +457,7 @@ export function C2cOrderPanel({
         onClick={() => void act(() => chat(orderId), "订单会话已打开")}
       >
         <MessageCircle size={16} aria-hidden="true" />
-        进入订单消息
+        {t("进入订单消息")}
       </button>
     </section>
   )

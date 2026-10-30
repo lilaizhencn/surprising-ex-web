@@ -26,7 +26,7 @@ export function AccountSidebar() {
       <nav aria-label={t("Account navigation")}>
         <a className={pathname === "/affiliate" ? "active" : ""} href="/affiliate">
           <Grid2X2 size={21} />
-          <span>邀请返佣</span>
+          <span>{t("邀请返佣")}</span>
         </a>
         <a className={pathname === "/assets" && !account ? "active" : ""} href="/assets">
           <Grid2X2 size={21} />

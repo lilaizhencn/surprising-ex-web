@@ -95,22 +95,22 @@ export function OptionMarketPanel({
     <Panel dense className="option-market-panel">
       <h3>{t("Option market reference")}</h3>
       <div className="contract-detail-grid" data-reference-instrument={current?.instrumentId ?? ""}>
-        <Metric label="Underlying index" value={price(current?.underlyingIndexPrice)} />
-        <Metric label="Same-expiry forward" value={price(current?.sameExpiryForwardPrice)} />
-        <Metric label="Premium quote" value={price(current?.premiumPrice)} />
-        <Metric label="Intrinsic value" value={price(current?.intrinsicValue)} />
+        <Metric label={t("Underlying index")} value={price(current?.underlyingIndexPrice)} />
+        <Metric label={t("Same-expiry forward")} value={price(current?.sameExpiryForwardPrice)} />
+        <Metric label={t("Premium quote")} value={price(current?.premiumPrice)} />
+        <Metric label={t("Intrinsic value")} value={price(current?.intrinsicValue)} />
         <Metric
-          label="Implied volatility"
+          label={t("Implied volatility")}
           value={greeks ? `${value(greeks.impliedVolatility * 100, 3)}%` : "—"}
         />
-        <Metric label="Forward Delta" value={value(greeks?.forwardDelta)} />
-        <Metric label="Forward Gamma" value={value(greeks?.forwardGamma, 10)} />
+        <Metric label={t("Forward Delta")} value={value(greeks?.forwardDelta)} />
+        <Metric label={t("Forward Gamma")} value={value(greeks?.forwardGamma, 10)} />
         <Metric
-          label="Vega / 1% volatility"
+          label={t("Vega / 1% volatility")}
           value={`${value(greeks?.vegaPerVolPoint, Math.max(6, market.pricePrecision))} ${market.quoteAsset}`}
         />
         <Metric
-          label="Theta / day"
+          label={t("Theta / day")}
           value={`${value(greeks?.thetaPerDay, Math.max(6, market.pricePrecision))} ${market.quoteAsset}`}
         />
       </div>

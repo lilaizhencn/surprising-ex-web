@@ -7,7 +7,7 @@ const base = process.env.GOOGLE_QA_URL || 'http://127.0.0.1:15474'
 assert.equal(new URL(base).hostname, '127.0.0.1')
 const dir = process.env.GOOGLE_QA_DIR || '/tmp/surprising-google-themes-qa'
 await mkdir(dir, { recursive: true })
-const browser = await chromium.launch({ headless: true, channel: 'chrome' })
+const browser = await chromium.launch({ headless: true, ...(process.env.GOOGLE_CHROMIUM_EXECUTABLE ? {executablePath:process.env.GOOGLE_CHROMIUM_EXECUTABLE}:{channel:'chrome'}) })
 const evidence = { provider: 'synthetic', scenarios: [], errors: [] }
 const palettes = { dark: ['经典石墨','rgb(17, 19, 24)'], light: ['明亮晨光','rgb(247, 248, 250)'], ocean: ['深海蓝','rgb(8, 27, 41)'], forest: ['森林绿','rgb(12, 28, 24)'], dusk: ['暮光紫','rgb(28, 20, 39)'], sand: ['暖沙色','rgb(246, 239, 227)'] }
 const session = { user: { userId: '7', username: null, email: null, displayName: 'Google 测试用户 🚀', status: 'NORMAL', roles: ['USER'] }, accessToken: 'synthetic-access', refreshToken: null, browserSession: true, accessTokenExpiresAt: '2099-01-01T00:00:00Z', refreshTokenExpiresAt: '2099-01-01T00:00:00Z' }
@@ -36,6 +36,10 @@ async function fixture({ width = 1440, enabled = true, mode = 'success', scriptF
     const path = new URL(route.request().url()).pathname
     if (!path.startsWith('/api/')) return route.continue()
     const reply = (body,status=200) => route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)})
+    if (path==='/api/v1/legal/current') {
+      const locale=new URL(route.request().url()).searchParams.get('locale')||'zh-CN';
+      return reply(['USER_AGREEMENT','PRIVACY_POLICY'].map((type,index)=>({revisionId:String(101+index),type,slug:index?'privacy-policy':'user-agreement',revisionLabel:'synthetic-1',locale,title:index?'隐私政策':'用户协议',bodyHtml:'<p>Explicit synthetic agreement fixture.</p>',registrationRequired:true,publishedAt:'2026-10-31T00:00:00Z'})))
+    }
     if (path.endsWith('/auth/csrf')) return reply({token:'synthetic-csrf'})
     if (path.endsWith('/browser/refresh')) return state.active ? reply(session) : reply({message:'No browser session'},401)
     if (path.endsWith('/google/config')) return reply({enabled,webClientId:'synthetic.apps.googleusercontent.com'})
@@ -50,6 +54,7 @@ async function fixture({ width = 1440, enabled = true, mode = 'success', scriptF
     }
     if (path.endsWith('/auth/login/verify')) {
       assert.equal(route.request().postDataJSON().totpCode,'123456')
+      assert.equal(route.request().headers()['x-legal-acceptance'],'101:zh-CN,102:zh-CN')
       state.active=true
       return reply(session)
     }
@@ -59,6 +64,17 @@ async function fixture({ width = 1440, enabled = true, mode = 'success', scriptF
   page.on('pageerror', error=>evidence.errors.push(error.message))
   return {context,page,state}
 }
+async function acknowledge(page) {
+  const choice=page.locator('.legal-review').getByRole('checkbox');
+  await choice.waitFor();await choice.check();
+}
+async function acceptOneTapLegal(page,state) {
+  const dialog=page.locator('dialog.legal-update');
+  await dialog.waitFor();assert.equal(state.logins.length,0);
+  const confirm=dialog.getByRole('button',{name:'同意并继续',exact:true});
+  assert.equal(await confirm.isDisabled(),true);
+  await dialog.getByRole('checkbox').check();await confirm.click();
+}
 async function signedIn(page,state) {
   await page.waitForURL('**/assets')
   await page.getByText('Google 测试用户 🚀',{exact:true}).first().waitFor({state:'attached'})
@@ -66,6 +82,7 @@ async function signedIn(page,state) {
   assert.equal(state.logins[0].body.platform,'WEB')
   assert.equal(state.logins[0].headers['x-auth-transport'],'cookie')
   assert.equal(state.logins[0].headers['x-xsrf-token'],'synthetic-csrf')
+  assert.equal(state.logins[0].headers['x-legal-acceptance'],'101:zh-CN,102:zh-CN')
   assert.equal(await page.evaluate(()=>localStorage.getItem('surprising-ex.session')),null)
 }
 try {
@@ -94,6 +111,7 @@ try {
     const {context,page,state}=await fixture({width:390,mode})
     await page.goto(`${base}/auth/register?redirect=%2Fassets&invite=QA-INVITE`)
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).click()
     if (mode==='mfa') {
       await page.getByRole('dialog').waitFor()
@@ -110,6 +128,7 @@ try {
     const {context,page,state}=await fixture()
     await page.goto(base,{waitUntil:'domcontentloaded'})
     await page.getByRole('button',{name:'Google One Tap',exact:true}).click()
+    await acceptOneTapLegal(page,state)
     await signedIn(page,state)
     evidence.scenarios.push({name:'landing One Tap',passed:true});await context.close()
   }
@@ -117,9 +136,12 @@ try {
     const {context,page,state}=await fixture({mode:'error'})
     await page.goto(`${base}/auth/login`)
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'重试 Google 登录'}).click()
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).click()
     await page.waitForURL('**/assets')
     assert.equal(state.logins.length,2);assert.notEqual(state.logins[0].body.nonce,state.logins[1].body.nonce)
@@ -128,7 +150,9 @@ try {
   {
     const {context,page,state}=await fixture({scriptFailure:true})
     await page.goto(`${base}/auth/login`)
+    await acknowledge(page)
     await page.getByRole('button',{name:'重试 Google 登录'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).waitFor()
     assert.equal(state.scripts,2)
     await page.getByRole('textbox',{name:'邮箱或手机号'}).fill('test@example.com')
@@ -140,14 +164,17 @@ try {
     const {context,page,state}=await fixture({width:390,mode:'mfa'})
     await page.goto(`${base}/auth/login`)
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).click()
     await page.getByRole('dialog').waitFor()
     await page.evaluate(()=>window.__googleOptions.callback({credential:'late-duplicate'}))
     assert.equal(state.logins.length,1)
     await page.getByRole('dialog').getByRole('button',{name:'收',exact:true}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).waitFor()
     assert.equal(state.challenges,2)
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).click()
     await page.getByRole('dialog').waitFor()
     assert.equal(state.logins.length,2)
@@ -158,6 +185,7 @@ try {
     const {context,page,state}=await fixture({width:390,mode:'mfa'})
     await page.goto(base)
     await page.getByRole('button',{name:'Google One Tap',exact:true}).click()
+    await acceptOneTapLegal(page,state)
     await page.getByRole('dialog').waitFor()
     await page.evaluate(()=>window.__googleOptions.callback({credential:'late-duplicate'}))
     await page.waitForTimeout(100)
@@ -179,6 +207,7 @@ try {
     const {context,page,state}=await fixture({width:390})
     await page.goto(`${base}/auth/login`,{waitUntil:'domcontentloaded'})
     await page.getByRole('button',{name:'Not now'}).click()
+    await acknowledge(page)
     await page.getByRole('button',{name:'Continue with Google',exact:true}).waitFor()
     const challenges=state.challenges
     for (let i=0;i<24;i++) {

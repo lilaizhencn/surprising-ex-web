@@ -1,3 +1,6 @@
+.language-picker {
+  position: relative;
+}
 button,
 a,
 input,
@@ -73,14 +76,21 @@ textarea {
   border-radius: var(--radius-md);
 }
 .brand {
+  direction: ltr;
   color: var(--color-ink);
   letter-spacing: -0.6px;
 }
 .brand-mark {
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   border-radius: 10px;
   font-size: var(--font-body-emphasis);
+}
+.brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lucide {
   stroke-width: 1.75;
@@ -319,4 +329,32 @@ summary:focus-visible {
 
 .top-nav .language-picker .dropdown-select {
   gap: 4px;
+}
+
+.dropdown-select-menu .language-label-full {
+  display: inline;
+}
+.dropdown-select-menu .language-label-compact {
+  display: none;
+}
+.language-load-error {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: 80;
+  width: 240px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  display: grid;
+  gap: 8px;
+}
+html[dir="rtl"] input[inputmode="decimal"],
+html[dir="rtl"] input[inputmode="numeric"],
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="tel"] {
+  direction: ltr;
+  unicode-bidi: isolate;
 }

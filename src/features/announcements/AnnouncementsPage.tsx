@@ -1,5 +1,5 @@
 import { Megaphone, RefreshCw } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 import {
   loadAnnouncements,
   markAllAnnouncementsRead,
@@ -8,7 +8,9 @@ import {
 import type { ApiAnnouncement } from "../../api/types"
 import { Button, Panel, StateView } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
+import { contentLocale } from "../../i18n/locales"
 import { useSession } from "../../state/session"
+import { ArticleView } from "./ArticleView"
 import {
   announcementCategory,
   announcementDate,
@@ -21,7 +23,7 @@ export { AnnouncementSurfaces } from "./AnnouncementSurfaces"
 type Page = Awaited<ReturnType<typeof loadAnnouncements>>
 const PAGE_SIZE = 50
 export function AnnouncementsPage() {
-  const locale = useLocale() === "zh" ? "zh-CN" : "en-US"
+  const locale = contentLocale(useLocale())
   const session = useSession()
   const line = pageProductLine()
   return (
@@ -58,20 +60,24 @@ function AnnouncementCenter({
   const detailTitle = useRef<HTMLHeadingElement>(null)
   const list = useRef<HTMLUListElement>(null)
   const mutating = allBusy || reading.size > 0
+  const initialLoad = useEffectEvent(() => {
+    void load(0)
+  })
+  const selectedId = selected?.announcementId
   useEffect(() => {
     const abort = new AbortController()
     life.current = abort
-    void load(0)
+    initialLoad()
     return () => {
       abort.abort()
       query.current?.abort()
     }
   }, [])
   useEffect(() => {
-    if (!selected) return
+    if (!selectedId) return
     detailTitle.current?.focus({ preventScroll: true })
     if (window.innerWidth < 760) detailTitle.current?.scrollIntoView({ block: "start" })
-  }, [selected?.announcementId])
+  }, [selectedId])
   async function load(offset = page?.offset ?? 0) {
     query.current?.abort()
     const abort = new AbortController()
@@ -293,7 +299,11 @@ function AnnouncementCenter({
                     {selected.summary ? (
                       <p className="announcement-summary">{selected.summary}</p>
                     ) : null}
-                    <div className="announcement-body">{selected.body}</div>
+                    <ArticleView
+                      html={selected.bodyHtml}
+                      text={selected.body}
+                      locale={selected.locale}
+                    />
                     <small>
                       <time dateTime={selected.startsAt}>
                         {announcementDate(selected.startsAt)}

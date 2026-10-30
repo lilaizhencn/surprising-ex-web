@@ -248,7 +248,7 @@ function C2cWorkspace({
               </button>
             </div>
             <IconButton
-              label="New conversation"
+              label={t("New conversation")}
               disabled={!enabled}
               onClick={() => setNewConversation(true)}
             >
@@ -443,7 +443,7 @@ function ConversationPanel({
   return (
     <section className="c2c-chat" aria-label={t("Order conversation")}>
       <header className="c2c-chat-header">
-        <IconButton label="Back to conversations" onClick={onBack}>
+        <IconButton label={t("Back to conversations")} onClick={onBack}>
           <ArrowLeft size={20} />
         </IconButton>
         <span className="c2c-avatar" aria-hidden="true">
@@ -613,7 +613,7 @@ function NewConversationDialog({
     <dialog ref={dialog} className="c2c-dialog" aria-labelledby="c2c-new-title" onCancel={onClose}>
       <header>
         <h2 id="c2c-new-title">{t("New conversation")}</h2>
-        <IconButton label="Close dialog" onClick={onClose}>
+        <IconButton label={t("Close dialog")} onClick={onClose}>
           <X size={19} />
         </IconButton>
       </header>
@@ -707,7 +707,7 @@ function OrderDialog({
     >
       <header>
         <h2 id="c2c-order-title">{t("Order details")}</h2>
-        <IconButton label="Close dialog" onClick={onClose}>
+        <IconButton label={t("Close dialog")} onClick={onClose}>
           <X size={19} />
         </IconButton>
       </header>

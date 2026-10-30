@@ -13,8 +13,15 @@ export function Footer() {
       </div>
       <div>
         <strong>{t("Support")}</strong>
-        <a href="/notifications">{t("Announcements")}</a>
+        <a href="/announcements">{t("Announcements")}</a>
         <a href="/help">{t("Help center")}</a>
+      </div>
+      <div>
+        <strong>{t("Legal")}</strong>
+        <a href="/legal/user-agreement">{t("User Agreement")}</a>
+        <a href="/legal/privacy-policy">{t("Privacy Policy")}</a>
+        <a href="/legal/trading-risk">{t("Risk disclosures")}</a>
+        <a href="/legal">{t("Legal center")}</a>
       </div>
     </footer>
   )
