@@ -425,7 +425,7 @@ Google 登录连接交易 Gateway 的 `/api/v1/auth/google`，沿用现有会话
 
 ## 公告、协议与十二语种
 
-公告中心、横幅和弹窗展示清洗后的富文本与公共 CDN 图片、音视频。相同正文的已读状态更新保留媒体节点，避免打断播放。站点 CSP 的 img-src / media-src 只放行交易公共媒体目录，更换 CDN 时须同步后端及 public/_headers。
+公告中心、横幅和弹窗展示清洗后的富文本与公共 CDN 图片、音视频。相同正文的已读状态更新保留媒体节点，避免打断播放。媒体使用专用桶 `surprising-ex-public` 和 `https://ex-cdn.tokdou.com/public/exchange/content/`；内容清洗与站点 CSP 的 img-src / media-src 均只放行该目录，更换 CDN 时须同步后端、App 及 public/_headers。
 
 页脚、登录和注册提供用户协议、隐私政策、风险披露及完整协议中心；默认不勾选确认，打开链接可阅读确切修订。新版本在会话刷新时要求重新确认，历史修订保持可读。Google One Tap 在提交登录凭据前同样展示确认流程。
 

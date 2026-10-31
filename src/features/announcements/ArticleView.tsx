@@ -43,7 +43,7 @@ export function sanitizeArticle(html: string): string {
   for (const media of document.querySelectorAll("img,audio,video")) {
     const source = media.getAttribute("src") ?? ""
     const publicMedia =
-      /^https:\/\/cdn\.surprising\.top\/public\/exchange\/content\/[0-9a-f-]{36}\.(?:jpg|png|gif|webp|mp3|m4a|wav|mp4)$/.test(
+      /^https:\/\/ex-cdn\.tokdou\.com\/public\/exchange\/content\/[0-9a-f-]{36}\.(?:jpg|png|gif|webp|mp3|m4a|wav|mp4)$/.test(
         source,
       )
     if (!publicMedia) {
