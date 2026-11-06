@@ -1,4 +1,4 @@
-import { Megaphone, RefreshCw } from "lucide-react"
+import { Megaphone } from "lucide-react"
 import { useEffect, useEffectEvent, useRef, useState } from "react"
 import {
   loadAnnouncements,
@@ -183,56 +183,35 @@ function AnnouncementCenter({
       <div className="page-heading">
         <div>
           <h1>{t("Announcements")}</h1>
-          <p>{t("Exchange updates, maintenance notices and important service information.")}</p>
         </div>
         <Megaphone size={28} aria-hidden="true" />
       </div>
       <Panel>
-        <div className="announcement-toolbar">
-          {authenticated ? (
+        {authenticated ? (
+          <div className="announcement-toolbar">
             <span role="status">
               {t("Unread")}: {page?.unreadCount ?? "—"}
             </span>
-          ) : (
-            <a href="/auth/login" className="route-link">
-              {t("Sign in to track read announcements.")}
-            </a>
-          )}
-          <div>
-            {authenticated ? (
-              <>
-                <Button
-                  tone="outline"
-                  disabled={mutating || loading}
-                  aria-pressed={unreadOnly}
-                  onClick={() => setUnreadOnly((value) => !value)}
-                >
-                  {unreadOnly ? t("Show all") : t("Unread only")}
-                </Button>
-                <Button
-                  tone="outline"
-                  onClick={() => void markAll()}
-                  loading={allBusy}
-                  disabled={mutating || loading || !page?.unreadCount}
-                >
-                  {t("Mark all read")}
-                </Button>
-              </>
-            ) : null}
-            <Button
-              tone="outline"
-              onClick={() => {
-                setNotice("")
-                void load(0)
-              }}
-              loading={loading}
-              disabled={mutating}
-            >
-              <RefreshCw size={15} aria-hidden="true" />
-              {t("Refresh")}
-            </Button>
+            <div>
+              <Button
+                tone="outline"
+                disabled={mutating || loading}
+                aria-pressed={unreadOnly}
+                onClick={() => setUnreadOnly((value) => !value)}
+              >
+                {unreadOnly ? t("Show all") : t("Unread only")}
+              </Button>
+              <Button
+                tone="outline"
+                onClick={() => void markAll()}
+                loading={allBusy}
+                disabled={mutating || loading || !page?.unreadCount}
+              >
+                {t("Mark all read")}
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
         {notice ? (
           <p className="content-notice" role="status">
             {notice}
@@ -252,12 +231,10 @@ function AnnouncementCenter({
           <StateView kind="error" message={error} retry={() => void load(0)} />
         ) : (
           <>
-            {visible.length === 0 ? (
+            {visible.length === 0 && unreadOnly ? (
               <StateView
                 kind="empty"
-                message={
-                  unreadOnly ? "No unread announcements on this page." : "No announcements yet."
-                }
+                message="No unread announcements on this page."
               />
             ) : null}
             <div className="announcement-layout">
@@ -331,9 +308,7 @@ function AnnouncementCenter({
                       </Button>
                     </div>
                   </>
-                ) : (
-                  <StateView kind="empty" message="Select an announcement to read its details." />
-                )}
+                ) : null}
               </article>
             </div>
             {page && (page.offset > 0 || page.hasMore) ? (
