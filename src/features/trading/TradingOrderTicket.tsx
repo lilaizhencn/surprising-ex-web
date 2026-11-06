@@ -49,6 +49,7 @@ import {
 } from "./orderSubmission"
 import type { TradingOrderSettings } from "./TradingAccountControls"
 import { type LeverageSettings, TradingTicketControls } from "./TradingTicketControls"
+import "./TradingTicketControls.css"
 import { displayPrice, formatTradeQuantity, isDollarQuote } from "./tradeFormatting"
 import { canSubmitTradingOrder, canSubmitTriggerOrder } from "./tradingAvailability"
 import {

@@ -44,10 +44,10 @@ import {
 import { useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import {
+  FundingCountdown,
   FundingMarketHistory,
   FundingPayments,
   formatFundingRate,
-  formatNextFundingTime,
 } from "./FundingPanels"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketPriceFromRecord } from "./marketData"
@@ -821,7 +821,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                   <small>{t("Funding / Next funding")}</small>
                   <strong className="mono">
                     <span className="positive">{formatFundingRate(funding)}</span> ·{" "}
-                    {formatNextFundingTime(funding)}
+                    <FundingCountdown value={funding} />
                   </strong>
                 </div>
               )}

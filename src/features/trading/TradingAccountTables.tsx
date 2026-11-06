@@ -541,63 +541,52 @@ function TradingAccountTablesView(props: Props) {
               })}
             </tbody>
           </table>
-          {!positionRows.length && <p className="account-table-empty">{t("No open positions.")}</p>}
         </div>
       ) : (
-        <>
-          {tab === "history" && (
-            <p className="account-table-empty">
-              {t("Shows up to 100 order updates received while this page is open.")}
-            </p>
-          )}
-          <div className="table-wrap">
-            <table
-              className={`data-table compact-trading-table${productLine === "SPOT" ? " spot-trading-table" : ""}`}
-            >
-              <thead>
-                <tr>
-                  {[
-                    "Symbol / Type",
-                    "Order time",
-                    productLine === "SPOT" ? "Side" : "Side / Margin",
-                    "Average / Order price",
-                    "Filled / Order quantity",
-                    "Remaining / Progress",
-                    "Filled / Order value",
-                    productLine === "SPOT" ? "Quote asset" : "Settlement asset",
-                    productLine === "SPOT" ? "Post only" : "Reduce only / Post only",
-                    "Fee / Time in force",
-                    "Status / Order ID",
-                    "Actions",
-                  ].map((label) => (
-                    <th
-                      key={label}
-                      className={label === "Actions" ? "trading-order-actions" : undefined}
-                    >
-                      {t(label)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(tab === "orders" ? orderRows : history.filter(filter)).map((row) => (
-                  <TradingOrderRow
-                    key={field(row, "orderId")}
-                    row={row}
-                    market={marketFor(field(row, "instrumentId"))}
-                    scales={assetScales}
-                    productLine={productLine}
-                    commandPending={props.commandPending ?? false}
-                    onNotice={onNotice}
-                  />
+        <div className="table-wrap">
+          <table
+            className={`data-table compact-trading-table${productLine === "SPOT" ? " spot-trading-table" : ""}`}
+          >
+            <thead>
+              <tr>
+                {[
+                  "Symbol / Type",
+                  "Order time",
+                  productLine === "SPOT" ? "Side" : "Side / Margin",
+                  "Average / Order price",
+                  "Filled / Order quantity",
+                  "Remaining / Progress",
+                  "Filled / Order value",
+                  productLine === "SPOT" ? "Quote asset" : "Settlement asset",
+                  productLine === "SPOT" ? "Post only" : "Reduce only / Post only",
+                  "Fee / Time in force",
+                  "Status / Order ID",
+                  "Actions",
+                ].map((label) => (
+                  <th
+                    key={label}
+                    className={label === "Actions" ? "trading-order-actions" : undefined}
+                  >
+                    {t(label)}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-            {!(tab === "orders" ? orderRows : history.filter(filter)).length && (
-              <p className="account-table-empty">{t("No orders.")}</p>
-            )}
-          </div>
-        </>
+              </tr>
+            </thead>
+            <tbody>
+              {(tab === "orders" ? orderRows : history.filter(filter)).map((row) => (
+                <TradingOrderRow
+                  key={field(row, "orderId")}
+                  row={row}
+                  market={marketFor(field(row, "instrumentId"))}
+                  scales={assetScales}
+                  productLine={productLine}
+                  commandPending={props.commandPending ?? false}
+                  onNotice={onNotice}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )

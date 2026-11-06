@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import type { ApiFundingPayment, ApiFundingRate } from "../../api/types"
 import { Badge, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
@@ -151,10 +152,31 @@ function text(row: Record<string, unknown> | null | undefined, key: string): str
   return typeof value === "string" || typeof value === "number" ? String(value) : ""
 }
 export function formatNextFundingTime(value: ApiFundingRate | null): string {
-  const raw = value?.fundingTime
+  return formatFundingCountdown(value?.fundingTime)
+}
+
+export function formatFundingCountdown(raw?: string | null): string {
   if (typeof raw !== "string" || !raw) return "—"
-  const date = new Date(raw)
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleString([], { hour: "2-digit", minute: "2-digit" })
+  const target = new Date(raw).getTime()
+  if (Number.isNaN(target)) return "—"
+  const diff = target - Date.now()
+  if (diff <= 0) return "00:00:00"
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+}
+
+export function FundingCountdown({ value }: { readonly value: ApiFundingRate | null }) {
+  const [countdown, setCountdown] = useState(() => formatFundingCountdown(value?.fundingTime))
+
+  useEffect(() => {
+    setCountdown(formatFundingCountdown(value?.fundingTime))
+    const timer = setInterval(() => {
+      setCountdown(formatFundingCountdown(value?.fundingTime))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [value?.fundingTime])
+
+  return <span>{countdown}</span>
 }
