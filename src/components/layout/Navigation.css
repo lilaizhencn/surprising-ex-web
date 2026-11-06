@@ -11,7 +11,7 @@ textarea {
 .top-nav {
   height: var(--top-nav-height);
   border-bottom: 1px solid var(--color-border);
-  background: rgba(10, 10, 18, 0.85);
+  background: rgba(10, 10, 18, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   position: sticky;
@@ -20,7 +20,7 @@ textarea {
 }
 .top-nav-inner {
   height: 100%;
-  gap: var(--space-6);
+  gap: var(--space-5);
   display: flex;
   align-items: center;
 }
@@ -28,7 +28,7 @@ textarea {
   height: 100%;
   display: flex;
   align-items: stretch;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 .nav-item {
   display: flex;
@@ -39,26 +39,31 @@ textarea {
   display: inline-flex;
   align-items: center;
   height: 100%;
-  padding: 0 4px;
-  font-size: var(--font-body-small);
+  padding: 0 10px;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--color-ink-muted);
   border-bottom-width: 0;
   position: relative;
-  transition: all 200ms ease-out;
+  transition: all 180ms ease-out;
+}
+.nav-item > a:hover {
+  color: #FFFFFF;
 }
 .nav-item > a[aria-current="page"] {
   color: #FFFFFF;
+  font-weight: 600;
 }
 .nav-item > a[aria-current="page"]::after {
   content: "";
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0px;
+  left: 10px;
+  right: 10px;
   height: 2px;
   background: var(--gradient-brand);
   border-radius: 2px 2px 0 0;
-  box-shadow: 0 0 10px rgba(0, 198, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.7);
 }
 .nav-menu-trigger {
   display: inline-grid;

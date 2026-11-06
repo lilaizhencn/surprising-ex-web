@@ -69,14 +69,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
-  padding: 0 20px;
+  height: 38px;
+  padding: 0 24px;
   background: var(--gradient-brand);
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   font-weight: 600;
   font-size: 13px;
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0, 198, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(0, 198, 255, 0.35);
+  transition: all 180ms ease-out;
+  text-decoration: none;
 }
 
 .leverage-dialog label {

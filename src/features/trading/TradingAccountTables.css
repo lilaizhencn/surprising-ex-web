@@ -10,52 +10,47 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--color-border);
-  background: rgba(14, 14, 22, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  min-height: 42px;
+  background: rgba(18, 18, 28, 0.45);
+  min-height: 38px;
 }
 
 .account-table-toolbar [role="tablist"] {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 
 .account-table-toolbar [role="tab"] {
   position: relative;
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--color-ink-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 8px 2px;
+  padding: 4px 10px;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 180ms ease-out;
 }
 
 .account-table-toolbar [role="tab"]:hover {
-  color: var(--color-ink);
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .account-table-toolbar [role="tab"][aria-selected="true"] {
-  color: #FFFFFF;
+  color: #00C6FF;
   font-weight: 600;
+  background: rgba(0, 198, 255, 0.12);
+  border-color: rgba(0, 198, 255, 0.3);
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.15);
 }
 
 .account-table-toolbar [role="tab"][aria-selected="true"]::after {
-  content: "";
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--gradient-brand);
-  border-radius: 2px 2px 0 0;
-  box-shadow: 0 0 8px rgba(0, 198, 255, 0.5);
+  display: none;
 }
 
 .account-table-toolbar label {
