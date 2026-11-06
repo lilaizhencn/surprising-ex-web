@@ -21,7 +21,7 @@ import {
 export { AnnouncementSurfaces } from "./AnnouncementSurfaces"
 
 type Page = Awaited<ReturnType<typeof loadAnnouncements>>
-const PAGE_SIZE = 50
+const PAGE_SIZE = 5
 export function AnnouncementsPage() {
   const locale = contentLocale(useLocale())
   const session = useSession()
