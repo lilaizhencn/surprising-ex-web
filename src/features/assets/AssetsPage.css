@@ -112,9 +112,13 @@
     border-color var(--motion-fast);
 }
 .assets-page .balance-actions > a:first-child {
-  background: var(--color-primary-strong);
-  color: var(--color-on-accent);
-  border-color: var(--color-primary-strong);
+  background: var(--gradient-brand);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 198, 255, 0.28);
+}
+.assets-page .balance-actions > a:first-child:hover {
+  box-shadow: 0 6px 22px rgba(0, 198, 255, 0.4);
 }
 .assets-page .balance-actions > a:hover {
   border-color: var(--color-primary);

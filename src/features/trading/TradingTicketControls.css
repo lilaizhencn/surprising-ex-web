@@ -1,26 +1,204 @@
+.leverage-dialog {
+  width: min(92vw, 420px);
+  padding: 24px;
+  background: rgba(18, 18, 28, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: var(--color-ink);
+}
+
+.leverage-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+}
+
+.leverage-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.leverage-dialog-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.leverage-dialog-heading button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 180ms ease-out;
+  cursor: pointer;
+}
+
+.leverage-dialog-heading button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.leverage-unavailable {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  margin: 16px 0;
+}
+
+.leverage-unavailable p {
+  margin: 0 0 12px;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+}
+
+.leverage-unavailable .ticket-sign-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 20px;
+  background: var(--gradient-brand);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 198, 255, 0.25);
+}
+
+.leverage-dialog label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  margin-top: 14px;
+}
+
+.leverage-dialog input[type="number"] {
+  height: 38px;
+  padding: 0 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+}
+
+.leverage-dialog input[type="number"]:focus {
+  border-color: #00C6FF;
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.2);
+}
+
 .leverage-dialog .leverage-slider-label {
   font-size: 12px;
   color: var(--color-ink-muted);
+  margin-top: 14px;
 }
 
 .leverage-dialog input[type="range"] {
+  width: 100%;
   padding: 0;
-  height: 28px;
+  height: 24px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  accent-color: var(--color-primary);
+  accent-color: #00C6FF;
   cursor: pointer;
   touch-action: pan-y;
-}
-
-.leverage-dialog input[type="range"]:disabled {
-  cursor: default;
-  opacity: 0.5;
 }
 
 .leverage-slider-limits {
   display: flex;
   justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-ink-subtle);
   font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.leverage-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.leverage-presets button {
+  flex: 1 1 calc(20% - 6px);
+  min-width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 180ms ease-out;
+  cursor: pointer;
+}
+
+.leverage-presets button:hover {
+  border-color: rgba(0, 198, 255, 0.4);
+  color: var(--color-ink);
+}
+
+.leverage-presets button.active {
+  background: rgba(0, 198, 255, 0.15);
+  border-color: #00C6FF;
+  color: #00C6FF;
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.2);
+}
+
+.leverage-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.leverage-dialog-actions button {
+  flex: 1;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 180ms ease-out;
+  cursor: pointer;
+}
+
+.leverage-dialog-actions button:first-child {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border);
+  color: var(--color-ink);
+}
+
+.leverage-dialog-actions button:first-child:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.leverage-dialog-actions button:last-child {
+  background: var(--gradient-brand);
+  border: 0;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(0, 198, 255, 0.3);
+}
+
+.leverage-dialog-actions button:last-child:hover {
+  filter: brightness(1.1);
 }

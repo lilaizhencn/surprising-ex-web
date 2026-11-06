@@ -124,12 +124,12 @@ export function TradingTicketControls({
           disabled={saving || !canChangeLeverage}
           aria-label={t("Adjust leverage")}
           onClick={() => {
-            setDraft(setting ? String(setting.leveragePpm / 1_000_000) : "")
+            setDraft(setting ? String(setting.leveragePpm / 1_000_000) : "20")
             setMessage("")
             dialog.current?.showModal()
           }}
         >
-          {setting ? `${setting.leveragePpm / 1_000_000}×` : t("Leverage")} ▾
+          {setting ? `${setting.leveragePpm / 1_000_000}×` : "20×"} ▾
         </button>
       </div>
       {message && (

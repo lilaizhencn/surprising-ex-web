@@ -9,8 +9,13 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 .top-nav {
-  border-bottom-color: var(--color-border-soft);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(10, 10, 18, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: sticky;
+  top: 0;
+  z-index: 90;
 }
 .top-nav-inner {
   gap: var(--space-6);
@@ -22,6 +27,23 @@ textarea {
   font-size: var(--font-body-small);
   font-weight: 500;
   border-bottom-width: 2px;
+  position: relative;
+  transition: all 200ms ease-out;
+}
+.nav-item > a[aria-current="page"] {
+  color: #FFFFFF;
+  border-bottom-color: transparent;
+}
+.nav-item > a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-brand);
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.6);
 }
 .nav-menu-trigger {
   display: inline-grid;
@@ -79,18 +101,34 @@ textarea {
   direction: ltr;
   color: var(--color-ink);
   letter-spacing: -0.6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .brand-mark {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  font-size: var(--font-body-emphasis);
+  border-radius: 8px;
+  background: var(--gradient-brand);
+  color: #ffffff;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 198, 255, 0.35);
+  font-size: 18px;
 }
 .brand-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 700;
+  font-size: 19px;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
 }
 .lucide {
   stroke-width: 1.75;

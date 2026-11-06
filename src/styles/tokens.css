@@ -1,75 +1,79 @@
 :root,
-[data-preview-theme="light"] {
-  color-scheme: light;
-  --color-canvas: #f7f8fa;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f0f2f5;
-  --color-surface-active: #eaf0ff;
-  --color-ink: #182230;
-  --color-ink-muted: #526071;
-  --color-ink-subtle: #657386;
-  --color-border: #d5dce6;
-  --color-border-soft: #e7ebf0;
-  --color-primary: #2859c5;
-  --color-primary-strong: #2859c5;
-  --color-positive: #006d3f;
-  --color-negative: #9e0d22;
-  --color-chart-wick-up: rgba(0, 109, 63, 0.62);
-  --color-chart-wick-down: rgba(158, 13, 34, 0.62);
-  --color-warning: #9a5b00;
-  --color-login-blue: #0052ff;
-  --color-auth-canvas: #000000;
-  --color-auth-blue-deep: #0500ff;
-  --color-auth-blue: #0052ff;
-  --color-auth-blue-shadow: #0c39bf;
-  --color-auth-red: #ff0000;
-  --color-auth-magenta: #ff006f;
-  --color-auth-red-shadow: #a01930;
-  --color-on-accent: #ffffff;
-  --color-portfolio-1: #4579db;
-  --color-portfolio-2: #2e9b80;
-  --color-portfolio-3: #dbad53;
-  --color-portfolio-4: #8c78c1;
-  --color-portfolio-5: #c46f7f;
-  --color-portfolio-other: #8b97a8;
+:root[data-theme],
+:root[data-theme="dark"],
+:root[data-theme="ocean"],
+:root[data-theme="forest"],
+:root[data-theme="dusk"],
+:root[data-theme="sand"],
+[data-preview-theme] {
+  color-scheme: dark;
+  --color-canvas: #0A0A12;
+  --color-surface: rgba(30, 30, 46, 0.80);
+  --color-surface-muted: rgba(22, 22, 34, 0.88);
+  --color-surface-active: rgba(45, 45, 75, 0.92);
+  --color-ink: #FFFFFF;
+  --color-ink-muted: #B0B0C0;
+  --color-ink-subtle: #7A7A8E;
+  --color-border: #2F2F43;
+  --color-border-soft: rgba(255, 255, 255, 0.08);
+  --color-primary: #00C6FF;
+  --color-primary-strong: #7B4397;
+  --color-positive: #00E08F;
+  --color-negative: #FF5555;
+  --color-chart-wick-up: rgba(0, 224, 143, 0.7);
+  --color-chart-wick-down: rgba(255, 85, 85, 0.7);
+  --color-warning: #FFB020;
+  --color-login-blue: #00C6FF;
+  --color-auth-canvas: #0A0A12;
+  --color-auth-blue-deep: #121028;
+  --color-auth-blue: #00C6FF;
+  --color-auth-blue-shadow: #7B4397;
+  --color-auth-red: #FF5555;
+  --color-auth-magenta: #7B4397;
+  --color-auth-red-shadow: rgba(123, 67, 151, 0.5);
+  --color-on-accent: #FFFFFF;
+  --color-portfolio-1: #00C6FF;
+  --color-portfolio-2: #7B4397;
+  --color-portfolio-3: #00E08F;
+  --color-portfolio-4: #FFB020;
+  --color-portfolio-5: #FF5555;
+  --color-portfolio-other: #7A7A8E;
   --color-asset-btc: #f7931a;
   --color-asset-eth: #637eea;
   --color-asset-sol: #18d89d;
   --color-asset-usdt: #26a17b;
-  --color-canvas-dark: #111318;
-  --color-surface-dark: #191c23;
-  --color-surface-muted-dark: #222630;
-  --color-surface-active-dark: #24345d;
-  --color-border-dark: #343a49;
-  --color-border-soft-dark: #292e39;
-  --color-ink-dark: #f2f0f3;
-  --color-ink-muted-dark: #aeb4c2;
-  --color-ink-subtle-dark: #7f8798;
-  --color-primary-dark: #7c9aff;
-  --color-positive-dark: #55df9a;
-  --color-negative-dark: #ff7d86;
-  --color-warning-dark: #f6bd63;
-  --font-family-sans: "Hanken Grotesk", Arial, sans-serif;
-  --font-family-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-display: 48px;
-  --font-display-fluid: clamp(38px, 5vw, 62px);
-  --font-hero: clamp(38px, 5vw, 56px);
-  --font-page-title: clamp(32px, 4vw, 48px);
-  --font-footer-title: clamp(28px, 4vw, 40px);
-  --font-section: 28px;
-  --font-h1: 32px;
-  --font-h2: 24px;
-  --font-h3: 20px;
-  --font-body: 16px;
-  --font-body-emphasis: 18px;
-  --font-brand: 21px;
-  --font-balance-small: 22px;
-  --font-note: 17px;
-  --font-body-small: 14px;
+  
+  /* 品牌渐变与微光特效 */
+  --gradient-brand: linear-gradient(135deg, #00C6FF 0%, #7B4397 100%);
+  --gradient-brand-subtle: linear-gradient(135deg, rgba(0, 198, 255, 0.16) 0%, rgba(123, 67, 151, 0.16) 100%);
+  --gradient-brand-glow: 0 0 24px rgba(0, 198, 255, 0.35), 0 0 40px rgba(123, 67, 151, 0.2);
+  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-glass-popover: 0 12px 36px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  
+  /* 字体规范：现代无衬线、尺寸舒适精巧 */
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: 34px;
+  --font-display-fluid: clamp(26px, 3.2vw, 38px);
+  --font-hero: clamp(26px, 3.2vw, 36px);
+  --font-page-title: clamp(20px, 2.4vw, 26px);
+  --font-footer-title: clamp(18px, 2.2vw, 24px);
+  --font-section: 20px;
+  --font-h1: 22px;
+  --font-h2: 18px;
+  --font-h3: 15px;
+  --font-body: 14px;
+  --font-body-emphasis: 14px;
+  --font-brand: 17px;
+  --font-balance-small: 16px;
+  --font-note: 13px;
+  --font-body-small: 13px;
   --font-label: 12px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  
+  /* 间距与圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
@@ -84,191 +88,7 @@
   --content-width: 1400px;
   --top-nav-height: 72px;
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-fast: 140ms;
-  --motion-standard: 220ms;
-  --shadow-popover: 0 8px 24px rgba(27, 28, 30, 0.08);
-}
-
-:root[data-theme="dark"],
-:root[data-theme="ocean"],
-:root[data-theme="forest"],
-:root[data-theme="dusk"],
-[data-preview-theme="dark"],
-[data-preview-theme="ocean"],
-[data-preview-theme="forest"],
-[data-preview-theme="dusk"] {
-  color-scheme: dark;
-  --color-canvas: #111318;
-  --color-surface: #191c23;
-  --color-surface-muted: #222630;
-  --color-surface-active: #24345d;
-  --color-ink: #f2f0f3;
-  --color-ink-muted: #c6cad6;
-  --color-ink-subtle: #8b93a5;
-  --color-border: #3b4252;
-  --color-border-soft: #292e39;
-  --color-primary: #7c9aff;
-  --color-primary-strong: #5d82ff;
-  --color-positive: #55df9a;
-  --color-negative: #ff7d86;
-  --color-chart-wick-up: rgba(85, 223, 154, 0.62);
-  --color-chart-wick-down: rgba(255, 125, 134, 0.62);
-  --color-warning: #f6bd63;
-}
-
-:root[data-theme="ocean"],
-[data-preview-theme="ocean"] {
-  color-scheme: dark;
-  --color-canvas: #081b29;
-  --color-surface: #102938;
-  --color-surface-muted: #183747;
-  --color-surface-active: #214b60;
-  --color-ink: #e5f5fa;
-  --color-ink-muted: #b4cbd6;
-  --color-ink-subtle: #8eacbd;
-  --color-border: #365363;
-  --color-border-soft: #223d4d;
-  --color-primary: #71d8ef;
-  --color-primary-strong: #4bbfd9;
-  --color-on-accent: #081b29;
-  --color-auth-canvas: var(--color-canvas);
-  --color-login-blue: var(--color-primary);
-  --color-auth-blue-deep: var(--color-surface-active);
-  --color-auth-blue: var(--color-primary);
-  --color-auth-blue-shadow: var(--color-surface-muted);
-  --color-auth-red: var(--color-primary-strong);
-  --color-auth-magenta: var(--color-ink-subtle);
-  --color-auth-red-shadow: var(--color-surface);
-  --color-canvas-dark: var(--color-canvas);
-  --color-surface-dark: var(--color-surface);
-  --color-surface-muted-dark: var(--color-surface-muted);
-  --color-surface-active-dark: var(--color-surface-active);
-  --color-ink-dark: var(--color-ink);
-  --color-ink-muted-dark: var(--color-ink-muted);
-  --color-ink-subtle-dark: var(--color-ink-subtle);
-  --color-border-dark: var(--color-border);
-  --color-border-soft-dark: var(--color-border-soft);
-  --color-primary-dark: var(--color-primary);
-  --color-positive-dark: var(--color-positive);
-  --color-negative-dark: var(--color-negative);
-  --color-warning-dark: var(--color-warning);
-}
-
-:root[data-theme="forest"],
-[data-preview-theme="forest"] {
-  color-scheme: dark;
-  --color-canvas: #0c1c18;
-  --color-surface: #142e26;
-  --color-surface-muted: #1e3d32;
-  --color-surface-active: #285440;
-  --color-ink: #e7f4eb;
-  --color-ink-muted: #b8cebf;
-  --color-ink-subtle: #96b3a3;
-  --color-border: #3e5a4b;
-  --color-border-soft: #294336;
-  --color-primary: #83ddb6;
-  --color-primary-strong: #58bd94;
-  --color-on-accent: #0c1c18;
-  --color-auth-canvas: var(--color-canvas);
-  --color-login-blue: var(--color-primary);
-  --color-auth-blue-deep: var(--color-surface-active);
-  --color-auth-blue: var(--color-primary);
-  --color-auth-blue-shadow: var(--color-surface-muted);
-  --color-auth-red: var(--color-primary-strong);
-  --color-auth-magenta: var(--color-ink-subtle);
-  --color-auth-red-shadow: var(--color-surface);
-  --color-canvas-dark: var(--color-canvas);
-  --color-surface-dark: var(--color-surface);
-  --color-surface-muted-dark: var(--color-surface-muted);
-  --color-surface-active-dark: var(--color-surface-active);
-  --color-ink-dark: var(--color-ink);
-  --color-ink-muted-dark: var(--color-ink-muted);
-  --color-ink-subtle-dark: var(--color-ink-subtle);
-  --color-border-dark: var(--color-border);
-  --color-border-soft-dark: var(--color-border-soft);
-  --color-primary-dark: var(--color-primary);
-  --color-positive-dark: var(--color-positive);
-  --color-negative-dark: var(--color-negative);
-  --color-warning-dark: var(--color-warning);
-}
-
-:root[data-theme="dusk"],
-[data-preview-theme="dusk"] {
-  color-scheme: dark;
-  --color-canvas: #1c1427;
-  --color-surface: #2a2039;
-  --color-surface-muted: #382c4a;
-  --color-surface-active: #4a3762;
-  --color-ink: #f5eefa;
-  --color-ink-muted: #d0bedc;
-  --color-ink-subtle: #b19cc2;
-  --color-border: #59446b;
-  --color-border-soft: #3f3051;
-  --color-primary: #c9a5fa;
-  --color-primary-strong: #ae85df;
-  --color-on-accent: #1c1427;
-  --color-auth-canvas: var(--color-canvas);
-  --color-login-blue: var(--color-primary);
-  --color-auth-blue-deep: var(--color-surface-active);
-  --color-auth-blue: var(--color-primary);
-  --color-auth-blue-shadow: var(--color-surface-muted);
-  --color-auth-red: var(--color-primary-strong);
-  --color-auth-magenta: var(--color-ink-subtle);
-  --color-auth-red-shadow: var(--color-surface);
-  --color-canvas-dark: var(--color-canvas);
-  --color-surface-dark: var(--color-surface);
-  --color-surface-muted-dark: var(--color-surface-muted);
-  --color-surface-active-dark: var(--color-surface-active);
-  --color-ink-dark: var(--color-ink);
-  --color-ink-muted-dark: var(--color-ink-muted);
-  --color-ink-subtle-dark: var(--color-ink-subtle);
-  --color-border-dark: var(--color-border);
-  --color-border-soft-dark: var(--color-border-soft);
-  --color-primary-dark: var(--color-primary);
-  --color-positive-dark: var(--color-positive);
-  --color-negative-dark: var(--color-negative);
-  --color-warning-dark: var(--color-warning);
-}
-
-:root[data-theme="sand"],
-[data-preview-theme="sand"] {
-  color-scheme: light;
-  --color-canvas: #f6efe3;
-  --color-surface: #fffaf2;
-  --color-surface-muted: #eee3d1;
-  --color-surface-active: #ecd9b8;
-  --color-ink: #30271e;
-  --color-ink-muted: #6b5945;
-  --color-ink-subtle: #7b654f;
-  --color-border: #cebaa0;
-  --color-border-soft: #e4d6c2;
-  --color-primary: #815019;
-  --color-primary-strong: #70400d;
-  --color-positive: #006d3f;
-  --color-negative: #9e0d22;
-  --color-warning: #895000;
-  --color-chart-wick-up: rgba(0, 109, 63, 0.62);
-  --color-chart-wick-down: rgba(158, 13, 34, 0.62);
-  --color-on-accent: #ffffff;
-  --color-auth-canvas: var(--color-canvas);
-  --color-login-blue: var(--color-primary);
-  --color-auth-blue-deep: var(--color-surface-active);
-  --color-auth-blue: var(--color-primary);
-  --color-auth-blue-shadow: var(--color-surface-muted);
-  --color-auth-red: var(--color-primary-strong);
-  --color-auth-magenta: var(--color-ink-subtle);
-  --color-auth-red-shadow: var(--color-surface);
-  --color-canvas-dark: var(--color-canvas);
-  --color-surface-dark: var(--color-surface);
-  --color-surface-muted-dark: var(--color-surface-muted);
-  --color-surface-active-dark: var(--color-surface-active);
-  --color-ink-dark: var(--color-ink);
-  --color-ink-muted-dark: var(--color-ink-muted);
-  --color-ink-subtle-dark: var(--color-ink-subtle);
-  --color-border-dark: var(--color-border);
-  --color-border-soft-dark: var(--color-border-soft);
-  --color-primary-dark: var(--color-primary);
-  --color-positive-dark: var(--color-positive);
-  --color-negative-dark: var(--color-negative);
-  --color-warning-dark: var(--color-warning);
+  --motion-fast: 160ms;
+  --motion-standard: 240ms;
+  --shadow-popover: var(--shadow-glass-popover);
 }
