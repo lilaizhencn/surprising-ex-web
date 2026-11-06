@@ -177,6 +177,19 @@ function AccountNotifications() {
                         {new Date(row.createdAt).toLocaleString()}
                       </time>
                     </small>
+                    {row.route ? (
+                      <div className="notification-action">
+                        <a
+                          href={resolveNotificationUrl(row.route, row.routeParams)}
+                          className="button button-outline button-sm"
+                          onClick={() => {
+                            if (!row.readAt) void mark(row.notificationId)
+                          }}
+                        >
+                          {t("View details")} &rarr;
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
                   {row.readAt ? (
                     <span className="notification-read-label">
@@ -215,10 +228,35 @@ function categoryLabel(value: string) {
         SECURITY: "Security",
         ACCOUNT: "Account",
         TRADING: "Trading",
+        TRADE: "Trading",
         FUNDING: "Funding",
+        MARKET: "Market Alert",
+        RISK: "Risk Alert",
+        WALLET: "Wallet",
+        C2C: "C2C Order",
       } as Record<string, string>
     )[value] ?? value
   )
+}
+function resolveNotificationUrl(route: string, rawParams?: unknown): string {
+  if (!rawParams) return route
+  let params: Record<string, string> = {}
+  if (typeof rawParams === "string") {
+    try {
+      const decoded = JSON.parse(rawParams) as Record<string, unknown>
+      if (decoded && typeof decoded === "object") {
+        params = Object.fromEntries(Object.entries(decoded).map(([k, v]) => [k, String(v)]))
+      }
+    } catch {
+      return route
+    }
+  } else if (rawParams && typeof rawParams === "object") {
+    params = Object.fromEntries(
+      Object.entries(rawParams as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+    )
+  }
+  const queryString = new URLSearchParams(params).toString()
+  return queryString ? `${route}?${queryString}` : route
 }
 function readError(reason: unknown): string {
   return reason instanceof Error

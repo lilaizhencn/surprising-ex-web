@@ -802,6 +802,11 @@ export const NotificationSchema = z.object({
   category: z.string().min(1).max(64),
   title: z.string().min(1),
   body: z.string(),
+  route: z.string().nullable().optional(),
+  routeParams: z
+    .union([z.string(), z.record(z.string(), z.unknown())])
+    .nullable()
+    .optional(),
   readAt: z.iso.datetime({ offset: true }).nullable(),
   createdAt: z.iso.datetime({ offset: true }),
 })
