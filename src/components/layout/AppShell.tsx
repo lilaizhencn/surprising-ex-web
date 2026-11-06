@@ -11,7 +11,7 @@ import { TopNav } from "./TopNav"
 
 export function AppShell({
   children,
-  showFooter = false,
+  showFooter,
   accountArea = false,
 }: {
   readonly children: ReactNode
@@ -20,6 +20,9 @@ export function AppShell({
 }) {
   const session = useSession()
   const redirectingRef = useRef(false)
+  const isTradePage =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/trade/")
+  const hasFooter = showFooter !== undefined ? showFooter : !isTradePage
   useEffect(() => {
     if (accountArea && !session && !redirectingRef.current) {
       navigateInApplication("/auth/login?reason=session-expired", true)
@@ -54,7 +57,7 @@ export function AppShell({
           {children}
         </main>
       )}
-      {showFooter ? <Footer /> : null}
+      {hasFooter ? <Footer /> : null}
     </div>
   )
 }

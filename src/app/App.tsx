@@ -126,13 +126,13 @@ function AppRoutes() {
   const path = window.location.pathname
   if (path === "/legal" || path.startsWith("/legal/"))
     return (
-      <AppShell showFooter>
+      <AppShell>
         <LegalPage />
       </AppShell>
     )
   if (path === "/developers")
     return (
-      <AppShell showFooter>
+      <AppShell>
         <DevelopersPage />
       </AppShell>
     )
@@ -144,7 +144,7 @@ function AppRoutes() {
     )
   if (path === "/")
     return (
-      <AppShell showFooter>
+      <AppShell>
         <HomePage />
       </AppShell>
     )
@@ -156,7 +156,7 @@ function AppRoutes() {
     )
   if (path.startsWith("/trade/") && isSupportedTradeRoute(path.slice("/trade/".length)))
     return (
-      <AppShell>
+      <AppShell showFooter={false}>
         <Suspense fallback={<div className="container section" aria-busy="true" />}>
           <TradePage productKey={path.slice("/trade/".length)} />
         </Suspense>
@@ -260,7 +260,7 @@ function AppRoutes() {
     )
   if (path === "/help")
     return (
-      <AppShell showFooter>
+      <AppShell>
         <HelpPage />
       </AppShell>
     )

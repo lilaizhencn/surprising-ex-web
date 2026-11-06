@@ -677,35 +677,18 @@ button:disabled {
   margin: var(--space-5) 0 var(--space-2);
   font-size: var(--font-h3);
 }
-.grade-grid p,
-.footer p {
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell > main.page,
+.app-shell > .account-layout {
+  flex: 1 0 auto;
+}
+.grade-grid p {
   margin: 0;
   color: var(--color-ink-muted);
-}
-.grade-wide {
-  grid-column: 1 / -1;
-  text-align: center;
-}
-.footer {
-  display: grid;
-  grid-template-columns: 1.2fr repeat(4, 1fr);
-  gap: var(--space-8);
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-8) max(32px, calc((100% - var(--content-width)) / 2));
-  background: var(--color-surface);
-}
-.footer strong {
-  display: block;
-  margin-bottom: var(--space-3);
-}
-.footer a {
-  display: block;
-  margin-top: var(--space-2);
-  color: var(--color-ink-muted);
-  font-size: var(--font-body-small);
-}
-.footer a:hover {
-  color: var(--color-primary);
 }
 .demo-banner {
   border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));

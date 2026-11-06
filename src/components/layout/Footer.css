@@ -1,0 +1,252 @@
+.site-footer {
+  margin-top: auto;
+  width: 100%;
+  background: rgba(14, 16, 25, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  color: #b0b0c0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.site-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px 28px;
+  box-sizing: border-box;
+}
+
+.footer-main-grid {
+  display: grid;
+  grid-template-columns: 1.8fr repeat(4, 1fr);
+  gap: 36px;
+  align-items: start;
+}
+
+/* 品牌信息列 */
+.footer-brand-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.footer-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.footer-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(0, 198, 255, 0.25);
+}
+
+.footer-brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.footer-brand-tagline {
+  margin: 0;
+  color: #b0b0c0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.footer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(30, 30, 46, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #e2e8f0;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+.footer-status-indicator {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+}
+
+.footer-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #00e08f;
+  display: block;
+}
+
+.footer-status-ping {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #00e08f;
+  opacity: 0.75;
+  animation: footerPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes footerPing {
+  75%, 100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.footer-latency-badge {
+  color: #7b92b2;
+  font-size: 11px;
+  margin-left: 4px;
+  font-family: var(--font-family-mono, monospace);
+}
+
+/* 链接列 */
+.footer-links-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-column-heading {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.footer-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-nav-item a {
+  display: inline-flex;
+  align-items: center;
+  color: #b0b0c0;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 200ms ease-out;
+}
+
+.footer-nav-item a:hover {
+  color: #00c6ff;
+  transform: translateX(3px);
+}
+
+/* 底部微型条 */
+.footer-bottom-bar {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: #7e8b9b;
+}
+
+.footer-copyright {
+  margin: 0;
+}
+
+.footer-bottom-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.footer-bottom-links a {
+  color: #7e8b9b;
+  text-decoration: none;
+  transition: color 200ms ease-out;
+}
+
+.footer-bottom-links a:hover {
+  color: #ffffff;
+}
+
+.footer-engine-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* 响应式断点适配 */
+@media (max-width: 1024px) {
+  .footer-main-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+  }
+
+  .footer-brand-column {
+    grid-column: 1 / -1;
+    margin-bottom: 8px;
+  }
+
+  .footer-brand-tagline {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-footer-inner {
+    padding: 36px 16px 24px;
+  }
+
+  .footer-main-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px 16px;
+  }
+
+  .footer-bottom-bar {
+    margin-top: 28px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .footer-bottom-links {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
