@@ -539,7 +539,7 @@ export function TradingOrderTicket({
   }
   return (
     <aside className="trade-ticket">
-      <div className="ticket-tabs">
+      <div className={`ticket-tabs ${productLine === PRODUCT_LINES.spot ? "spot-tabs" : "contract-tabs"}`}>
         {(productLine === PRODUCT_LINES.spot
           ? (["BUY", "SELL"] as const)
           : (["OPEN", "CLOSE"] as const)
@@ -548,7 +548,13 @@ export function TradingOrderTicket({
             type="button"
             key={action}
             className={
-              (action === "BUY" || action === "OPEN" ? "buy" : "sell") +
+              (action === "BUY"
+                ? "buy"
+                : action === "SELL"
+                  ? "sell"
+                  : action === "OPEN"
+                    ? "action-open"
+                    : "action-close") +
               (action === side || action === ticketAction ? " active" : "")
             }
             onClick={() => {

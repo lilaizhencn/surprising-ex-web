@@ -1,3 +1,98 @@
+.trade-account-tables {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.account-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(14, 14, 22, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  min-height: 42px;
+}
+
+.account-table-toolbar [role="tablist"] {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.account-table-toolbar [role="tab"] {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 180ms ease-out;
+}
+
+.account-table-toolbar [role="tab"]:hover {
+  color: var(--color-ink);
+}
+
+.account-table-toolbar [role="tab"][aria-selected="true"] {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.account-table-toolbar [role="tab"][aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-brand);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 8px rgba(0, 198, 255, 0.5);
+}
+
+.account-table-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  margin-left: auto;
+}
+
+.account-table-toolbar label input[type="checkbox"] {
+  accent-color: #00C6FF;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.account-table-toolbar .button-negative {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: rgba(255, 85, 85, 0.16);
+  border: 1px solid rgba(255, 85, 85, 0.4);
+  color: var(--color-negative);
+  box-shadow: none;
+}
+
+.account-table-toolbar .button-negative:hover:not(:disabled) {
+  background: rgba(255, 85, 85, 0.28);
+  border-color: var(--color-negative);
+}
+
 .compact-trading-table .trading-order-actions {
   position: sticky;
   right: 0;
@@ -15,7 +110,8 @@
 
 .trading-order-actions .compact-cancel {
   min-width: 64px;
-  min-height: 32px;
+  min-height: 28px;
+  font-size: 11px;
 }
 
 @media (max-width: 600px) {
@@ -25,7 +121,7 @@
   }
 
   .trading-order-actions .compact-cancel {
-    min-height: 44px;
+    min-height: 38px;
   }
 }
 

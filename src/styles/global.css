@@ -1803,14 +1803,24 @@ button:disabled {
   overflow-x: hidden;
   background: var(--color-canvas);
   color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .trade-page button:not(.button):not(.icon-button) {
   color: var(--color-ink);
 }
 .trade-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr) 330px;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
   min-height: calc(100vh - var(--top-nav-height));
+}
+.trade-ticket {
+  font-size: 12px;
+}
+.trade-ticket input,
+.trade-ticket select,
+.trade-ticket button {
+  font-size: 12px;
 }
 .trade-pairs,
 .trade-ticket {
@@ -2341,7 +2351,7 @@ button:disabled {
   border-radius: var(--radius-sm);
 }
 .ticket-tabs button {
-  height: 36px;
+  height: 34px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
@@ -2362,48 +2372,76 @@ button:disabled {
   color: var(--color-ink);
   background: rgba(255, 255, 255, 0.04);
 }
-.ticket-tabs button.buy.active {
+/* 现货模式下买绿卖红 */
+.ticket-tabs.spot-tabs button.buy.active {
   background: rgba(0, 224, 143, 0.18);
   color: var(--color-positive);
   border-color: rgba(0, 224, 143, 0.45);
   box-shadow: 0 0 10px rgba(0, 224, 143, 0.15);
 }
-.ticket-tabs button.sell.active {
+.ticket-tabs.spot-tabs button.sell.active {
   background: rgba(255, 85, 85, 0.18);
   color: var(--color-negative);
   border-color: rgba(255, 85, 85, 0.45);
   box-shadow: 0 0 10px rgba(255, 85, 85, 0.15);
 }
+/* 合约模式下与全局暗黑科技风渐变一致 */
+.ticket-tabs.contract-tabs button.active {
+  background: var(--gradient-brand);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 198, 255, 0.3);
+}
+
+.ticket-sign-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-brand);
+  color: #FFFFFF !important;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 198, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 200ms ease-out;
+  cursor: pointer;
+}
+.ticket-sign-in:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(0, 198, 255, 0.45);
+  transform: translateY(-1px);
+}
+.ticket-login {
+  display: block;
+  text-align: center;
+  margin-top: 8px;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 180ms ease-out;
+}
+.ticket-login:hover {
+  color: #00C6FF;
+}
 .ticket-contract-settings {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 .ticket-contract-settings select,
 .ticket-contract-settings .field-select,
-.ticket-contract-settings > select {
-  height: 34px;
+.ticket-contract-settings > select,
+.ticket-contract-settings button,
+.ticket-contract-settings .dropdown-select {
+  height: 32px;
   width: 100%;
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-ink);
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: border-color 180ms ease-out, background 180ms ease-out;
-}
-.ticket-contract-settings select:hover,
-.ticket-contract-settings select:focus {
-  border-color: rgba(0, 198, 255, 0.5);
-}
-.ticket-contract-settings button {
-  height: 34px;
-  width: 100%;
-  padding: 0 10px;
-  font-size: 13px;
+  padding: 0 8px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-ink);
   background: var(--color-surface-muted);
@@ -2416,10 +2454,12 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  outline: none;
   transition: all 180ms ease-out;
   cursor: pointer;
 }
-.ticket-contract-settings button:hover:not(:disabled) {
+.ticket-contract-settings button:hover:not(:disabled),
+.ticket-contract-settings .dropdown-select:hover:not(:disabled) {
   border-color: rgba(0, 198, 255, 0.6);
   background: rgba(0, 198, 255, 0.08);
   color: #00C6FF;
@@ -3325,7 +3365,7 @@ button:disabled {
 /* Three-column trading workspace */
 .trade-shell {
   --trade-heading-height: 50px;
-  grid-template-columns: 300px minmax(0, 1fr) 340px;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
   align-items: start;
 }
 .trade-ticket {
@@ -3333,7 +3373,7 @@ button:disabled {
   grid-row: 1;
   min-height: calc(100vh - var(--top-nav-height));
   border-right: 1px solid var(--color-border);
-  padding: 12px 14px 24px;
+  padding: 10px 12px 20px;
 }
 .trade-main {
   grid-column: 2;
@@ -3416,10 +3456,68 @@ button:disabled {
   margin-top: auto;
 }
 .trade-market-side .order-book {
-  grid-auto-rows: 26px;
+  grid-auto-rows: 24px;
   gap: 0 6px;
   padding-top: 0;
   align-items: center;
+}
+.order-book-row {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  min-width: 0;
+  text-align: left;
+  font-size: 11px;
+  padding: 0 4px;
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+.order-book-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.order-book-depth-fill {
+  position: absolute;
+  inset: 1px 0;
+  z-index: -1;
+  pointer-events: none;
+  transform-origin: right center;
+  transition: transform 160ms ease-out;
+}
+.order-book-depth-fill.positive {
+  background: rgba(0, 224, 143, 0.18);
+}
+.order-book-depth-fill.negative {
+  background: rgba(255, 85, 85, 0.18);
+}
+.book-price-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family-mono);
+}
+.book-price-button.positive {
+  color: #00E08F !important;
+}
+.book-price-button.negative {
+  color: #FF5555 !important;
+}
+.order-book-last-trade .book-price-button.positive {
+  color: #00E08F !important;
+  font-size: 18px !important;
+  font-weight: 700;
+}
+.order-book-last-trade .book-price-button.negative {
+  color: #FF5555 !important;
+  font-size: 18px !important;
+  font-weight: 700;
 }
 .trade-market-side .panel-heading {
   flex-shrink: 0;

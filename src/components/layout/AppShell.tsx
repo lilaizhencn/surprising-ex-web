@@ -43,7 +43,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       <TopNav session={session} onLogout={logout} />
-      <AnnouncementSurfaces />
+      {!isTradePage ? <AnnouncementSurfaces /> : null}
       {!session && window.location.pathname === "/" ? <GoogleLogin oneTapOnly /> : null}
       {accountArea ? (
         <div className="account-layout">
