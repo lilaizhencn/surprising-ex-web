@@ -1934,14 +1934,18 @@ button:disabled {
   border-right: 1px solid var(--color-border);
 }
 .trade-market-header {
-  display: grid;
-  grid-template-columns: minmax(245px, 1.8fr) repeat(6, minmax(0, 1fr));
-  min-height: 52px;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
+  flex-wrap: nowrap;
+  min-height: 52px;
+  gap: 18px;
   border-bottom: 1px solid var(--color-border);
   padding: 6px var(--space-3);
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.trade-market-header::-webkit-scrollbar {
+  display: none;
 }
 .trade-market-header h1 {
   display: flex;
@@ -1950,31 +1954,26 @@ button:disabled {
   margin: 0;
   font-size: var(--font-h2);
   white-space: nowrap;
-  overflow: hidden;
 }
 .trade-market-header > div {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-  white-space: nowrap;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: max-content;
+  flex-shrink: 0;
 }
 .trade-market-header > div:first-child {
-  grid-row: span 2;
+  flex-shrink: 0;
+  margin-right: 6px;
 }
 .trade-market-header small {
   color: var(--color-ink-muted);
-}
-.trade-market-header > div > strong,
-.trade-market-header > div > small,
-.trade-market-header > div > .cluster {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 11px;
 }
 .trade-market-header > div > strong {
   font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
 .trade-market-header .cluster {
   flex-wrap: nowrap;
@@ -3571,8 +3570,8 @@ button:disabled {
 .trade-market-header {
   position: relative;
   z-index: 3;
-  grid-template-columns: minmax(270px, 1.7fr) repeat(4, minmax(85px, 1fr));
-  overflow: visible;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .trade-market-header > div:first-child {
   overflow: visible;

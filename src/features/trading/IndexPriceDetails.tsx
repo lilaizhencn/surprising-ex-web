@@ -3,6 +3,7 @@ import { useId } from "react"
 import { t } from "../../i18n"
 import { formatPrice } from "../../lib/format"
 import { record, rows } from "../../realtime"
+import "./IndexPriceDetails.css"
 
 export function IndexPriceDetails({
   index,
@@ -35,6 +36,7 @@ export function IndexPriceDetails({
           <h3 id={`${id}-title`}>{t("How the index price is calculated")}</h3>
           <button
             type="button"
+            className="index-price-popover-close"
             popoverTarget={id}
             popoverTargetAction="hide"
             aria-label={t("Close")}
@@ -79,6 +81,9 @@ export function IndexPriceDetails({
             <tbody>
               {components.map((component, i) => {
                 const value = record(component)
+                const statusStr = String(value["status"] ?? "Unavailable")
+                const isAvailable =
+                  statusStr.toLowerCase() === "active" || statusStr.toLowerCase() === "valid"
                 return (
                   <tr key={`${String(value["source"])}-${i}`}>
                     <td>{String(value["source"] ?? "—")}</td>
@@ -93,7 +98,9 @@ export function IndexPriceDetails({
                         : `${(Number(value["effectiveWeight"]) * 100).toFixed(2)}%`}
                     </td>
                     <td title={String(value["reason"] ?? "")}>
-                      {t(String(value["status"] ?? "Unavailable"))}
+                      <span className={`status-badge ${isAvailable ? "" : "status-unavailable"}`}>
+                        {t(statusStr)}
+                      </span>
                     </td>
                   </tr>
                 )
@@ -102,7 +109,7 @@ export function IndexPriceDetails({
           </table>
         </div>
         {components.length === 0 && <p>{t("Index components are currently unavailable.")}</p>}
-        <small>
+        <small style={{ display: "block", marginTop: "16px", color: "rgba(255, 255, 255, 0.4)" }}>
           {t("Updated")}:{" "}
           {index?.["eventTime"] ? new Date(String(index["eventTime"])).toLocaleTimeString() : "—"}
         </small>
