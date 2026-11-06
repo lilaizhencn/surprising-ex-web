@@ -87,7 +87,37 @@ export function TopNav({
           ))}
         </nav>
         <div className="nav-actions">
-          <LanguagePicker />
+          {session ? (
+            <>
+              <a
+                className={
+                  session.user.displayName ? "nav-account nav-account-named" : "nav-account"
+                }
+                href="/assets"
+                aria-label={t("Overview")}
+              >
+                <CircleUserRound size={20} />
+                {session.user.displayName ? (
+                  <span className="nav-display-name" title={session.user.displayName}>
+                    {session.user.displayName}
+                  </span>
+                ) : null}
+              </a>
+              <button type="button" className="nav-logout" onClick={onLogout}>
+                {t("Sign out")}
+              </button>
+            </>
+          ) : (
+            <div className="nav-auth-buttons">
+              <a className="nav-login-link" href="/auth/login">
+                {t("Log in")}
+              </a>
+              <a className="nav-signup-btn" href="/auth/register">
+                {t("Sign up")}
+              </a>
+            </div>
+          )}
+          <div className="nav-divider" />
           <IconButton
             label={t("Announcements")}
             onClick={() => {
@@ -95,7 +125,7 @@ export function TopNav({
             }}
           >
             <span className="announcement-nav-icon">
-              <Megaphone size={20} />
+              <Megaphone size={18} />
               {unreadAnnouncements > 0 ? (
                 <span>{unreadAnnouncements > 99 ? "99+" : unreadAnnouncements}</span>
               ) : null}
@@ -108,28 +138,11 @@ export function TopNav({
                 navigateInApplication("/notifications")
               }}
             >
-              <Bell size={20} />
+              <Bell size={18} />
             </IconButton>
           ) : null}
           <ThemePicker />
-          <a
-            className={session?.user.displayName ? "nav-account nav-account-named" : "nav-account"}
-            href={session ? "/assets" : "/auth/login"}
-            aria-label={session ? t("Overview") : t("Sign in")}
-          >
-            <CircleUserRound size={21} />
-            {session?.user.displayName ? (
-              <span className="nav-display-name" title={session.user.displayName}>
-                {session.user.displayName}
-              </span>
-            ) : null}
-          </a>
-          {session ? (
-            <button type="button" className="nav-logout" onClick={onLogout}>
-              {" "}
-              {t("Sign out")}{" "}
-            </button>
-          ) : null}
+          <LanguagePicker />
           <IconButton
             label={t("Open navigation")}
             className="mobile-nav-toggle"
