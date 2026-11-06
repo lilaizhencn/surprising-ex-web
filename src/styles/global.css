@@ -743,6 +743,11 @@ button:disabled {
   margin: 0;
   padding: 0;
   list-style: none;
+  transition: opacity 200ms ease-out;
+}
+.announcement-list.paging {
+  opacity: 0.6;
+  pointer-events: none;
 }
 .announcement-list > li {
   min-width: 0;

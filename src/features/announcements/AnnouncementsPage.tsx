@@ -47,7 +47,8 @@ function AnnouncementCenter({
   const [page, setPage] = useState<Page | null>(null)
   const [selected, setSelected] = useState<ApiAnnouncement | null>(null)
   const [unreadOnly, setUnreadOnly] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [paging, setPaging] = useState(false)
   const [error, setError] = useState("")
   const [actionError, setActionError] = useState("")
   const [allBusy, setAllBusy] = useState(false)
@@ -59,7 +60,7 @@ function AnnouncementCenter({
   const allLock = useRef(false)
   const detailTitle = useRef<HTMLHeadingElement>(null)
   const list = useRef<HTMLUListElement>(null)
-  const mutating = allBusy || reading.size > 0
+  const mutating = allBusy || reading.size > 0 || paging
   const initialLoad = useEffectEvent(() => {
     void load(0)
   })
@@ -82,11 +83,15 @@ function AnnouncementCenter({
     query.current?.abort()
     const abort = new AbortController()
     query.current = abort
-    setLoading(true)
+    const isPaging = page !== null
+    if (isPaging) {
+      setPaging(true)
+    } else {
+      setInitialLoading(true)
+      setSelected(null)
+    }
     setError("")
     setActionError("")
-    setPage(null)
-    setSelected(null)
     try {
       const result = await loadAnnouncements(
         {
@@ -105,9 +110,15 @@ function AnnouncementCenter({
         )
       if (!abort.signal.aborted) setPage(result)
     } catch (reason) {
-      if (!abort.signal.aborted) setError(contentError(reason))
+      if (!abort.signal.aborted) {
+        if (isPaging) setActionError(contentError(reason))
+        else setError(contentError(reason))
+      }
     } finally {
-      if (!abort.signal.aborted) setLoading(false)
+      if (!abort.signal.aborted) {
+        if (isPaging) setPaging(false)
+        else setInitialLoading(false)
+      }
     }
   }
   async function open(row: ApiAnnouncement) {
@@ -195,7 +206,7 @@ function AnnouncementCenter({
             <div>
               <Button
                 tone="outline"
-                disabled={mutating || loading}
+                disabled={mutating || initialLoading}
                 aria-pressed={unreadOnly}
                 onClick={() => setUnreadOnly((value) => !value)}
               >
@@ -205,7 +216,7 @@ function AnnouncementCenter({
                 tone="outline"
                 onClick={() => void markAll()}
                 loading={allBusy}
-                disabled={mutating || loading || !page?.unreadCount}
+                disabled={mutating || initialLoading || !page?.unreadCount}
               >
                 {t("Mark all read")}
               </Button>
@@ -222,12 +233,12 @@ function AnnouncementCenter({
             {actionError}
           </p>
         ) : null}
-        {loading ? (
+        {initialLoading && !page ? (
           <div role="status" aria-busy="true">
             <StateView kind="loading" message="Loading announcements" />
             <span className="sr-only">{t("Loading announcements")}</span>
           </div>
-        ) : error ? (
+        ) : error && !page ? (
           <StateView kind="error" message={error} retry={() => void load(0)} />
         ) : (
           <>
@@ -241,8 +252,9 @@ function AnnouncementCenter({
               <ul
                 ref={list}
                 tabIndex={-1}
-                className="announcement-list"
+                className={`announcement-list ${paging ? "paging" : ""}`}
                 aria-label={t("Announcements")}
+                aria-busy={paging || undefined}
               >
                 {visible.map((row) => (
                   <li key={row.announcementId}>
