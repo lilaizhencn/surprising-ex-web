@@ -108,7 +108,10 @@ function AnnouncementCenter({
         throw new Error(
           t("The service returned an unexpected response. Please refresh and try again."),
         )
-      if (!abort.signal.aborted) setPage(result)
+      if (!abort.signal.aborted) {
+        setPage(result)
+        setSelected((current) => current ?? result.announcements[0] ?? null)
+      }
     } catch (reason) {
       if (!abort.signal.aborted) {
         if (isPaging) setActionError(contentError(reason))
@@ -243,10 +246,7 @@ function AnnouncementCenter({
         ) : (
           <>
             {visible.length === 0 && unreadOnly ? (
-              <StateView
-                kind="empty"
-                message="No unread announcements on this page."
-              />
+              <StateView kind="empty" message="No unread announcements on this page." />
             ) : null}
             <div className="announcement-layout">
               <ul

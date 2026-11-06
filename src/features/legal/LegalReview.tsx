@@ -17,7 +17,6 @@ export function LegalReview({
   const [error, setError] = useState("")
   const [checked, setChecked] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt intentionally reloads after the user clicks Retry.
   useEffect(() => {
     const request = new AbortController()
     setChecked(false)

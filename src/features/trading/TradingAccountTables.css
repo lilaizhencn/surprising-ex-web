@@ -37,12 +37,12 @@
 }
 
 .account-table-toolbar [role="tab"]:hover {
-  color: #FFFFFF;
+  color: #ffffff;
   background: rgba(255, 255, 255, 0.05);
 }
 
 .account-table-toolbar [role="tab"][aria-selected="true"] {
-  color: #00C6FF;
+  color: #00c6ff;
   font-weight: 600;
   background: rgba(0, 198, 255, 0.12);
   border-color: rgba(0, 198, 255, 0.3);
@@ -65,7 +65,7 @@
 }
 
 .account-table-toolbar label input[type="checkbox"] {
-  accent-color: #00C6FF;
+  accent-color: #00c6ff;
   width: 14px;
   height: 14px;
   cursor: pointer;

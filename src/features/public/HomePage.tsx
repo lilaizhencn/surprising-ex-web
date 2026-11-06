@@ -177,9 +177,7 @@ export function HomePage() {
                   <Sparkline values={market.trend} positive={(market.change24h ?? 0) >= 0} />
                 ) : markets.length === 0 && config.demoDataEnabled ? (
                   <Sparkline values={demoTrend} positive={(market.change24h ?? 0) >= 0} />
-                ) : (
-                  <span className="subtle trend-unavailable">{t("Trend unavailable")}</span>
-                )}
+                ) : null}
               </Panel>
             ))}
           </div>

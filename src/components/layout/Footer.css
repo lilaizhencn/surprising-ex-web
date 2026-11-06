@@ -113,7 +113,8 @@
 }
 
 @keyframes footerPing {
-  75%, 100% {
+  75%,
+  100% {
     transform: scale(2.2);
     opacity: 0;
   }

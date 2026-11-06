@@ -54,8 +54,8 @@ async function loadCatalog(
   next: Locale,
   controller: AbortController,
 ): Promise<Readonly<Record<string, string>>> {
-  const url = catalogUrls["./catalogs/" + next + ".json"]
-  if (!url) throw new Error("Language unavailable: " + next)
+  const url = catalogUrls[`./catalogs/${next}.json`]
+  if (!url) throw new Error(`Language unavailable: ${next}`)
   const timer = window.setTimeout(() => controller.abort(), 10_000)
   try {
     const response = await fetch(url, { signal: controller.signal, credentials: "omit" })
@@ -150,12 +150,12 @@ export function useLanguageLoad(): LanguageLoad {
 }
 export function languageMeta(code: Locale) {
   const metadata = LOCALES.find((item) => item.code === code)
-  if (!metadata) throw new Error("Unknown language: " + code)
+  if (!metadata) throw new Error(`Unknown language: ${code}`)
   return metadata
 }
 export function t(text: string): string {
   const catalog = catalogs.get(locale)
-  if (!catalog) throw new Error("Language has not been loaded: " + locale)
+  if (!catalog) throw new Error(`Language has not been loaded: ${locale}`)
   const value = Object.hasOwn(catalog, text) ? catalog[text] : undefined
   return value ?? text
 }

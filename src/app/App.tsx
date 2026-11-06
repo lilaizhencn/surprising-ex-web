@@ -9,11 +9,7 @@ import { MarketsPage } from "../features/public/MarketsPage"
 import { useBrowserNavigation } from "../hooks/useBrowserNavigation"
 import { useRealtimeApplication } from "../hooks/useRealtimeApplication"
 import { t, useLocale } from "../i18n"
-import {
-  loadSession,
-  sessionAccessExpired,
-  useSession,
-} from "../state/session"
+import { loadSession, sessionAccessExpired, useSession } from "../state/session"
 
 const AffiliatePage = lazy(() =>
   import("../features/affiliate/AffiliatePage").then((module) => ({

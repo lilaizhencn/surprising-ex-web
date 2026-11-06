@@ -378,14 +378,8 @@ function TradingAccountTablesView(props: Props) {
           </button>
         ) : null}
       </div>
-      {!loggedIn ? (
-        <p className="account-table-empty">
-          {t(
-            productLine === "SPOT"
-              ? "Log in to view account and orders."
-              : "Log in to view orders and positions.",
-          )}
-        </p>
+      {!loggedIn && productLine === "SPOT" ? (
+        <p className="account-table-empty">{t("Log in to view account and orders.")}</p>
       ) : tab === "positions" ? (
         <div className="table-wrap">
           <table className="data-table compact-trading-table">

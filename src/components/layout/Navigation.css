@@ -48,10 +48,10 @@ textarea {
   transition: all 180ms ease-out;
 }
 .nav-item > a:hover {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 .nav-item > a[aria-current="page"] {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 600;
 }
 .nav-item > a[aria-current="page"]::after {

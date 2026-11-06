@@ -30,7 +30,6 @@ export function TopNav({
   const owner = String(session?.user.userId ?? "guest")
   const unreadAnnouncements =
     unreadSnapshot?.owner === owner && unreadSnapshot.locale === locale ? unreadSnapshot.count : 0
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Route changes close the open navigation.
   useEffect(() => setMobileOpen(false), [pathname])
   useEffect(() => {
     let request: AbortController | null = null
@@ -163,7 +162,6 @@ function DesktopNavigationItem({
   const active = menu
     ? menu.some((child) => pathname.startsWith(child.href))
     : pathname.startsWith(item.href)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Route changes close the open dropdown.
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => {
     if (!open) return

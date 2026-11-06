@@ -13,7 +13,9 @@ export function Footer() {
               <span className="footer-brand-title">Surprising EX</span>
             </a>
             <p className="footer-brand-tagline">
-              {t("Next-generation high-performance derivatives and digital assets trading platform.")}
+              {t(
+                "Next-generation high-performance derivatives and digital assets trading platform.",
+              )}
             </p>
             <div className="footer-status-badge">
               <span className="footer-status-indicator" aria-hidden="true">
@@ -107,11 +109,8 @@ export function Footer() {
 
         {/* 底部版权与协议小字 */}
         <div className="footer-bottom-bar">
-          <p className="footer-copyright">
-            {t("© 2026 Surprising EX. All rights reserved.")}
-          </p>
+          <p className="footer-copyright">{t("© 2026 Surprising EX. All rights reserved.")}</p>
           <div className="footer-bottom-links">
-            <span className="footer-engine-tag">Aeron Engine</span>
             <a href="/legal/user-agreement">{t("Terms")}</a>
             <a href="/legal/privacy-policy">{t("Privacy")}</a>
             <a href="/help">{t("Status")}</a>

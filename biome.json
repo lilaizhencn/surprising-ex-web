@@ -4,13 +4,23 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "complexity": {
+        "useLiteralKeys": "off",
+        "noImportantStyles": "off"
+      },
       "style": {
+        "noDescendingSpecificity": "off",
+        "useTemplate": "off",
         "noDefaultExport": "error",
         "useImportType": "error",
         "noNonNullAssertion": "error",
         "noParameterAssign": "error"
       },
+      "suspicious": {
+        "noArrayIndexKey": "off"
+      },
       "correctness": {
+        "useExhaustiveDependencies": "off",
         "noUnusedVariables": "error",
         "noUnusedImports": "error"
       }

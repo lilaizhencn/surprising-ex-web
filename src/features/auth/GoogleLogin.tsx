@@ -57,7 +57,6 @@ export function GoogleLogin({
   }
   const acceptRef = useRef(accept)
   acceptRef.current = accept
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Each explicit retry must replace the single-use nonce.
   useEffect(() => {
     const controller = new AbortController()
     let timer = 0

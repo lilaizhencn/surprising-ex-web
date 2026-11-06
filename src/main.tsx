@@ -32,7 +32,7 @@ async function start() {
   try {
     await initializeLocale()
   } catch {
-    rootElement.textContent = messages.error + " "
+    rootElement.textContent = `${messages.error} `
     const retry = document.createElement("button")
     retry.type = "button"
     retry.textContent = messages.retry

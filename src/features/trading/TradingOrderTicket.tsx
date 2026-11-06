@@ -539,7 +539,9 @@ export function TradingOrderTicket({
   }
   return (
     <aside className="trade-ticket">
-      <div className={`ticket-tabs ${productLine === PRODUCT_LINES.spot ? "spot-tabs" : "contract-tabs"}`}>
+      <div
+        className={`ticket-tabs ${productLine === PRODUCT_LINES.spot ? "spot-tabs" : "contract-tabs"}`}
+      >
         {(productLine === PRODUCT_LINES.spot
           ? (["BUY", "SELL"] as const)
           : (["OPEN", "CLOSE"] as const)

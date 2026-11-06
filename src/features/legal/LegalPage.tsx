@@ -14,7 +14,6 @@ export function LegalPage() {
   const [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [attempt, setAttempt] = useState(0)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt intentionally reloads after the user clicks Retry.
   useEffect(() => {
     const request = new AbortController()
     setLoading(true)
