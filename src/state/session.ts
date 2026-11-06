@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 import type { AuthSession } from "../api/types"
 import { storageKeys } from "../lib/config"
-import { writeStoredValue } from "../lib/storage"
+import { readStoredValue, writeStoredValue } from "../lib/storage"
 
 export const SESSION_CHANGED_EVENT = "surprising-ex.session-changed"
 
@@ -67,12 +67,18 @@ function sessionRefreshExpired(session: AuthSession): boolean {
   )
 }
 
+export function hasStoredSession(): boolean {
+  if (typeof window === "undefined") return false
+  return Boolean(readStoredValue(storageKeys.hasSession))
+}
+
 export function saveSession(session: AuthSession | null): void {
   if (typeof window === "undefined") return
   if (session && !validStoredSession(session))
     throw new Error("The service returned an invalid session. Please sign in again.")
   refreshIssue = null
   writeStoredValue(storageKeys.session, null)
+  writeStoredValue(storageKeys.hasSession, session ? "true" : null)
   cachedSession = session
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
 }

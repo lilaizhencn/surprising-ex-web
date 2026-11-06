@@ -13,7 +13,6 @@ import {
   loadSession,
   sessionAccessExpired,
   useSession,
-  useSessionRefreshIssue,
 } from "../state/session"
 
 const AffiliatePage = lazy(() =>
@@ -80,29 +79,9 @@ const TradePage = lazy(() =>
 export function App() {
   const location = useBrowserNavigation()
   useRealtimeApplication(useSession())
-  const refreshIssue = useSessionRefreshIssue()
-  const [retrying, setRetrying] = useState(false)
   return (
     <>
       <LegalUpdateDialog />
-      {refreshIssue ? (
-        <div className="demo-banner" role="alert">
-          {refreshIssue}{" "}
-          <button
-            type="button"
-            className="button button-outline"
-            disabled={retrying}
-            onClick={() => {
-              setRetrying(true)
-              void refreshStoredSession()
-                .catch(() => {})
-                .finally(() => setRetrying(false))
-            }}
-          >
-            {t("Retry")}
-          </button>
-        </div>
-      ) : null}
       <Suspense
         fallback={
           <AppShell>

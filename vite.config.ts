@@ -58,5 +58,19 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    preview: {
+      allowedHosts: true,
+      proxy: {
+        "^/api/": {
+          target: env.VITE_API_PROXY_TARGET || "http://localhost:9094",
+          changeOrigin: true,
+        },
+        "/ws": {
+          target: websocketTarget("VITE_WS_PROXY_TARGET", 9094),
+          changeOrigin: true,
+          ws: true,
+        },
+      },
+    },
   }
 })

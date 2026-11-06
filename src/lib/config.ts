@@ -24,6 +24,7 @@ export function applicationWebSocketUrl(baseUrl: string): string {
 
 export const storageKeys = {
   session: "surprising-ex.session",
+  hasSession: "surprising-ex.has-session",
   theme: "surprising-ex.theme",
   favorites: "surprising-ex.favorites",
 } as const

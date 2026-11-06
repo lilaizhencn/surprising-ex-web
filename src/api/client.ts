@@ -8,6 +8,7 @@ import {
   requireLegalReview,
 } from "../state/legalAcceptance"
 import {
+  hasStoredSession,
   loadSession,
   saveSession,
   sessionAccessExpired,
@@ -620,6 +621,7 @@ async function send(
 
 /** Called before mounting protected routes, so a reload restores identity from the HttpOnly cookie. */
 export async function restoreBrowserSession(): Promise<void> {
+  if (!hasStoredSession()) return
   try {
     const restored = await request(
       "/api/v1/auth/browser/refresh",
@@ -629,10 +631,7 @@ export async function restoreBrowserSession(): Promise<void> {
     )
     saveSession(restored)
     clearLegalReview()
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) return
-    setSessionRefreshIssue(
-      t("Session temporarily unavailable. Private operations are paused. Please retry."),
-    )
+  } catch {
+    saveSession(null)
   }
 }
