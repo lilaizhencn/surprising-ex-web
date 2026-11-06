@@ -548,10 +548,12 @@ button:disabled {
 .top-nav-inner {
   display: flex;
   height: 100%;
+  width: 100%;
+  max-width: 100%;
   align-items: center;
-  gap: var(--space-8);
-  width: min(100% - 48px, 1800px);
-  margin: 0 auto;
+  gap: var(--space-4);
+  padding: 0 16px;
+  margin: 0;
 }
 .brand,
 .auth-brand {
@@ -3129,7 +3131,8 @@ button:disabled {
 
 @media (max-width: 1024px) {
   .top-nav-inner {
-    width: min(100% - 32px, 1800px);
+    width: 100%;
+    padding: 0 16px;
     gap: var(--space-4);
   }
   .top-links {
@@ -3219,7 +3222,8 @@ button:disabled {
 }
 @media (max-width: 768px) {
   .top-nav-inner {
-    width: min(100% - 32px, 1800px);
+    width: 100%;
+    padding: 0 12px;
     gap: var(--space-3);
   }
   .nav-actions {

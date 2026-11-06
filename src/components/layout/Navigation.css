@@ -17,10 +17,15 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 90;
+  width: 100%;
 }
 .top-nav-inner {
   height: 100%;
-  gap: var(--space-5);
+  width: 100%;
+  max-width: 100%;
+  padding: 0 16px;
+  margin: 0;
+  gap: var(--space-4);
   display: flex;
   align-items: center;
 }
@@ -326,7 +331,8 @@ summary:focus-visible {
 @media (max-width: 768px) {
   .top-nav-inner {
     gap: var(--space-2);
-    width: calc(100% - 24px);
+    width: 100%;
+    padding: 0 12px;
   }
   .top-nav .nav-actions {
     gap: 0;
@@ -367,7 +373,8 @@ summary:focus-visible {
     min-width: 40px;
   }
   .top-nav-inner {
-    width: calc(100% - 16px);
+    width: 100%;
+    padding: 0 8px;
   }
   .top-nav .language-picker {
     width: 62px;
