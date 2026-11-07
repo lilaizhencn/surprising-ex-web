@@ -1,0 +1,235 @@
+/* 网格策略面板 - 遵循未来科技风规范 */
+.trade-order-pane-container {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  flex-shrink: 0;
+}
+
+.trade-pane-mode-tabs {
+  display: flex;
+  background: rgba(18, 18, 28, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 8px;
+}
+
+.trade-pane-mode-tabs button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b0b0c0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.trade-pane-mode-tabs button.active {
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 198, 255, 0.25);
+}
+
+.grid-bot-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.grid-form-card,
+.grid-list-card {
+  background: rgba(30, 30, 46, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 16px 20px;
+  color: #ffffff;
+}
+
+.grid-form-header,
+.grid-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.grid-form-header h3,
+.grid-list-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.badge-tech {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(0, 198, 255, 0.2), rgba(123, 67, 151, 0.2));
+  border: 1px solid rgba(0, 198, 255, 0.4);
+  color: #00c6ff;
+}
+
+.grid-mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  background: rgba(10, 10, 18, 0.6);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.grid-mode-selector button {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b0b0c0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.grid-mode-selector button.active {
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 198, 255, 0.3);
+}
+
+.grid-inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.grid-inputs-row .number-input {
+  display: flex;
+  align-items: center;
+  background: rgba(10, 10, 18, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0 10px;
+  height: 38px;
+  transition: border-color 0.2s;
+}
+
+.grid-inputs-row .number-input:focus-within {
+  border-color: #00c6ff;
+  box-shadow: 0 0 0 1px rgba(0, 198, 255, 0.3);
+}
+
+.grid-inputs-row .number-input input {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.grid-inputs-row .number-input .unit {
+  font-size: 12px;
+  color: #8e8ea0;
+  margin-left: 6px;
+}
+
+.refresh-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #b0b0c0;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.refresh-btn:hover {
+  color: #ffffff;
+  border-color: #00c6ff;
+}
+
+.empty-strategies {
+  text-align: center;
+  padding: 24px 10px;
+  color: #b0b0c0;
+  font-size: 13px;
+}
+
+.strategy-table-wrapper {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.strategy-table-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.strategy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.strategy-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: #b0b0c0;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.strategy-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.status-running {
+  background: rgba(0, 224, 143, 0.15);
+  color: #00e08f;
+  border: 1px solid rgba(0, 224, 143, 0.3);
+}
+
+.status-stopped {
+  background: rgba(255, 255, 255, 0.08);
+  color: #b0b0c0;
+}
+
+.stop-btn {
+  background: rgba(255, 85, 85, 0.15);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  color: #ff5555;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.stop-btn:hover {
+  background: rgba(255, 85, 85, 0.3);
+}

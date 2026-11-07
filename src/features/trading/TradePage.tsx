@@ -58,6 +58,7 @@ import { TradeMarketPanel } from "./TradeMarketPanel"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { TradingOrderTicket } from "./TradingOrderTicket"
+import { GridTradingPanel } from "./GridTradingPanel"
 import type { LeverageSettings } from "./TradingTicketControls"
 import { TriggerOrders } from "./TriggerOrders"
 import { formatTradeQuantity, isDollarQuote, priceDisplayPrecision } from "./tradeFormatting"
@@ -184,6 +185,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     productLine: ProductLine
     userId: string
   } | null>(null)
+  const [ticketMode, setTicketMode] = useState<"standard" | "grid">("standard")
   const demo = config.demoDataEnabled && !marketsRequestFinished
   const availableMarkets = markets.length > 0 ? markets : demo ? demoMarkets : []
   useEffect(() => {
@@ -1032,27 +1034,56 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           recentTrades={recentTrades}
           onPriceSelect={selectBookPrice}
         />
-        <TradingOrderTicket
-          key={`${view.line}:${current?.instrumentId ?? ""}:${session?.user.userId ?? "guest"}`}
-          current={current}
-          productLine={view.line}
-          session={session}
-          accountReady={accountReady}
-          assetScales={assetScales}
-          marketQuote={current ? (marketQuotes[current.instrumentId] ?? current.price) : null}
-          book={book}
-          balances={balances}
-          positions={positions}
-          openOrders={openOrders}
-          orderSettings={orderSettings}
-          onSettingsChange={handleSettingsChange}
-          leverageSetting={leverageSetting}
-          onLeverageChange={handleLeverageChange}
-          pendingCommand={pendingForUser ? pendingCommand : null}
-          selectedBookPrice={selectedBookPrice}
-          onRefresh={realtime.refresh}
-          onNotice={notify}
-        />
+        <div className="trade-order-pane-container">
+          <div className="trade-pane-mode-tabs">
+            <button
+              type="button"
+              className={ticketMode === "standard" ? "active" : ""}
+              onClick={() => setTicketMode("standard")}
+            >
+              {t("Manual Trade")}
+            </button>
+            <button
+              type="button"
+              className={ticketMode === "grid" ? "active" : ""}
+              onClick={() => setTicketMode("grid")}
+            >
+              {t("Grid Bot")}
+            </button>
+          </div>
+          {ticketMode === "standard" ? (
+            <TradingOrderTicket
+              key={`${view.line}:${current?.instrumentId ?? ""}:${session?.user.userId ?? "guest"}`}
+              current={current}
+              productLine={view.line}
+              session={session}
+              accountReady={accountReady}
+              assetScales={assetScales}
+              marketQuote={current ? (marketQuotes[current.instrumentId] ?? current.price) : null}
+              book={book}
+              balances={balances}
+              positions={positions}
+              openOrders={openOrders}
+              orderSettings={orderSettings}
+              onSettingsChange={handleSettingsChange}
+              leverageSetting={leverageSetting}
+              onLeverageChange={handleLeverageChange}
+              pendingCommand={pendingForUser ? pendingCommand : null}
+              selectedBookPrice={selectedBookPrice}
+              onRefresh={realtime.refresh}
+              onNotice={notify}
+            />
+          ) : (
+            <GridTradingPanel
+              current={current}
+              productLine={view.line}
+              session={session}
+              assetScales={assetScales}
+              marketQuote={current ? (marketQuotes[current.instrumentId] ?? current.price) : null}
+              onNotice={notify}
+            />
+          )}
+        </div>
       </div>
       {(error || marketDataError) && !demo ? (
         <div className="container trade-notice">

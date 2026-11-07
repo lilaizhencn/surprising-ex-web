@@ -347,3 +347,106 @@
   background: rgba(0, 198, 255, 0.12);
   border-color: #00c6ff;
 }
+
+/* 高级设置：附带止盈止损 (Bracket TP/SL) 与 STP 防自成交 */
+.advanced-order-settings {
+  margin: 12px 0;
+  border-radius: 8px;
+  background: rgba(30, 30, 46, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.advanced-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--color-ink-muted, #b0b0c0);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.advanced-toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.advanced-toggle-btn .badge-pill {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(0, 198, 255, 0.15);
+  color: #00c6ff;
+  border: 1px solid rgba(0, 198, 255, 0.3);
+}
+
+.advanced-content {
+  padding: 10px 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bracket-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bracket-field label {
+  display: block;
+  font-size: 11px;
+  color: #b0b0c0;
+  margin-bottom: 4px;
+}
+
+.bracket-field .number-input {
+  display: flex;
+  align-items: center;
+  background: rgba(10, 10, 18, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 32px;
+}
+
+.bracket-field .number-input:focus-within {
+  border-color: #00c6ff;
+  box-shadow: 0 0 0 1px rgba(0, 198, 255, 0.3);
+}
+
+.bracket-field input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+  outline: none;
+}
+
+.bracket-field .unit {
+  font-size: 11px;
+  color: #8e8ea0;
+  margin-left: 4px;
+}
+
+.stp-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stp-field-row label {
+  font-size: 11px;
+  color: #b0b0c0;
+}
+

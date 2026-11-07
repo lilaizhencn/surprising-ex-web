@@ -39,6 +39,10 @@ export interface OrderTicket {
   readonly takeProfitTriggerPrice: string
   readonly takeProfitLimitPrice: string
   readonly takeProfitExecutionType: "LIMIT" | "MARKET"
+  readonly bracketTakeProfitPrice?: string | undefined
+  readonly bracketStopLossPrice?: string | undefined
+  readonly bracketPriceSource?: "MARK" | "LAST" | "INDEX" | undefined
+  readonly stpMode?: "NONE" | "EXPIRE_MAKER" | "EXPIRE_TAKER" | "EXPIRE_BOTH" | undefined
 }
 
 export interface OrderAccount {
@@ -334,6 +338,24 @@ export function prepareOrderSubmission(
             : orderPositionSide(orderSettings.positionMode, ticketAction, side),
         reduceOnly: productLine !== PRODUCT_LINES.spot && ticketAction === "CLOSE",
         postOnly: productLine === PRODUCT_LINES.spot && spotTimeInForce === "GTX",
+        takeProfitPriceTicks:
+          ticket.bracketTakeProfitPrice && isPositiveDecimal(ticket.bracketTakeProfitPrice)
+            ? decimalToStepUnits(
+                ticket.bracketTakeProfitPrice,
+                current.priceTickUnits ?? "",
+                assetScales[current.quoteAsset] ?? "",
+              )
+            : 0,
+        stopLossPriceTicks:
+          ticket.bracketStopLossPrice && isPositiveDecimal(ticket.bracketStopLossPrice)
+            ? decimalToStepUnits(
+                ticket.bracketStopLossPrice,
+                current.priceTickUnits ?? "",
+                assetScales[current.quoteAsset] ?? "",
+              )
+            : 0,
+        tpSlPriceSource: ticket.bracketPriceSource ?? "MARK",
+        stpMode: ticket.stpMode ?? "NONE",
       },
     }
   }

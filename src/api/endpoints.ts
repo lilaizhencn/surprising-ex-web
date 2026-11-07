@@ -2077,3 +2077,196 @@ export async function loadEffectiveTradingFee(
     throw new Error("Order fee metadata mismatch")
   return fee
 }
+
+// ---------------------- VIP 动态阶梯费率 API ----------------------
+export interface VipTierDefinition {
+  readonly tierLevel: number
+  readonly tierCode: string
+  readonly min30DayVolumeUsd: number
+  readonly minAssetBalanceUsd: number
+  readonly makerFeeRatePpm: number
+  readonly takerFeeRatePpm: number
+}
+
+export interface UserVipStatus {
+  readonly userId: number
+  readonly currentTierLevel: number
+  readonly currentTierCode: string
+  readonly makerFeeRatePpm: number
+  readonly takerFeeRatePpm: number
+  readonly rolling30DayVolumeUsd: number
+  readonly nextTierMinVolumeUsd: number
+  readonly volumeNeededForNextTier: number
+}
+
+export async function loadVipLevels(): Promise<readonly VipTierDefinition[]> {
+  const res = await request("/api/v1/trading/fees/vip/levels", GenericObjectSchema)
+  return Array.isArray(res) ? (res as unknown as readonly VipTierDefinition[]) : []
+}
+
+export async function loadMyVipStatus(): Promise<UserVipStatus> {
+  const res = await request("/api/v1/trading/fees/vip/my-status", GenericObjectSchema)
+  return res as unknown as UserVipStatus
+}
+
+export async function evaluateMyVip(productLine?: string): Promise<UserVipStatus> {
+  const query = productLine ? `?productLine=${productLine}` : ""
+  const res = await request(`/api/v1/trading/fees/vip/evaluate${query}`, GenericObjectSchema, {
+    method: "POST",
+  })
+  return res as unknown as UserVipStatus
+}
+
+// ---------------------- 网格策略机器人 API ----------------------
+export interface CreateGridStrategyRequest {
+  readonly instrumentId: string
+  readonly productLine?: string
+  readonly lowerPriceTicks: number | string
+  readonly upperPriceTicks: number | string
+  readonly gridCount: number
+  readonly totalInvestmentUnits: number | string
+  readonly isArithmetic: boolean
+}
+
+export interface GridStrategyRecord {
+  readonly strategyId: number
+  readonly userId: number
+  readonly instrumentId: string
+  readonly productLine: string
+  readonly lowerPriceTicks: number
+  readonly upperPriceTicks: number
+  readonly gridCount: number
+  readonly isArithmetic: boolean
+  readonly totalInvestmentUnits: number
+  readonly status: string
+  readonly totalProfitUnits: number
+  readonly matchedTradeCount: number
+  readonly createdAt: string
+}
+
+export async function createGridStrategy(body: CreateGridStrategyRequest, currentPriceTicks = 0): Promise<GridStrategyRecord> {
+  const query = currentPriceTicks > 0 ? `?currentPriceTicks=${currentPriceTicks}` : ""
+  const res = await request(`/api/v1/trading/grid/create${query}`, GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
+  return res as unknown as GridStrategyRecord
+}
+
+export async function loadGridStrategies(): Promise<readonly GridStrategyRecord[]> {
+  const res = await request("/api/v1/trading/grid/list", GenericObjectSchema)
+  return Array.isArray(res) ? (res as unknown as readonly GridStrategyRecord[]) : []
+}
+
+export async function stopGridStrategy(strategyId: number | string): Promise<GridStrategyRecord> {
+  const res = await request(`/api/v1/trading/grid/${strategyId}/stop`, GenericObjectSchema, {
+    method: "POST",
+  })
+  return res as unknown as GridStrategyRecord
+}
+
+// ---------------------- 主子账户体系 API ----------------------
+export interface SubAccountRecord {
+  readonly id: number
+  readonly parentUserId: number
+  readonly subUserId: number
+  readonly subAccountName: string
+  readonly permissions: string
+  readonly status: string
+  readonly createdAt: string
+}
+
+export interface SubAccountTransferRequest {
+  readonly subUserId: number
+  readonly fromParentToSub: boolean
+  readonly asset: string
+  readonly amountUnits: number | string
+  readonly productLine?: string
+}
+
+export interface SubAccountTransferResponse {
+  readonly transferId: string
+  readonly fromUserId: number
+  readonly toUserId: number
+  readonly asset: string
+  readonly amountUnits: number
+  readonly status: string
+  readonly timestamp: string
+}
+
+export async function createSubAccount(body: { subAccountName: string; permissions?: string }): Promise<SubAccountRecord> {
+  const res = await request("/api/v1/sub-account/create", GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
+  return res as unknown as SubAccountRecord
+}
+
+export async function loadSubAccounts(): Promise<readonly SubAccountRecord[]> {
+  const res = await request("/api/v1/sub-account/list", GenericObjectSchema)
+  return Array.isArray(res) ? (res as unknown as readonly SubAccountRecord[]) : []
+}
+
+export async function transferSubAccount(body: SubAccountTransferRequest): Promise<SubAccountTransferResponse> {
+  const res = await request("/api/v1/sub-account/transfer", GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
+  return res as unknown as SubAccountTransferResponse
+}
+
+// ---------------------- 默克尔树资产储备证明 (PoR) API ----------------------
+export interface PorSnapshotSummary {
+  readonly snapshotId: string
+  readonly rootHash: string
+  readonly totalLiabilityUsd: number
+  readonly totalReserveUsd: number
+  readonly reserveRatioPpm: number
+  readonly totalUserCount: number
+  readonly snapshotTime: string
+}
+
+export interface MerkleProofStep {
+  readonly siblingHash: string
+  readonly isRightSibling: boolean
+}
+
+export interface UserPorProof {
+  readonly userId: number
+  readonly snapshotId: string
+  readonly rootHash: string
+  readonly userLiabilityUsd: number
+  readonly userNonce: string
+  readonly proofPath: readonly MerkleProofStep[]
+  readonly snapshotTime: string
+}
+
+export interface VerifyPorProofResponse {
+  readonly valid: boolean
+  readonly computedRootHash: string
+  readonly expectedRootHash: string
+}
+
+export async function loadLatestPor(): Promise<PorSnapshotSummary> {
+  const res = await request("/api/v1/compliance/por/latest", GenericObjectSchema)
+  return res as unknown as PorSnapshotSummary
+}
+
+export async function loadMyPorProof(): Promise<UserPorProof> {
+  const res = await request("/api/v1/compliance/por/my-proof", GenericObjectSchema)
+  return res as unknown as UserPorProof
+}
+
+export async function verifyPorProof(body: {
+  rootHash: string
+  userId: number
+  userLiabilityUsd: number
+  userNonce: string
+  proofPath: readonly MerkleProofStep[]
+}): Promise<VerifyPorProofResponse> {
+  const res = await request("/api/v1/compliance/por/verify", GenericObjectSchema, {
+    method: "POST",
+    body,
+  })
+  return res as unknown as VerifyPorProofResponse
+}

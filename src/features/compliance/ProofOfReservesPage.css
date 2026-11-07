@@ -1,0 +1,355 @@
+/* 默克尔树资产储备证明 (PoR) - 未来科技风 */
+.por-container {
+  padding-top: 40px;
+  padding-bottom: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.por-hero {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.por-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.por-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 12px;
+}
+
+.por-subtitle {
+  font-size: 15px;
+  color: #b0b0c0;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.por-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .por-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.por-metric-card {
+  background: rgba(30, 30, 46, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: #b0b0c0;
+}
+
+.metric-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.metric-val.highlight {
+  color: #00c6ff;
+}
+
+.metric-val.positive {
+  color: #00e08f;
+}
+
+.metric-sub {
+  font-size: 11px;
+  color: #8e8ea0;
+}
+
+.por-root-card,
+.por-verify-card {
+  background: rgba(30, 30, 46, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.root-header,
+.verify-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.root-header h3,
+.verify-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.timestamp-badge {
+  font-size: 12px;
+  color: #8e8ea0;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.root-hash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(10, 10, 18, 0.6);
+  border: 1px solid rgba(0, 198, 255, 0.3);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.root-hash-code {
+  font-family: monospace;
+  font-size: 13px;
+  color: #00c6ff;
+  word-break: break-all;
+}
+
+.copy-btn {
+  background: rgba(0, 198, 255, 0.15);
+  border: 1px solid rgba(0, 198, 255, 0.4);
+  color: #00c6ff;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease-out;
+}
+
+.copy-btn:hover {
+  background: rgba(0, 198, 255, 0.3);
+}
+
+.por-note {
+  font-size: 12px;
+  color: #8e8ea0;
+  line-height: 1.5;
+}
+
+.badge-shield {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 224, 143, 0.15);
+  border: 1px solid rgba(0, 224, 143, 0.3);
+  color: #00e08f;
+}
+
+.login-prompt,
+.no-proof {
+  text-align: center;
+  padding: 32px 16px;
+  color: #b0b0c0;
+}
+
+.proof-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  .proof-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(10, 10, 18, 0.6);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #8e8ea0;
+}
+
+.detail-val {
+  font-size: 13px;
+  color: #ffffff;
+  word-break: break-all;
+}
+
+.merkle-path-section {
+  margin-bottom: 24px;
+}
+
+.path-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.path-nodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.path-nodes-list::-webkit-scrollbar {
+  display: none;
+}
+
+.path-node-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(10, 10, 18, 0.4);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.step-idx {
+  color: #00c6ff;
+  font-weight: 600;
+}
+
+.step-dir {
+  color: #b0b0c0;
+  font-size: 11px;
+}
+
+.step-hash {
+  font-family: monospace;
+  color: #ffffff;
+  word-break: break-all;
+}
+
+.verify-action-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.verify-btn-cta {
+  background: linear-gradient(135deg, #00c6ff 0%, #7b4397 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 198, 255, 0.35);
+  transition: all 0.2s ease-out;
+}
+
+.verify-btn-cta:hover {
+  transform: scale(0.98);
+  box-shadow: 0 6px 20px rgba(0, 198, 255, 0.45);
+}
+
+.verify-outcome-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 8px;
+}
+
+.outcome-valid {
+  background: rgba(0, 224, 143, 0.15);
+  border: 1px solid rgba(0, 224, 143, 0.4);
+}
+
+.outcome-valid .outcome-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #00e08f;
+  color: #0a0a12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.outcome-valid .outcome-title {
+  color: #00e08f;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.outcome-desc {
+  font-size: 12px;
+  color: #b0b0c0;
+  margin-top: 2px;
+}
+
+.outcome-invalid {
+  background: rgba(255, 85, 85, 0.15);
+  border: 1px solid rgba(255, 85, 85, 0.4);
+}
+
+.outcome-invalid .outcome-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ff5555;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.outcome-invalid .outcome-title {
+  color: #ff5555;
+  font-weight: 600;
+  font-size: 15px;
+}

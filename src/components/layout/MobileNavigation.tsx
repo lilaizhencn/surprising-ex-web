@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  Award,
   BookOpen,
   ChartNoAxesCombined,
   ChevronRight,
@@ -8,6 +9,7 @@ import {
   Layers,
   LogOut,
   Megaphone,
+  ShieldCheck,
   Wallet,
 } from "lucide-react"
 import { useEffect } from "react"
@@ -23,6 +25,8 @@ const icons = {
   Perpetuals: Layers,
   Futures: Layers,
   Options: CircleDot,
+  VIP: Award,
+  "Proof of Reserves": ShieldCheck,
   "Open platform": BookOpen,
   Assets: Wallet,
 }

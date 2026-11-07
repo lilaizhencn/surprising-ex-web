@@ -134,6 +134,11 @@ export function TradingOrderTicket({
   const [ticketAction, setTicketAction] = useState<"OPEN" | "CLOSE">("OPEN")
   const [userFees, setUserFees] = useState<Record<string, unknown> | null>(null)
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [bracketExpanded, setBracketExpanded] = useState(false)
+  const [bracketTakeProfitPrice, setBracketTakeProfitPrice] = useState("")
+  const [bracketStopLossPrice, setBracketStopLossPrice] = useState("")
+  const [bracketPriceSource, setBracketPriceSource] = useState<"MARK" | "LAST" | "INDEX">("MARK")
+  const [stpMode, setStpMode] = useState<"NONE" | "EXPIRE_MAKER" | "EXPIRE_TAKER" | "EXPIRE_BOTH">("NONE")
   const balance = useMemo(() => {
     if (!accountReady) return null
     const asset =
@@ -451,6 +456,10 @@ export function TradingOrderTicket({
           takeProfitTriggerPrice,
           takeProfitLimitPrice,
           takeProfitExecutionType,
+          bracketTakeProfitPrice: bracketExpanded ? bracketTakeProfitPrice : undefined,
+          bracketStopLossPrice: bracketExpanded ? bracketStopLossPrice : undefined,
+          bracketPriceSource: bracketExpanded ? bracketPriceSource : undefined,
+          stpMode: stpMode,
         },
       )
     } catch (reason: unknown) {
@@ -475,6 +484,8 @@ export function TradingOrderTicket({
       setTriggerPrice("")
       setTakeProfitTriggerPrice("")
       setTakeProfitLimitPrice("")
+      setBracketTakeProfitPrice("")
+      setBracketStopLossPrice("")
       onRefresh()
     } catch (reason: unknown) {
       if (!ownsCurrentSession()) return
@@ -932,6 +943,87 @@ export function TradingOrderTicket({
             aria-label={t("Order percentage")}
           />
           <span>{closingTicket ? `${closePercentage}%` : "100%"}</span>
+        </div>
+      ) : null}
+      {orderType !== "STOP" ? (
+        <div className="advanced-order-settings">
+          <button
+            type="button"
+            className="advanced-toggle-btn"
+            onClick={() => setBracketExpanded((prev) => !prev)}
+            aria-expanded={bracketExpanded}
+          >
+            <span>
+              {t("TP/SL & STP Protection")}
+              {(bracketTakeProfitPrice || bracketStopLossPrice || stpMode !== "NONE") && (
+                <span className="badge-pill" style={{ marginLeft: 6 }}>
+                  {t("Active")}
+                </span>
+              )}
+            </span>
+            <span>{bracketExpanded ? "▲" : "▼"}</span>
+          </button>
+          {bracketExpanded && (
+            <div className="advanced-content">
+              <div className="bracket-inputs-grid">
+                <div className="bracket-field">
+                  <label>{t("Take profit (TP)")}</label>
+                  <div className="number-input">
+                    <input
+                      value={bracketTakeProfitPrice}
+                      onChange={(e) => setBracketTakeProfitPrice(e.target.value)}
+                      placeholder={t("TP Price")}
+                      inputMode="decimal"
+                    />
+                    <span className="unit">{current?.quoteAsset ?? ""}</span>
+                  </div>
+                </div>
+                <div className="bracket-field">
+                  <label>{t("Stop loss (SL)")}</label>
+                  <div className="number-input">
+                    <input
+                      value={bracketStopLossPrice}
+                      onChange={(e) => setBracketStopLossPrice(e.target.value)}
+                      placeholder={t("SL Price")}
+                      inputMode="decimal"
+                    />
+                    <span className="unit">{current?.quoteAsset ?? ""}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="stp-field-row">
+                <label>{t("Price source")}</label>
+                <DropdownSelect
+                  value={bracketPriceSource}
+                  onChange={(e) =>
+                    setBracketPriceSource(e.target.value as "MARK" | "LAST" | "INDEX")
+                  }
+                >
+                  <option value="MARK">{t("Mark price")}</option>
+                  <option value="LAST">{t("Last traded price")}</option>
+                  <option value="INDEX" disabled={productLine === PRODUCT_LINES.spot}>
+                    {t("Index price")}
+                  </option>
+                </DropdownSelect>
+              </div>
+              <div className="stp-field-row">
+                <label>{t("Self-Trade Prevention (STP)")}</label>
+                <DropdownSelect
+                  value={stpMode}
+                  onChange={(e) =>
+                    setStpMode(
+                      e.target.value as "NONE" | "EXPIRE_MAKER" | "EXPIRE_TAKER" | "EXPIRE_BOTH",
+                    )
+                  }
+                >
+                  <option value="NONE">{t("Default (Allow Match / Maker Flow)")}</option>
+                  <option value="EXPIRE_MAKER">{t("Expire Maker (Cancel resting)")}</option>
+                  <option value="EXPIRE_TAKER">{t("Expire Taker (Cancel incoming)")}</option>
+                  <option value="EXPIRE_BOTH">{t("Expire Both (Cancel both)")}</option>
+                </DropdownSelect>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
       <div className={`ticket-summary${optionProduct ? " ticket-summary--option" : ""}`}>

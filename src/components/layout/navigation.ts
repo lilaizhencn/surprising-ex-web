@@ -22,6 +22,8 @@ export const publicNavigation = [
     ],
   },
   { label: "Options", href: "/trade/options" },
+  { label: "VIP", href: "/vip" },
+  { label: "Proof of Reserves", href: "/proof-of-reserves" },
   { label: "Open platform", href: "/developers" },
   { label: "Assets", href: "/assets" },
 ] as const
@@ -35,11 +37,13 @@ export const assetNavigation = [
   { label: "Options", href: "/assets?account=options" },
   { label: "Ledger", href: "/assets/ledger" },
   { label: "Orders", href: "/orders" },
+  { label: "Sub-Accounts", href: "/sub-accounts" },
 ] as const
 
 export const securityNavigation = [
   { label: "Account security", href: "/security/account" },
   { label: "Device management", href: "/security/devices" },
+  { label: "Sub-Accounts", href: "/sub-accounts" },
 ] as const
 
 export const productLineLabels: Readonly<Record<ProductLine, string>> = {

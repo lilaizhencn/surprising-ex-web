@@ -71,6 +71,21 @@ const DeviceManagementPage = lazy(() =>
 const TradePage = lazy(() =>
   import("../features/trading/TradePage").then((module) => ({ default: module.TradePage })),
 )
+const VipTierPage = lazy(() =>
+  import("../features/vip/VipTierPage").then((module) => ({
+    default: module.VipTierPage,
+  })),
+)
+const SubAccountPage = lazy(() =>
+  import("../features/account/SubAccountPage").then((module) => ({
+    default: module.SubAccountPage,
+  })),
+)
+const ProofOfReservesPage = lazy(() =>
+  import("../features/compliance/ProofOfReservesPage").then((module) => ({
+    default: module.ProofOfReservesPage,
+  })),
+)
 
 export function App() {
   const location = useBrowserNavigation()
@@ -150,6 +165,18 @@ function AppRoutes() {
         <MarketsPage />
       </AppShell>
     )
+  if (path === "/proof-of-reserves" || path === "/por")
+    return (
+      <AppShell>
+        <ProofOfReservesPage />
+      </AppShell>
+    )
+  if (path === "/vip")
+    return (
+      <AppShell>
+        <VipTierPage />
+      </AppShell>
+    )
   if (path.startsWith("/trade/") && isSupportedTradeRoute(path.slice("/trade/".length)))
     return (
       <AppShell showFooter={false}>
@@ -222,6 +249,12 @@ function AppRoutes() {
     return (
       <AppShell accountArea>
         <DeveloperApiPage />
+      </AppShell>
+    )
+  if (path === "/sub-accounts" || path === "/account/sub-accounts")
+    return (
+      <AppShell accountArea>
+        <SubAccountPage />
       </AppShell>
     )
   if (path === "/compliance" || path === "/account/kyc")

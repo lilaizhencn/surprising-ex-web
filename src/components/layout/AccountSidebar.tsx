@@ -1,4 +1,4 @@
-import { ChevronDown, Code2, Grid2X2, IdCard, ShieldCheck, WalletCards } from "lucide-react"
+import { Award, ChevronDown, Code2, Grid2X2, IdCard, ShieldCheck, Users, WalletCards } from "lucide-react"
 import { useState } from "react"
 import { t } from "../../i18n"
 import { assetNavigation, securityNavigation } from "./navigation"
@@ -110,6 +110,18 @@ export function AccountSidebar() {
         <a className={pathname === "/api" ? "active" : ""} href="/api">
           <Code2 size={21} />
           <span>{t("Developer API")}</span>
+        </a>
+        <a className={pathname === "/sub-accounts" ? "active" : ""} href="/sub-accounts">
+          <Users size={21} />
+          <span>{t("Sub-Accounts")}</span>
+        </a>
+        <a className={pathname === "/vip" ? "active" : ""} href="/vip">
+          <Award size={21} />
+          <span>{t("VIP Benefits")}</span>
+        </a>
+        <a className={pathname === "/proof-of-reserves" ? "active" : ""} href="/proof-of-reserves">
+          <ShieldCheck size={21} />
+          <span>{t("Proof of Reserves")}</span>
         </a>
       </nav>
     </aside>
