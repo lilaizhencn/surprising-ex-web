@@ -138,7 +138,6 @@ export function TradingOrderTicket({
   const [bracketTakeProfitPrice, setBracketTakeProfitPrice] = useState("")
   const [bracketStopLossPrice, setBracketStopLossPrice] = useState("")
   const [bracketPriceSource, setBracketPriceSource] = useState<"MARK" | "LAST" | "INDEX">("MARK")
-  const [stpMode, setStpMode] = useState<"NONE" | "EXPIRE_MAKER" | "EXPIRE_TAKER" | "EXPIRE_BOTH">("NONE")
   const balance = useMemo(() => {
     if (!accountReady) return null
     const asset =
@@ -459,7 +458,6 @@ export function TradingOrderTicket({
           bracketTakeProfitPrice: bracketExpanded ? bracketTakeProfitPrice : undefined,
           bracketStopLossPrice: bracketExpanded ? bracketStopLossPrice : undefined,
           bracketPriceSource: bracketExpanded ? bracketPriceSource : undefined,
-          stpMode: stpMode,
         },
       )
     } catch (reason: unknown) {
@@ -954,8 +952,8 @@ export function TradingOrderTicket({
             aria-expanded={bracketExpanded}
           >
             <span>
-              {t("TP/SL & STP Protection")}
-              {(bracketTakeProfitPrice || bracketStopLossPrice || stpMode !== "NONE") && (
+              {t("Take profit & stop loss (TP/SL)")}
+              {(bracketTakeProfitPrice || bracketStopLossPrice) && (
                 <span className="badge-pill" style={{ marginLeft: 6 }}>
                   {t("Active")}
                 </span>
@@ -1004,22 +1002,6 @@ export function TradingOrderTicket({
                   <option value="INDEX" disabled={productLine === PRODUCT_LINES.spot}>
                     {t("Index price")}
                   </option>
-                </DropdownSelect>
-              </div>
-              <div className="stp-field-row">
-                <label>{t("Self-Trade Prevention (STP)")}</label>
-                <DropdownSelect
-                  value={stpMode}
-                  onChange={(e) =>
-                    setStpMode(
-                      e.target.value as "NONE" | "EXPIRE_MAKER" | "EXPIRE_TAKER" | "EXPIRE_BOTH",
-                    )
-                  }
-                >
-                  <option value="NONE">{t("Default (Allow Match / Maker Flow)")}</option>
-                  <option value="EXPIRE_MAKER">{t("Expire Maker (Cancel resting)")}</option>
-                  <option value="EXPIRE_TAKER">{t("Expire Taker (Cancel incoming)")}</option>
-                  <option value="EXPIRE_BOTH">{t("Expire Both (Cancel both)")}</option>
                 </DropdownSelect>
               </div>
             </div>
