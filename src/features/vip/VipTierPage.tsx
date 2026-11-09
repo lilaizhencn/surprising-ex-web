@@ -6,15 +6,15 @@ import {
   type UserVipStatus,
   type VipTierDefinition,
 } from "../../api/endpoints"
-import { useSession } from "../../state/session"
 import { t } from "../../i18n"
+import { useSession } from "../../state/session"
 import "./VipTierPage.css"
 
 export function VipTierPage() {
   const session = useSession()
   const [levels, setLevels] = useState<readonly VipTierDefinition[]>([])
   const [myStatus, setMyStatus] = useState<UserVipStatus | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 

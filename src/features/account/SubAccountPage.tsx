@@ -5,10 +5,10 @@ import {
   type SubAccountRecord,
   transferSubAccount,
 } from "../../api/endpoints"
-import { Button, Field } from "../../components/ui/Primitives"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { useSession } from "../../state/session"
+import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
+import { useSession } from "../../state/session"
 import "./SubAccountPage.css"
 
 export function SubAccountPage() {
@@ -38,7 +38,10 @@ export function SubAccountPage() {
       const list = await loadSubAccounts()
       setSubAccounts(list)
     } catch (err: unknown) {
-      setNotice({ message: err instanceof Error ? err.message : t("Failed to load sub accounts"), failed: true })
+      setNotice({
+        message: err instanceof Error ? err.message : t("Failed to load sub accounts"),
+        failed: true,
+      })
     } finally {
       setLoading(false)
     }
@@ -64,7 +67,10 @@ export function SubAccountPage() {
       setNewAccountName("")
       await reloadSubAccounts()
     } catch (err: unknown) {
-      setNotice({ message: err instanceof Error ? err.message : t("Failed to create sub account"), failed: true })
+      setNotice({
+        message: err instanceof Error ? err.message : t("Failed to create sub account"),
+        failed: true,
+      })
     } finally {
       setCreating(false)
     }
@@ -95,7 +101,10 @@ export function SubAccountPage() {
       setShowTransferModal(false)
       setTransferAmount("")
     } catch (err: unknown) {
-      setNotice({ message: err instanceof Error ? err.message : t("Transfer failed"), failed: true })
+      setNotice({
+        message: err instanceof Error ? err.message : t("Transfer failed"),
+        failed: true,
+      })
     } finally {
       setTransferring(false)
     }
@@ -145,7 +154,11 @@ export function SubAccountPage() {
 
         {subAccounts.length === 0 ? (
           <div className="empty-state">
-            <p>{t("No sub-accounts found. Create your first sub-account to isolate trading strategies.")}</p>
+            <p>
+              {t(
+                "No sub-accounts found. Create your first sub-account to isolate trading strategies.",
+              )}
+            </p>
           </div>
         ) : (
           <div className="sub-table-wrapper">
@@ -205,7 +218,9 @@ export function SubAccountPage() {
           <div className="modal-glass">
             <h2>{t("Create Sub-Account")}</h2>
             <p className="modal-desc">
-              {t("A dedicated trading sub-account will be provisioned instantly with zero latency.")}
+              {t(
+                "A dedicated trading sub-account will be provisioned instantly with zero latency.",
+              )}
             </p>
             <div className="modal-form">
               <Field label={t("Sub-Account Name")}>

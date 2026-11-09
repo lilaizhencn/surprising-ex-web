@@ -7,7 +7,6 @@ import {
   stopGridStrategy,
 } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
-import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { decimalToStepUnits, stepUnitsToDecimal } from "../../lib/units"
@@ -15,7 +14,7 @@ import type { Market, ProductLine } from "../../types/domain"
 
 export function GridTradingPanel({
   current,
-  productLine,
+  productLine: _productLine,
   session,
   assetScales,
   marketQuote,

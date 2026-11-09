@@ -2,20 +2,20 @@ import { useEffect, useState } from "react"
 import {
   loadLatestPor,
   loadMyPorProof,
-  verifyPorProof,
   type MerkleProofStep,
   type PorSnapshotSummary,
   type UserPorProof,
+  verifyPorProof,
 } from "../../api/endpoints"
-import { useSession } from "../../state/session"
 import { t } from "../../i18n"
+import { useSession } from "../../state/session"
 import "./ProofOfReservesPage.css"
 
 export function ProofOfReservesPage() {
   const session = useSession()
   const [snapshot, setSnapshot] = useState<PorSnapshotSummary | null>(null)
   const [userProof, setUserProof] = useState<UserPorProof | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState<{
     valid: boolean
@@ -115,8 +115,7 @@ export function ProofOfReservesPage() {
           <span className="metric-val positive">
             {snapshot
               ? `${(
-                  (snapshot.totalReserveUsd / Math.max(1, snapshot.totalLiabilityUsd)) *
-                  100
+                  (snapshot.totalReserveUsd / Math.max(1, snapshot.totalLiabilityUsd)) * 100
                 ).toFixed(2)}%`
               : "110.37%"}
           </span>
@@ -176,9 +175,7 @@ export function ProofOfReservesPage() {
               </div>
               <div className="detail-item">
                 <span className="detail-label">{t("Committed Liability (USD)")}</span>
-                <span className="detail-val">
-                  {formatUsd(userProof.userLiabilityUsd)}
-                </span>
+                <span className="detail-val">{formatUsd(userProof.userLiabilityUsd)}</span>
               </div>
               <div className="detail-item full-width">
                 <span className="detail-label">{t("Committed Root Hash")}</span>
@@ -235,7 +232,9 @@ export function ProofOfReservesPage() {
                     <div className="outcome-icon">✕</div>
                     <div>
                       <div className="outcome-title">{t("Verification Failed")}</div>
-                      <div className="outcome-desc">{verifyResult.message ?? t("Hash mismatch")}</div>
+                      <div className="outcome-desc">
+                        {verifyResult.message ?? t("Hash mismatch")}
+                      </div>
                     </div>
                   </>
                 )}

@@ -1,4 +1,13 @@
-import { Award, ChevronDown, Code2, Grid2X2, IdCard, ShieldCheck, Users, WalletCards } from "lucide-react"
+import {
+  Award,
+  ChevronDown,
+  Code2,
+  Grid2X2,
+  IdCard,
+  ShieldCheck,
+  Users,
+  WalletCards,
+} from "lucide-react"
 import { useState } from "react"
 import { t } from "../../i18n"
 import { assetNavigation, securityNavigation } from "./navigation"

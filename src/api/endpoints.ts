@@ -2144,7 +2144,10 @@ export interface GridStrategyRecord {
   readonly createdAt: string
 }
 
-export async function createGridStrategy(body: CreateGridStrategyRequest, currentPriceTicks = 0): Promise<GridStrategyRecord> {
+export async function createGridStrategy(
+  body: CreateGridStrategyRequest,
+  currentPriceTicks = 0,
+): Promise<GridStrategyRecord> {
   const query = currentPriceTicks > 0 ? `?currentPriceTicks=${currentPriceTicks}` : ""
   const res = await request(`/api/v1/trading/grid/create${query}`, GenericObjectSchema, {
     method: "POST",
@@ -2194,7 +2197,10 @@ export interface SubAccountTransferResponse {
   readonly timestamp: string
 }
 
-export async function createSubAccount(body: { subAccountName: string; permissions?: string }): Promise<SubAccountRecord> {
+export async function createSubAccount(body: {
+  subAccountName: string
+  permissions?: string
+}): Promise<SubAccountRecord> {
   const res = await request("/api/v1/sub-account/create", GenericObjectSchema, {
     method: "POST",
     body,
@@ -2207,7 +2213,9 @@ export async function loadSubAccounts(): Promise<readonly SubAccountRecord[]> {
   return Array.isArray(res) ? (res as unknown as readonly SubAccountRecord[]) : []
 }
 
-export async function transferSubAccount(body: SubAccountTransferRequest): Promise<SubAccountTransferResponse> {
+export async function transferSubAccount(
+  body: SubAccountTransferRequest,
+): Promise<SubAccountTransferResponse> {
   const res = await request("/api/v1/sub-account/transfer", GenericObjectSchema, {
     method: "POST",
     body,

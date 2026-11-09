@@ -49,6 +49,7 @@ import {
   FundingPayments,
   formatFundingRate,
 } from "./FundingPanels"
+import { GridTradingPanel } from "./GridTradingPanel"
 import { IndexPriceDetails } from "./IndexPriceDetails"
 import { marketPriceFromRecord } from "./marketData"
 import { marketQuantitySpec } from "./marketQuantity"
@@ -58,7 +59,6 @@ import { TradeMarketPanel } from "./TradeMarketPanel"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
 import { TradingOrderTicket } from "./TradingOrderTicket"
-import { GridTradingPanel } from "./GridTradingPanel"
 import type { LeverageSettings } from "./TradingTicketControls"
 import { TriggerOrders } from "./TriggerOrders"
 import { formatTradeQuantity, isDollarQuote, priceDisplayPrecision } from "./tradeFormatting"

@@ -965,9 +965,10 @@ export function TradingOrderTicket({
             <div className="advanced-content">
               <div className="bracket-inputs-grid">
                 <div className="bracket-field">
-                  <label>{t("Take profit (TP)")}</label>
+                  <label htmlFor="bracket-tp-price">{t("Take profit (TP)")}</label>
                   <div className="number-input">
                     <input
+                      id="bracket-tp-price"
                       value={bracketTakeProfitPrice}
                       onChange={(e) => setBracketTakeProfitPrice(e.target.value)}
                       placeholder={t("TP Price")}
@@ -977,9 +978,10 @@ export function TradingOrderTicket({
                   </div>
                 </div>
                 <div className="bracket-field">
-                  <label>{t("Stop loss (SL)")}</label>
+                  <label htmlFor="bracket-sl-price">{t("Stop loss (SL)")}</label>
                   <div className="number-input">
                     <input
+                      id="bracket-sl-price"
                       value={bracketStopLossPrice}
                       onChange={(e) => setBracketStopLossPrice(e.target.value)}
                       placeholder={t("SL Price")}
@@ -990,8 +992,9 @@ export function TradingOrderTicket({
                 </div>
               </div>
               <div className="stp-field-row">
-                <label>{t("Price source")}</label>
+                <span>{t("Price source")}</span>
                 <DropdownSelect
+                  aria-label={t("Price source")}
                   value={bracketPriceSource}
                   onChange={(e) =>
                     setBracketPriceSource(e.target.value as "MARK" | "LAST" | "INDEX")
