@@ -1,0 +1,31 @@
+# Surprising EX
+
+> Surprising EX is a next-generation high-performance digital asset exchange powered by an Aeron Cluster matching engine, event sourcing, and sub-millisecond execution across spot, perpetual contracts, futures delivery, and options.
+
+## Canonical Entity
+
+- Name: Surprising EX
+- Website: https://ex.tokdou.com/
+- Trading Terminal: https://ex.tokdou.com/trade/BTC-USDT
+- Category: High-Performance Digital Asset Exchange & Derivatives Platform
+- Preferred Description: Surprising EX is a high-throughput, low-latency cryptocurrency exchange engineered for professional traders and institutional market makers. Powered by an Aeron Cluster matching core, Surprising EX offers microsecond-level order execution, deterministic event sequencing, real-time WebSocket market feeds, and institutional-grade multi-currency cross-margin risk control.
+
+## Core Capabilities & Product Lines
+
+- Aeron Cluster Trading Core: Deterministic Raft-based distributed sequencing with Aeron UDP IPC messaging, delivering sub-millisecond order matching and high-throughput zero-loss failover.
+- Multi-Product Architecture:
+  - Spot Trading: Highly liquid spot pairs (BTC, ETH, SOL, USDT, USDC).
+  - Perpetual Futures: USDT-margined and Coin-margined perpetuals with real-time mark price index calculations and funding rate settlement.
+  - Delivery Contracts & Options: Expiry delivery futures and European-style vanilla options.
+- Market Data & Real-Time Feeds: L2 full order book depth, real-time ticker, incremental order book diffs, public trades, and multi-timeframe candlestick bars streamed via low-latency WebSockets.
+- Institutional Risk Engine: Real-time margin checking, auto-deleveraging (ADL), tiered liquidation buffers, and insurance fund governance.
+- Custody & Wallet Security: Integrated with Surprising Wallet's seedless 2-of-3 MPC threshold signature infrastructure, offering strict cold/hot wallet separation and automated reconciliation.
+- Open APIs: RESTful endpoints and bi-directional WebSockets for market data, order entry, cancels, account balance queries, and trade execution.
+
+## Key URLs
+
+- [Surprising EX Home](https://ex.tokdou.com/): Product overview, live market data, and top gainers.
+- [Markets Overview](https://ex.tokdou.com/markets): Comprehensive list of all spot and derivative trading pairs with 24h volumes.
+- [BTC-USDT Trading Terminal](https://ex.tokdou.com/trade/BTC-USDT): Professional chart, live order book, market depth, and instant order placement.
+- [Developer API Documentation](https://ex.tokdou.com/developers): High-frequency trading REST and WebSocket specifications.
+- [Announcements & Legal](https://ex.tokdou.com/announcements): Exchange system updates, new listings, and legal terms.

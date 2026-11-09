@@ -1,0 +1,20 @@
+# robots.txt for Surprising EX (Digital Asset Exchange)
+User-agent: *
+Allow: /
+Allow: /markets
+Allow: /trade/
+Allow: /developers
+Allow: /help
+Allow: /legal
+Allow: /announcements
+Allow: /assets/
+Disallow: /auth/
+Disallow: /assets/ledger
+Disallow: /assets/funding
+Disallow: /orders/
+Disallow: /affiliate
+Disallow: /compliance
+Disallow: /c2c
+Disallow: /api/
+
+Sitemap: https://ex.tokdou.com/sitemap.xml

@@ -1,0 +1,46 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FinancialService",
+      "@id": "https://ex.tokdou.com/#exchange",
+      "name": "Surprising EX",
+      "category": "Cryptocurrency Exchange",
+      "url": "https://ex.tokdou.com/",
+      "description": "High-performance digital asset exchange powered by Aeron Cluster matching engine for spot and derivatives trading.",
+      "currenciesAccepted": "BTC, ETH, SOL, USDT, USDC",
+      "priceRange": "$$",
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Crypto Trading Pairs",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "name": "BTC/USDT Spot & Perpetual",
+            "url": "https://ex.tokdou.com/trade/BTC-USDT"
+          },
+          {
+            "@type": "Offer",
+            "name": "ETH/USDT Spot & Perpetual",
+            "url": "https://ex.tokdou.com/trade/ETH-USDT"
+          },
+          {
+            "@type": "Offer",
+            "name": "SOL/USDT Spot & Perpetual",
+            "url": "https://ex.tokdou.com/trade/SOL-USDT"
+          }
+        ]
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://ex.tokdou.com/#organization",
+      "name": "Surprising EX",
+      "url": "https://ex.tokdou.com/",
+      "logo": "https://ex.tokdou.com/favicon.svg",
+      "sameAs": [
+        "https://surprising.top"
+      ]
+    }
+  ]
+}

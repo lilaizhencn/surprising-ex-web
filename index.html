@@ -3,12 +3,110 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Surprising EX — a clear, trusted digital asset exchange." />
+    <title>Surprising EX — High-Performance Digital Asset Exchange &amp; Aeron Cluster Derivatives</title>
+    <meta
+      name="description"
+      content="High-throughput cryptocurrency exchange engineered with Aeron Cluster. Sub-millisecond execution for spot, USDT-margined perpetuals, futures, and options."
+    />
+    <meta
+      name="keywords"
+      content="crypto exchange, Bitcoin trading, Ethereum perpetuals, Aeron Cluster, low-latency matching engine, derivatives exchange, BTC USDT, ETH USDT, digital asset exchange"
+    />
+    <meta name="author" content="Surprising" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://ex.tokdou.com/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Surprising EX</title>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ex.tokdou.com/" />
+    <meta property="og:title" content="Surprising EX — High-Performance Digital Asset Exchange" />
+    <meta property="og:description" content="Sub-millisecond cryptocurrency trading platform powered by Aeron Cluster for spot, perpetual contracts, and derivatives." />
+    <meta property="og:image" content="https://ex.tokdou.com/favicon.svg" />
+    <meta property="og:site_name" content="Surprising EX" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:url" content="https://ex.tokdou.com/" />
+    <meta name="twitter:title" content="Surprising EX — High-Performance Digital Asset Exchange" />
+    <meta name="twitter:description" content="Sub-millisecond cryptocurrency trading platform powered by Aeron Cluster for spot, perpetual contracts, and derivatives." />
+    <meta name="twitter:image" content="https://ex.tokdou.com/favicon.svg" />
+
+    <!-- Structured Data (JSON-LD) for Search Engines & Generative AI -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "FinancialService",
+          "@id": "https://ex.tokdou.com/#exchange",
+          "name": "Surprising EX",
+          "category": "Cryptocurrency Exchange",
+          "url": "https://ex.tokdou.com/",
+          "description": "High-throughput digital asset exchange featuring Aeron Cluster matching engine for spot and derivatives trading.",
+          "currenciesAccepted": "BTC, ETH, SOL, USDT, USDC",
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "Trading Markets",
+            "itemListElement": [
+              {
+                "@type": "Offer",
+                "name": "BTC/USDT Trading",
+                "url": "https://ex.tokdou.com/trade/BTC-USDT"
+              },
+              {
+                "@type": "Offer",
+                "name": "ETH/USDT Trading",
+                "url": "https://ex.tokdou.com/trade/ETH-USDT"
+              },
+              {
+                "@type": "Offer",
+                "name": "SOL/USDT Trading",
+                "url": "https://ex.tokdou.com/trade/SOL-USDT"
+              }
+            ]
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://ex.tokdou.com/#organization",
+          "name": "Surprising EX",
+          "url": "https://ex.tokdou.com/",
+          "logo": "https://ex.tokdou.com/favicon.svg"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Semantic snapshot for search engines and crawlers before JS hydration -->
+      <header>
+        <h1>Surprising EX — High-Performance Digital Asset Exchange</h1>
+        <p>A clear, trusted digital asset exchange. Trade spot, perpetual contracts, futures, and options with sub-millisecond execution powered by Aeron Cluster.</p>
+        <nav>
+          <a href="/markets">Markets</a>
+          <a href="/trade/BTC-USDT">Trade BTC/USDT</a>
+          <a href="/trade/ETH-USDT">Trade ETH/USDT</a>
+          <a href="/trade/SOL-USDT">Trade SOL/USDT</a>
+          <a href="/developers">API Documentation</a>
+          <a href="/help">Help Center</a>
+          <a href="/legal">Legal Terms</a>
+        </nav>
+      </header>
+      <main>
+        <section>
+          <h2>Aeron Cluster Trading Architecture &amp; Execution</h2>
+          <p>Engineered for professional institutions and high-frequency traders with deterministic Raft sequencing, microsecond matching latency, and real-time WebSocket market streaming.</p>
+          <ul>
+            <li><strong>Spot &amp; Perpetual Derivatives:</strong> USDT-margined and coin-margined perpetuals with real-time mark price index calculations.</li>
+            <li><strong>Institutional Risk Controls:</strong> Real-time cross-margin calculations, tiered liquidation protection, and insurance fund governance.</li>
+            <li><strong>MPC Custody Security:</strong> Built-in cold/hot asset segregation backed by 2-of-3 MPC threshold signatures.</li>
+            <li><strong>High-Frequency API:</strong> RESTful endpoints and bi-directional WebSockets for market depth, trade feeds, and rapid order execution.</li>
+          </ul>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
