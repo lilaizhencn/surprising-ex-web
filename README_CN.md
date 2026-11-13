@@ -7,7 +7,7 @@ Stitch 驱动的用户交易 Web 终端，独立于后端 `surprising-ex` 仓库
 ## 功能
 
 - 邮箱 + 密码注册和登录，支持邮箱验证与密码找回。
-- JWT access token + refresh token，本地持久化 session。
+- 会话令牌放在 HttpOnly Cookie（7 天滑动有效期），写请求带 CSRF 头；本地只记录"已登录"标记。
 - 交易工作台：U本位合约、币本位合约、现货市场列表、K线、盘口、成交、下单、资产、当前委托、合约持仓和风险快照。
 - 统一 API Client 接入 REST，使用 Zod 校验外部 DTO，并通过 mapper 转为页面模型。
 - 预留 WebSocket 行情和私有推送边界，协议未确认的能力不会在页面伪造成功。
@@ -42,7 +42,7 @@ bun run build
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
+- `GET /api/v1/auth/session`
 - `/api/v1/gateway/instrument`
 - `/api/v1/gateway/candlestick`
 - `/api/v1/gateway/instrument`

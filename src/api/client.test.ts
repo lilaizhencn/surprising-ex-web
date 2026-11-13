@@ -1,26 +1,19 @@
 import ky, { type Options } from "ky"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
-import { clearLegalReview, legalReviewStore, setLegalAcceptance } from "../state/legalAcceptance"
+import { clearLegalReview, setLegalAcceptance } from "../state/legalAcceptance"
 import { loadSession, saveSession, sessionRefreshIssue } from "../state/session"
 import {
   ApiError,
   quoteUnsafeJsonIntegers,
-  refreshStoredSession,
   request,
   requestBlob,
+  verifyStoredSession,
 } from "./client"
 import { authApi } from "./endpoints"
 import { AuthSessionSchema, BalanceSchema } from "./types"
 
 vi.mock("ky", () => ({ default: Object.assign(vi.fn(), { get: vi.fn() }) }))
-beforeEach(() => {
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, _options: unknown, run: () => unknown) => Promise.resolve(run()),
-    },
-  })
-})
 beforeEach(() => {
   vi.mocked(ky.get).mockImplementation(
     (async () => new Response('{"token":"csrf-test"}')) as unknown as typeof ky.get,
@@ -42,7 +35,7 @@ describe("legal acknowledgement transport", () => {
     "google/login",
     "telegram/login/exchange",
     "login/verify",
-    "browser/refresh",
+    "logout",
   ])("attaches the exact reviewed revisions to auth/%s", async (path) => {
     browserStorage()
     setLegalAcceptance([
@@ -64,21 +57,6 @@ describe("legal acknowledgement transport", () => {
     for (const [, options] of vi.mocked(ky).mock.calls)
       expect(new Headers(options?.headers as HeadersInit).has("X-Legal-Acceptance")).toBe(false)
   })
-  it.each([
-    ["/api/v1/auth/browser/refresh", 428, "LEGAL_CONSENT_REQUIRED", true],
-    ["/api/v1/auth/browser/refresh", 503, "LEGAL_UNAVAILABLE", false],
-    ["/api/v1/admin/legal/revisions/1/publish", 428, "APPROVAL_REQUIRED", false],
-  ] as const)(
-    "requires review only for the legal refresh condition",
-    async (path, status, code, expected) => {
-      browserStorage()
-      vi.mocked(ky).mockImplementation((async () => json({ code }, status)) as unknown as typeof ky)
-      await expect(request(path, z.unknown(), { method: "POST", body: {} })).rejects.toBeInstanceOf(
-        ApiError,
-      )
-      expect(legalReviewStore.snapshot()).toBe(expected)
-    },
-  )
 })
 
 describe("gateway JSON integer decoding", () => {
@@ -139,7 +117,7 @@ describe("public request failures", () => {
   })
   it("never fetches a private attachment under a different signed-in owner", async () => {
     browserStorage()
-    saveSession(session("current", "2999-01-01T00:00:00Z"))
+    saveSession(session("current"))
     await expect(
       requestBlob("/api/v1/c2c/attachments/private/content", { expectedUserId: "2" }),
     ).rejects.toThrow("Session changed")
@@ -185,12 +163,12 @@ describe("public request failures", () => {
   })
 })
 
-describe("session refresh", () => {
+describe("cookie session", () => {
   it.each(["verify", "bind", "resend", "confirm"] as const)(
-    "never retries a security %s under a different signed-in owner after refresh",
+    "never accepts a security %s response under a different signed-in owner",
     async (operation) => {
       browserStorage()
-      saveSession(session("old", "2000-01-01T00:00:00Z"))
+      saveSession(session("old"))
       let complete!: (response: Response) => void
       vi.mocked(ky).mockImplementation(
         (() =>
@@ -212,12 +190,8 @@ describe("session refresh", () => {
                 )
       void sent.catch(() => {})
       await vi.waitFor(() => expect(complete).toBeTypeOf("function"))
-      saveSession({
-        ...session("other", "2999-01-01T00:00:00Z"),
-        refreshToken: "other-refresh",
-        user: { userId: 2 },
-      })
-      complete(json(session("refreshed", "2999-01-01T00:00:00Z")))
+      saveSession({ ...session("other"), user: { userId: 2 } })
+      complete(json(session("refreshed")))
       await expect(sent).rejects.toThrow("Session changed")
       expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
     },
@@ -225,7 +199,7 @@ describe("session refresh", () => {
 
   it("does not assume passwordless eligibility from incomplete primary metadata", async () => {
     browserStorage()
-    saveSession(session("current", "2999-01-01T00:00:00Z"))
+    saveSession(session("current"))
     for (const payload of [{}, { passwordRequired: false, reauthenticationRequired: false }]) {
       vi.mocked(ky).mockImplementation((async () => json(payload)) as unknown as typeof ky)
       await expect(authApi.primaryAuthentication()).rejects.toBeInstanceOf(ApiError)
@@ -239,9 +213,9 @@ describe("session refresh", () => {
     await expect(authApi.primaryAuthentication()).resolves.toEqual(valid)
   })
 
-  it("never sends an order under a different user after an asynchronous refresh", async () => {
+  it("never accepts an order response under a different user after the session changed", async () => {
     browserStorage()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    saveSession(session("old"))
     let complete!: (response: Response) => void
     vi.mocked(ky).mockImplementation(
       (() =>
@@ -256,20 +230,17 @@ describe("session refresh", () => {
     })
     void sent.catch(() => {})
     await vi.waitFor(() => expect(complete).toBeTypeOf("function"))
-    saveSession({
-      ...session("other", "2999-01-01T00:00:00Z"),
-      refreshToken: "other-refresh",
-      user: { userId: 2 },
-    })
-    complete(json(session("refreshed", "2999-01-01T00:00:00Z")))
+    saveSession({ ...session("other"), user: { userId: 2 } })
+    complete(json(session("refreshed")))
     await expect(sent).rejects.toThrow("Session changed")
     expect(vi.mocked(ky)).toHaveBeenCalledTimes(1)
   })
-  it("loads public instruments without refreshing an expired session or sending credentials", async () => {
+  it("loads public instruments without sending the login cookie", async () => {
     browserStorage()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    saveSession(session("old"))
     vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
       expect(options?.method).toBe("GET")
+      expect(options?.credentials).toBe("omit")
       expect(new Headers(options?.headers as HeadersInit).has("Authorization")).toBe(false)
       expect(new Headers(options?.headers as HeadersInit).has("X-User-Id")).toBe(false)
       return json({ ok: true }) as never
@@ -284,10 +255,10 @@ describe("session refresh", () => {
   })
 
   it.each(["config", "challenge", "login"])(
-    "requests Google %s without an expired trading identity or session refresh",
+    "requests Google %s without the signed-in trading identity",
     async (action) => {
       browserStorage()
-      saveSession(session("expired", "2000-01-01T00:00:00Z"))
+      saveSession(session("current"))
       vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
         const headers = new Headers(options?.headers as HeadersInit)
         expect(headers.has("Authorization")).toBe(false)
@@ -300,53 +271,66 @@ describe("session refresh", () => {
         }),
       ).resolves.toEqual({ ok: true })
       expect(ky).toHaveBeenCalledTimes(1)
-      expect(loadSession()?.accessToken).toBe("expired")
+      expect(loadSession()?.sessionKey).toBe("current")
     },
   )
 
-  it("refreshes an expired session before making a private request", async () => {
+  it("sends private requests with the login cookie and never an Authorization header", async () => {
     browserStorage()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
-    vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
-      if (options?.method === "POST") return json(session("new", "2999-01-01T00:00:00Z")) as never
-      expect(new Headers(options?.headers as HeadersInit).get("Authorization")).toBe("Bearer new")
-      return json({ ok: true }) as never
-    }) as unknown as typeof ky)
-
-    await expect(request("/private", z.object({ ok: z.boolean() }))).resolves.toEqual({ ok: true })
-    expect(vi.mocked(ky)).toHaveBeenCalledTimes(2)
+    saveSession(session("current"))
+    vi.mocked(ky).mockImplementation((async () => json({ ok: true })) as unknown as typeof ky)
+    await request("/private", z.object({ ok: z.boolean() }))
+    const options = vi.mocked(ky).mock.calls[0]?.[1]
+    const headers = new Headers(options?.headers as HeadersInit)
+    expect(options?.credentials).toBe("include")
+    expect(headers.get("X-Auth-Client")).toBe("web")
+    expect(headers.has("Authorization")).toBe(false)
+    expect(headers.has("X-CSRF-Token")).toBe(false)
   })
 
-  it("shares one rotating refresh token across concurrent 401 responses", async () => {
+  it("adds the CSRF cookie value to private writes and primes the cookie when it is missing", async () => {
     browserStorage()
-    saveSession(session("old", "2999-01-01T00:00:00Z"))
-    vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
-      if (options?.method === "POST") return json(session("new", "2999-01-01T00:00:00Z")) as never
-      const token = new Headers(options?.headers as HeadersInit).get("Authorization")
-      return json({ ok: token === "Bearer new" }, token === "Bearer old" ? 401 : 200) as never
-    }) as unknown as typeof ky)
-
-    await expect(
-      Promise.all([
-        request("/private/one", z.object({ ok: z.boolean() })),
-        request("/private/two", z.object({ ok: z.boolean() })),
-      ]),
-    ).resolves.toEqual([{ ok: true }, { ok: true }])
+    saveSession(session("current"))
+    vi.mocked(ky).mockImplementation((async () => json({ ok: true })) as unknown as typeof ky)
+    vi.stubGlobal("document", { cookie: "other=1; surprising-web-csrf=csrf-from-cookie" })
+    await request("/private", z.unknown(), { method: "POST", body: {} })
     expect(
-      vi.mocked(ky).mock.calls.filter(([, options]) => options?.method === "POST"),
-    ).toHaveLength(1)
+      new Headers(vi.mocked(ky).mock.calls[0]?.[1]?.headers as HeadersInit).get("X-CSRF-Token"),
+    ).toBe("csrf-from-cookie")
+    expect(ky.get).not.toHaveBeenCalled()
+    vi.stubGlobal("document", { cookie: "" })
+    await request("/private", z.unknown(), { method: "POST", body: {} })
+    expect(ky.get).toHaveBeenCalledOnce()
+    expect(
+      new Headers(vi.mocked(ky).mock.calls[1]?.[1]?.headers as HeadersInit).get("X-CSRF-Token"),
+    ).toBe("csrf-test")
+  })
+
+  it("marks login-style requests as cookie transport and keeps the cookie out of the body", async () => {
+    browserStorage()
+    vi.stubGlobal("document", { cookie: "surprising-web-csrf=csrf-from-cookie" })
+    vi.mocked(ky).mockImplementation((async () => json({ ok: true })) as unknown as typeof ky)
+    await request("/api/v1/auth/login", z.unknown(), { method: "POST", body: {} })
+    const options = vi.mocked(ky).mock.calls[0]?.[1]
+    const headers = new Headers(options?.headers as HeadersInit)
+    expect(options?.credentials).toBe("include")
+    expect(headers.get("X-Auth-Transport")).toBe("cookie")
+    expect(headers.get("X-Auth-Client")).toBe("web")
+    expect(headers.get("X-CSRF-Token")).toBe("csrf-from-cookie")
+  })
+
+  it("signs the page out on 401 without retrying the request", async () => {
+    browserStorage()
+    saveSession(session("current"))
+    vi.mocked(ky).mockResolvedValue(json({}, 401) as never)
+    await expect(request("/private", z.unknown())).rejects.toMatchObject({ status: 401 })
+    expect(ky).toHaveBeenCalledOnce()
+    expect(loadSession()).toBeNull()
   })
 })
 
-function session(accessToken: string, accessTokenExpiresAt: string) {
-  return {
-    accessToken,
-    browserSession: true,
-    refreshToken: null,
-    accessTokenExpiresAt,
-    refreshTokenExpiresAt: "2999-01-01T00:00:00Z",
-    user: { userId: 1 },
-  }
+function session(sessionKey: string) {
+  return { sessionKey, browserSession: true, user: { userId: 1 } }
 }
 
 function json(value: unknown, status = 200) {
@@ -422,32 +406,39 @@ describe("complete response lifecycle", () => {
   })
 })
 
-describe("recoverable refresh failures", () => {
-  it("retains the session on 503 and never sends the waiting private write", async () => {
+describe("session verification", () => {
+  it("retains the session on 503 and recovers when verification succeeds", async () => {
     browserStorage()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    saveSession(session("current"))
     vi.mocked(ky).mockResolvedValue(json({}, 503) as never)
-    await expect(
-      request("/private", z.unknown(), { method: "POST", expectedUserId: "1" }),
-    ).rejects.toMatchObject({ status: 503 })
-    expect(loadSession()?.accessToken).toBe("old")
+    await expect(verifyStoredSession()).rejects.toMatchObject({ status: 503 })
+    expect(loadSession()?.sessionKey).toBe("current")
     expect(sessionRefreshIssue()).toContain("paused")
-    expect(ky).toHaveBeenCalledOnce()
-    vi.mocked(ky).mockResolvedValue(json(session("new", "2999-01-01T00:00:00Z")) as never)
-    await refreshStoredSession()
-    expect(loadSession()?.accessToken).toBe("new")
+    vi.mocked(ky).mockResolvedValue(
+      json({ browserSession: true, user: { userId: 1, username: "renamed" } }) as never,
+    )
+    await verifyStoredSession()
+    expect(loadSession()?.sessionKey).toBe("current")
+    expect(loadSession()?.user.username).toBe("renamed")
     expect(sessionRefreshIssue()).toBeNull()
   })
-  it.each([401, 403])(
-    "clears credentials after a definitive %s refresh rejection",
-    async (status) => {
-      browserStorage()
-      saveSession(session("old", "2000-01-01T00:00:00Z"))
-      vi.mocked(ky).mockResolvedValue(json({}, status) as never)
-      await expect(refreshStoredSession()).rejects.toMatchObject({ status })
-      expect(loadSession()).toBeNull()
-    },
-  )
+  it.each([401, 403])("clears credentials after a definitive %s rejection", async (status) => {
+    browserStorage()
+    saveSession(session("current"))
+    vi.mocked(ky).mockResolvedValue(json({}, status) as never)
+    await expect(verifyStoredSession()).rejects.toMatchObject({ status })
+    expect(loadSession()).toBeNull()
+  })
+  it("shares one verification request across concurrent callers", async () => {
+    browserStorage()
+    saveSession(session("current"))
+    vi.mocked(ky).mockImplementation((async () => json(session("ignored"))) as unknown as typeof ky)
+    await Promise.all([verifyStoredSession(), verifyStoredSession()])
+    expect(ky).toHaveBeenCalledOnce()
+    expect(
+      new Headers(vi.mocked(ky).mock.calls[0]?.[1]?.headers as HeadersInit).has("Authorization"),
+    ).toBe(false)
+  })
 })
 
 describe("request identity and budget across asynchronous phases", () => {
@@ -455,7 +446,7 @@ describe("request identity and budget across asynchronous phases", () => {
     "discards a private %s body completed after account change",
     async (kind) => {
       browserStorage()
-      saveSession(session("old", "2999-01-01T00:00:00Z"))
+      saveSession(session("old"))
       let body!: ReadableStreamDefaultController<Uint8Array>
       vi.mocked(ky).mockResolvedValue(
         new Response(
@@ -471,54 +462,19 @@ describe("request identity and budget across asynchronous phases", () => {
           ? request("/private", z.unknown(), { expectedUserId: "1" })
           : requestBlob("/private-file", { expectedUserId: "1" })
       const rejected = expect(operation).rejects.toMatchObject({ status: 0, requestSent: true })
-      saveSession({ ...session("other", "2999-01-01T00:00:00Z"), user: { userId: "2" } })
+      saveSession({ ...session("other"), user: { userId: "2" } })
       body.enqueue(new TextEncoder().encode('{"private":"owner-1"}'))
       body.close()
       await rejected
       expect(loadSession()?.user.userId).toBe("2")
     },
   )
-  it("cancels one caller waiting for refresh while another caller can finish", async () => {
-    browserStorage()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
-    let complete!: (response: Response) => void
-    vi.mocked(ky).mockImplementation((async (url: unknown) => {
-      if (String(url).endsWith("/auth/browser/refresh"))
-        return await new Promise<Response>((resolve) => {
-          complete = resolve
-        })
-      return json({ ok: true })
-    }) as unknown as typeof ky)
-    const controller = new AbortController()
-    const cancelled = request("/private/cancelled", z.unknown(), {
-      method: "POST",
-      signal: controller.signal,
-    })
-    const rejected = expect(cancelled).rejects.toMatchObject({
-      name: "AbortError",
-      requestSent: false,
-    })
-    const other = request("/private/other", z.object({ ok: z.boolean() }))
-    controller.abort()
-    await rejected
-    expect(ky).toHaveBeenCalledOnce()
-    complete(json(session("new", "2999-01-01T00:00:00Z")))
-    await expect(other).resolves.toEqual({ ok: true })
-    expect(ky).toHaveBeenCalledTimes(2)
-    expect(
-      vi.mocked(ky).mock.calls.some(([url]) => String(url).endsWith("/private/cancelled")),
-    ).toBe(false)
-  })
-  it("uses the original ten-second deadline after a slow shared refresh", async () => {
+  it("aborts the request at the original ten-second deadline", async () => {
     browserStorage()
     vi.useFakeTimers()
-    saveSession(session("old", "2000-01-01T00:00:00Z"))
+    saveSession(session("current"))
     let businessSignal: AbortSignal | undefined
-    vi.mocked(ky).mockImplementation((async (url: unknown, options?: Options) => {
-      if (String(url).endsWith("/auth/browser/refresh")) {
-        await new Promise((resolve) => setTimeout(resolve, 8000))
-        return json(session("new", "2999-01-01T00:00:00Z"))
-      }
+    vi.mocked(ky).mockImplementation((async (_url: unknown, options?: Options) => {
       businessSignal = options?.signal ?? undefined
       return new Response(new ReadableStream<Uint8Array>())
     }) as unknown as typeof ky)
@@ -561,7 +517,7 @@ it("rejects oversized HTTP login and principal identities before UI admission an
   const convert = vi.spyOn(globalThis, "BigInt")
   try {
     vi.mocked(ky).mockImplementation((async () =>
-      json({ accessToken: "token", user: { userId } })) as unknown as typeof ky)
+      json({ sessionKey: "token", user: { userId } })) as unknown as typeof ky)
     await expect(
       request("/api/v1/auth/login", AuthSessionSchema, { method: "POST", body: {} }),
     ).rejects.toBeInstanceOf(ApiError)

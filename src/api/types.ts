@@ -91,14 +91,11 @@ export const UserSchema = z
   })
   .passthrough()
 
+/** 网关返回的登录结果。浏览器登录的令牌只放在 HttpOnly Cookie 里，响应体不带令牌。 */
 export const AuthSessionSchema = z
   .object({
-    accessToken: z.string(),
-    refreshToken: z.string().nullish(),
     browserSession: z.boolean().optional(),
-    expiresAt: z.string().optional(),
-    accessTokenExpiresAt: z.string().optional(),
-    refreshTokenExpiresAt: z.string().optional(),
+    sessionExpiresAt: z.string().nullish(),
     requiresEmailVerification: z.boolean().optional(),
     user: UserSchema,
   })
@@ -851,7 +848,10 @@ export const AnnouncementPageSchema = z
 export type ApiNotification = z.infer<typeof NotificationSchema>
 export type ApiAnnouncement = z.infer<typeof AnnouncementSchema>
 
-export type AuthSession = z.infer<typeof AuthSessionSchema>
+/** 网关返回的登录结果（不含页面内的 sessionKey）。 */
+export type AuthSessionPayload = z.infer<typeof AuthSessionSchema>
+/** 当前页面里的登录状态；sessionKey 只在本页面内区分"哪一次登录"，不是网关令牌。 */
+export type AuthSession = AuthSessionPayload & { readonly sessionKey: string }
 export type JwtPrincipal = z.infer<typeof JwtPrincipalSchema>
 export type ApiUserSession = z.infer<typeof UserSessionSchema>
 export type ApiDeviceStatus = z.infer<typeof DeviceStatusSchema>

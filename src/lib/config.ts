@@ -14,7 +14,7 @@ export const config = {
   demoDataEnabled: import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === "true",
 } as const
 
-/** Gateway routes product-scoped subscriptions on one WebSocket. Credentials travel in authenticate. */
+/** Gateway routes product-scoped subscriptions on one WebSocket. The login rides the session cookie on the handshake. */
 export function applicationWebSocketUrl(baseUrl: string): string {
   if (!baseUrl) return ""
   const url = new URL(baseUrl)

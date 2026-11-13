@@ -89,7 +89,7 @@ export function LedgerPage() {
   const [to, setTo] = useState("")
   const queryScope = JSON.stringify([
     session?.user.userId,
-    session?.accessToken,
+    session?.sessionKey,
     category,
     line,
     asset,

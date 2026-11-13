@@ -48,12 +48,12 @@ export function DepositPage() {
     })[]
     error: string
   } | null>(null)
-  const assets = catalog?.token === session?.accessToken ? (catalog?.rows ?? []) : []
+  const assets = catalog?.token === session?.sessionKey ? (catalog?.rows ?? []) : []
   const asset = selection.asset ? assets.find((row) => row.asset === selection.asset) : assets[0]
   const network = asset?.networks.find((row) => row.networkCode === selection.network)
   const assetCode = asset?.asset ?? ""
   const networkCode = network?.networkCode ?? ""
-  const token = session?.accessToken ?? ""
+  const token = session?.sessionKey ?? ""
   const key = `${token}:${assetCode}:${networkCode}`
   const address = result?.key === key ? result.address : undefined
   const addressError = result?.key === key ? result.error : ""

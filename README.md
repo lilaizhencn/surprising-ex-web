@@ -410,7 +410,7 @@ Google 登录连接交易 Gateway 的 `/api/v1/auth/google`，沿用现有会话
 
 ## 安全会话与资源策略
 
-访问令牌只在内存中保留，刷新使用 HttpOnly Cookie 与独立 CSRF；页面重载先恢复身份，Cookie 身份操作使用 Web Locks 串行化。开发服务默认只监听 127.0.0.1；依赖使用提交的锁文件，使用 `bun install --frozen-lockfile` 复现。生产静态资源发布 `public/_headers`，更换 API/Google/Sumsub 来源时同步 CSP。仅本机 HTTP 联调设置后端 `GATEWAY_BROWSER_COOKIE_SECURE=false`。
+登录令牌只放在网关写入的 HttpOnly Cookie（SameSite=Lax，Domain 由网关配置），页面脚本读不到；请求用 `credentials: include`，写请求带 `X-CSRF-Token`（取自 CSRF Cookie），无 Authorization 头。会话 7 天滑动有效，没有刷新；页面重载通过 `GET /api/v1/auth/session` 恢复身份，401 回到登录页。WebSocket 握手带同一个 Cookie，`authenticate` 不带令牌。开发服务默认只监听 127.0.0.1；依赖使用提交的锁文件，使用 `bun install --frozen-lockfile` 复现。生产静态资源发布 `public/_headers`，更换 API/Google/Sumsub 来源时同步 CSP。仅本机 HTTP 联调设置后端 `GATEWAY_BROWSER_COOKIE_SECURE=false`。
 
 ## 身份认证闭环
 

@@ -106,7 +106,7 @@ export function OrdersPage() {
   const requestVersion = useRef(0)
   const queryScope = JSON.stringify([
     session?.user.userId,
-    session?.accessToken,
+    session?.sessionKey,
     productLine,
     tab,
     instrumentId,

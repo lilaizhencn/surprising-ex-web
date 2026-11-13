@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { authApi } from "../../api/endpoints"
 import { googleApi } from "../../api/google"
-import { type AuthSession, type LoginChallenge, LoginChallengeSchema } from "../../api/types"
+import { type AuthSessionPayload, type LoginChallenge, LoginChallengeSchema } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
 import { contentLocale } from "../../i18n/locales"
@@ -24,7 +24,7 @@ export function GoogleLogin({
   readonly inviteCode?: string
   readonly oneTapOnly?: boolean
   readonly disabled?: boolean
-  readonly onLogin?: (result: AuthSession | LoginChallenge) => void
+  readonly onLogin?: (result: AuthSessionPayload | LoginChallenge) => void
   readonly onBusyChange?: (busy: boolean) => void
   readonly onError?: (message: string) => void
 }) {
@@ -45,7 +45,7 @@ export function GoogleLogin({
     })
   const locale = useLocale()
 
-  const accept = (result: AuthSession | LoginChallenge) => {
+  const accept = (result: AuthSessionPayload | LoginChallenge) => {
     clearInvitation()
     if (callbacks.current.onLogin) return callbacks.current.onLogin(result)
     if ("requiresVerification" in result) {

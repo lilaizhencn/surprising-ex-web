@@ -1,5 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react"
-import { refreshStoredSession } from "../api/client"
+import { lazy, Suspense } from "react"
 import { AppShell } from "../components/layout/AppShell"
 import { AnnouncementsPage } from "../features/announcements/AnnouncementsPage"
 import { LegalPage } from "../features/legal/LegalPage"
@@ -9,7 +8,7 @@ import { MarketsPage } from "../features/public/MarketsPage"
 import { useBrowserNavigation } from "../hooks/useBrowserNavigation"
 import { useRealtimeApplication } from "../hooks/useRealtimeApplication"
 import { t, useLocale } from "../i18n"
-import { loadSession, sessionAccessExpired, useSession } from "../state/session"
+import { useSession } from "../state/session"
 
 const AffiliatePage = lazy(() =>
   import("../features/affiliate/AffiliatePage").then((module) => ({
@@ -109,31 +108,6 @@ export function App() {
 function AppRoutes() {
   useLocale()
   const session = useSession()
-  const [sessionReady, setSessionReady] = useState(() => !sessionAccessExpired(loadSession()))
-  useEffect(() => {
-    if (sessionReady) return
-    let active = true
-    void refreshStoredSession()
-      .catch(() => {
-        /* Refresh classifies invalid credentials separately from transient failure. */
-      })
-      .finally(() => {
-        if (active) setSessionReady(true)
-      })
-    return () => {
-      active = false
-    }
-  }, [sessionReady])
-  useEffect(() => {
-    if (!session?.accessTokenExpiresAt) return
-    const remaining = Date.parse(session.accessTokenExpiresAt) - Date.now()
-    if (!Number.isFinite(remaining)) return
-    const refreshIn = Math.max(1000, remaining - Math.min(30_000, remaining / 2))
-    const timer = window.setTimeout(() => {
-      void refreshStoredSession().catch(() => {})
-    }, refreshIn)
-    return () => window.clearTimeout(timer)
-  }, [session?.accessTokenExpiresAt])
   const path = window.location.pathname
   if (path === "/legal" || path.startsWith("/legal/"))
     return (
@@ -183,12 +157,6 @@ function AppRoutes() {
         <Suspense fallback={<div className="container section" aria-busy="true" />}>
           <TradePage productKey={path.slice("/trade/".length)} />
         </Suspense>
-      </AppShell>
-    )
-  if (!sessionReady)
-    return (
-      <AppShell>
-        <div className="container section" aria-busy="true" />
       </AppShell>
     )
   if (path === "/affiliate")

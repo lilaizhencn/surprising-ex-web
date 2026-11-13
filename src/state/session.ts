@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react"
-import type { AuthSession } from "../api/types"
+import type { AuthSession, AuthSessionPayload } from "../api/types"
 import { storageKeys } from "../lib/config"
 import { readStoredValue, writeStoredValue } from "../lib/storage"
 
@@ -31,11 +31,12 @@ function subscribeSession(onStoreChange: () => void): () => void {
 export function loadSession(): AuthSession | null {
   if (typeof window === "undefined") return null
   writeStoredValue(storageKeys.session, null)
-  if (cachedSession && sessionRefreshExpired(cachedSession)) cachedSession = null
   return cachedSession
 }
 
-function validStoredSession(session: AuthSession): boolean {
+function validStoredSession(
+  session: AuthSessionPayload & { readonly sessionKey?: string | undefined },
+): boolean {
   const id = session.user.userId
   const text = String(id)
   if (
@@ -44,26 +45,11 @@ function validStoredSession(session: AuthSession): boolean {
     !/^[1-9]\d*$/.test(text)
   )
     return false
-  if (
-    BigInt(id) > 9223372036854775807n ||
-    !session.accessToken.trim() ||
-    session.refreshToken === ""
-  )
-    return false
-  return [session.expiresAt, session.accessTokenExpiresAt, session.refreshTokenExpiresAt].every(
-    (value) => value === undefined || Number.isFinite(Date.parse(value)),
-  )
-}
-
-export function sessionAccessExpired(session: AuthSession | null): boolean {
-  const expiresAt = session?.accessTokenExpiresAt ?? session?.expiresAt
-  return Boolean(expiresAt && Date.parse(expiresAt) <= Date.now())
-}
-
-function sessionRefreshExpired(session: AuthSession): boolean {
-  return Boolean(
-    (session.refreshTokenExpiresAt && Date.parse(session.refreshTokenExpiresAt) <= Date.now()) ||
-      (!session.browserSession && !session.refreshToken && sessionAccessExpired(session)),
+  if (BigInt(id) > 9223372036854775807n || session.sessionKey?.trim() === "") return false
+  return (
+    session.sessionExpiresAt === undefined ||
+    session.sessionExpiresAt === null ||
+    Number.isFinite(Date.parse(session.sessionExpiresAt))
   )
 }
 
@@ -72,7 +58,9 @@ export function hasStoredSession(): boolean {
   return Boolean(readStoredValue(storageKeys.hasSession))
 }
 
-export function saveSession(session: AuthSession | null): void {
+export function saveSession(
+  session: (AuthSessionPayload & { readonly sessionKey?: string | undefined }) | null,
+): void {
   if (typeof window === "undefined") return
   if (session && !validStoredSession(session))
     throw new Error("The service returned an invalid session. Please sign in again.")
@@ -80,6 +68,8 @@ export function saveSession(session: AuthSession | null): void {
   writeStoredValue(storageKeys.session, null)
   writeStoredValue(storageKeys.hasSession, session ? "true" : null)
   cachedSession = session
+    ? { ...session, sessionKey: session.sessionKey ?? crypto.randomUUID() }
+    : null
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
 }
 

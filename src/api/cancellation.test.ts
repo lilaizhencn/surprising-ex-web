@@ -16,7 +16,7 @@ vi.mock("./client", async (original) => ({
 const send = vi.mocked(request)
 const ids = Array.from({ length: 120 }, (_, i) => String(9007199254740993n + BigInt(i)))
 const firstId = "9007199254740993"
-const account = (userId = 1) => ({ accessToken: "test", refreshToken: "test", user: { userId } })
+const account = (userId = 1) => ({ sessionKey: "test", refreshToken: "test", user: { userId } })
 let writes = 0
 let failAt = 0
 function storage() {

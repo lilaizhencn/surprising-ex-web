@@ -2,17 +2,11 @@ import ky, { type Options } from "ky"
 import type { z } from "zod"
 import { t } from "../i18n"
 import { config } from "../lib/config"
-import {
-  clearLegalReview,
-  legalAcceptanceHeader,
-  requireLegalReview,
-} from "../state/legalAcceptance"
+import { clearLegalReview, legalAcceptanceHeader } from "../state/legalAcceptance"
 import {
   hasStoredSession,
   loadSession,
   saveSession,
-  sessionAccessExpired,
-  sessionRefreshIssue,
   setSessionRefreshIssue,
 } from "../state/session"
 import type { ProductLine } from "../types/domain"
@@ -55,39 +49,38 @@ export type RequestOptions = {
 export type BinaryRequestOptions = Omit<RequestOptions, "body">
 
 function credentialRequest(path: string): boolean {
-  return /^\/api\/v1\/auth\/(?:login(?:\/verify)?|logout|register|forgot-password|reset-password|verify-email|refresh|browser\/(?:refresh|logout|revoke-others)|google\/(?:config|challenge|login)|telegram\/(?:config|start|complete))(?:\?|$)/.test(
+  return /^\/api\/v1\/auth\/(?:login(?:\/verify)?|logout|register|forgot-password|reset-password|verify-email|google\/(?:config|challenge|login)|telegram\/(?:config|start|complete))(?:\?|$)/.test(
     path,
   )
 }
 
-const DEVICE_ID_KEY = "surprising-ex.device-id"
-let refreshInFlight: { token: string; userId: string; operation: Promise<AuthSession> } | null =
-  null
+/** 登录凭证只在 HttpOnly Cookie 里；写请求带 CSRF Cookie 的值作为 X-CSRF-Token。 */
+const AUTH_CLIENT = "web"
+const CSRF_COOKIE = "surprising-web-csrf"
 
-export function refreshStoredSession(): Promise<AuthSession> {
+const DEVICE_ID_KEY = "surprising-ex.device-id"
+let verifyInFlight: { sessionKey: string; operation: Promise<AuthSession> } | null = null
+
+/**
+ * 向网关确认当前 Cookie 登录是否还有效，并取回最新的用户资料。
+ * 401/403 表示登录已失效（过期、被踢下线、被冻结），回到未登录状态；其他失败只标记"暂时不可用"。
+ */
+export function verifyStoredSession(): Promise<AuthSession> {
   const session = loadSession()
-  if (!session || (!session.browserSession && !session.refreshToken))
-    return Promise.reject(new ApiError(t("Sign in required."), 401))
-  const refreshToken = session.accessToken
+  if (!session) return Promise.reject(new ApiError(t("Sign in required."), 401))
+  const { sessionKey } = session
   const userId = String(session.user.userId)
-  const stillCurrent = () =>
-    loadSession()?.accessToken === refreshToken && String(loadSession()?.user.userId) === userId
-  if (refreshInFlight?.token === refreshToken && refreshInFlight.userId === userId)
-    return refreshInFlight.operation
-  const operation = request<AuthSession>(
-    "/api/v1/auth/browser/refresh",
-    AuthSessionSchema,
-    { method: "POST", body: {} },
-    false,
-  )
-    .then((refreshed) => {
-      if (String(refreshed.user.userId) !== userId)
+  const stillCurrent = () => loadSession()?.sessionKey === sessionKey
+  if (verifyInFlight?.sessionKey === sessionKey) return verifyInFlight.operation
+  const operation = request(SESSION_PATH, AuthSessionSchema)
+    .then((current) => {
+      if (String(current.user.userId) !== userId)
         throw new ApiError(
           t("The service returned an unexpected response. Please refresh and try again."),
           502,
         )
-      if (stillCurrent()) saveSession(refreshed)
-      return refreshed
+      if (stillCurrent()) saveSession({ ...current, browserSession: true, sessionKey })
+      return loadSession() ?? { ...current, sessionKey }
     })
     .catch((error: unknown) => {
       if (stillCurrent()) {
@@ -101,10 +94,49 @@ export function refreshStoredSession(): Promise<AuthSession> {
       throw error
     })
     .finally(() => {
-      if (refreshInFlight?.operation === operation) refreshInFlight = null
+      if (verifyInFlight?.operation === operation) verifyInFlight = null
     })
-  refreshInFlight = { token: refreshToken, userId, operation }
+  verifyInFlight = { sessionKey, operation }
   return operation
+}
+
+const SESSION_PATH = "/api/v1/auth/session"
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null
+  for (const part of document.cookie.split(";")) {
+    const [key, ...value] = part.trim().split("=")
+    if (key === name) return decodeURIComponent(value.join("="))
+  }
+  return null
+}
+
+/** CSRF Cookie 缺失（浏览器重启后）时，先请求网关重新下发再读取。 */
+async function csrfToken(signal: AbortSignal): Promise<string> {
+  const existing = readCookie(CSRF_COOKIE)
+  if (existing) return existing
+  const response = await ky.get(`${config.apiBaseUrl}/api/v1/auth/csrf`, {
+    credentials: "include",
+    headers: { "X-Auth-Client": AUTH_CLIENT },
+    signal,
+    retry: 0,
+    timeout: false,
+    throwHttpErrors: false,
+  })
+  if (!response.ok)
+    throw new ApiError(
+      responseErrorMessage(null, response, false),
+      response.status,
+      null,
+      false,
+      retryAfterSeconds(response),
+    )
+  const text = await response.text()
+  if (text.length > 2048) throw new Error("Invalid CSRF response")
+  const body = JSON.parse(text) as { token?: unknown }
+  if (typeof body.token !== "string" || body.token.length > 512)
+    throw new Error("Invalid CSRF response")
+  return readCookie(CSRF_COOKIE) ?? body.token
 }
 
 function browserDeviceId(): string {
@@ -124,25 +156,16 @@ export async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   options: RequestOptions = {},
-  allowRefresh = true,
   deadline = Date.now() +
     (typeof FormData !== "undefined" && options.body instanceof FormData ? 180_000 : 10_000),
 ): Promise<T> {
   checkBeforeSend(options.signal, deadline)
   const method = options.method ?? "GET"
   const startingUserId = loadSession()?.user.userId
-  // Public market discovery must not wait for an unrelated session refresh.
+  // Public market discovery never carries the login cookie.
   const publicMarket =
     method === "GET" &&
     /^\/api\/v1\/gateway\/instrument\/(list|latest|asset-scales)(?:\?|$)/.test(path)
-  if (
-    !publicMarket &&
-    loadSession() !== null &&
-    allowRefresh &&
-    !credentialRequest(path) &&
-    (sessionAccessExpired(loadSession()) || sessionRefreshIssue() !== null)
-  )
-    await waitForSessionRefresh(options.signal, deadline)
   const session = publicMarket || path.startsWith("/api/v1/auth/google/") ? null : loadSession()
   if (
     !publicMarket &&
@@ -158,10 +181,10 @@ export async function request<T>(
     throw new ApiError(t("Session changed. No order was sent."), 401, null, false)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
-  if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
   if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
   if (options.productLine) headers.set("X-Product-Line", options.productLine)
   if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
+  const cookieAuth = (session !== null && !publicMarket) || path.startsWith("/api/v1/auth/")
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData
   if (options.body !== undefined && !isFormData) headers.set("Content-Type", "application/json")
 
@@ -177,45 +200,19 @@ export async function request<T>(
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
   checkBeforeSend(options.signal, deadline)
-  const { response, bytes } = await send(path, requestOptions)
+  const { response, bytes } = await send(path, requestOptions, false, cookieAuth)
   checkResponseOwner(path, session, options.expectedUserId)
   const raw = new TextDecoder().decode(bytes)
   const payload = parseResponse(raw)
 
   if (
     response.status === 401 &&
-    allowRefresh &&
-    (session?.browserSession || session?.refreshToken) &&
-    !credentialRequest(path)
-  ) {
-    if (loadSession()?.accessToken === session.accessToken)
-      await waitForSessionRefresh(options.signal, deadline)
-    return request(
-      path,
-      schema,
-      { ...options, expectedUserId: options.expectedUserId ?? String(session.user.userId) },
-      false,
-      deadline,
-    )
-  }
-
-  if (
-    response.status === 401 &&
     session &&
     !credentialRequest(path) &&
-    loadSession()?.accessToken === session.accessToken
+    loadSession()?.sessionKey === session.sessionKey
   )
     saveSession(null)
 
-  if (
-    response.status === 428 &&
-    path.includes("/refresh") &&
-    payload !== null &&
-    typeof payload === "object" &&
-    "code" in payload &&
-    payload.code === "LEGAL_CONSENT_REQUIRED"
-  )
-    requireLegalReview()
   if (!response.ok)
     throw new ApiError(
       responseErrorMessage(payload, response, method !== "GET"),
@@ -245,18 +242,11 @@ export async function request<T>(
 export async function requestBlob(
   path: string,
   options: BinaryRequestOptions = {},
-  allowRefresh = true,
   deadline = Date.now() + 10_000,
 ): Promise<Blob> {
   checkBeforeSend(options.signal, deadline)
   const method = options.method ?? "GET"
   const startingUserId = loadSession()?.user.userId
-  if (
-    allowRefresh &&
-    !credentialRequest(path) &&
-    (sessionAccessExpired(loadSession()) || sessionRefreshIssue() !== null)
-  )
-    await waitForSessionRefresh(options.signal, deadline)
   const session = loadSession()
   if (
     !credentialRequest(path) &&
@@ -271,7 +261,6 @@ export async function requestBlob(
     throw new ApiError(t("Session changed. No request was sent."), 401, null, false)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
-  if (session?.accessToken) headers.set("Authorization", `Bearer ${session.accessToken}`)
   if (session?.user.userId) headers.set("X-User-Id", String(session.user.userId))
   if (options.productLine) headers.set("X-Product-Line", options.productLine)
   if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey)
@@ -284,28 +273,13 @@ export async function requestBlob(
   }
   if (options.signal !== undefined) requestOptions.signal = options.signal
   checkBeforeSend(options.signal, deadline)
-  const { response, bytes } = await send(path, requestOptions, true)
+  const { response, bytes } = await send(path, requestOptions, true, session !== null)
   checkResponseOwner(path, session, options.expectedUserId)
-  if (
-    response.status === 401 &&
-    allowRefresh &&
-    (session?.browserSession || session?.refreshToken) &&
-    !credentialRequest(path)
-  ) {
-    if (loadSession()?.accessToken === session.accessToken)
-      await waitForSessionRefresh(options.signal, deadline)
-    return requestBlob(
-      path,
-      { ...options, expectedUserId: options.expectedUserId ?? String(session.user.userId) },
-      false,
-      deadline,
-    )
-  }
   if (
     response.status === 401 &&
     session &&
     !credentialRequest(path) &&
-    loadSession()?.accessToken === session.accessToken
+    loadSession()?.sessionKey === session.sessionKey
   )
     saveSession(null)
   if (!response.ok) {
@@ -372,50 +346,6 @@ function checkResponseOwner(
       ),
       0,
     )
-}
-
-/** Cancelling a caller must not cancel the rotating refresh shared by other requests. */
-async function waitForSessionRefresh(
-  signal: AbortSignal | undefined,
-  deadline: number,
-): Promise<AuthSession> {
-  checkBeforeSend(signal, deadline)
-  let timer: ReturnType<typeof setTimeout> | undefined
-  let onAbort: (() => void) | undefined
-  try {
-    const interrupted = new Promise<never>((_resolve, reject) => {
-      onAbort = () => reject(new RequestCancelledBeforeSend())
-      signal?.addEventListener("abort", onAbort, { once: true })
-      timer = setTimeout(
-        () =>
-          reject(
-            new ApiError(
-              t("The request timed out before it was sent. Please retry."),
-              0,
-              null,
-              false,
-            ),
-          ),
-        Math.max(0, deadline - Date.now()),
-      )
-    })
-    return await Promise.race([refreshStoredSession(), interrupted])
-  } catch (error) {
-    if (error instanceof RequestCancelledBeforeSend) throw error
-    if (error instanceof ApiError)
-      throw new ApiError(error.message, error.status, error.payload, false)
-    throw new ApiError(
-      error instanceof Error
-        ? error.message
-        : t("Unable to connect. Check your network and try again."),
-      0,
-      null,
-      false,
-    )
-  } finally {
-    clearTimeout(timer)
-    if (onAbort) signal?.removeEventListener("abort", onAbort)
-  }
 }
 
 function parseResponse(raw: string): unknown {
@@ -490,6 +420,7 @@ async function send(
   path: string,
   options: Options,
   binary = false,
+  cookieAuth = false,
 ): Promise<{ response: Response; bytes: Uint8Array<ArrayBuffer> }> {
   const controller = new AbortController()
   const externalSignal = options.signal
@@ -514,49 +445,23 @@ async function send(
       if (controller.signal.aborted) rejectAbort()
       else controller.signal.addEventListener("abort", rejectAbort, { once: true })
     })
-    const browserAuth = path.startsWith("/api/v1/auth/") && options.method !== "GET"
+    const loginRequest = path.startsWith("/api/v1/auth/") && options.method !== "GET"
     const operation = async () => {
       controller.signal.throwIfAborted()
       const headers = new Headers(options.headers as HeadersInit | undefined)
-      if (browserAuth) {
+      if (cookieAuth) headers.set("X-Auth-Client", AUTH_CLIENT)
+      if (loginRequest) {
         const acceptance = legalAcceptanceHeader()
         if (acceptance) headers.set("X-Legal-Acceptance", acceptance)
-        const csrfResponse = await ky.get(`${config.apiBaseUrl}/api/v1/auth/csrf`, {
-          credentials: "include",
-          headers: { "X-Auth-Client": "web" },
-          signal: controller.signal,
-          retry: 0,
-          timeout: false,
-          throwHttpErrors: false,
-        })
-        if (!csrfResponse.ok)
-          throw new ApiError(
-            responseErrorMessage(null, csrfResponse, false),
-            csrfResponse.status,
-            null,
-            false,
-            retryAfterSeconds(csrfResponse),
-          )
-        const csrfText = await csrfResponse.text()
-        if (csrfText.length > 2048) throw new Error("Invalid CSRF response")
-        const csrf = JSON.parse(csrfText) as { token?: unknown }
-        if (typeof csrf.token !== "string" || csrf.token.length > 512)
-          throw new Error("Invalid CSRF response")
-        headers.set("X-XSRF-TOKEN", csrf.token)
         headers.set("X-Auth-Transport", "cookie")
-        headers.set("X-Auth-Client", "web")
-        if (
-          !path.endsWith("/verify-email") &&
-          !path.endsWith("/resend-email-verification") &&
-          !path.endsWith("/revoke-others")
-        )
-          headers.delete("Authorization")
       }
+      if (cookieAuth && options.method !== undefined && options.method !== "GET")
+        headers.set("X-CSRF-Token", await csrfToken(controller.signal))
       requestSent = true
       const response = await ky(`${config.apiBaseUrl}${path}`, {
         ...options,
         headers,
-        credentials: browserAuth ? "include" : "omit",
+        credentials: cookieAuth ? "include" : "omit",
         timeout: false,
         signal: controller.signal,
       })
@@ -582,16 +487,7 @@ async function send(
       }
       return { response, bytes }
     }
-    if (browserAuth && (typeof navigator === "undefined" || !navigator.locks))
-      throw new ApiError(t("Update your browser to use secure sign-in."), 0, null, false)
-    const sending = browserAuth
-      ? navigator.locks.request(
-          "surprising-web-browser-session",
-          { signal: controller.signal },
-          operation,
-        )
-      : operation()
-    return await Promise.race([sending, aborted])
+    return await Promise.race([operation(), aborted])
   } catch (error) {
     controller.abort(error)
     if (
@@ -623,13 +519,8 @@ async function send(
 export async function restoreBrowserSession(): Promise<void> {
   if (!hasStoredSession()) return
   try {
-    const restored = await request(
-      "/api/v1/auth/browser/refresh",
-      AuthSessionSchema,
-      { method: "POST", body: {} },
-      false,
-    )
-    saveSession(restored)
+    const restored = await request(SESSION_PATH, AuthSessionSchema)
+    saveSession({ ...restored, browserSession: true })
     clearLegalReview()
   } catch {
     saveSession(null)

@@ -56,7 +56,7 @@ const intent = {
 it.each(["place", "cancel", "amend"])(
   "%s keeps its SPOT intent when confirmation cannot be persisted, and later recovers by GET",
   async (action) => {
-    saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } })
+    saveSession({ sessionKey: "test", refreshToken: "test", user: { userId: 1 } })
     const write = () =>
       action === "place"
         ? placeOrder(body, "SPOT")
@@ -312,7 +312,7 @@ describe("spot cancellation recovery", () => {
   const intent = { userId: "1", productLine: "SPOT" as const, cancelOrderId: orderId }
   beforeEach(() =>
     saveSession({
-      accessToken: "test",
+      sessionKey: "test",
       refreshToken: "test",
       user: { userId: 1, username: "spot", email: "", status: "ACTIVE" },
     }),
@@ -440,7 +440,7 @@ describe("spot amendment recovery", () => {
   }
   beforeEach(() =>
     saveSession({
-      accessToken: "test",
+      sessionKey: "test",
       refreshToken: "test",
       user: { userId: 1, username: "spot", email: "", status: "ACTIVE" },
     }),
@@ -559,7 +559,7 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
   "%s recovers the original expiring contract cancellation with GET and blocks duplicate writes",
   async (line) => {
     saveSession({
-      accessToken: "test",
+      sessionKey: "test",
       refreshToken: "test",
       user: { userId: 1, username: "delivery", email: "", status: "ACTIVE" },
     })
@@ -610,9 +610,7 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
 describe.each(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"] as const)(
   "%s original order recovery",
   (product) => {
-    beforeEach(() =>
-      saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } }),
-    )
+    beforeEach(() => saveSession({ sessionKey: "test", refreshToken: "test", user: { userId: 1 } }))
     it("preserves the original placement before POST and never issues another order after a lost reply", async () => {
       send.mockRejectedValueOnce(new TypeError("lost committed response"))
       await expect(placeOrder(body, product)).rejects.toBeInstanceOf(PendingTradingCommand)
@@ -675,7 +673,7 @@ describe.each([
   "INVERSE_DELIVERY",
   "OPTION",
 ] as const)("%s dedicated close recovery", (product) => {
-  beforeEach(() => saveSession({ accessToken: "test", user: { userId: 1 } }))
+  beforeEach(() => saveSession({ sessionKey: "test", user: { userId: 1 } }))
   it("persists the close request before POST; lost replies recover by the original ordinary-order receipt", async () => {
     send.mockImplementationOnce(async (url, _schema, options) => {
       expect(url).toBe("/api/v1/gateway/trading/close-position")
@@ -723,7 +721,7 @@ describe.each([
 it.each(["place", "cancel", "amend"])(
   "%s releases an intent when session recovery proves its write was never sent",
   async (action) => {
-    saveSession({ accessToken: "test", refreshToken: "test", user: { userId: 1 } })
+    saveSession({ sessionKey: "test", refreshToken: "test", user: { userId: 1 } })
     const failure = new ApiError(
       "Session temporarily unavailable. No request was sent.",
       503,

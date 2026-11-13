@@ -7,7 +7,7 @@
 - REST 前缀：`/api/v1`。
 - 交易产品线通过 `X-Product-Line` 请求头传递；部分网关接口也接受同名 query 参数。
 - 需要用户身份的请求沿用旧前端的 `Authorization: Bearer <accessToken>` 和 `X-User-Id`。
-- 登录响应包含 access token、refresh token 和用户标识；具体字段以 `AuthSessionSchema` 的兼容解析为准，后端字段变更必须同步 DTO mapper。
+- 登录响应包含用户资料；浏览器的会话令牌只在 HttpOnly Cookie 中，不出现在响应体；具体字段以 `AuthSessionSchema` 的兼容解析为准，后端字段变更必须同步 DTO mapper。
 - 金额、数量、价格可能以最小单位整数传输，精度由 instrument 的 tick、step、scale 或 ppm 字段决定，前端不得直接把整数当作展示金额。
 - 行情时间统一转为 ISO 8601；表格展示按用户浏览器时区渲染，交易服务端时间不做本地化改写。
 - 写操作不自动重试；订单使用 `clientOrderId`，划转使用 `Idempotency-Key`，未知结果必须查询确认。

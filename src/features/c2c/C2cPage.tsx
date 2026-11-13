@@ -39,7 +39,7 @@ export function C2cPage({ initialConversation }: { initialConversation?: C2cConv
     <C2cWorkspace
       key={String(session.user.userId)}
       owner={String(session.user.userId)}
-      token={session.accessToken}
+      token={session.sessionKey}
       initialConversation={initialConversation}
     />
   )

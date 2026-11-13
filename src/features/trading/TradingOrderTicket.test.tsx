@@ -35,7 +35,7 @@ function render(
 
 describe("order ticket entry points", () => {
   it("routes an authenticated trader to order management", () => {
-    const html = render({ accessToken: "test-token", user: { userId: "123" } })
+    const html = render({ sessionKey: "test-token", user: { userId: "123" } })
     expect(html).toContain('href="/orders">Manage orders</a>')
     expect(html).not.toContain('href="/auth/login"')
     expect(html).not.toContain("Login required")
@@ -48,7 +48,7 @@ describe("order ticket entry points", () => {
   })
 })
 
-const signedIn = { accessToken: "test-token", user: { userId: "123" } }
+const signedIn = { sessionKey: "test-token", user: { userId: "123" } }
 const market = {
   instrumentId: "123",
   productLine: "SPOT" as const,

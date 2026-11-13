@@ -115,7 +115,7 @@ describe("shared page realtime transports", () => {
     b.update([account, depth])
     expect(Socket.instances).toHaveLength(1)
     expect(ws.sent.filter((c) => c["op"] === "authenticate")).toEqual([
-      { op: "authenticate", id: "auth", token: "token" },
+      { op: "authenticate", id: "auth" },
     ])
     expect(ws.sent.filter((c) => c["op"] === "unsubscribe").map((c) => c["channel"])).toEqual([
       "accountState",

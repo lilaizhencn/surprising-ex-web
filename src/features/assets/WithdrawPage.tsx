@@ -98,7 +98,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
   const [challengeBusy, setChallengeBusy] = useState(false)
   const challengeFlight = useRef(false)
   const [challengeMessage, setChallengeMessage] = useState("")
-  const token = session.accessToken
+  const token = session.sessionKey
   const readScope = `${token}:${revision}`
   const assets = catalog?.key === readScope ? (catalog.value ?? []) : []
   const asset = pending?.asset ?? selection.asset

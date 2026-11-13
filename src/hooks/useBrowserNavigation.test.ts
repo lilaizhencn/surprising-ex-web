@@ -43,7 +43,7 @@ describe("application navigation ownership", () => {
         throw new DOMException("denied", "SecurityError")
       },
     })
-    saveSession({ accessToken: "current", user: { userId: "1" } })
+    saveSession({ sessionKey: "current", user: { userId: "1" } })
     const routeChanged = vi.fn()
     events.addEventListener("surprising-ex.navigation", routeChanged)
 

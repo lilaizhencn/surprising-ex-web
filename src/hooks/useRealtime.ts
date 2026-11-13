@@ -18,7 +18,7 @@ import {
   acquireRealtimeConnections,
   type RealtimeConnectionHandle,
 } from "../sharedRealtimeConnections"
-import { sessionAccessExpired, useSessionRefreshIssue } from "../state/session"
+import { useSessionRefreshIssue } from "../state/session"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
@@ -84,10 +84,9 @@ export function useRealtimeFeed(
   const latest = useRef(new Map<string, WsEnvelope>())
   const depthViewSerial = useRef(0)
   const refreshIssue = useSessionRefreshIssue()
-  const accessToken =
-    refreshIssue || sessionAccessExpired(session) ? null : (session?.accessToken ?? null)
+  const sessionKey = refreshIssue ? null : (session?.sessionKey ?? null)
   const userId = session ? String(session.user.userId) : null
-  const identity = `${userId ?? ""}:${accessToken ?? ""}`
+  const identity = `${userId ?? ""}:${sessionKey ?? ""}`
   const [owner, setOwner] = useState(identity)
   useEffect(() => {
     // The key tracks the structural plan, not the newly allocated array identity.
@@ -144,7 +143,7 @@ export function useRealtimeFeed(
           for (const k of latest.current.keys()) {
             if (k.startsWith(`${p}:`)) latest.current.delete(k)
           }
-        if (accessToken && userId) {
+        if (sessionKey && userId) {
           privateDirty = true
           if (live) current[p] = new PrivateView()
           else if (current[p]) current[p].status = "STALE"
@@ -155,11 +154,11 @@ export function useRealtimeFeed(
     }
     const manager = acquireRealtimeConnections(
       config.wsBaseUrlForProductLine,
-      accessToken,
+      sessionKey,
       (raw) => {
         if (closed || raw.op === "authenticated") return
         if (
-          accessToken &&
+          sessionKey &&
           userId &&
           String(raw.userId) === userId &&
           (raw.op === "snapshot" || PRIVATE_CHANNELS.has(raw.channel ?? "")) &&
@@ -179,7 +178,7 @@ export function useRealtimeFeed(
           }
         }
         if (
-          accessToken &&
+          sessionKey &&
           userId &&
           String(raw.userId) === userId &&
           raw.op === "event" &&
@@ -236,7 +235,7 @@ export function useRealtimeFeed(
     }
     connections.current = manager
     manager.update([...desired.current, ...privateDesired.current])
-    if (accessToken && userId)
+    if (sessionKey && userId)
       void loadRuntimeProducts()
         .then((enabled) => {
           if (closed) return
@@ -260,7 +259,7 @@ export function useRealtimeFeed(
       cancelPublish?.()
       manager.close()
     }
-  }, [accessToken, userId, identity, publishInterval, retainTrades, privateProductLine])
+  }, [sessionKey, userId, identity, publishInterval, retainTrades, privateProductLine])
   return {
     products,
     error,

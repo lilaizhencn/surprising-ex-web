@@ -76,7 +76,7 @@ describe("realtime connection lifecycle", () => {
     ws.open()
     expect(Socket.instances).toHaveLength(1)
     expect(ws.sent).toEqual([
-      { op: "authenticate", id: "auth", token: "secret" },
+      { op: "authenticate", id: "auth" },
       expect.objectContaining({ op: "subscribe", channel: "trades" }),
     ])
     ws.receive({ op: "authenticated" })
@@ -300,7 +300,7 @@ describe("realtime connection lifecycle", () => {
     vi.advanceTimersByTime(1)
     expect(Socket.instances).toHaveLength(2)
     socket(1).open()
-    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth", token: "valid" })
+    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth" })
     socket(1).receive({ op: "authenticated", userId: 7 })
     expect(socket(1).sent).toContainEqual(
       expect.objectContaining({ op: "subscribe", channel: "accountState" }),
@@ -346,9 +346,8 @@ describe("realtime connection lifecycle", () => {
     vi.stubGlobal("window", page)
     vi.stubGlobal("document", doc)
     saveSession({
-      accessToken: "secret",
+      sessionKey: "secret",
       user: { userId: "1" },
-      accessTokenExpiresAt: "2999-01-01T00:00:00Z",
     })
     const state = vi.fn()
     const manager = new RealtimeConnections(() => "ws://fixture", "secret", vi.fn(), state)
@@ -366,7 +365,7 @@ describe("realtime connection lifecycle", () => {
     page.dispatchEvent(new Event("pageshow"))
     expect(Socket.instances).toHaveLength(2)
     socket(1).open()
-    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth", token: "secret" })
+    expect(socket(1).sent).toContainEqual({ op: "authenticate", id: "auth" })
     socket(1).receive({ op: "authenticated" })
     expect(socket(1).sent).toContainEqual(
       expect.objectContaining({ op: "subscribe", channel: "accountState" }),
@@ -395,22 +394,18 @@ describe("realtime connection lifecycle", () => {
     expect(Socket.instances).toHaveLength(2)
     manager.close()
   })
-  it("does not reauthenticate a BFCache page with an expired access-only identity", () => {
+  it("does not reauthenticate a BFCache page after the session was signed out", () => {
     const page = new EventTarget()
     const doc = Object.assign(new EventTarget(), { visibilityState: "visible" })
     vi.stubGlobal("window", page)
     vi.stubGlobal("document", doc)
-    saveSession({
-      accessToken: "retired",
-      user: { userId: "1" },
-      accessTokenExpiresAt: new Date(Date.now() + 500).toISOString(),
-    })
+    saveSession({ sessionKey: "retired", user: { userId: "1" } })
     const manager = new RealtimeConnections(() => "ws://fixture", "retired", vi.fn(), vi.fn())
     manager.update([publicTrade, account])
     socket().open()
     socket().receive({ op: "authenticated" })
     page.dispatchEvent(new Event("pagehide"))
-    vi.advanceTimersByTime(1000)
+    saveSession(null)
     page.dispatchEvent(new Event("pageshow"))
     socket(1).open()
     expect(socket(1).sent.some((message) => message["op"] === "authenticate")).toBe(false)

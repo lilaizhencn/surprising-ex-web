@@ -17,7 +17,7 @@ export function WithdrawalHistory({
   readonly busy: boolean
 }) {
   const session = useSession()
-  const token = session?.accessToken ?? ""
+  const token = session?.sessionKey ?? ""
   const scope = `${token}:${asset}:${refreshVersion}`
   const [history, setHistory] = useState<{
     key: string

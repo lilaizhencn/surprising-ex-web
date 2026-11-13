@@ -1,4 +1,4 @@
-import { refreshStoredSession } from "./api/client"
+import { verifyStoredSession } from "./api/client"
 import { t } from "./i18n"
 import {
   isC2cSubscription,
@@ -12,7 +12,6 @@ import {
 import {
   loadSession,
   SESSION_CHANGED_EVENT,
-  sessionAccessExpired,
   sessionRefreshIssue,
   setSessionRefreshIssue,
 } from "./state/session"
@@ -27,15 +26,9 @@ export class RealtimeConnections {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return
     if (this.token) {
       const session = loadSession()
-      if (
-        !session ||
-        session.accessToken !== this.token ||
-        sessionAccessExpired(session) ||
-        sessionRefreshIssue()
-      ) {
+      if (!session || session.sessionKey !== this.token || sessionRefreshIssue()) {
         this.updateToken(null)
         if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
-        if (sessionAccessExpired(session)) void refreshStoredSession().catch(() => {})
       }
     }
     this.connection?.resume()
@@ -145,7 +138,8 @@ class Connection {
   private authenticate(socket: WebSocket) {
     if (!this.token || this.awaitingAuthentication || this.authenticated) return
     this.awaitingAuthentication = true
-    socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: this.token }))
+    // The login travels in the HttpOnly session cookie sent with the WebSocket handshake.
+    socket.send(JSON.stringify({ op: "authenticate", id: "auth" }))
   }
   private connect() {
     if (this.closed || this.suspended) return
@@ -245,11 +239,11 @@ class Connection {
     this.token = null
     this.awaitingAuthentication = false
     this.authenticated = false
-    if (rejectedToken && loadSession()?.accessToken === rejectedToken) {
+    if (rejectedToken && loadSession()?.sessionKey === rejectedToken) {
       setSessionRefreshIssue(
         t("Session temporarily unavailable. Private operations are paused. Please retry."),
       )
-      void refreshStoredSession().catch(() => {})
+      void verifyStoredSession().catch(() => {})
     }
   }
   checkLiveness() {

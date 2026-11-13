@@ -1,7 +1,7 @@
 import { Send } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { telegramApi, waitForTelegramLogin } from "../../api/telegram"
-import type { AuthSession, LoginChallenge } from "../../api/types"
+import type { AuthSessionPayload, LoginChallenge } from "../../api/types"
 import { t } from "../../i18n"
 
 export function TelegramLoginButton({
@@ -10,7 +10,7 @@ export function TelegramLoginButton({
   disabled,
   onBusyChange,
 }: {
-  readonly onLogin: (result: AuthSession | LoginChallenge) => void
+  readonly onLogin: (result: AuthSessionPayload | LoginChallenge) => void
   readonly onError: (message: string) => void
   readonly disabled: boolean
   readonly onBusyChange: (busy: boolean) => void

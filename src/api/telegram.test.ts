@@ -14,7 +14,7 @@ const flow = {
 }
 const session = {
   user: { userId: "7", username: null, email: null, displayName: "小李 🚀" },
-  accessToken: "access",
+  sessionKey: "access",
   refreshToken: "refresh",
 }
 

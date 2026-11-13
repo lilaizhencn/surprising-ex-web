@@ -85,7 +85,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
           setChallenge(LoginChallengeSchema.parse(session))
           return
         }
-        if (!("accessToken" in session)) return
+        if (!("user" in session)) return
         saveSession(session)
         navigateInApplication(
           authDestination(session.requiresEmailVerification, window.location.search),
@@ -314,7 +314,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                   setChallenge(LoginChallengeSchema.parse(result))
                   return
                 }
-                if (!("accessToken" in result)) return
+                if (!("user" in result)) return
                 saveSession(result)
                 navigateInApplication(
                   authDestination(result.requiresEmailVerification, window.location.search),
@@ -333,7 +333,7 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
                   setChallenge(LoginChallengeSchema.parse(result))
                   return
                 }
-                if (!("accessToken" in result)) return
+                if (!("user" in result)) return
                 saveSession(result)
                 navigateInApplication(
                   authDestination(result.requiresEmailVerification, window.location.search),

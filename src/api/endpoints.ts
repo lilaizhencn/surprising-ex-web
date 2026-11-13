@@ -30,7 +30,7 @@ import type {
   ApiProductTransferResponse,
   ApiTriggerOrder,
   ApiWithdrawalSubmission,
-  AuthSession,
+  AuthSessionPayload,
 } from "./types"
 import {
   AccountLedgerPageSchema,
@@ -198,7 +198,7 @@ export const authApi = {
       expectedUserId: String(loadSession()?.user.userId ?? ""),
     }),
   logout: () =>
-    request("/api/v1/auth/browser/logout", z.unknown(), {
+    request("/api/v1/auth/logout", z.unknown(), {
       method: "POST",
       body: {},
     }),
@@ -208,7 +208,7 @@ export const authApi = {
     contactMode: "email" | "phone" = "email",
     inviteCode?: string,
   ) =>
-    request<AuthSession>("/api/v1/auth/register", AuthSessionSchema, {
+    request<AuthSessionPayload>("/api/v1/auth/register", AuthSessionSchema, {
       method: "POST",
       body: { [contactMode]: identifier, password, inviteCode: inviteCode?.trim() || undefined },
     }),

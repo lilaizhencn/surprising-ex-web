@@ -234,7 +234,7 @@ describe("HTTP user identity boundaries", () => {
     ]) {
       expect(UserSchema.parse({ userId }).userId).toBe(userId)
       expect(JwtPrincipalSchema.parse({ ...principal, userId }).userId).toBe(userId)
-      expect(AuthSessionSchema.parse({ accessToken: "token", user: { userId } }).user.userId).toBe(
+      expect(AuthSessionSchema.parse({ sessionKey: "token", user: { userId } }).user.userId).toBe(
         userId,
       )
     }
@@ -258,9 +258,9 @@ describe("HTTP user identity boundaries", () => {
       ]) {
         expect(UserSchema.safeParse({ userId }).success).toBe(false)
         expect(JwtPrincipalSchema.safeParse({ ...principal, userId }).success).toBe(false)
-        expect(
-          AuthSessionSchema.safeParse({ accessToken: "token", user: { userId } }).success,
-        ).toBe(false)
+        expect(AuthSessionSchema.safeParse({ sessionKey: "token", user: { userId } }).success).toBe(
+          false,
+        )
       }
       expect(convert).not.toHaveBeenCalled()
     } finally {

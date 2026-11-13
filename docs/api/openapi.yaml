@@ -67,18 +67,25 @@ paths:
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Revoke the current refresh session
+      summary: End the current login session and clear the session cookie
       x-status: confirmed-by-backend-audit
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Session ended; repeated calls are idempotent. Cookie writes need X-CSRF-Token.
+  /auth/session:
+    get:
+      tags: [Auth]
+      summary: Current signed-in user, restored from the session cookie
       responses:
         '200':
-          description: Session revoked; repeated calls are idempotent.
+          description: Current user; the response never carries the session token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /auth/register:
     post:
       tags: [Auth]
@@ -589,12 +596,6 @@ components:
           type: string
           minLength: 6
           maxLength: 6
-    RefreshRequest:
-      type: object
-      required: [refreshToken]
-      properties:
-        refreshToken:
-          type: string
     PasswordRecoveryRequest:
       type: object
       additionalProperties: true
@@ -709,10 +710,6 @@ components:
         body: { type: string }
         updatedAt: { type: string, format: date-time }
       properties:
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
         userId:
           type: string
     TransferRequest:

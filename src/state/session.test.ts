@@ -37,15 +37,15 @@ describe("session storage boundary", () => {
       dispatchEvent: vi.fn(),
     })
     expect(loadSession()).toBeNull()
-    saveSession({ accessToken: "current", user: { userId: "1" } })
-    expect(loadSession()?.accessToken).toBe("current")
+    saveSession({ sessionKey: "current", user: { userId: "1" } })
+    expect(loadSession()?.sessionKey).toBe("current")
     saveSession(null)
     expect(loadSession()).toBeNull()
   })
   it.each([
     {},
-    { accessToken: "x", user: { userId: "1" }, expiresAt: "invalid" },
-    { accessToken: "x", user: { userId: 9007199254740992 } },
+    { sessionKey: "x", user: { userId: "1" }, sessionExpiresAt: "invalid" },
+    { sessionKey: "x", user: { userId: 9007199254740992 } },
   ])("rejects malformed stored identity %j", (value) => {
     const values = storage()
     values.set(storageKeys.session, JSON.stringify(value))
@@ -56,23 +56,9 @@ describe("session storage boundary", () => {
     storage()
     const convert = vi.spyOn(globalThis, "BigInt")
     expect(() =>
-      saveSession({ accessToken: "x", user: { userId: "9".repeat(1024 * 1024) } }),
+      saveSession({ sessionKey: "x", user: { userId: "9".repeat(1024 * 1024) } }),
     ).toThrow("invalid session")
     expect(convert).not.toHaveBeenCalled()
     convert.mockRestore()
-  })
-  it("rechecks cached refresh expiry as time advances", () => {
-    storage()
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"))
-    saveSession({
-      accessToken: "current",
-      refreshToken: "rotate",
-      user: { userId: "1" },
-      refreshTokenExpiresAt: "2026-01-01T00:00:01Z",
-    })
-    expect(loadSession()).not.toBeNull()
-    vi.advanceTimersByTime(1001)
-    expect(loadSession()).toBeNull()
   })
 })

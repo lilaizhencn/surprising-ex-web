@@ -5,7 +5,7 @@ import { AssetsPage } from "./AssetsPage"
 
 vi.mock("../../hooks/useRealtimeAssets", () => ({ useRealtimeAssets: vi.fn() }))
 vi.mock("../../state/session", () => ({
-  useSession: () => ({ user: { userId: "1" }, accessToken: "access" }),
+  useSession: () => ({ user: { userId: "1" }, sessionKey: "access" }),
 }))
 beforeEach(() =>
   vi.mocked(useRealtimeAssets).mockReturnValue({

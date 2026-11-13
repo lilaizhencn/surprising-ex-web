@@ -7,7 +7,7 @@ vi.mock("./client", async (original) => ({
   request: vi.fn(),
 }))
 vi.mock("../state/session", () => ({
-  loadSession: () => ({ user: { userId: "1" }, accessToken: "qa" }),
+  loadSession: () => ({ user: { userId: "1" }, sessionKey: "qa" }),
 }))
 const send = vi.mocked(request)
 const row = {
