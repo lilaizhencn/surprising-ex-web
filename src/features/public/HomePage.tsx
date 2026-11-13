@@ -156,7 +156,12 @@ export function HomePage() {
                   value={emailInput}
                   onChange={(event) => setEmailInput(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") handleRegisterWithEmail()
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing &&
+                      event.keyCode !== 229
+                    )
+                      handleRegisterWithEmail()
                   }}
                   aria-label={t("Enter email address")}
                 />
