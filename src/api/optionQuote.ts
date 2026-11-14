@@ -82,7 +82,7 @@ export async function loadOptionReference(
 ): Promise<OptionReference> {
   if (market.productLine !== "OPTION") throw new Error("Option product is required")
   const quote = await request(
-    `/api/v1/gateway/candlestick/options/quote?instrumentId=${encodeURIComponent(market.instrumentId)}`,
+    `/api/v1/candlestick/options/quote?instrumentId=${encodeURIComponent(market.instrumentId)}`,
     OptionReferenceSchema,
     { productLine: "OPTION", retry: 0, ...(signal ? { signal } : {}) },
   )

@@ -297,7 +297,7 @@ export function loadFundingRate(
   signal?: AbortSignal,
 ): Promise<ApiFundingRate> {
   const query = new URLSearchParams({ instrumentId })
-  return request(`/api/v1/gateway/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
+  return request(`/api/v1/funding/rates/latest?${query.toString()}`, FundingRateSchema, {
     productLine,
     ...(signal ? { signal } : {}),
   })
@@ -305,14 +305,14 @@ export function loadFundingRate(
 
 export function loadMarkPrice(instrumentId: string, productLine: ProductLine) {
   const query = new URLSearchParams({ instrumentId })
-  return request(`/api/v1/gateway/price-mark/latest?${query.toString()}`, GenericObjectSchema, {
+  return request(`/api/v1/price/mark/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
 }
 
 export function loadIndexPrice(instrumentId: string, productLine: ProductLine) {
   const query = new URLSearchParams({ instrumentId })
-  return request(`/api/v1/gateway/price-index/latest?${query.toString()}`, GenericObjectSchema, {
+  return request(`/api/v1/price/index/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
 }
@@ -324,7 +324,7 @@ export function loadUsdValuation(amount: string, asset: string, signal?: AbortSi
     toCurrency: "USD",
   })
   return request(
-    `/api/v1/gateway/price-fx/convert?${query.toString()}`,
+    `/api/v1/price/fx/convert?${query.toString()}`,
     ExchangeRateConvertSchema,
     { ...(signal ? { signal } : {}) },
   )
@@ -333,7 +333,7 @@ export function loadUsdValuation(amount: string, asset: string, signal?: AbortSi
 export async function loadFundingRateHistory(instrumentId: string, productLine: ProductLine) {
   const query = new URLSearchParams({ instrumentId, limit: "100" })
   const response = await request(
-    `/api/v1/gateway/funding/rates/history?${query.toString()}`,
+    `/api/v1/funding/rates/history?${query.toString()}`,
     FundingRatePageSchema,
     { productLine },
   )
@@ -356,7 +356,7 @@ export async function loadFundingPaymentsPage(
 ) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, limit: "100" })
   if (cursor) query.set("cursor", cursor)
-  return request(`/api/v1/gateway/funding/payments?${query.toString()}`, FundingPaymentPageSchema, {
+  return request(`/api/v1/funding/payments?${query.toString()}`, FundingPaymentPageSchema, {
     productLine,
   })
 }
@@ -372,7 +372,7 @@ export async function loadCandles(
   query.set("startTime", range.startTime)
   query.set("endTime", range.endTime)
   const response = await request(
-    `/api/v1/gateway/candlestick/candles?${query.toString()}`,
+    `/api/v1/candlestick/candles?${query.toString()}`,
     CandleListSchema,
     { ...(productLine ? { productLine } : {}), ...(signal ? { signal } : {}), retry: 0 },
   )
@@ -395,7 +395,7 @@ export async function loadDayWindow(
     endTime: new Date(now).toISOString(),
   })
   const response = await request(
-    `/api/v1/gateway/candlestick/candles?${query.toString()}`,
+    `/api/v1/candlestick/candles?${query.toString()}`,
     CandleListSchema,
     { productLine, retry: 0, ...(signal ? { signal } : {}) },
   )
@@ -410,7 +410,7 @@ export async function loadRecentTrades(
 ) {
   const query = new URLSearchParams({ instrumentId, limit: String(limit) })
   const response = await request(
-    `/api/v1/gateway/candlestick/trades/recent?${query.toString()}`,
+    `/api/v1/candlestick/trades/recent?${query.toString()}`,
     z.object({ trades: z.array(GenericObjectSchema) }),
     { productLine, ...(signal ? { signal } : {}) },
   )
@@ -899,7 +899,7 @@ export function loadAccountRisk(
     accountType: accountTypeForProductLine(productLine),
     settleAsset,
   })
-  return request(`/api/v1/gateway/risk/account/latest?${query.toString()}`, GenericObjectSchema, {
+  return request(`/api/v1/risk/account/latest?${query.toString()}`, GenericObjectSchema, {
     productLine,
   })
 }
@@ -907,7 +907,7 @@ export function loadAccountRisk(
 export function loadPositionRisk(userId: string | number, productLine: ProductLine) {
   const query = new URLSearchParams({ userId: String(userId) })
   return request(
-    `/api/v1/gateway/risk/positions/latest?${query.toString()}`,
+    `/api/v1/risk/positions/latest?${query.toString()}`,
     PositionRiskListSchema,
     {
       productLine,
@@ -995,7 +995,7 @@ export async function loadTransferHistoryPage(
 export function loadFundingSettlement(instrumentId: string, productLine: ProductLine) {
   const query = new URLSearchParams({ instrumentId })
   return request(
-    `/api/v1/gateway/funding/settlements/latest?${query.toString()}`,
+    `/api/v1/funding/settlements/latest?${query.toString()}`,
     GenericObjectSchema,
     { productLine },
   )

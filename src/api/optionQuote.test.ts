@@ -80,7 +80,7 @@ it("requests only the original OPTION realtime market route with abort and no re
   const abort = new AbortController()
   await loadOptionReference(market, abort.signal)
   expect(request).toHaveBeenLastCalledWith(
-    "/api/v1/gateway/candlestick/options/quote?instrumentId=74",
+    "/api/v1/candlestick/options/quote?instrumentId=74",
     OptionReferenceSchema,
     { productLine: "OPTION", retry: 0, signal: abort.signal },
   )
