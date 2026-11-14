@@ -40,7 +40,7 @@ it("reads the current product protection policy through the user trading route",
     productLine: "SPOT",
     marketMaxSlippagePpm: 10000,
   })
-  expect(send).toHaveBeenCalledWith("/api/v1/gateway/trading/price-protection", expect.anything(), {
+  expect(send).toHaveBeenCalledWith("/api/v1/trading/orders/price-protection", expect.anything(), {
     productLine: "SPOT",
   })
   send.mockResolvedValue({ productLine: "OPTION", marketMaxSlippagePpm: 10000 })

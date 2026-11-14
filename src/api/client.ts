@@ -165,7 +165,7 @@ export async function request<T>(
   // Public market discovery never carries the login cookie.
   const publicMarket =
     method === "GET" &&
-    /^\/api\/v1\/gateway\/instrument\/(list|latest|asset-scales)(?:\?|$)/.test(path)
+    /^\/api\/v1\/(?:gateway\/)?instruments?\/(list|latest|asset-scales)(?:\?|$)/.test(path)
   const session = publicMarket || path.startsWith("/api/v1/auth/google/") ? null : loadSession()
   if (
     !publicMarket &&

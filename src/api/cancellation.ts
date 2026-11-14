@@ -169,7 +169,7 @@ async function drive(initial: PendingOrderCommand): Promise<CancellationSummary>
         const query = new URLSearchParams({ userId: pending.userId, batchKey: batch.key })
         try {
           const receipt = await request(
-            `/api/v1/gateway/trading/cancellation-batches?${query}`,
+            `/api/v1/trading/orders/cancellation-batches?${query}`,
             GenericObjectSchema,
             { productLine: "SPOT", expectedUserId: pending.userId, retry: 0 },
           )
@@ -185,7 +185,7 @@ async function drive(initial: PendingOrderCommand): Promise<CancellationSummary>
         savePendingCommand(pending) // A crash after this point requires a GET, never another POST.
         try {
           const receipt = await request(
-            "/api/v1/gateway/trading/batch-cancel",
+            "/api/v1/trading/orders/batch-cancel",
             GenericObjectSchema,
             {
               method: "POST",
@@ -297,7 +297,7 @@ export async function cancelSpotOpenOrders(
     const query = new URLSearchParams({ userId })
     if (instrumentId) query.set("instrumentId", instrumentId)
     const plan = await request(
-      `/api/v1/gateway/trading/cancellation-plan?${query}`,
+      `/api/v1/trading/orders/cancellation-plan?${query}`,
       GenericObjectSchema,
       { productLine: "SPOT", expectedUserId: userId, retry: 0 },
     )

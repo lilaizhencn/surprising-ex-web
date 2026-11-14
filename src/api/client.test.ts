@@ -103,7 +103,7 @@ describe("public request failures", () => {
         })) as unknown as typeof ky,
     )
     for (const operation of [
-      () => request("/api/v1/gateway/trading", z.unknown(), { method: "POST", body: {} }),
+      () => request("/api/v1/trading/orders", z.unknown(), { method: "POST", body: {} }),
       () => requestBlob("/download"),
     ]) {
       await expect(operation()).rejects.toMatchObject({
@@ -223,7 +223,7 @@ describe("cookie session", () => {
           complete = resolve
         })) as unknown as typeof ky,
     )
-    const sent = request("/api/v1/gateway/trading", z.unknown(), {
+    const sent = request("/api/v1/trading/orders", z.unknown(), {
       method: "POST",
       body: { userId: 1 },
       expectedUserId: "1",
@@ -247,7 +247,7 @@ describe("cookie session", () => {
     }) as unknown as typeof ky)
     await expect(
       request(
-        "/api/v1/gateway/instrument/list?productLine=LINEAR_PERPETUAL",
+        "/api/v1/instruments/list?productLine=LINEAR_PERPETUAL",
         z.object({ ok: z.boolean() }),
       ),
     ).resolves.toEqual({ ok: true })

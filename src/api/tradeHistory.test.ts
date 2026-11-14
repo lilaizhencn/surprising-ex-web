@@ -34,7 +34,7 @@ afterEach(() => vi.resetAllMocks())
 it("uses the authenticated realtime fill route and retains exact order identity and maker rate", async () => {
   send.mockResolvedValue(page())
   const result = await loadMyTrades(1, "868", "SPOT")
-  expect(send.mock.calls[0]?.[0]).toContain("/api/v1/gateway/trading/trades?")
+  expect(send.mock.calls[0]?.[0]).toContain("/api/v1/trading/orders/trades?")
   expect(send.mock.calls[0]?.[2]).toMatchObject({
     expectedUserId: "1",
     productLine: "SPOT",

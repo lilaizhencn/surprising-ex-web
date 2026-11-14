@@ -115,7 +115,7 @@ describe.each([
         ? "/cancellations/9007199254740993?userId=1"
         : "/submission?userId=1&clientTriggerOrderId=original-single"
       for (const [url, , options] of send.mock.calls.slice(1)) {
-        expect(url).toBe(`/api/v1/gateway/trading-trigger${expected}`)
+        expect(url).toBe(`/api/v1/trading/trigger-orders${expected}`)
         expect(options).toMatchObject({ productLine: product, expectedUserId: "1", retry: 0 })
         expect(options?.method).toBeUndefined()
       }

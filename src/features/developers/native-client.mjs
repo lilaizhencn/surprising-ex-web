@@ -18,7 +18,7 @@ export async function readBalances({ baseUrl, apiKey, secret, productLine }) {
   })
   if (!time.ok) throw new Error(`Clock request failed: HTTP ${time.status}`)
   const { serverTime } = await time.json()
-  const path = "/api/v1/gateway/account/balances"
+  const path = "/api/v1/accounts/balances"
   const query = new URLSearchParams({
     productLine,
     timestamp: String(serverTime),

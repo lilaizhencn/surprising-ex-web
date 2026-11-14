@@ -170,7 +170,7 @@ describe("spot command receipts", () => {
     expect(order.orderId).toBe("9007199254740993")
     expect(readPendingCommand("1")).toBeNull()
     expect(send).toHaveBeenCalledWith(
-      "/api/v1/gateway/trading",
+      "/api/v1/trading/orders",
       expect.anything(),
       expect.objectContaining({
         productLine: "SPOT",
@@ -191,7 +191,7 @@ describe("spot command receipts", () => {
     send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE" })
     await loadTradingCommand("command/1", "SPOT")
     expect(send).toHaveBeenCalledWith(
-      "/api/v1/gateway/trading/commands/command%2F1",
+      "/api/v1/trading/orders/commands/command%2F1",
       expect.anything(),
       { productLine: "SPOT", retry: 0 },
     )
@@ -211,7 +211,7 @@ describe("spot command receipts", () => {
         status === "REJECTED" ? "rejected" : "confirmed",
       )
       expect(send).toHaveBeenCalledWith(
-        "/api/v1/gateway/trading/by-client-order-id?userId=1&clientOrderId=spot-1",
+        "/api/v1/trading/orders/by-client-order-id?userId=1&clientOrderId=spot-1",
         expect.anything(),
         { productLine: "SPOT", retry: 0, expectedUserId: "1" },
       )
@@ -247,7 +247,7 @@ describe("spot command receipts", () => {
     })
     await expect(checkOrderSubmission(intent)).resolves.toBe("rejected")
     expect(send).toHaveBeenLastCalledWith(
-      "/api/v1/gateway/trading/submission?userId=1&clientOrderId=spot-1",
+      "/api/v1/trading/orders/submission?userId=1&clientOrderId=spot-1",
       expect.anything(),
       { productLine: "SPOT", expectedUserId: "1", retry: 0 },
     )
@@ -353,7 +353,7 @@ describe("spot cancellation recovery", () => {
     expect((await cancelOrder("1", orderId, "SPOT")).orderId).toBe(orderId)
     expect(readPendingCommand("1")).toBeNull()
     expect(send).toHaveBeenCalledWith(
-      "/api/v1/gateway/trading/cancel",
+      "/api/v1/trading/orders/cancel",
       expect.anything(),
       expect.objectContaining({ expectedUserId: "1", body: { userId: 1, orderId } }),
     )
@@ -394,7 +394,7 @@ describe("spot cancellation recovery", () => {
     send.mockResolvedValue({ ...receipt, outcome: "TERMINAL", code: "ORDER_NOT_FOUND" })
     expect(await checkOrderSubmission(intent)).toBe("rejected")
     expect(send).toHaveBeenLastCalledWith(
-      `/api/v1/gateway/trading/cancellations/${orderId}?userId=1`,
+      `/api/v1/trading/orders/cancellations/${orderId}?userId=1`,
       expect.anything(),
       { productLine: "SPOT", expectedUserId: "1", retry: 0 },
     )
@@ -457,7 +457,7 @@ describe("spot amendment recovery", () => {
     ).rejects.toBeInstanceOf(PendingTradingCommand)
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith(
-      "/api/v1/gateway/trading/amend",
+      "/api/v1/trading/orders/amend",
       expect.anything(),
       expect.objectContaining({
         expectedUserId: "1",
@@ -533,7 +533,7 @@ describe("spot amendment recovery", () => {
     send.mockResolvedValue({ outcome: "TERMINAL", code: "NONE", commandId: "another" })
     await expect(checkOrderSubmission({ ...intent, commandId: "command-1" })).rejects.toThrow()
     expect(send).toHaveBeenLastCalledWith(
-      "/api/v1/gateway/trading/amendments?userId=1&clientRequestId=edit-1",
+      "/api/v1/trading/orders/amendments?userId=1&clientRequestId=edit-1",
       expect.anything(),
       { productLine: "SPOT", expectedUserId: "1", retry: 0 },
     )
@@ -588,7 +588,7 @@ it.each(["LINEAR_DELIVERY", "INVERSE_DELIVERY", "OPTION"] as const)(
     expect(savedBeforeSend).toEqual(pending)
     expect(await checkOrderSubmission(pending)).toBe("confirmed")
     expect(send).toHaveBeenLastCalledWith(
-      `/api/v1/gateway/trading/cancellations/${pending.cancelOrderId}?userId=1`,
+      `/api/v1/trading/orders/cancellations/${pending.cancelOrderId}?userId=1`,
       expect.anything(),
       { productLine: line, expectedUserId: "1", retry: 0 },
     )
@@ -637,7 +637,7 @@ describe.each(["LINEAR_PERPETUAL", "INVERSE_PERPETUAL"] as const)(
       })
       expect(await checkOrderSubmission(original)).toBe("confirmed")
       expect(send.mock.calls[1]?.[0]).toBe(
-        "/api/v1/gateway/trading/submission?userId=1&clientOrderId=spot-1",
+        "/api/v1/trading/orders/submission?userId=1&clientOrderId=spot-1",
       )
       expect(send.mock.calls[1]?.[2]).toMatchObject({
         productLine: product,
@@ -676,7 +676,7 @@ describe.each([
   beforeEach(() => saveSession({ sessionKey: "test", user: { userId: 1 } }))
   it("persists the close request before POST; lost replies recover by the original ordinary-order receipt", async () => {
     send.mockImplementationOnce(async (url, _schema, options) => {
-      expect(url).toBe("/api/v1/gateway/trading/close-position")
+      expect(url).toBe("/api/v1/trading/orders/close-position")
       expect(options).toMatchObject({ method: "POST", productLine: product, expectedUserId: "1" })
       expect(readPendingCommand("1")).toMatchObject({
         userId: "1",
@@ -712,7 +712,7 @@ describe.each([
     })
     expect(await checkOrderSubmission(original)).toBe("confirmed")
     expect(send.mock.calls[1]?.[0]).toBe(
-      "/api/v1/gateway/trading/submission?userId=1&clientOrderId=original-close",
+      "/api/v1/trading/orders/submission?userId=1&clientOrderId=original-close",
     )
     expect(send.mock.calls[1]?.[2]?.method).toBeUndefined()
   })

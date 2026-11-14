@@ -22,14 +22,14 @@ const products = [
 ]
 const endpoints = [
   ["GET", "/api/v1/time", "Public", "Server time in milliseconds"],
-  ["GET", "/api/v1/gateway/instrument/list", "Public", "Instrument catalog and precision"],
-  ["GET", "/api/v1/gateway/instrument/asset-scales", "Public", "Asset scales"],
-  ["GET", "/api/v1/gateway/trading-market/orderbook", "Public", "Order book; symbol and depth"],
-  ["GET", "/api/v1/gateway/account/balances", "READ", "Own balances"],
-  ["GET", "/api/v1/gateway/trading/open", "READ", "Own open orders"],
-  ["POST", "/api/v1/gateway/trading", "TRADE", "Place an order"],
-  ["POST", "/api/v1/gateway/trading/cancel", "TRADE", "Cancel an order"],
-  ["GET", "/api/v1/gateway/trading/commands/{commandId}", "READ", "Command receipt"],
+  ["GET", "/api/v1/instruments/list", "Public", "Instrument catalog and precision"],
+  ["GET", "/api/v1/instruments/asset-scales", "Public", "Asset scales"],
+  ["GET", "/api/v1/trading/market/orderbook", "Public", "Order book; symbol and depth"],
+  ["GET", "/api/v1/accounts/balances", "READ", "Own balances"],
+  ["GET", "/api/v1/trading/orders/open", "READ", "Own open orders"],
+  ["POST", "/api/v1/trading/orders", "TRADE", "Place an order"],
+  ["POST", "/api/v1/trading/orders/cancel", "TRADE", "Cancel an order"],
+  ["GET", "/api/v1/trading/orders/commands/{commandId}", "READ", "Command receipt"],
 ] as const
 const limits = [
   ["READ", "100 / 200", "50 / 100"],
