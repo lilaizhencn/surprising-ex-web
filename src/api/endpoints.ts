@@ -41,7 +41,6 @@ import {
   BalanceListSchema,
   CandleListSchema,
   CreatedApiKeySchema,
-  DepositAddressSchema,
   DeviceStatusSchema,
   EmailVerificationChallengeSchema,
   ExchangeRateConvertSchema,
@@ -1853,17 +1852,6 @@ export function loadTicker24h(instrumentId: string, productLine: ProductLine) {
       productLine,
     },
   )
-}
-
-export function loadWalletChains() {
-  return request("/api/v1/wallet/chains", WalletRecordsSchema)
-}
-
-export function createDepositAddress(chain: string) {
-  return request("/api/v1/wallet/addresses", DepositAddressSchema, {
-    method: "POST",
-    body: { chain, addressVersion: 1 },
-  })
 }
 
 export function loadDepositHistory(asset?: string, chain?: string, signal?: AbortSignal) {
