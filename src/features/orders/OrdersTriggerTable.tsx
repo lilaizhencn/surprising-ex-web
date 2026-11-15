@@ -1,0 +1,71 @@
+import { cancelTriggerOrder } from "../../api/endpoints"
+import { Button } from "../../components/ui/Primitives"
+import { t } from "../../i18n"
+import { readPendingCommand } from "../../state/pendingOrders"
+import { loadSession } from "../../state/session"
+import type { ProductLine } from "../../types/domain"
+import { type RecordRow, readError, text } from "./ordersShared"
+
+export function TriggerTable({
+  rows,
+  productLine,
+  onDone,
+}: {
+  readonly rows: readonly RecordRow[]
+  readonly productLine: ProductLine
+  readonly onDone: (message: string) => void
+}) {
+  const session = loadSession()
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>{t("Symbol")}</th>
+            <th>{t("Trigger")}</th>
+            <th>{t("Side")}</th>
+            <th>{t("Status")}</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={text(row, "triggerOrderId") || String(index)}>
+              <td className="mono">{text(row, "triggerOrderId") || "—"}</td>
+              <td>{text(row, "symbol") || "—"}</td>
+              <td className="mono">{text(row, "triggerPriceTicks") || "—"}</td>
+              <td>{text(row, "side") || "—"}</td>
+              <td>{text(row, "status") || "—"}</td>
+              <td>
+                <Button
+                  tone="negative"
+                  disabled={
+                    !session ||
+                    readPendingCommand(String(session.user.userId)) !== null ||
+                    text(row, "status") !== "PENDING"
+                  }
+                  onClick={() => {
+                    if (!session || !window.confirm("Cancel this conditional order?")) return
+                    void cancelTriggerOrder(
+                      session.user.userId,
+                      text(row, "triggerOrderId"),
+                      productLine,
+                      text(row, "instrumentId"),
+                    ).then(
+                      () => onDone(t("Trigger order cancellation requested.")),
+                      (reason: unknown) => onDone(readError(reason)),
+                    )
+                  }}
+                >
+                  {" "}
+                  {t("Cancel")}{" "}
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
