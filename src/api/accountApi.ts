@@ -130,11 +130,9 @@ export async function loadProductLedgerPage(
   if (asset?.trim()) query.set("asset", asset.trim().toUpperCase())
   if (referenceType?.trim()) query.set("referenceType", referenceType.trim().toUpperCase())
   if (cursor) query.set("cursor", cursor)
-  return request(
-    `/api/v1/accounts/product-ledger?${query.toString()}`,
-    AccountLedgerPageSchema,
-    { productLine: accountType },
-  )
+  return request(`/api/v1/accounts/product-ledger?${query.toString()}`, AccountLedgerPageSchema, {
+    productLine: accountType,
+  })
 }
 
 export async function loadTransferHistory(
@@ -164,11 +162,9 @@ export async function loadTransferHistoryPage(
 
 export function loadFundingSettlement(instrumentId: string, productLine: ProductLine) {
   const query = new URLSearchParams({ instrumentId })
-  return request(
-    `/api/v1/funding/settlements/latest?${query.toString()}`,
-    GenericObjectSchema,
-    { productLine },
-  )
+  return request(`/api/v1/funding/settlements/latest?${query.toString()}`, GenericObjectSchema, {
+    productLine,
+  })
 }
 
 /** Resolve original submissions and cancellations from realtime-owned views only. */

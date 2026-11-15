@@ -1,4 +1,4 @@
-import { Download, RefreshCw, XCircle } from "lucide-react"
+import { Download, RefreshCw } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   cancelAllAfter,
@@ -38,17 +38,17 @@ import {
 } from "../trading/TradingAccountTables"
 import { OrderHistoryTable } from "./OrderHistoryTable"
 import { AdvancedTradingActions, AlgoTable } from "./OrdersAlgoSection"
+import { OrderTable, RecordTable } from "./OrdersTable"
+import { TriggerTable } from "./OrdersTriggerTable"
 import {
-  type OrdersTab as Tab,
-  type RecordRow,
   dateValue,
   downloadCsv,
   inDateRange,
+  type RecordRow,
   readError,
+  type OrdersTab as Tab,
   text,
 } from "./ordersShared"
-import { OrderTable, RecordTable } from "./OrdersTable"
-import { TriggerTable } from "./OrdersTriggerTable"
 import { TradeFillTable } from "./TradeFillTable"
 
 export function OrdersPage() {

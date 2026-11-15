@@ -10,18 +10,15 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { z } from "zod"
 import { type C2cConversation, loadC2cStatus, startC2cConversation } from "../../api/c2c"
 import {
-  accountSchema,
   adDetailSchema,
   adSchema,
   bondSchema,
   type C2cAd,
-  type C2cMarket,
   type C2cPendingTrade,
   type C2cQuote,
   type C2cTradingOrder,
   c2cAccounts,
   c2cBond,
-  c2cDecimal,
   c2cMarkets,
   c2cMe,
   c2cMyAds,
@@ -36,14 +33,13 @@ import {
   tradeReceipt,
   type Verification,
 } from "../../api/c2cTrading"
-import { request } from "../../api/client"
-import { t, tf } from "../../i18n"
+import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 import { C2cAccountsTab } from "./C2cAccountsTab"
 import { C2cMarketPreview } from "./C2cMarketPreview"
 import { C2cMarketTab } from "./C2cMarketTab"
 import { C2cMerchantTab } from "./C2cMerchantTab"
-import { C2cOrderPanel, responseDeadline, c2cStatusText as statusText } from "./C2cOrderPanel"
+import { C2cOrderPanel } from "./C2cOrderPanel"
 import { C2cOrdersTab } from "./C2cOrdersTab"
 import { C2cPage } from "./C2cPage"
 import "./c2c.css"

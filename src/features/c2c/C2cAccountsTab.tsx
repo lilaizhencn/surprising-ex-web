@@ -2,11 +2,11 @@ import type { MutableRefObject, ReactNode } from "react"
 import {
   accountSchema,
   type C2cMarket,
-  type Verification,
   type c2cAccounts,
   type c2cMarkets,
   c2cWrite,
   challengeC2c,
+  type Verification,
 } from "../../api/c2cTrading"
 import { t } from "../../i18n"
 import { c2cStatusText as statusText } from "./C2cOrderPanel"
@@ -116,7 +116,9 @@ export function C2cAccountsTab({
           event.preventDefault()
           const form = event.currentTarget
           const data = new FormData(form)
-          const chosenMethod = catalog?.paymentMethods.find((row) => row.code === data.get("method"))
+          const chosenMethod = catalog?.paymentMethods.find(
+            (row) => row.code === data.get("method"),
+          )
           if (!market || !chosenMethod?.currencies.includes(market.fiat)) {
             setError("当前法币暂无可用收款方式，请选择其他市场。")
             return

@@ -1,12 +1,7 @@
 import { z } from "zod"
 import type { ProductLine } from "../types/domain"
 import { request } from "./client"
-import type {
-  ApiCandle,
-  ApiFundingPayment,
-  ApiFundingRate,
-  ApiMarket,
-} from "./types"
+import type { ApiCandle, ApiFundingPayment, ApiFundingRate, ApiMarket } from "./types"
 import {
   AssetScalesSchema,
   CandleListSchema,
@@ -58,11 +53,10 @@ export async function loadMarkets(
   if (productLine) query.set("productLine", productLine)
   if (includeMarketSummary) query.set("includeMarketSummary", "true")
   if (includeTrend) query.set("includeTrend", "true")
-  const response = await request(
-    `/api/v1/instruments/list?${query.toString()}`,
-    MarketListSchema,
-    { ...(productLine ? { productLine } : {}), ...(signal ? { signal } : {}) },
-  )
+  const response = await request(`/api/v1/instruments/list?${query.toString()}`, MarketListSchema, {
+    ...(productLine ? { productLine } : {}),
+    ...(signal ? { signal } : {}),
+  })
   return response.instruments ?? response.items ?? []
 }
 
@@ -84,11 +78,9 @@ export function loadUsdValuation(amount: string, asset: string, signal?: AbortSi
     fromCurrency: asset,
     toCurrency: "USD",
   })
-  return request(
-    `/api/v1/price/fx/convert?${query.toString()}`,
-    ExchangeRateConvertSchema,
-    { ...(signal ? { signal } : {}) },
-  )
+  return request(`/api/v1/price/fx/convert?${query.toString()}`, ExchangeRateConvertSchema, {
+    ...(signal ? { signal } : {}),
+  })
 }
 
 export async function loadFundingRateHistory(instrumentId: string, productLine: ProductLine) {

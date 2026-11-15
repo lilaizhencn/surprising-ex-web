@@ -4,11 +4,11 @@ import {
   type C2cMarket,
   type C2cPendingTrade,
   type C2cQuote,
-  type Verification,
   type c2cAccounts,
   c2cDecimal,
   type c2cMarkets,
   quoteSchema,
+  type Verification,
 } from "../../api/c2cTrading"
 import { request } from "../../api/client"
 import { t } from "../../i18n"
@@ -198,9 +198,7 @@ export function C2cMarketTab({
             </button>
           </div>
         ) : (
-          ads.length === 0 && (
-            <p>{available ? t("暂无符合条件的广告") : t("C2C 市场暂未开放")}</p>
-          )
+          ads.length === 0 && <p>{available ? t("暂无符合条件的广告") : t("C2C 市场暂未开放")}</p>
         )}
         {ads
           .filter(
@@ -224,8 +222,7 @@ export function C2cMarketTab({
               <p>
                 {ad.methodCodes
                   .map(
-                    (code) =>
-                      catalog?.paymentMethods.find((m) => m.code === code)?.label || code,
+                    (code) => catalog?.paymentMethods.find((m) => m.code === code)?.label || code,
                   )
                   .join(" · ")}
               </p>
@@ -416,12 +413,7 @@ export function C2cMarketTab({
                 type="button"
                 className="c2c-primary"
                 disabled={
-                  busy ||
-                  !quote.valid ||
-                  quoteExpired ||
-                  !!pending ||
-                  !!pendingError ||
-                  !available
+                  busy || !quote.valid || quoteExpired || !!pending || !!pendingError || !available
                 }
                 onClick={() => {
                   if (operation.current) return

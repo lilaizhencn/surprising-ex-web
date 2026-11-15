@@ -41,8 +41,8 @@ export function C2cOrdersTab({
               setOrder(row.orderId)
             }}
           >
-            {row.buyerUserId === owner ? t("购买") : t("出售")} {row.quantity}{" "}
-            {row.market.asset} · {c2cDecimal(row.fiatAmount)} {row.market.fiat}
+            {row.buyerUserId === owner ? t("购买") : t("出售")} {row.quantity} {row.market.asset} ·{" "}
+            {c2cDecimal(row.fiatAmount)} {row.market.fiat}
             <br />
             {statusText[row.status] || row.status}
             <small>{row.orderId}</small>

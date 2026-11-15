@@ -47,6 +47,7 @@ export function useRealtime(
         instrumentId,
         productLine,
         ...(channel === "candles" ? { period } : {}),
+        ...(channel === "depth" ? { depth: 20 } : {}),
       }))
     : []
   return useRealtimeFeed(

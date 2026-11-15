@@ -423,6 +423,7 @@ export interface Subscription {
   productLine: ProductLine
   instrumentId?: string
   period?: string
+  depth?: number
 }
 export interface C2cSubscription {
   channel: "c2c.inbox" | "c2c.messages"

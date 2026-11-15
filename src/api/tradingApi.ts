@@ -1,11 +1,3 @@
-import {
-  cancelSpotBatchOrders,
-  cancelSpotOpenOrders,
-} from "./cancellation"
-import {
-  isDefinitiveOrderRejection,
-  PendingTradingCommand,
-} from "./tradingCommand"
 import { z } from "zod"
 import { t } from "../i18n"
 import {
@@ -18,11 +10,10 @@ import {
 } from "../state/pendingOrders"
 import { loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
-import {
-  ApiError,
-  request,
-} from "./client"
+import { cancelSpotBatchOrders, cancelSpotOpenOrders } from "./cancellation"
+import { ApiError, request } from "./client"
 import { apiErrorMessage } from "./errors"
+import { isDefinitiveOrderRejection, PendingTradingCommand } from "./tradingCommand"
 import type { ApiTriggerOrder } from "./types"
 import {
   GenericObjectSchema,
@@ -32,7 +23,6 @@ import {
   TradeFillPageSchema,
   TriggerOrderSchema,
 } from "./types"
-import { accountTypeForProductLine } from "./accountApi"
 
 const ArraySchema = z.array(GenericObjectSchema)
 
@@ -73,11 +63,9 @@ export function loadLeverageSetting(
 ) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
   if (marginMode) query.set("marginMode", marginMode)
-  return request(
-    `/api/v1/trading/leverage/settings?${query.toString()}`,
-    GenericObjectSchema,
-    { productLine },
-  )
+  return request(`/api/v1/trading/leverage/settings?${query.toString()}`, GenericObjectSchema, {
+    productLine,
+  })
 }
 
 export function updateLeverageSetting(
@@ -115,13 +103,9 @@ export function adjustPositionMargin(
 
 export function loadPositionRisk(userId: string | number, productLine: ProductLine) {
   const query = new URLSearchParams({ userId: String(userId) })
-  return request(
-    `/api/v1/risk/positions/latest?${query.toString()}`,
-    PositionRiskListSchema,
-    {
-      productLine,
-    },
-  ).then((response) => response.positions)
+  return request(`/api/v1/risk/positions/latest?${query.toString()}`, PositionRiskListSchema, {
+    productLine,
+  }).then((response) => response.positions)
 }
 
 export async function checkOrderSubmission(pending: PendingOrderCommand) {
@@ -920,13 +904,9 @@ export async function loadEffectiveTradingFee(
   changeId?: string,
 ) {
   const query = new URLSearchParams({ userId: String(userId), instrumentId, productLine })
-  const fee = await request(
-    `/api/v1/trading/fees/effective?${query}`,
-    GenericObjectSchema,
-    {
-      productLine,
-    },
-  )
+  const fee = await request(`/api/v1/trading/fees/effective?${query}`, GenericObjectSchema, {
+    productLine,
+  })
   if (
     productLine === "SPOT" &&
     (changeId == null ||

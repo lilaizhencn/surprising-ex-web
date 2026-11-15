@@ -3,13 +3,13 @@ import {
   type C2cAd,
   type C2cMarket,
   type C2cPendingTrade,
-  type Verification,
   type c2cAccounts,
   type c2cBond,
   c2cDecimal,
   type c2cMarkets,
   type c2cMe,
   c2cWrite,
+  type Verification,
 } from "../../api/c2cTrading"
 import { t, tf } from "../../i18n"
 import { AdForm } from "./C2cAdForm"
@@ -65,8 +65,7 @@ export function C2cMerchantTab({
             {statusText[me?.merchant?.status || ""] || "未申请"}
           </p>
           {me?.merchant?.reviewReason && <p>{me.merchant.reviewReason}</p>}
-          {(!me?.merchant ||
-            ["REJECTED", "WITHDRAWN", "PENDING"].includes(me.merchant.status)) && (
+          {(!me?.merchant || ["REJECTED", "WITHDRAWN", "PENDING"].includes(me.merchant.status)) && (
             <form
               onSubmit={(event) => {
                 event.preventDefault()
@@ -135,11 +134,7 @@ export function C2cMerchantTab({
               onClick={() => {
                 if (window.confirm("退出商家并退还原质押？须先关闭广告并结清订单和申诉。"))
                   void act(() =>
-                    c2cWrite(
-                      owner,
-                      `/me/merchant-bonds/${bond.bond?.bondId}/withdraw`,
-                      undefined,
-                    ),
+                    c2cWrite(owner, `/me/merchant-bonds/${bond.bond?.bondId}/withdraw`, undefined),
                   )
               }}
             >

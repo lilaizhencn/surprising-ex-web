@@ -253,6 +253,7 @@ export function contractOpeningCapacity({
     let steps = funds > 0n ? funds / cost : 0n
     const maxPosition = BigInt(market.maxPositionNotionalUnits ?? "")
     const oiFloor = BigInt(market.userOpenInterestLimitFloorUnits ?? "")
+    // biome-ignore lint/complexity/useMathMinMax: BigInt values cannot use Math.min
     const cap = ((maxPosition < oiFloor ? maxPosition : oiFloor) * denominator) / numerator
     let used = 0n
     for (const position of positions) {
