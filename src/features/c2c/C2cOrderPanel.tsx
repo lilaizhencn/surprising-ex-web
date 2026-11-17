@@ -9,6 +9,7 @@ import {
   orderDetailSchema,
   type Verification,
 } from "../../api/c2cTrading"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { t } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 
@@ -69,6 +70,7 @@ export function C2cOrderPanel({
   const [deadline, setDeadline] = useState<number | null>(null),
     [expired, setExpired] = useState(false)
   const [copied, setCopied] = useState("")
+  const { confirm: askConfirm, dialog } = useConfirmDialog()
   const reading = useRef(false),
     locked = useRef(busy),
     alive = useRef(true)
@@ -157,48 +159,50 @@ export function C2cOrderPanel({
       cancel: "取消尚未付款的订单",
       appeal: "提交订单申诉",
     }[action]
-    if (
-      !window.confirm(
-        `${text}\n订单：${order.orderId}\n金额：${c2cDecimal(order.fiatAmount)} ${order.market.fiat}\n数量：${order.quantity} ${order.market.asset}${reason.trim() ? "\n原因：" + reason.trim() : ""}`,
-      )
-    )
-      return
-    const body =
-      action === "paid"
-        ? { proofId: null }
-        : action === "release"
-          ? { ...verification }
-          : { reason: reason.trim() || "买家取消未付款订单" }
-    deciding.current = true
-    void act(async () => {
-      try {
-        const response = await c2cWrite(owner, `/orders/${order.orderId}/${action}`, body)
-        const result = orderDetailSchema.parse(action === "appeal" ? response["order"] : response)
-        if (
-          result.orderId !== orderId ||
-          ![result.buyerUserId, result.sellerUserId].includes(owner) ||
-          result.payment.fiat !== result.market.fiat
-        )
-          throw Error("操作响应归属不匹配，请重新读取原订单")
-        if (alive.current) {
-          setOrder(result)
-          setReason("")
-          setReceived(false)
-          setReload((value) => value + 1)
+    void askConfirm({
+      title: text,
+      description: `订单：${order.orderId}\n金额：${c2cDecimal(order.fiatAmount)} ${order.market.fiat}\n数量：${order.quantity} ${order.market.asset}${reason.trim() ? "\n原因：" + reason.trim() : ""}`,
+      confirmLabel: t("确认"),
+      danger: action === "cancel" || action === "appeal",
+    }).then((ok) => {
+      if (!ok) return
+      const body =
+        action === "paid"
+          ? { proofId: null }
+          : action === "release"
+            ? { ...verification }
+            : { reason: reason.trim() || "买家取消未付款订单" }
+      deciding.current = true
+      void act(async () => {
+        try {
+          const response = await c2cWrite(owner, `/orders/${order.orderId}/${action}`, body)
+          const result = orderDetailSchema.parse(action === "appeal" ? response["order"] : response)
+          if (
+            result.orderId !== orderId ||
+            ![result.buyerUserId, result.sellerUserId].includes(owner) ||
+            result.payment.fiat !== result.market.fiat
+          )
+            throw Error("操作响应归属不匹配，请重新读取原订单")
+          if (alive.current) {
+            setOrder(result)
+            setReason("")
+            setReceived(false)
+            setReload((value) => value + 1)
+          }
+        } catch (failure) {
+          if (alive.current) {
+            setOrder(null)
+            setReveal(false)
+            setError("操作结果需要重新核对，请读取原订单，不要重复提交。")
+            setReceived(false)
+          }
+          throw failure
+        } finally {
+          if (alive.current) setVerification({ emailCode: "", totpCode: "" })
         }
-      } catch (failure) {
-        if (alive.current) {
-          setOrder(null)
-          setReveal(false)
-          setError("操作结果需要重新核对，请读取原订单，不要重复提交。")
-          setReceived(false)
-        }
-        throw failure
-      } finally {
-        if (alive.current) setVerification({ emailCode: "", totpCode: "" })
-      }
-    }, "订单操作已提交，请核对最新状态").finally(() => {
-      deciding.current = false
+      }, "订单操作已提交，请核对最新状态").finally(() => {
+        deciding.current = false
+      })
     })
   }
   const ongoing =
@@ -459,6 +463,7 @@ export function C2cOrderPanel({
         <MessageCircle size={16} aria-hidden="true" />
         {t("进入订单消息")}
       </button>
+      {dialog}
     </section>
   )
 }

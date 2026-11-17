@@ -10,17 +10,23 @@ export function LanguagePicker() {
       <DropdownSelect
         value={locale}
         disabled={loading?.status === "loading"}
-        minMenuWidth={220}
-        maxMenuWidth={280}
+        minMenuWidth={156}
+        maxMenuWidth={200}
         aria-label={t("Language")}
-        renderOption={(option) => (
-          <>
-            <span className="language-label-full">{option.label}</span>
-            <span className="language-label-compact" aria-hidden="true">
-              {languageMeta(normalizeLocale(option.value)).compact}
+        renderOption={(option) => {
+          const meta = languageMeta(normalizeLocale(option.value))
+          return (
+            <span className="language-option-inner">
+              <span className="language-flag" aria-hidden="true">
+                {meta.flag}
+              </span>
+              <span className="language-label-full">{option.label}</span>
+              <span className="language-label-compact" aria-hidden="true">
+                {meta.compact}
+              </span>
             </span>
-          </>
-        )}
+          )
+        }}
         onChange={(event) => {
           void setLocale(normalizeLocale(event.target.value)).catch(() => {})
         }}

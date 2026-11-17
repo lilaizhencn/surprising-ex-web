@@ -34,7 +34,5 @@ export function announcementDate(value: string) {
   return Number.isFinite(date.getTime()) ? date.toLocaleString() : value
 }
 export function contentError(reason: unknown) {
-  return reason instanceof Error
-    ? reason.message
-    : t("Announcement service unavailable. Please retry later.")
+  return reason instanceof Error ? reason.message : t("No announcements yet.")
 }

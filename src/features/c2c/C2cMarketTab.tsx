@@ -11,6 +11,8 @@ import {
   type Verification,
 } from "../../api/c2cTrading"
 import { request } from "../../api/client"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { t } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 import { responseDeadline } from "./C2cOrderPanel"
@@ -113,6 +115,7 @@ export function C2cMarketTab({
   submit: (kind: "AD_PUBLISH" | "ORDER_CREATE", body: Record<string, unknown>) => Promise<void>
   field: FieldFn
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   return (
     <>
       <div className="c2c-form-row">
@@ -138,9 +141,10 @@ export function C2cMarketTab({
         >
           {t("我要卖")}
         </button>
-        <label>
-          {t("交易市场")}
-          <select
+        <div className="c2c-select-field">
+          <span>{t("交易市场")}</span>
+          <DropdownSelect
+            aria-label={t("交易市场")}
             value={marketId}
             onChange={(event) => {
               setMarketId(event.target.value)
@@ -151,11 +155,11 @@ export function C2cMarketTab({
           >
             {catalog?.markets.map((m) => (
               <option key={m.marketId} value={m.marketId}>
-                {m.asset} / {m.fiat}
+                {`${m.asset} / ${m.fiat}`}
               </option>
             ))}
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
         {field(
           `法币金额筛选${market ? "（" + market.fiat + "）" : ""}`,
           amount,
@@ -165,9 +169,10 @@ export function C2cMarketTab({
           },
           { inputMode: "decimal", maxLength: 80 },
         )}
-        <label>
-          {t("支付方式")}
-          <select
+        <div className="c2c-select-field">
+          <span>{t("支付方式")}</span>
+          <DropdownSelect
+            aria-label={t("支付方式")}
             value={method}
             onChange={(event) => {
               setMethod(event.target.value)
@@ -182,8 +187,8 @@ export function C2cMarketTab({
                   {m.label}
                 </option>
               ))}
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
       </div>
       <div className="c2c-offers">
         {adsLoading && ads.length === 0 ? (
@@ -313,9 +318,9 @@ export function C2cMarketTab({
             },
             { inputMode: "decimal", maxLength: 80 },
           )}
-          <label>
-            {t("收款方式")}
-            <select
+          <div className="c2c-select-field">
+            <span>{t("收款方式")}</span>
+            <DropdownSelect
               aria-label={t("收款方式")}
               value={payment}
               onChange={(event) => {
@@ -327,7 +332,7 @@ export function C2cMarketTab({
               {selected.side === "SELL"
                 ? selected.paymentOptions?.map((a) => (
                     <option key={a.accountId} value={a.accountId}>
-                      {a.methodCode} {a.maskedLabel}
+                      {`${a.methodCode} ${a.maskedLabel}`}
                     </option>
                   ))
                 : accounts
@@ -339,11 +344,11 @@ export function C2cMarketTab({
                     )
                     .map((a) => (
                       <option key={a.accountId} value={a.accountId}>
-                        {a.methodCode} {a.maskedLabel}
+                        {`${a.methodCode} ${a.maskedLabel}`}
                       </option>
                     ))}
-            </select>
-          </label>
+            </DropdownSelect>
+          </div>
           <button
             type="button"
             disabled={
@@ -417,12 +422,13 @@ export function C2cMarketTab({
                 }
                 onClick={() => {
                   if (operation.current) return
-                  if (
-                    window.confirm(
-                      `确认按本次报价下单？\n商家：${selected.merchant?.nickname || selected.makerUserId}\n金额：${quote.fiatAmount} ${quote.market.fiat}\n数量：${quote.quantity} ${quote.market.asset}\n报价：${quote.quoteId}`,
-                    )
-                  )
-                    void act(() => submit("ORDER_CREATE", { quoteId: quote.quoteId }))
+                  void confirm({
+                    title: "确认按本次报价下单？",
+                    description: `商家：${selected.merchant?.nickname || selected.makerUserId}\n金额：${quote.fiatAmount} ${quote.market.fiat}\n数量：${quote.quantity} ${quote.market.asset}\n报价：${quote.quoteId}`,
+                    confirmLabel: t("确认下单"),
+                  }).then((ok) => {
+                    if (ok) void act(() => submit("ORDER_CREATE", { quoteId: quote.quoteId }))
+                  })
                 }}
               >
                 {t("确认下单")}
@@ -431,6 +437,7 @@ export function C2cMarketTab({
           )}
         </section>
       )}
+      {dialog}
     </>
   )
 }

@@ -265,7 +265,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     : null
   const tabSymbol = current?.symbol ?? "—"
   const tabPrice = current ? (marketQuotes[current.instrumentId] ?? current.price) : null
-  const tabTitle = `${formatPrice(tabPrice, priceDisplayPrecision(current, assetScales))} ${tabSymbol} · ${t(view.title)} | Surprising EX`
+  const tabTitle = `${formatPrice(tabPrice, priceDisplayPrecision(current, assetScales))} ${tabSymbol} · ${t(view.title)} | AETERN`
   useEffect(() => {
     const defaultTitle = document.title
     return () => {

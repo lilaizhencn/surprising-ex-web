@@ -1,4 +1,5 @@
 import { cancelTriggerOrder } from "../../api/endpoints"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { Button } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { readPendingCommand } from "../../state/pendingOrders"
@@ -15,6 +16,7 @@ export function TriggerTable({
   readonly productLine: ProductLine
   readonly onDone: (message: string) => void
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   const session = loadSession()
   return (
     <div className="table-wrap">
@@ -46,16 +48,23 @@ export function TriggerTable({
                     text(row, "status") !== "PENDING"
                   }
                   onClick={() => {
-                    if (!session || !window.confirm("Cancel this conditional order?")) return
-                    void cancelTriggerOrder(
-                      session.user.userId,
-                      text(row, "triggerOrderId"),
-                      productLine,
-                      text(row, "instrumentId"),
-                    ).then(
-                      () => onDone(t("Trigger order cancellation requested.")),
-                      (reason: unknown) => onDone(readError(reason)),
-                    )
+                    if (!session) return
+                    void confirm({
+                      title: t("Cancel this conditional order?"),
+                      confirmLabel: t("Cancel"),
+                      danger: true,
+                    }).then((ok) => {
+                      if (!ok) return
+                      void cancelTriggerOrder(
+                        session.user.userId,
+                        text(row, "triggerOrderId"),
+                        productLine,
+                        text(row, "instrumentId"),
+                      ).then(
+                        () => onDone(t("Trigger order cancellation requested.")),
+                        (reason: unknown) => onDone(readError(reason)),
+                      )
+                    })
                   }}
                 >
                   {" "}
@@ -66,6 +75,7 @@ export function TriggerTable({
           ))}
         </tbody>
       </table>
+      {dialog}
     </div>
   )
 }

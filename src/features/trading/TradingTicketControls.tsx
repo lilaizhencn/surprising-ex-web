@@ -196,6 +196,7 @@ export function TradingTicketControls({
               <span>{t("Drag to adjust leverage")}</span>
               <input
                 type="range"
+                className="sf-slider ds-control"
                 aria-label={t("Leverage slider")}
                 aria-valuetext={`${Number(draft) || 1}×`}
                 min="1"

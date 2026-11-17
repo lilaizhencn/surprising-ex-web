@@ -170,9 +170,9 @@ export function AuthPage({ mode }: { readonly mode: AuthMode }) {
         <div className="art-band art-red" />
       </div>
       <main className="auth-card">
-        <a className="auth-brand auth-platform-logo" href="/" aria-label="Surprising EX">
+        <a className="auth-brand auth-platform-logo" href="/" aria-label="AETERN">
           <span className="auth-logo-mark" aria-hidden="true" />
-          <span className="sr-only">Surprising EX</span>
+          <span className="sr-only">AETERN</span>
         </a>
         <h1 className="sr-only">{t(title)}</h1>
         <form

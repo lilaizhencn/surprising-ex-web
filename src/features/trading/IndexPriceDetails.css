@@ -52,7 +52,7 @@
     0 24px 60px rgba(0, 0, 0, 0.8),
     0 0 0 1px rgba(0, 198, 255, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  color: var(--text-primary);
   white-space: normal;
   word-break: normal;
   overflow-wrap: break-word;
@@ -119,7 +119,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   letter-spacing: -0.01em;
   background: linear-gradient(135deg, #ffffff 0%, #d8e2ec 100%);
   -webkit-background-clip: text;
@@ -135,14 +135,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease-out;
 }
 
 .index-price-popover-close:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
@@ -155,7 +155,7 @@
   margin: 0 0 12px 0;
   font-size: 13px;
   line-height: 1.6;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   white-space: normal;
 }
 
@@ -214,7 +214,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #8e8ea0;
+  color: var(--text-tertiary);
 }
 
 .index-price-components td {

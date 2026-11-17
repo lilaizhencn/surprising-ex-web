@@ -483,6 +483,32 @@ export function LedgerPage() {
               max={todayDate()}
             />
           </Field>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {[
+              { label: "24H", days: 1 },
+              { label: "7D", days: 7 },
+              { label: "30D", days: 30 },
+              { label: t("All"), days: 0 },
+            ].map((preset) => (
+              <Button
+                key={preset.label}
+                tone="ghost"
+                onClick={() => {
+                  if (preset.days === 0) {
+                    setFrom("")
+                    setTo("")
+                    return
+                  }
+                  const end = new Date()
+                  const start = new Date(end.getTime() - preset.days * 86_400_000)
+                  setFrom(start.toISOString().slice(0, 10))
+                  setTo(end.toISOString().slice(0, 10))
+                }}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
           <Button loading={loading} onClick={() => setRevision((value) => value + 1)}>
             {t("Search")}
           </Button>

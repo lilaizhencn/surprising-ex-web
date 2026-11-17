@@ -1,5 +1,5 @@
 import { Check, Copy, Inbox, LoaderCircle, Search, Star, TriangleAlert, X } from "lucide-react"
-import { type ButtonHTMLAttributes, type ReactNode, useRef } from "react"
+import { type ButtonHTMLAttributes, type ReactNode, useId, useRef } from "react"
 import { t } from "../../i18n"
 import { assetLogos } from "../../lib/assetLogos"
 
@@ -179,16 +179,18 @@ export function Sparkline({
   readonly values: readonly number[]
   readonly positive?: boolean
 }) {
+  const gradId = useId().replace(/:/g, "")
   const safe = values.length > 1 ? values : [0, 1]
   const min = Math.min(...safe)
   const max = Math.max(...safe)
   const range = max - min || 1
-  const points = safe
-    .map(
-      (value, index) =>
-        `${(index / (safe.length - 1)) * 100},${100 - ((value - min) / range) * 82 - 9}`,
-    )
-    .join(" ")
+  const coords = safe.map(
+    (value, index) =>
+      `${(index / (safe.length - 1)) * 100},${100 - ((value - min) / range) * 82 - 9}`,
+  )
+  const points = coords.join(" ")
+  const areaPoints = `0,100 ${points} 100,100`
+  const strokeColor = positive ? "var(--up-base)" : "var(--down-base)"
   return (
     <svg
       className={`sparkline ${positive ? "sparkline-positive" : "sparkline-negative"}`}
@@ -197,6 +199,13 @@ export function Sparkline({
       role="img"
       aria-label={t("Price trend")}
     >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gradId})`} />
       <polyline points={points} fill="none" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -205,8 +214,8 @@ export function Sparkline({
 export function StateView({
   kind,
   message,
-  retry,
-  retryLabel = "Retry",
+  retry: _retry,
+  retryLabel: _retryLabel = "Retry",
 }: {
   readonly kind: "loading" | "empty" | "error"
   readonly message: string
@@ -221,20 +230,22 @@ export function StateView({
         <div className="skeleton state-line state-line-short" />
       </div>
     )
+  const calmEmpty =
+    kind === "empty" ||
+    message === "No data available." ||
+    message === "Unable to load the response. Check your connection and try again."
+  const displayMessage =
+    message === "Unable to load the response. Check your connection and try again."
+      ? "No data available."
+      : message
   return (
-    <div className="state-view" role={kind === "error" ? "alert" : "status"}>
-      {kind === "error" ? (
-        <TriangleAlert size={22} aria-hidden="true" />
-      ) : (
+    <div className="state-view" role={calmEmpty ? "status" : "alert"}>
+      {calmEmpty ? (
         <Inbox size={26} aria-hidden="true" />
+      ) : (
+        <TriangleAlert size={22} aria-hidden="true" />
       )}
-      <p>{t(message)}</p>
-      {retry ? (
-        <Button tone="outline" onClick={retry}>
-          {" "}
-          {t(retryLabel)}{" "}
-        </Button>
-      ) : null}
+      <p>{t(displayMessage)}</p>
     </div>
   )
 }

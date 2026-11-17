@@ -10,6 +10,7 @@ import {
   uploadC2cAttachment,
 } from "../../api/c2c"
 import { ApiError } from "../../api/client"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, IconButton } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { deliverMessage, forgetMessage, pendingMessage, rememberMessage } from "./pendingMessage"
@@ -144,9 +145,9 @@ export function ChatComposer({
       }}
     >
       {replies.length > 0 ? (
-        <label className="c2c-quick-reply">
-          {t("Quick replies")}
-          <select
+        <div className="c2c-quick-reply">
+          <span>{t("Quick replies")}</span>
+          <DropdownSelect
             aria-label={t("Quick replies")}
             value=""
             disabled={pending !== null}
@@ -158,8 +159,8 @@ export function ChatComposer({
                 {reply.text}
               </option>
             ))}
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
       ) : null}
       {pending ? (
         <div className="c2c-notice" role="status">

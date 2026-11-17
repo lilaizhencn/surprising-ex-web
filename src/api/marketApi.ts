@@ -60,6 +60,42 @@ export async function loadMarkets(
   return response.instruments ?? response.items ?? []
 }
 
+const LatestMarkPriceSchema = z
+  .object({
+    markPrice: z.number().finite().positive().nullable().optional(),
+    indexPrice: z.number().finite().positive().nullable().optional(),
+    eventTime: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+export async function loadLatestMarkPrice(
+  instrumentId: string,
+  productLine: ProductLine,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  if (productLine === "SPOT") return null
+  const query = new URLSearchParams({ instrumentId })
+  const response = await request(
+    `/api/v1/price/mark/latest?${query.toString()}`,
+    LatestMarkPriceSchema,
+    { productLine, ...(signal ? { signal } : {}) },
+  )
+  return response.markPrice ?? null
+}
+
+export async function loadLatestMarkPriceDetails(
+  instrumentId: string,
+  productLine: ProductLine,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown> | null> {
+  if (productLine === "SPOT") return null
+  const query = new URLSearchParams({ instrumentId })
+  return request(`/api/v1/price/mark/latest?${query.toString()}`, LatestMarkPriceSchema, {
+    productLine,
+    ...(signal ? { signal } : {}),
+  })
+}
+
 export function loadFundingRate(
   instrumentId: string,
   productLine: ProductLine,

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { cancelTriggerOrder } from "../../api/endpoints"
 import type { ApiTriggerOrder } from "../../api/types"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { Badge } from "../../components/ui/Primitives"
 import { t, tf } from "../../i18n"
 import { stepUnitsToDecimal } from "../../lib/units"
@@ -83,6 +84,7 @@ function TriggerOrderRow({
   readonly assetScales: Readonly<Record<string, string>>
   readonly onDone: (message: string) => void
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   const [loading, setLoading] = useState(false)
   const triggerPrice = formatTriggerOrderPrice(row, market, assetScales)
   const quantity = formatTriggerOrderQuantity(row, market, assetScales)
@@ -117,22 +119,26 @@ function TriggerOrderRow({
           aria-busy={loading}
           disabled={loading || pending || userId === undefined || row.status !== "PENDING"}
           onClick={() => {
-            if (
-              userId === undefined ||
-              !window.confirm(t("Cancel this take-profit / stop-loss order?"))
-            )
-              return
-            setLoading(true)
-            void cancelTriggerOrder(userId, row.triggerOrderId, productLine, row.instrumentId)
-              .then(
-                () => onDone(t("Trigger order cancellation requested.")),
-                (reason: unknown) => onDone(readError(reason)),
-              )
-              .finally(() => setLoading(false))
+            if (userId === undefined) return
+            void confirm({
+              title: t("Cancel this take-profit / stop-loss order?"),
+              confirmLabel: t("Revoke"),
+              danger: true,
+            }).then((ok) => {
+              if (!ok) return
+              setLoading(true)
+              void cancelTriggerOrder(userId, row.triggerOrderId, productLine, row.instrumentId)
+                .then(
+                  () => onDone(t("Trigger order cancellation requested.")),
+                  (reason: unknown) => onDone(readError(reason)),
+                )
+                .finally(() => setLoading(false))
+            })
           }}
         >
           {t("Revoke")}
         </button>
+        {dialog}
       </td>
     </tr>
   )

@@ -1,22 +1,13 @@
-import { ArrowRight, Eye, EyeOff, Plus, RefreshCw, Send, Shuffle } from "lucide-react"
+import { ArrowRight, EyeOff, Plus, Send, Shuffle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadAssetScales } from "../../api/endpoints"
 import { productLineLabels } from "../../components/layout/navigation"
-import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import {
-  AssetIcon,
-  Button,
-  IconButton,
-  Panel,
-  SearchField,
-  StateView,
-} from "../../components/ui/Primitives"
-import { navigateInApplication } from "../../hooks/useBrowserNavigation"
+import { AssetIcon, Panel, SearchField, StateView } from "../../components/ui/Primitives"
 import { useRealtimeAssets } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoBalances } from "../../lib/demo"
-import { readStoredValue, writeStoredValue } from "../../lib/storage"
+import { readStoredValue } from "../../lib/storage"
 import { useSession } from "../../state/session"
 import { type Balance, PRODUCT_LINES } from "../../types/domain"
 import {
@@ -34,9 +25,7 @@ const privacyKey = "surprising-ex.assets-hidden"
 
 export function AssetsPage({ account }: { readonly account: string | null }) {
   const [metadataError, setMetadataError] = useState<string | null>(null)
-  const [hidden, setHidden] = useState(() => readStoredValue(privacyKey) === "true")
-  const [loading, setLoading] = useState(false)
-  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [hidden] = useState(() => readStoredValue(privacyKey) === "true")
   const [query, setQuery] = useState("")
   const [hideZero, setHideZero] = useState(false)
   const [assetScales, setAssetScales] = useState<Readonly<Record<string, string>>>({})
@@ -77,7 +66,19 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       : null
   const allocation = allReady && total !== null ? allocationSegments(balances) : []
   const negativeEquity = balances.some((row) => row.estimatedUsd !== null && row.estimatedUsd < 0)
-  const waiting = !scopeUnavailable && !error && !allReady
+  const transientValuationError =
+    error === t("Valuation prices are unavailable or expired.") ||
+    error === t("FX quote has expired")
+  // Stay on the reserved skeleton until every in-scope snapshot is ready so partial
+  // valuations cannot swap the overview, product cards, or balance list to a new height.
+  const layoutPending =
+    !demo && !scopeUnavailable && !metadataError && !allReady && (!error || transientValuationError)
+  const alertError =
+    error &&
+    error !== t("The service returned an unexpected response. Please refresh and try again.") &&
+    !(layoutPending && transientValuationError)
+      ? error
+      : null
   const filtered = balances.filter(
     (row) =>
       row.asset.toLowerCase().includes(query.trim().toLowerCase()) &&
@@ -87,32 +88,23 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
   useEffect(() => {
     if (!session) return
     const controller = new AbortController()
-    setLoading(true)
-    void loadAssetScales(controller.signal)
-      .then(
-        (scales) => {
-          if (!controller.signal.aborted) {
-            setAssetScales(scales)
-            setMetadataError(null)
-          }
-        },
-        (reason) => {
-          if (!controller.signal.aborted)
-            setMetadataError(
-              reason instanceof Error ? reason.message : t("Asset service unavailable"),
-            )
-        },
-      )
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
+    void loadAssetScales(controller.signal).then(
+      (scales) => {
+        if (!controller.signal.aborted) {
+          setAssetScales(scales)
+          setMetadataError(null)
+        }
+      },
+      (reason) => {
+        if (!controller.signal.aborted)
+          setMetadataError(
+            reason instanceof Error ? reason.message : t("Asset service unavailable"),
+          )
+      },
+    )
     return () => controller.abort()
-  }, [session, refreshVersion])
+  }, [session])
 
-  const refresh = () => {
-    setRefreshVersion((version) => version + 1)
-    realtime.refresh()
-  }
   const amount = (balance: Balance, kind: "available" | "locked" | "total") =>
     hidden ? "••••••" : metadataError ? "—" : assetAmount(balance, kind)
   const usd = (value: number | null) => (hidden ? "••••••" : metadataError ? "—" : assetUsd(value))
@@ -150,59 +142,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 ? `${t(productLineLabels[selectedLine])} ${t("Assets")}`
                 : t("Assets")}
           </h1>
-          <p>{t("Balances, equity and account activity in one place.")}</p>
         </div>
-        <div className="assets-page-controls">
-          <IconButton
-            label={hidden ? t("Show balances") : t("Hide balances")}
-            aria-pressed={hidden}
-            onClick={() => {
-              const next = !hidden
-              setHidden(next)
-              writeStoredValue(privacyKey, String(next))
-            }}
-          >
-            {hidden ? <Eye size={20} /> : <EyeOff size={20} />}
-          </IconButton>
-          <IconButton
-            label={t("Refresh balances")}
-            disabled={loading}
-            aria-busy={loading}
-            onClick={refresh}
-          >
-            <RefreshCw size={19} className={loading ? "spin" : undefined} />
-          </IconButton>
-        </div>
-      </div>
-      <div className="assets-scope-toolbar">
-        <DropdownSelect
-          aria-label={t("Asset account")}
-          value={overview ? "overview" : (account ?? "overview")}
-          onChange={(event) => {
-            const next = event.target.value
-            if (
-              next === "overview" ||
-              Object.values(PRODUCT_LINES).some((line) => productAccountKey(line) === next)
-            )
-              navigateInApplication(next === "overview" ? "/assets" : `/assets?account=${next}`)
-          }}
-        >
-          <option value="overview">{t("All accounts")}</option>
-          {Object.values(PRODUCT_LINES).map((line) => (
-            <option key={line} value={productAccountKey(line)}>
-              {t(productLineLabels[line])}
-            </option>
-          ))}
-        </DropdownSelect>
-        <span className={`assets-sync-state${allReady ? " synced" : ""}`} role="status">
-          {t(
-            allReady
-              ? "Account data synced"
-              : scopeUnavailable
-                ? "Account unavailable"
-                : "Syncing account data",
-          )}
-        </span>
       </div>
       {demo ? (
         <div className="demo-banner">
@@ -211,45 +151,34 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
       ) : null}
       {!overview && !selectedLine ? (
         <Panel>
-          <StateView
-            kind="error"
-            message="Unknown asset account. Choose an account to continue."
-            retry={() => navigateInApplication("/assets")}
-            retryLabel="View all accounts"
-          />
+          <StateView kind="error" message="Unknown asset account. Choose an account to continue." />
         </Panel>
       ) : (
         <>
-          {error ? (
+          {alertError ? (
             <div className="assets-data-alert" role="alert">
-              <span>{error}</span>
-              <Button tone="ghost" loading={loading} onClick={refresh}>
-                {t("Retry")}
-              </Button>
+              <span>{alertError}</span>
             </div>
-          ) : null}
-          {!allReady && readyProducts.length > 0 && !scopeUnavailable ? (
-            <p className="assets-partial-note">
-              {t(
-                "Some accounts are still syncing. Only loaded balances are shown; the total remains unavailable.",
-              )}
-            </p>
           ) : null}
           <div className="asset-overview-grid">
             <Panel className="balance-hero">
               <div className="eyebrow">{t("Estimated equity")}</div>
-              <div className="balance-number mono">
-                {hidden ? (
-                  <span role="img" aria-label={t("Balances hidden")}>
-                    ••••••
-                  </span>
-                ) : total !== null ? (
-                  assetUsd(total)
-                ) : waiting ? (
-                  <span className="asset-value-skeleton" aria-hidden="true" />
-                ) : (
-                  t("Valuation unavailable")
-                )}
+              <div
+                className={`balance-number mono${layoutPending || total !== null || hidden ? "" : " is-fallback"}`}
+              >
+                <span className="balance-number-value">
+                  {hidden ? (
+                    <span role="img" aria-label={t("Balances hidden")}>
+                      ••••••
+                    </span>
+                  ) : total !== null ? (
+                    assetUsd(total)
+                  ) : layoutPending ? (
+                    <span className="asset-value-skeleton" aria-hidden="true" />
+                  ) : (
+                    t("Valuation unavailable")
+                  )}
+                </span>
               </div>
               <p className="assets-valuation-note">
                 {t("USD estimates include unrealized PnL for derivatives.")}
@@ -293,7 +222,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                     ))}
                   </div>
                 </div>
-              ) : waiting ? (
+              ) : layoutPending ? (
                 <div
                   className="asset-distribution-skeleton"
                   role="status"
@@ -303,19 +232,17 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                   <span />
                   <span />
                 </div>
-              ) : (
+              ) : scopeUnavailable || negativeEquity ? (
                 <StateView
-                  kind={total === null || scopeUnavailable ? "error" : "empty"}
+                  kind={scopeUnavailable ? "error" : "empty"}
                   message={
                     scopeUnavailable
                       ? "This product account is not enabled."
-                      : total === null
-                        ? "Asset valuation is unavailable. Balances can still be reviewed below."
-                        : negativeEquity
-                          ? "Allocation is unavailable for portfolios with negative equity."
-                          : "No positive asset value to display yet."
+                      : "Allocation is unavailable for portfolios with negative equity."
                   }
                 />
+              ) : (
+                <div className="subtle">—</div>
               )}
             </Panel>
           </div>
@@ -365,7 +292,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
               </div>
             </section>
           ) : null}
-          <section className="assets-balance-section">
+          <section className="assets-balance-section" aria-busy={layoutPending || undefined}>
             <div className="assets-balance-heading">
               <h2>{t("Currency asset details")}</h2>
               <div className="assets-balance-filters">
@@ -380,7 +307,7 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                 </label>
               </div>
             </div>
-            {filtered.length > 0 ? (
+            {layoutPending || filtered.length > 0 ? (
               <>
                 <div className="table-wrap assets-desktop-balances">
                   <table className="data-table asset-account-table">
@@ -403,76 +330,84 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((balance) => (
-                        <tr key={balance.asset}>
-                          <td>
-                            <span className="market-name">
-                              <AssetIcon asset={balance.asset} />
-                              <strong>{balance.asset}</strong>
-                            </span>
-                          </td>
-                          <td className="number mono">{amount(balance, "total")}</td>
-                          <td className="number mono">{amount(balance, "available")}</td>
-                          <td className="number mono">{amount(balance, "locked")}</td>
-                          <td className="number mono">{usd(balance.estimatedUsd)}</td>
-                          <td>
-                            <div className="asset-row-actions">{actions(balance.asset)}</div>
-                          </td>
-                        </tr>
-                      ))}
+                      {layoutPending
+                        ? [0, 1, 2, 3].map((row) => (
+                            <tr key={row}>
+                              <td colSpan={6}>
+                                <span className="asset-table-skeleton" />
+                              </td>
+                            </tr>
+                          ))
+                        : filtered.map((balance) => (
+                            <tr key={balance.asset}>
+                              <td>
+                                <span className="market-name">
+                                  <AssetIcon asset={balance.asset} />
+                                  <strong>{balance.asset}</strong>
+                                </span>
+                              </td>
+                              <td className="number mono">{amount(balance, "total")}</td>
+                              <td className="number mono">{amount(balance, "available")}</td>
+                              <td className="number mono">{amount(balance, "locked")}</td>
+                              <td className="number mono">{usd(balance.estimatedUsd)}</td>
+                              <td>
+                                <div className="asset-row-actions">{actions(balance.asset)}</div>
+                              </td>
+                            </tr>
+                          ))}
                     </tbody>
                   </table>
                 </div>
                 <ul className="assets-mobile-balances">
-                  {filtered.map((balance) => (
-                    <li className="asset-balance-card" key={balance.asset}>
-                      <div className="asset-balance-card-heading">
-                        <span className="market-name">
-                          <AssetIcon asset={balance.asset} />
-                          <strong>{balance.asset}</strong>
-                        </span>
-                        <span className="mono">{usd(balance.estimatedUsd)}</span>
-                      </div>
-                      <dl>
-                        {(["total", "available", "locked"] as const).map((kind) => (
-                          <div
-                            key={kind}
-                            data-wide={amount(balance, kind).length >= 16 || undefined}
-                          >
-                            <dt>
-                              {t(
-                                kind === "total"
-                                  ? "Total balance"
-                                  : kind === "available"
-                                    ? "Available"
-                                    : "Frozen",
-                              )}
-                            </dt>
-                            <dd className="mono">{amount(balance, kind)}</dd>
+                  {layoutPending
+                    ? [0, 1, 2, 3].map((row) => (
+                        <li className="asset-balance-card asset-balance-skeleton-card" key={row}>
+                          <span className="asset-table-skeleton" />
+                          <span className="asset-table-skeleton" />
+                          <span className="asset-table-skeleton" />
+                        </li>
+                      ))
+                    : filtered.map((balance) => (
+                        <li className="asset-balance-card" key={balance.asset}>
+                          <div className="asset-balance-card-heading">
+                            <span className="market-name">
+                              <AssetIcon asset={balance.asset} />
+                              <strong>{balance.asset}</strong>
+                            </span>
+                            <span className="mono">{usd(balance.estimatedUsd)}</span>
                           </div>
-                        ))}
-                      </dl>
-                      <div className="asset-row-actions">{actions(balance.asset)}</div>
-                    </li>
-                  ))}
+                          <dl>
+                            {(["total", "available", "locked"] as const).map((kind) => (
+                              <div
+                                key={kind}
+                                data-wide={amount(balance, kind).length >= 16 || undefined}
+                              >
+                                <dt>
+                                  {t(
+                                    kind === "total"
+                                      ? "Total balance"
+                                      : kind === "available"
+                                        ? "Available"
+                                        : "Frozen",
+                                  )}
+                                </dt>
+                                <dd className="mono">{amount(balance, kind)}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                          <div className="asset-row-actions">{actions(balance.asset)}</div>
+                        </li>
+                      ))}
                 </ul>
               </>
-            ) : waiting && balances.length === 0 ? (
-              <Panel>
-                <StateView kind="loading" message="Loading balances" />
-              </Panel>
-            ) : (
+            ) : query || hideZero || scopeUnavailable ? (
               <Panel>
                 <StateView
-                  kind={(error && !allReady) || scopeUnavailable ? "error" : "empty"}
+                  kind={scopeUnavailable ? "error" : "empty"}
                   message={
                     query || hideZero
                       ? "No assets match the current filters."
-                      : scopeUnavailable
-                        ? "This product account is not enabled."
-                        : !allReady
-                          ? "Account balances are not available yet."
-                          : "No balances returned by the account service."
+                      : "This product account is not enabled."
                   }
                   retry={
                     query || hideZero
@@ -484,6 +419,10 @@ export function AssetsPage({ account }: { readonly account: string | null }) {
                   }
                   retryLabel="Reset filters"
                 />
+              </Panel>
+            ) : (
+              <Panel>
+                <div className="subtle">—</div>
               </Panel>
             )}
           </section>

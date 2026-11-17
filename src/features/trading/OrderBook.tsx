@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef } from "react"
+import { memo, useLayoutEffect, useRef, useState } from "react"
 import type { ApiOrderBook, ApiOrderBookLevel } from "../../api/types"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Panel } from "../../components/ui/Primitives"
@@ -41,6 +41,10 @@ export const OrderBook = memo(function OrderBook({
   readonly onPrecisionChange: (precision: number) => void
 }) {
   const askSideRef = useRef<HTMLDivElement>(null)
+  const [hovered, setHovered] = useState<{
+    readonly side: "ask" | "bid"
+    readonly index: number
+  } | null>(null)
   const withTotals = (levels: Level[]) => {
     let total = "0"
     return levels.slice(0, depth).map((level) => {
@@ -131,7 +135,7 @@ export const OrderBook = memo(function OrderBook({
           </div>
           <div ref={askSideRef} className="order-book-scroll order-book-asks">
             <div className="order-book">
-              {asks.map(({ level, total }) => (
+              {asks.map(({ level, total }, index) => (
                 <LevelRow
                   key={`ask-${levelPrice(level)}`}
                   level={level}
@@ -141,6 +145,10 @@ export const OrderBook = memo(function OrderBook({
                   dollar={dollar}
                   pricePrecision={aggregatedPricePrecision}
                   onPriceSelect={onPriceSelect}
+                  rangeHovered={hovered?.side === "ask" && index >= hovered.index}
+                  rangeEdge={hovered?.side === "ask" && index === hovered.index ? "top" : undefined}
+                  onHover={() => setHovered({ side: "ask", index })}
+                  onLeave={() => setHovered((prev) => (prev?.side === "ask" ? null : prev))}
                 />
               ))}
             </div>
@@ -178,7 +186,7 @@ export const OrderBook = memo(function OrderBook({
           </div>
           <div className="order-book-scroll">
             <div className="order-book">
-              {bids.map(({ level, total }) => (
+              {bids.map(({ level, total }, index) => (
                 <LevelRow
                   key={`bid-${levelPrice(level)}`}
                   level={level}
@@ -188,6 +196,12 @@ export const OrderBook = memo(function OrderBook({
                   dollar={dollar}
                   pricePrecision={aggregatedPricePrecision}
                   onPriceSelect={onPriceSelect}
+                  rangeHovered={hovered?.side === "bid" && index <= hovered.index}
+                  rangeEdge={
+                    hovered?.side === "bid" && index === hovered.index ? "bottom" : undefined
+                  }
+                  onHover={() => setHovered({ side: "bid", index })}
+                  onLeave={() => setHovered((prev) => (prev?.side === "bid" ? null : prev))}
                 />
               ))}
             </div>
@@ -230,6 +244,10 @@ function LevelRow({
   dollar,
   pricePrecision,
   onPriceSelect,
+  rangeHovered = false,
+  rangeEdge,
+  onHover,
+  onLeave,
 }: {
   readonly level: Level
   readonly total: string
@@ -238,6 +256,10 @@ function LevelRow({
   readonly onPriceSelect?: ((price: string) => void) | undefined
   readonly pricePrecision: number
   readonly dollar: boolean
+  readonly rangeHovered?: boolean
+  readonly rangeEdge?: "top" | "bottom" | undefined
+  readonly onHover?: () => void
+  readonly onLeave?: () => void
 }) {
   const price = Array.isArray(level) ? String(level[0]) : String(level.priceTicks)
   const amount = Array.isArray(level) ? String(level[1]) : String(level.quantitySteps)
@@ -247,27 +269,32 @@ function LevelRow({
       ? Math.max(0, Math.min(1, quantity / maxQuantity))
       : 0
   return (
-    <div className="order-book-row">
+    <button
+      type="button"
+      className="order-book-row"
+      data-tone={tone}
+      data-range-hover={rangeHovered ? "true" : undefined}
+      data-range-edge={rangeEdge}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onClick={() => onPriceSelect?.(price)}
+      aria-label={`${t("Use price")} ${price}`}
+    >
       <span
         className={`order-book-depth-fill ${tone}`}
         aria-hidden="true"
         style={{ transform: `scaleX(${fill})` }}
       />
-      <button
-        type="button"
-        className={`book-price-button ${tone} mono`}
-        onClick={() => onPriceSelect?.(price)}
-        aria-label={`${t("Use price")} ${price}`}
-      >
+      <span className={`book-price-button ${tone} mono`}>
         {displayPrice(price, dollar, pricePrecision)}
-      </button>
+      </span>
       <span className="mono" title={amount}>
         {amount}
       </span>
       <span className="mono" title={total}>
         {total}
       </span>
-    </div>
+    </button>
   )
 }
 

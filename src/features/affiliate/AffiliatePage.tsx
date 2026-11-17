@@ -9,6 +9,7 @@ import {
   percentPpm,
 } from "../../api/affiliate"
 import { loadAssetScales } from "../../api/endpoints"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
 import { t, tf } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
@@ -349,7 +350,7 @@ export function AffiliatePage() {
             <Panel>
               <h2>{kolEnabled ? t("贡献与收益") : t("我的返佣")}</h2>
               <Field label={t("产品线")}>
-                <select
+                <DropdownSelect
                   aria-label={t("产品线")}
                   value={line}
                   onChange={(event) => {
@@ -363,7 +364,7 @@ export function AffiliatePage() {
                       {product}
                     </option>
                   ))}
-                </select>
+                </DropdownSelect>
               </Field>
               <p>
                 {kolEnabled

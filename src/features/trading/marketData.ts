@@ -6,12 +6,11 @@ import { marketQuantitySpec } from "./marketQuantity"
 export function mergeCandleSnapshot(snapshot: Candle, live: Candle | undefined): Candle {
   // History can finish after a newer WebSocket aggregate. Both carry the server's
   // aggregation time; quantities from the trade tape never enter this cumulative volume.
-  if (
-    live?.updatedAt &&
-    snapshot.updatedAt &&
-    Date.parse(live.updatedAt) > Date.parse(snapshot.updatedAt)
-  )
-    return live
+  if (live?.updatedAt && snapshot.updatedAt) {
+    const liveMs = Date.parse(live.updatedAt)
+    const snapMs = Date.parse(snapshot.updatedAt)
+    if (liveMs > snapMs || (liveMs === snapMs && live.volume > snapshot.volume)) return live
+  }
   return snapshot
 }
 

@@ -352,7 +352,7 @@
 .advanced-order-settings {
   margin: 12px 0;
   border-radius: 8px;
-  background: rgba(30, 30, 46, 0.5);
+  background: var(--color-surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   transition: all 0.25s ease-out;
@@ -405,7 +405,7 @@
 .bracket-field label {
   display: block;
   font-size: 11px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
@@ -413,7 +413,7 @@
   display: flex;
   align-items: center;
   background: rgba(10, 10, 18, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 0 8px;
   height: 32px;
@@ -428,14 +428,14 @@
   width: 100%;
   border: none;
   background: transparent;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 12px;
   outline: none;
 }
 
 .bracket-field .unit {
   font-size: 11px;
-  color: #8e8ea0;
+  color: var(--text-tertiary);
   margin-left: 4px;
 }
 
@@ -447,5 +447,5 @@
 
 .stp-field-row label {
   font-size: 11px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
 }

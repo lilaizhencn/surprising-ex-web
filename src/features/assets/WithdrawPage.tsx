@@ -671,6 +671,25 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                     />
                     <span>{asset}</span>
                   </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    {[25, 50, 75, 100].map((pct) => (
+                      <Button
+                        key={pct}
+                        tone="ghost"
+                        disabled={
+                          busy || !availableUnits || !scale || !/^[1-9][0-9]*$/.test(availableUnits)
+                        }
+                        onClick={() => {
+                          if (!availableUnits || !scale) return
+                          const bi = BigInt(availableUnits)
+                          const next = pct === 100 ? bi : (bi * BigInt(pct)) / 100n
+                          setAmount(signedUnitsToDecimal(next.toString(), scale))
+                        }}
+                      >
+                        {pct === 100 ? "MAX" : `${pct}%`}
+                      </Button>
+                    ))}
+                  </div>
                 </Field>
                 <dl className="withdraw-limits">
                   <div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import "./TradingAccountTables.css"
 import { cancelOpenOrders, cancelOrder, loadPositionRisk } from "../../api/endpoints"
 import type { ApiOrder, ApiTriggerOrder } from "../../api/types"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { t } from "../../i18n"
 import { formatPrice, priceDecimalsForStep } from "../../lib/format"
 import {
@@ -200,6 +201,7 @@ export function TradingAccountTables(props: Props) {
 }
 
 function TradingAccountTablesView(props: Props) {
+  const { confirm, dialog } = useConfirmDialog()
   const {
     market,
     markets,
@@ -332,46 +334,47 @@ function TradingAccountTablesView(props: Props) {
             }
             onClick={() => {
               if (onlyCurrent && !market?.instrumentId) return
-              if (
-                !window.confirm(
-                  t(
-                    onlyCurrent
-                      ? "Cancel all open orders for the current pair?"
-                      : "Cancel all open orders for this product line?",
-                  ),
-                )
-              )
-                return
-              setCancelingAll(true)
-              void cancelOpenOrders(
-                {
-                  userId,
-                  instrumentId: onlyCurrent ? (market?.instrumentId ?? null) : null,
-                  limit: 1000,
-                },
-                productLine,
-              )
-                .then(
-                  (result) => {
-                    if (String(loadSession()?.user.userId ?? "") !== String(userId)) return
-                    onNotice(
-                      typeof result["message"] === "string"
-                        ? result["message"]
-                        : t("Batch cancellation requested."),
-                      Number(result["failed"] ?? 0) > 0,
-                    )
+              void confirm({
+                title: t(
+                  onlyCurrent
+                    ? "Cancel all open orders for the current pair?"
+                    : "Cancel all open orders for this product line?",
+                ),
+                confirmLabel: t("Cancel"),
+                danger: true,
+              }).then((ok) => {
+                if (!ok) return
+                setCancelingAll(true)
+                void cancelOpenOrders(
+                  {
+                    userId,
+                    instrumentId: onlyCurrent ? (market?.instrumentId ?? null) : null,
+                    limit: 1000,
                   },
-                  (reason) => {
-                    if (String(loadSession()?.user.userId ?? "") === String(userId))
+                  productLine,
+                )
+                  .then(
+                    (result) => {
+                      if (String(loadSession()?.user.userId ?? "") !== String(userId)) return
                       onNotice(
-                        reason instanceof Error
-                          ? reason.message
-                          : t("Order service unavailable. Please retry later."),
-                        true,
+                        typeof result["message"] === "string"
+                          ? result["message"]
+                          : t("Batch cancellation requested."),
+                        Number(result["failed"] ?? 0) > 0,
                       )
-                  },
-                )
-                .finally(() => setCancelingAll(false))
+                    },
+                    (reason) => {
+                      if (String(loadSession()?.user.userId ?? "") === String(userId))
+                        onNotice(
+                          reason instanceof Error
+                            ? reason.message
+                            : t("Order service unavailable. Please retry later."),
+                          true,
+                        )
+                    },
+                  )
+                  .finally(() => setCancelingAll(false))
+              })
             }}
           >
             {cancelingAll ? t("Canceling…") : t("Cancel all open")}
@@ -588,6 +591,7 @@ function TradingAccountTablesView(props: Props) {
           </table>
         </div>
       )}
+      {dialog}
     </section>
   )
 }

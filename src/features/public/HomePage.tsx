@@ -12,8 +12,9 @@ import {
   Zap,
 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadAssetScales, loadMarkets } from "../../api/endpoints"
+import { loadAssetScales, loadLatestMarkPrice, loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
+import { AeternMark } from "../../components/layout/AeternMark"
 import { MarketSkeleton } from "../../components/market/MarketSkeleton"
 import { AssetIcon, Panel, Price, Sparkline, StateView } from "../../components/ui/Primitives"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
@@ -59,11 +60,28 @@ export function HomePage() {
           loadAssetScales(),
         ])
         if (controller.signal.aborted) return
-        setMarkets(
-          rows
-            .map(mapMarket)
-            .filter((market) => market.productLine === PRODUCT_LINES.usdMPerpetual),
+        const mapped = rows
+          .map(mapMarket)
+          .filter((market) => market.productLine === PRODUCT_LINES.usdMPerpetual)
+        const hydrated = await Promise.all(
+          mapped.map(async (market) => {
+            if (market.price !== null) return market
+            try {
+              const mark = await loadLatestMarkPrice(
+                market.instrumentId,
+                PRODUCT_LINES.usdMPerpetual,
+                controller.signal,
+              )
+              return mark !== null
+                ? { ...market, price: mark, priceSource: "mark" as const }
+                : market
+            } catch {
+              return market
+            }
+          }),
         )
+        if (controller.signal.aborted) return
+        setMarkets(hydrated)
         setAssetScales(scales)
         setError(null)
       } catch (reason: unknown) {
@@ -133,18 +151,13 @@ export function HomePage() {
         <div className="okx-hero-content">
           {/* Left Column: Headlines, Email Input, Action Buttons, Trust Badges */}
           <div className="okx-hero-left">
-            <div className="okx-badge-pill">
-              <span className="okx-badge-dot" />
-              <span>{t("Aeron Cluster 3.0 • Sub-50µs Latency")}</span>
-            </div>
-
             <h1 className="okx-hero-title">
               {t("Faster, better, stronger than your average crypto exchange")}
             </h1>
 
             <p className="okx-hero-subtitle">
               {t(
-                "Institutional-grade Aeron cluster matching engine, deterministic multi-sig custody, and sub-50µs execution latency designed for high-frequency traders and global institutions.",
+                "Institutional-grade deterministic matching engine, multi-sig custody, and sub-50µs execution latency designed for high-frequency traders and global institutions.",
               )}
             </p>
 
@@ -245,7 +258,7 @@ export function HomePage() {
                   {/* App Header */}
                   <div className="okx-app-header">
                     <div className="okx-app-user-pill">
-                      <span className="okx-app-avatar">S</span>
+                      <AeternMark size={22} />
                       <span className="okx-app-verified">✓</span>
                     </div>
                     <div className="okx-app-mode-switch">
@@ -403,17 +416,6 @@ export function HomePage() {
                   </div>
                 </div>
               </div>
-
-              {/* Floating Speed Widget */}
-              <div className="okx-floating-badge">
-                <div className="floating-badge-icon">
-                  <Zap size={16} />
-                </div>
-                <div className="floating-badge-text">
-                  <strong>Aeron Cluster</strong>
-                  <span>⚡ 38µs Ultra Latency</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -442,7 +444,7 @@ export function HomePage() {
             >
               <X size={18} />
             </button>
-            <h3>{t("Download Surprising EX App")}</h3>
+            <h3>{t("Download AETERN App")}</h3>
             <p>
               {t(
                 "Scan the QR code to trade crypto anywhere, anytime with institutional-grade speed.",

@@ -10,6 +10,7 @@ import {
   loadC2cStatus,
   startC2cConversation,
 } from "../../api/c2c"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Badge, Button, IconButton, SearchField, StateView } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
 import { config } from "../../lib/config"
@@ -628,9 +629,10 @@ function NewConversationDialog({
             })
         }}
       >
-        <label>
-          {t("Conversation type")}
-          <select
+        <div className="c2c-select-field">
+          <span>{t("Conversation type")}</span>
+          <DropdownSelect
+            aria-label={t("Conversation type")}
             value={kind}
             onChange={(event) => {
               setKind(event.target.value === "order" ? "order" : "merchant")
@@ -639,8 +641,8 @@ function NewConversationDialog({
           >
             <option value="order">{t("Order")}</option>
             <option value="merchant">{t("Merchant consultation")}</option>
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
         <label>
           {t(kind === "order" ? "Order ID" : "Merchant UID")}
           <input

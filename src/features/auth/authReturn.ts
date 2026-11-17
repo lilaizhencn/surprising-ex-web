@@ -1,7 +1,10 @@
 /** Only explicitly supported application entry points are accepted as authentication return targets. */
 export function authReturnPath(search: string): string {
   const target = new URLSearchParams(search).get("redirect")
-  return target === "/affiliate" || target === "/c2c" || target === "/c2c/messages"
+  return target === "/affiliate" ||
+    target === "/c2c" ||
+    target === "/c2c/messages" ||
+    target === "/notifications"
     ? target
     : "/assets"
 }

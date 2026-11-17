@@ -212,7 +212,7 @@ export function useRealtimeAssets(
         })
     refreshUsdtUsd()
     const refreshTimer = window.setInterval(refreshUsdtUsd, 30_000)
-    const expiryTimer = window.setInterval(() => setNow(Date.now()), 1000)
+    const expiryTimer = window.setInterval(() => setNow(Date.now()), 10_000)
     return () => {
       closed = true
       controller.abort()
@@ -251,7 +251,14 @@ export function useRealtimeAssets(
       ) {
         next.push({ channel: "mark", productLine: m.productLine, instrumentId: m.instrumentId })
       }
-    setHeld(next)
+    setHeld((prev) => {
+      const sig = (rows: readonly Subscription[]) =>
+        rows
+          .map((s) => `${s.productLine}:${s.channel}:${s.instrumentId ?? "*"}:${s.period ?? ""}`)
+          .sort()
+          .join("|")
+      return sig(prev) === sig(next) ? prev : next
+    })
   }, [realtime.views, realtime.products, mappedMarkets])
   const result = useMemo(() => {
     // Cash balances are usable once account snapshots arrive, even without a USD quote.

@@ -85,10 +85,22 @@ const ProofOfReservesPage = lazy(() =>
     default: module.ProofOfReservesPage,
   })),
 )
+const DesignSystemPage = lazy(() =>
+  import("../features/designSystem/DesignSystemPage").then((module) => ({
+    default: module.DesignSystemPage,
+  })),
+)
 
 export function App() {
   const location = useBrowserNavigation()
   useRealtimeApplication(useSession())
+  if (import.meta.env.DEV && location === "/design-system") {
+    return (
+      <Suspense fallback={<div className="container section" aria-busy="true" />}>
+        <DesignSystemPage />
+      </Suspense>
+    )
+  }
   return (
     <>
       <LegalUpdateDialog />
@@ -295,7 +307,7 @@ function NotFoundPage() {
       <div className="not-found">
         <span className="eyebrow">404</span>
         <h1>{t("Page not found")}</h1>
-        <p>{t("The requested route is not part of the current Surprising EX workspace.")}</p>
+        <p>{t("The requested route is not part of the current AETERN workspace.")}</p>
         <a className="route-link" href="/">
           {" "}
           {t("Return home")}{" "}

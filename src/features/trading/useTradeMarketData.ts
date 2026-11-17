@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { loadCandles, loadFundingRate, loadRecentTrades } from "../../api/endpoints"
+import {
+  loadCandles,
+  loadFundingRate,
+  loadLatestMarkPriceDetails,
+  loadRecentTrades,
+} from "../../api/endpoints"
 import { mapCandle } from "../../api/mappers"
 import {
   type ApiFundingRate,
@@ -158,6 +163,35 @@ export function useTradeMarketData(
   useEffect(() => {
     setMarkPrice(null)
     setIndexPrice(null)
+    if (!current || productLine === PRODUCT_LINES.spot) return
+    const controller = new AbortController()
+    const syncLatestReference = () => {
+      void loadLatestMarkPriceDetails(current.instrumentId, productLine, controller.signal)
+        .then((latest) => {
+          if (controller.signal.aborted || !latest) return
+          const nextTime =
+            typeof latest["eventTime"] === "string" ? Date.parse(latest["eventTime"]) : 0
+          const isNewer = (prev: Record<string, unknown> | null) => {
+            if (!prev) return true
+            const prevTime =
+              typeof prev["eventTime"] === "string" ? Date.parse(prev["eventTime"]) : 0
+            return !Number.isFinite(prevTime) || nextTime > prevTime
+          }
+          if (typeof latest["markPrice"] === "number") {
+            setMarkPrice((prev) => (isNewer(prev) ? latest : prev))
+          }
+          if (typeof latest["indexPrice"] === "number") {
+            setIndexPrice((prev) => (isNewer(prev) ? latest : prev))
+          }
+        })
+        .catch(() => {})
+    }
+    syncLatestReference()
+    const timer = window.setInterval(syncLatestReference, 2_500)
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+    }
   }, [current?.instrumentId, productLine])
 
   useEffect(() => {

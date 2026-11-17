@@ -170,18 +170,33 @@ export function PriceChart({
   useEffect(() => {
     const element = containerRef.current
     if (!element) return
+    const resolveCanvasColor = (raw: string, fallback: string) => {
+      if (!raw) return fallback
+      if (/^(#|rgba?\()/i.test(raw)) return raw
+      try {
+        const probe = document.createElement("canvas").getContext("2d")
+        if (!probe) return fallback
+        probe.fillStyle = "#000000"
+        probe.fillStyle = raw
+        const normalized = probe.fillStyle
+        return /^(#|rgba?\()/i.test(normalized) ? normalized : fallback
+      } catch {
+        return fallback
+      }
+    }
     const colors = () => {
       const style = getComputedStyle(element)
-      const read = (name: string) => style.getPropertyValue(name).trim()
+      const read = (name: string, fallback: string) =>
+        resolveCanvasColor(style.getPropertyValue(name).trim(), fallback)
       return {
-        surface: read("--color-surface"),
-        ink: read("--color-ink-muted"),
-        grid: read("--color-border-soft"),
-        border: read("--color-border"),
-        up: read("--color-positive"),
-        down: read("--color-negative"),
-        wickUp: read("--color-chart-wick-up"),
-        wickDown: read("--color-chart-wick-down"),
+        surface: read("--bg-void", "#05060F"),
+        ink: read("--text-secondary", "#B3BBE0"),
+        grid: "rgba(124, 134, 178, 0.08)",
+        border: read("--border-default", "#283154"),
+        up: read("--up-base", "#00E699"),
+        down: read("--down-base", "#FF4D6D"),
+        wickUp: read("--color-chart-wick-up", "rgba(0, 230, 153, 0.72)"),
+        wickDown: read("--color-chart-wick-down", "rgba(255, 77, 109, 0.72)"),
       }
     }
     const initial = colors()
@@ -198,7 +213,14 @@ export function PriceChart({
           separatorHoverColor: initial.border,
         },
       },
-      grid: { vertLines: { color: initial.grid }, horzLines: { color: initial.grid } },
+      grid: {
+        vertLines: { color: "rgba(124, 134, 178, 0.08)" },
+        horzLines: { color: "rgba(124, 134, 178, 0.08)" },
+      },
+      crosshair: {
+        vertLine: { color: "rgba(0, 229, 255, 0.45)", labelBackgroundColor: "#0A0D1A" },
+        horzLine: { color: "rgba(0, 229, 255, 0.45)", labelBackgroundColor: "#0A0D1A" },
+      },
       rightPriceScale: { borderColor: initial.border, autoScale: true },
       localization: {
         timeFormatter: (time: Time) =>
@@ -225,7 +247,6 @@ export function PriceChart({
         barSpacing: 10,
         shiftVisibleRangeOnNewBar: true,
       },
-      crosshair: { vertLine: { color: initial.ink }, horzLine: { color: initial.ink } },
     })
     const price = chart.addSeries(CandlestickSeries, {
       upColor: initial.up,

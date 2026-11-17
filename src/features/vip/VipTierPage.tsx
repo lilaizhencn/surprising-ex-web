@@ -69,7 +69,7 @@ export function VipTierPage() {
     <div className="container vip-page-container">
       <div className="vip-header-card">
         <div className="vip-header-content">
-          <span className="vip-eyebrow">{t("Surprising EX VIP Program")}</span>
+          <span className="vip-eyebrow">{t("AETERN VIP Program")}</span>
           <h1 className="vip-title">{t("VIP Tier & Trading Fee Benefits")}</h1>
           <p className="vip-subtitle">
             {t(

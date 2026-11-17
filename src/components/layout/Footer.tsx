@@ -1,4 +1,5 @@
 import { t } from "../../i18n"
+import { AeternMark } from "./AeternMark"
 import "./Footer.css"
 
 export function Footer() {
@@ -9,8 +10,10 @@ export function Footer() {
           {/* 品牌与技术愿景 */}
           <div className="footer-brand-column">
             <a href="/" className="footer-brand-header">
-              <span className="footer-brand-logo">S</span>
-              <span className="footer-brand-title">Surprising EX</span>
+              <AeternMark size={28} />
+              <span className="footer-brand-title" style={{ letterSpacing: "0.10em" }}>
+                AETERN
+              </span>
             </a>
             <p className="footer-brand-tagline">
               {t(
@@ -109,7 +112,7 @@ export function Footer() {
 
         {/* 底部版权与协议小字 */}
         <div className="footer-bottom-bar">
-          <p className="footer-copyright">{t("© 2026 Surprising EX. All rights reserved.")}</p>
+          <p className="footer-copyright">{t("© 2026 AETERN. All rights reserved.")}</p>
           <div className="footer-bottom-links">
             <a href="/legal/user-agreement">{t("Terms")}</a>
             <a href="/legal/privacy-policy">{t("Privacy")}</a>

@@ -10,10 +10,11 @@ textarea {
 }
 .top-nav {
   height: var(--top-nav-height);
-  border-bottom: 1px solid var(--color-border);
-  background: rgba(10, 10, 18, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border-bottom: var(--hairline-width) solid var(--glass-1-border);
+  background: var(--glass-1-bg);
+  backdrop-filter: blur(var(--glass-1-blur));
+  -webkit-backdrop-filter: blur(var(--glass-1-blur));
+  box-shadow: var(--glass-1-highlight);
   position: sticky;
   top: 0;
   z-index: 90;
@@ -197,11 +198,11 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 700;
-  font-size: 17px;
-  background: var(--gradient-brand);
+  font-size: 16px;
+  background: var(--gradient-aurora-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.12em;
 }
 .lucide {
   stroke-width: 1.75;
@@ -444,8 +445,22 @@ summary:focus-visible {
   }
 }
 
+.language-option-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.language-flag {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.language-label-compact {
+  display: none;
+}
+
 .top-nav .language-picker .dropdown-select {
-  gap: 4px;
+  gap: 6px;
 }
 
 .dropdown-select-menu .language-label-full {

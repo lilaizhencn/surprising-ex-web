@@ -1,6 +1,7 @@
 import { XCircle } from "lucide-react"
 import { useState } from "react"
 import { cancelOrder } from "../../api/endpoints"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { Button } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import type { Market, ProductLine } from "../../types/domain"
@@ -129,6 +130,7 @@ function OrderRow({
   readonly productLine: ProductLine
   readonly onDone: (message: string) => void
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   const [busy, setBusy] = useState(false)
   const orderId = text(row, "orderId")
   return (
@@ -165,18 +167,26 @@ function OrderRow({
             loading={busy}
             disabled={commandPending || !orderId}
             onClick={() => {
-              if (!orderId || !window.confirm(t("Cancel this order?"))) return
-              setBusy(true)
-              void cancelOrder(text(row, "instrumentId"), orderId, productLine)
-                .then(
-                  () => onDone(t("Order cancellation requested.")),
-                  (reason: unknown) => onDone(readError(reason)),
-                )
-                .finally(() => setBusy(false))
+              if (!orderId) return
+              void confirm({
+                title: t("Cancel this order?"),
+                confirmLabel: t("Cancel"),
+                danger: true,
+              }).then((ok) => {
+                if (!ok) return
+                setBusy(true)
+                void cancelOrder(text(row, "instrumentId"), orderId, productLine)
+                  .then(
+                    () => onDone(t("Order cancellation requested.")),
+                    (reason: unknown) => onDone(readError(reason)),
+                  )
+                  .finally(() => setBusy(false))
+              })
             }}
           >
             <XCircle size={14} /> {t("Cancel")}{" "}
           </Button>
+          {dialog}
         </td>
       ) : null}
     </tr>

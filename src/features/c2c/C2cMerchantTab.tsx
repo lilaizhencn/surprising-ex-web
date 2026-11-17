@@ -11,6 +11,7 @@ import {
   c2cWrite,
   type Verification,
 } from "../../api/c2cTrading"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { t, tf } from "../../i18n"
 import { AdForm } from "./C2cAdForm"
 import { c2cStatusText as statusText } from "./C2cOrderPanel"
@@ -54,6 +55,7 @@ export function C2cMerchantTab({
   act: (fn: () => Promise<unknown>, ok?: string) => Promise<void>
   submit: (kind: "AD_PUBLISH" | "ORDER_CREATE", body: Record<string, unknown>) => Promise<void>
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   return (
     <>
       <div className="c2c-merchant-workspace">
@@ -132,10 +134,17 @@ export function C2cMerchantTab({
               type="button"
               disabled={busy}
               onClick={() => {
-                if (window.confirm("退出商家并退还原质押？须先关闭广告并结清订单和申诉。"))
+                void confirm({
+                  title: "退出商家并退还原质押？",
+                  description: "须先关闭广告并结清订单和申诉。",
+                  confirmLabel: t("退出商家并退押"),
+                  danger: true,
+                }).then((ok) => {
+                  if (!ok) return
                   void act(() =>
                     c2cWrite(owner, `/me/merchant-bonds/${bond.bond?.bondId}/withdraw`, undefined),
                   )
+                })
               }}
             >
               {t("退出商家并退押")}
@@ -159,12 +168,13 @@ export function C2cMerchantTab({
           verify={verify}
           submit={(payload) => {
             if (operation.current) return
-            if (
-              window.confirm(
-                `确认发布广告？\n方向：${payload["side"] === "SELL" ? "出售" : "购买"}\n单价：${payload["price"]} ${market?.fiat}\n数量：${payload["quantity"]} ${market?.asset}\n出售广告会按原请求进行资金确认。`,
-              )
-            )
-              void act(() => submit("AD_PUBLISH", { payload }))
+            void confirm({
+              title: "确认发布广告？",
+              description: `方向：${payload["side"] === "SELL" ? "出售" : "购买"}\n单价：${payload["price"]} ${market?.fiat}\n数量：${payload["quantity"]} ${market?.asset}\n出售广告会按原请求进行资金确认。`,
+              confirmLabel: t("确认发布"),
+            }).then((ok) => {
+              if (ok) void act(() => submit("AD_PUBLISH", { payload }))
+            })
           }}
         />
       </div>
@@ -186,20 +196,26 @@ export function C2cMerchantTab({
                   key={action}
                   disabled={busy}
                   onClick={() => {
-                    if (
-                      action === "CLOSE" &&
-                      !window.confirm(
-                        `确认关闭广告 ${ad.adId}？\n${ad.market.asset}/${ad.market.fiat} · 剩余 ${ad.availableQuantity}\n后续资金进度以广告状态为准。`,
+                    const run = () =>
+                      void act(() =>
+                        c2cWrite(owner, `/ads/${ad.adId}/status`, {
+                          action,
+                          revision: ad.revision,
+                          verification,
+                        }),
                       )
-                    )
+                    if (action !== "CLOSE") {
+                      run()
                       return
-                    void act(() =>
-                      c2cWrite(owner, `/ads/${ad.adId}/status`, {
-                        action,
-                        revision: ad.revision,
-                        verification,
-                      }),
-                    )
+                    }
+                    void confirm({
+                      title: `确认关闭广告 ${ad.adId}？`,
+                      description: `${ad.market.asset}/${ad.market.fiat} · 剩余 ${ad.availableQuantity}\n后续资金进度以广告状态为准。`,
+                      confirmLabel: t("关闭广告"),
+                      danger: true,
+                    }).then((ok) => {
+                      if (ok) run()
+                    })
                   }}
                 >
                   {action === "PAUSE"
@@ -212,6 +228,7 @@ export function C2cMerchantTab({
           </article>
         ))}
       </div>
+      {dialog}
     </>
   )
 }

@@ -50,7 +50,7 @@ export function LegalPage() {
         <h1>{t("Legal center")}</h1>
         <p>
           {t(
-            "Read the terms, privacy information and product risk disclosures that apply to Surprising EX.",
+            "Read the terms, privacy information and product risk disclosures that apply to AETERN.",
           )}
         </p>
       </header>
@@ -124,8 +124,8 @@ export function LegalPage() {
         </section>
       </div>
       <p className="legal-contact">
-        {t("河南朔望科技有限公司 · ")}
-        <a href="mailto:support@surprising.top">support@surprising.top</a>
+        {t("AETERN Technologies · ")}
+        <a href="mailto:support@aetern.exchange">support@aetern.exchange</a>
       </p>
     </main>
   )

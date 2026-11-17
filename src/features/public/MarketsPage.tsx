@@ -1,13 +1,14 @@
-import { ChevronLeft, ChevronRight, Filter, RefreshCw, Star, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { loadAssetScales, loadMarkets } from "../../api/endpoints"
+import { loadAssetScales, loadLatestMarkPrice, loadMarkets } from "../../api/endpoints"
 import { mapMarket } from "../../api/mappers"
 import { productLineLabels } from "../../components/layout/navigation"
 import { MarketSkeleton } from "../../components/market/MarketSkeleton"
 import { MarketTable } from "../../components/market/MarketTable"
 import { filterMarkets, type MarketSort, sortMarkets } from "../../components/market/marketList"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { Button, Panel, SearchField, StateView } from "../../components/ui/Primitives"
+import { Button, Panel, SearchField } from "../../components/ui/Primitives"
+import { SciFiEmptyState } from "../../components/ui/SciFiPrimitives"
 import { useRealtimeFeed } from "../../hooks/useRealtime"
 import { marketWithLiveQuote } from "../../hooks/useRealtimeAssets"
 import { t } from "../../i18n"
@@ -33,8 +34,6 @@ export function MarketsPage() {
   const [query, setQuery] = useState("")
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [sort, setSort] = useState<MarketSort>({ field: "symbol", direction: "asc" })
-  const [showFilters, setShowFilters] = useState(false)
-  const [minimumChange, setMinimumChange] = useState("0")
   const [data, setData] = useState<MarketData>({
     productLine,
     markets: [],
@@ -55,7 +54,7 @@ export function MarketsPage() {
     favorites.includes(`${market.productLine}:${market.instrumentId}`),
   )
   const scopedMarkets = favoriteOnly ? favoriteMarkets : source
-  const filtered = sortMarkets(filterMarkets(scopedMarkets, query, Number(minimumChange)), sort)
+  const filtered = sortMarkets(filterMarkets(scopedMarkets, query, 0), sort)
   const pageCount = Math.max(1, Math.ceil(filtered.length / 50))
   const currentPage = Math.min(page, pageCount - 1)
   const visible = filtered.slice(currentPage * 50, (currentPage + 1) * 50)
@@ -70,7 +69,7 @@ export function MarketsPage() {
   const quotedMarkets = visible.map((market) =>
     marketWithLiveQuote(market, realtime.events, current?.assetScales ?? {}),
   )
-  useEffect(() => setPage(0), [productLine, query, minimumChange, favoriteOnly, favorites, sort])
+  useEffect(() => setPage(0), [productLine, query, favoriteOnly, favorites, sort])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -86,9 +85,28 @@ export function MarketsPage() {
           loadAssetScales(controller.signal),
         ])
         if (controller.signal.aborted) return
+        const mapped = rows.map(mapMarket).filter((market) => market.productLine === productLine)
+        const hydrated = await Promise.all(
+          mapped.map(async (market) => {
+            if (market.price !== null || market.productLine === "SPOT") return market
+            try {
+              const mark = await loadLatestMarkPrice(
+                market.instrumentId,
+                productLine,
+                controller.signal,
+              )
+              return mark !== null
+                ? { ...market, price: mark, priceSource: "mark" as const }
+                : market
+            } catch {
+              return market
+            }
+          }),
+        )
+        if (controller.signal.aborted) return
         setData({
           productLine,
-          markets: rows.map(mapMarket).filter((market) => market.productLine === productLine),
+          markets: hydrated,
           assetScales,
           loading: false,
           error: null,
@@ -98,7 +116,7 @@ export function MarketsPage() {
           setData((currentData) => ({
             ...currentData,
             loading: false,
-            error: reason instanceof Error ? reason.message : t("Market data unavailable"),
+            error: reason instanceof Error ? reason.message : t("Failed to load markets"),
           }))
       } finally {
         pending = false
@@ -114,10 +132,9 @@ export function MarketsPage() {
     }
   }, [productLine])
 
-  const hasFilters = query.trim() !== "" || minimumChange !== "0"
+  const hasFilters = query.trim() !== ""
   const resetFilters = () => {
     setQuery("")
-    setMinimumChange("0")
   }
 
   return (
@@ -127,10 +144,6 @@ export function MarketsPage() {
           <h1>{t("Market Center")}</h1>
           <p>{t("Explore real-time prices, charts, and market data.")}</p>
         </div>
-        <Button tone="outline" loading={loading} onClick={() => refresh.current?.()}>
-          {!loading ? <RefreshCw size={16} aria-hidden="true" /> : null}
-          {t("Refresh")}
-        </Button>
       </div>
       {demo ? (
         <div className="demo-banner">
@@ -176,61 +189,18 @@ export function MarketsPage() {
             ))}
           </DropdownSelect>
           <SearchField value={query} onChange={setQuery} placeholder={t("Search coin...")} />
-          <Button
-            tone="outline"
-            aria-expanded={showFilters}
-            aria-controls="market-filters"
-            onClick={() => setShowFilters((value) => !value)}
-          >
-            <Filter size={16} aria-hidden="true" />
-            {t("Filters")}
-            {minimumChange !== "0" ? <span className="market-filter-count">1</span> : null}
-          </Button>
         </div>
       </div>
-      {showFilters ? (
-        <div className="market-filter-panel" id="market-filters">
-          <div>
-            <span>{t("Minimum absolute 24h change")}</span>
-            <DropdownSelect
-              aria-label={t("Minimum absolute 24h change")}
-              value={minimumChange}
-              onChange={(event) => setMinimumChange(event.target.value)}
-            >
-              <option value="0">{t("Any")}</option>
-              <option value="1">1%</option>
-              <option value="5">5%</option>
-              <option value="10">10%</option>
-            </DropdownSelect>
-          </div>
-          <Button tone="ghost" disabled={!hasFilters} onClick={resetFilters}>
-            {t("Reset filters")}
-          </Button>
-        </div>
-      ) : null}
-      {minimumChange !== "0" && !showFilters ? (
-        <button
-          type="button"
-          className="market-active-filter"
-          onClick={() => setMinimumChange("0")}
-          aria-label={t("Clear change filter")}
-        >
-          {t("24h change")} ≥ {minimumChange}%<X size={14} aria-hidden="true" />
-        </button>
-      ) : null}
       {error && source.length > 0 ? (
         <div className="market-refresh-error" role="alert">
           <span>
             {error} {t("Showing previously loaded markets.")}
           </span>
-          <Button tone="ghost" loading={loading} onClick={() => refresh.current?.()}>
-            {t("Retry")}
-          </Button>
         </div>
       ) : null}
       {error && source.length === 0 ? (
         <Panel>
-          <StateView kind="error" message={error} retry={() => refresh.current?.()} />
+          <SciFiEmptyState title={t("No market data")} />
         </Panel>
       ) : loading && source.length === 0 ? (
         <MarketSkeleton />
@@ -274,19 +244,29 @@ export function MarketsPage() {
         </div>
       ) : (
         <Panel>
-          <StateView
-            kind="empty"
-            message={
+          <SciFiEmptyState
+            title={
               favoriteOnly && favoriteMarkets.length === 0
-                ? "No favorite markets yet. Select the star beside a trading pair to pin it here."
+                ? t("No favorite markets yet")
                 : source.length === 0
-                  ? "No markets are available for this product line."
-                  : "No markets match the current filters."
+                  ? t("No markets")
+                  : t("No matching markets")
             }
-            retry={
-              hasFilters ? resetFilters : favoriteOnly ? () => setFavoriteOnly(false) : undefined
+            description={
+              favoriteOnly && favoriteMarkets.length === 0
+                ? t("Select the star beside a trading pair to pin it here.")
+                : undefined
             }
-            retryLabel={hasFilters ? "Reset filters" : "Browse markets"}
+            action={
+              hasFilters || favoriteOnly ? (
+                <Button
+                  tone="outline"
+                  onClick={hasFilters ? resetFilters : () => setFavoriteOnly(false)}
+                >
+                  {t(hasFilters ? "Reset filters" : "Browse markets")}
+                </Button>
+              ) : undefined
+            }
           />
         </Panel>
       )}

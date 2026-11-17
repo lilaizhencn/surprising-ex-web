@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, CircleUserRound, Megaphone, Menu } from "lucide-react"
+import { ChevronDown, CircleUserRound, Megaphone, Menu } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
@@ -6,6 +6,7 @@ import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
 import { contentLocale } from "../../i18n/locales"
 import { IconButton } from "../ui/Primitives"
+import { AeternMark } from "./AeternMark"
 import { LanguagePicker } from "./LanguagePicker"
 import { MobileNavigation } from "./MobileNavigation"
 import { publicNavigation } from "./navigation"
@@ -77,9 +78,9 @@ export function TopNav({
         {t("Skip to content")}
       </a>
       <div className="top-nav-inner">
-        <a className="brand" href="/" aria-label={t("Surprising EX home")}>
-          <span className="brand-mark">S</span>
-          <span className="brand-name">Surprising EX</span>
+        <a className="brand" href="/" aria-label={t("AETERN home")}>
+          <AeternMark size={28} />
+          <span className="brand-name">AETERN</span>
         </a>
         <nav className="top-links" aria-label={t("Primary navigation")}>
           {publicNavigation.map((item) => (
@@ -119,9 +120,11 @@ export function TopNav({
           )}
           <div className="nav-divider" />
           <IconButton
-            label={t("Announcements")}
+            label={t("Notifications")}
             onClick={() => {
-              navigateInApplication("/announcements")
+              navigateInApplication(
+                session ? "/notifications" : "/auth/login?redirect=%2Fnotifications",
+              )
             }}
           >
             <span className="announcement-nav-icon">
@@ -131,16 +134,6 @@ export function TopNav({
               ) : null}
             </span>
           </IconButton>
-          {session ? (
-            <IconButton
-              label={t("Notifications")}
-              onClick={() => {
-                navigateInApplication("/notifications")
-              }}
-            >
-              <Bell size={18} />
-            </IconButton>
-          ) : null}
           <ThemePicker />
           <LanguagePicker />
           <IconButton

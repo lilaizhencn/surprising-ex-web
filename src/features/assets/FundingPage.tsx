@@ -147,6 +147,30 @@ function FundingForm() {
     return text(balance, "free") || "—"
   }, [asset, assetScales, balances, balanceLoading, balanceError])
 
+  const availableUnits = useMemo(() => {
+    if (balanceLoading || balanceError) return null
+    const balance = balances.find((row) => text(row, "asset").toUpperCase() === asset)
+    const scale = assetScales[asset]
+    if (!scale || !balance) return null
+    const raw = valueAt(balance, "availableUnits")
+    if (typeof raw === "string" || typeof raw === "number") {
+      try {
+        const bi = BigInt(String(raw))
+        return bi > 0n ? { units: bi, scale } : null
+      } catch {
+        return null
+      }
+    }
+    return null
+  }, [asset, assetScales, balances, balanceLoading, balanceError])
+
+  function fillPercent(pct: number) {
+    if (!availableUnits) return
+    const nextUnits =
+      pct === 100 ? availableUnits.units : (availableUnits.units * BigInt(pct)) / 100n
+    setAmount(signedUnitsToDecimal(nextUnits.toString(), availableUnits.scale))
+    setMessage("")
+  }
   function requestKey() {
     const signature = JSON.stringify([session?.user.userId, source, target, asset, amount])
     if (submission.current?.signature !== signature)
@@ -235,13 +259,22 @@ function FundingForm() {
     >
       <Panel>
         <h2>{t("Transfer accounts")}</h2>
-        <div className="grid-2">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
           <Field label={t("From")}>
             <DropdownSelect
               aria-label={t("Source account")}
               value={source}
               onChange={(event) => {
-                setSource(event.target.value)
+                const next = event.target.value
+                if (next === target) setTarget(source)
+                setSource(next)
                 setAmount("")
                 setMessage("")
               }}
@@ -253,12 +286,37 @@ function FundingForm() {
               ))}
             </DropdownSelect>
           </Field>
+          <button
+            type="button"
+            className="swap-button"
+            aria-label={t("Swap accounts")}
+            title={t("Swap accounts")}
+            style={{
+              marginBottom: 2,
+              height: 42,
+              width: 42,
+              padding: 0,
+              display: "grid",
+              placeItems: "center",
+            }}
+            onClick={() => {
+              const current = source
+              setSource(target)
+              setTarget(current)
+              setAmount("")
+              setMessage("")
+            }}
+          >
+            <ArrowDownUp size={18} />
+          </button>
           <Field label={t("To")}>
             <DropdownSelect
               aria-label={t("Destination account")}
               value={target}
               onChange={(event) => {
-                setTarget(event.target.value)
+                const next = event.target.value
+                if (next === source) setSource(target)
+                setTarget(next)
                 setMessage("")
               }}
             >
@@ -293,19 +351,6 @@ function FundingForm() {
               ))}
           </DropdownSelect>
         </Field>
-        <button
-          type="button"
-          className="swap-button"
-          onClick={() => {
-            const current = source
-            setSource(target)
-            setTarget(current)
-            setAmount("")
-            setMessage("")
-          }}
-        >
-          <ArrowDownUp size={18} /> {t("Swap accounts")}{" "}
-        </button>
         <div className="row-between funding-available" role="status">
           <span>
             {t("Available:")} <strong className="mono">{available}</strong> {asset}
@@ -333,6 +378,18 @@ function FundingForm() {
               aria-label={tf("Transfer amount in {p0}", { p0: asset })}
             />
             <span>{asset}</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            {[25, 50, 75, 100].map((pct) => (
+              <Button
+                key={pct}
+                tone="ghost"
+                disabled={!availableUnits}
+                onClick={() => fillPercent(pct)}
+              >
+                {pct === 100 ? "MAX" : `${pct}%`}
+              </Button>
+            ))}
           </div>
         </Field>
       </Panel>

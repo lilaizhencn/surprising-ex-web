@@ -124,10 +124,16 @@ export function LoginVerificationSettings({
           <h3>{t(title)}</h3>
         </div>
         <p className="login-method-description">{t(description)}</p>
-        <p className="login-method-status">
-          <span>{setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")}</span>
-          <span aria-hidden="true">·</span>
-          <span>{t(setting.enabled ? "Enabled" : "Disabled")}</span>
+        <p
+          className="login-method-status"
+          style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+        >
+          <span className={`pill ${setting.bound ? "pill-positive" : "pill-muted"}`}>
+            {setting.bound ? (setting.destination ?? t("Bound")) : t("Not bound")}
+          </span>
+          <span className={`pill ${setting.enabled ? "pill-positive" : "pill-muted"}`}>
+            {t(setting.enabled ? "Enabled" : "Disabled")}
+          </span>
         </p>
         <div className="login-method-actions">
           <Button tone="outline" disabled={busy} onClick={() => beginEdit(setting)}>

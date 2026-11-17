@@ -10,6 +10,7 @@ import {
   placeBatchTriggerOrders,
   testOrder,
 } from "../../api/endpoints"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
@@ -382,6 +383,7 @@ function AlgoRow({
   readonly productLine: ProductLine
   readonly onDone: (message: string) => void
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   const [loading, setLoading] = useState(false)
   const id = text(row, "algoOrderId")
   return (
@@ -397,21 +399,29 @@ function AlgoRow({
           loading={loading}
           disabled={!id}
           onClick={() => {
-            if (!id || !window.confirm("Cancel this algorithmic order?")) return
+            if (!id) return
             const session = loadSession()
             if (!session) return
-            setLoading(true)
-            void cancelAlgoOrder({ userId: session.user.userId, algoOrderId: id }, productLine)
-              .then(
-                () => onDone(t("Algo order cancellation requested.")),
-                (reason: unknown) => onDone(readError(reason)),
-              )
-              .finally(() => setLoading(false))
+            void confirm({
+              title: t("Cancel this algorithmic order?"),
+              confirmLabel: t("Cancel"),
+              danger: true,
+            }).then((ok) => {
+              if (!ok) return
+              setLoading(true)
+              void cancelAlgoOrder({ userId: session.user.userId, algoOrderId: id }, productLine)
+                .then(
+                  () => onDone(t("Algo order cancellation requested.")),
+                  (reason: unknown) => onDone(readError(reason)),
+                )
+                .finally(() => setLoading(false))
+            })
           }}
         >
           {" "}
           {t("Cancel")}{" "}
         </Button>
+        {dialog}
       </td>
     </tr>
   )

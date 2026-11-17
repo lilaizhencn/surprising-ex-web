@@ -1,4 +1,4 @@
-import type { MutableRefObject, ReactNode } from "react"
+import { type MutableRefObject, type ReactNode, useState } from "react"
 import {
   accountSchema,
   type C2cMarket,
@@ -8,6 +8,8 @@ import {
   challengeC2c,
   type Verification,
 } from "../../api/c2cTrading"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { t } from "../../i18n"
 import { c2cStatusText as statusText } from "./C2cOrderPanel"
 
@@ -53,6 +55,13 @@ export function C2cAccountsTab({
   live: MutableRefObject<boolean>
   field: FieldFn
 }) {
+  const { confirm, dialog } = useConfirmDialog()
+  const [selectedMethod, setSelectedMethod] = useState("")
+  const matchingMethods =
+    catalog?.paymentMethods.filter((m) => market && m.currencies.includes(market.fiat)) ?? []
+  const activeMethod = matchingMethods.some((m) => m.code === selectedMethod)
+    ? selectedMethod
+    : (matchingMethods[0]?.code ?? "")
   return (
     <>
       <div className="c2c-offers">
@@ -69,18 +78,20 @@ export function C2cAccountsTab({
               type="button"
               disabled={busy || a.status === "DISABLED"}
               onClick={() => {
-                if (
-                  !window.confirm(
-                    `确认停用收款账户？\n${a.methodCode} · ${a.fiat} · ${a.maskedLabel}\n账户：${a.accountId}\n相关广告可能暂停，请核对后续状态。`,
+                void confirm({
+                  title: "确认停用收款账户？",
+                  description: `${a.methodCode} · ${a.fiat} · ${a.maskedLabel}\n账户：${a.accountId}\n相关广告可能暂停，请核对后续状态。`,
+                  confirmLabel: t("停用账户"),
+                  danger: true,
+                }).then((ok) => {
+                  if (!ok) return
+                  void act(() =>
+                    c2cWrite(owner, `/payment-accounts/${a.accountId}/disable`, {
+                      revision: a.revision,
+                      verification,
+                    }),
                   )
-                )
-                  return
-                void act(() =>
-                  c2cWrite(owner, `/payment-accounts/${a.accountId}/disable`, {
-                    revision: a.revision,
-                    verification,
-                  }),
-                )
+                })
               }}
             >
               {t("停用账户")}
@@ -154,28 +165,35 @@ export function C2cAccountsTab({
         }}
       >
         <h2>{t("添加实名收款账户")}</h2>
-        <label>
-          {t("收款法币")}
-          <select value={marketId} onChange={(event) => setMarketId(event.target.value)}>
+        <div className="c2c-select-field">
+          <span>{t("收款法币")}</span>
+          <DropdownSelect
+            aria-label={t("收款法币")}
+            value={marketId}
+            onChange={(event) => setMarketId(event.target.value)}
+          >
             {catalog?.markets.map((row) => (
               <option key={row.marketId} value={row.marketId}>
-                {row.fiat} · {row.asset}/{row.fiat}
+                {`${row.fiat} · ${row.asset}/${row.fiat}`}
               </option>
             ))}
-          </select>
-        </label>
-        <label>
-          {t("收款方式")}
-          <select name="method">
-            {catalog?.paymentMethods
-              .filter((m) => market && m.currencies.includes(market.fiat))
-              .map((m) => (
-                <option key={m.code} value={m.code}>
-                  {m.label}
-                </option>
-              ))}
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
+        <div className="c2c-select-field">
+          <span>{t("收款方式")}</span>
+          <input type="hidden" name="method" value={activeMethod} />
+          <DropdownSelect
+            aria-label={t("收款方式")}
+            value={activeMethod}
+            onChange={(event) => setSelectedMethod(event.target.value)}
+          >
+            {matchingMethods.map((m) => (
+              <option key={m.code} value={m.code}>
+                {m.label}
+              </option>
+            ))}
+          </DropdownSelect>
+        </div>
         <label>
           {t("本人姓名")}
           <input name="holder" required minLength={2} maxLength={80} autoComplete="name" />
@@ -205,6 +223,7 @@ export function C2cAccountsTab({
           {t("提交实名收款审核")}
         </button>
       </form>
+      {dialog}
     </>
   )
 }

@@ -1,3 +1,11 @@
+.assets-page {
+  /* Keep fallback glyphs on the same x-height as Space Grotesk while it loads. */
+  font-size-adjust: from-font;
+  --asset-distribution-body: calc(6 * 32px + 5 * 9px);
+}
+.assets-page .mono {
+  font-size-adjust: ch-width from-font;
+}
 .assets-page .page-heading {
   align-items: flex-start;
   margin-bottom: var(--space-5);
@@ -75,15 +83,36 @@
   gap: var(--space-5);
 }
 .assets-page .balance-hero {
+  /* The shared hero rule is an inline-size container, which sizes as if it had no children
+     and lets this grid item change height once containment resolves. */
+  container-type: normal;
   gap: var(--space-4);
   min-height: 218px;
   padding: var(--space-6);
   align-content: start;
 }
 .assets-page .balance-number {
-  font-size: clamp(24px, 3vw, 38px);
-  letter-spacing: -0.7px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  height: 48px;
   min-height: 48px;
+  max-height: 48px;
+  overflow: clip;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 48px;
+  letter-spacing: -0.7px;
+}
+.assets-page .balance-number.is-fallback {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-h3);
+  letter-spacing: 0;
+}
+.assets-page .balance-number-value {
+  min-width: 0;
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .assets-valuation-note {
   margin: 0;
@@ -113,7 +142,7 @@
 }
 .assets-page .balance-actions > a:first-child {
   background: var(--gradient-brand);
-  color: #ffffff;
+  color: var(--text-primary);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 4px 16px rgba(0, 198, 255, 0.28);
 }
@@ -125,6 +154,33 @@
 }
 .assets-page .distribution {
   padding: var(--space-6);
+}
+.assets-page .distribution > :not(h2) {
+  min-height: var(--asset-distribution-body);
+}
+.assets-page .asset-distribution-skeleton > span:first-child {
+  width: 144px;
+  height: 144px;
+  margin-inline: auto;
+}
+.assets-page .distribution-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 46%);
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  overflow: clip;
+}
+.assets-page .distribution-asset {
+  overflow: clip;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.assets-page .distribution-value strong,
+.assets-page .distribution-value small {
+  overflow: clip;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 16px;
 }
 .assets-page .distribution h2 {
   font-weight: 600;
@@ -157,25 +213,41 @@
   gap: var(--space-3);
 }
 .assets-page .asset-product-card {
-  min-height: 112px;
+  box-sizing: border-box;
+  height: 120px;
+  min-height: 120px;
   padding: var(--space-4);
+  overflow: clip;
   border-color: var(--color-border-soft);
   align-content: start;
+  grid-template-rows: 17px 42px 17px;
 }
 .assets-page .asset-product-card > span {
+  overflow: clip;
   color: var(--color-ink-muted);
   font-size: var(--font-label);
+  line-height: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .assets-page .asset-product-card strong {
-  overflow: visible;
-  overflow-wrap: anywhere;
+  display: -webkit-box;
+  overflow: clip;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   white-space: normal;
   font-size: var(--font-body-small);
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 21px;
+  max-height: 42px;
 }
 .assets-page .asset-product-card small {
+  overflow: clip;
   font-size: var(--font-label);
+  line-height: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .assets-page .route-link {
   display: inline-flex;
@@ -305,6 +377,47 @@
   }
   .assets-page .asset-product-card {
     padding: var(--space-3);
+  }
+  .assets-page .asset-balance-card,
+  .assets-page .asset-balance-skeleton-card {
+    display: grid;
+    grid-template-rows: 30px auto 57px;
+    align-content: start;
+    box-sizing: border-box;
+    height: 228px;
+    min-height: 228px;
+    overflow: clip;
+  }
+  .assets-page .asset-balance-card-heading {
+    flex-wrap: nowrap;
+    height: 30px;
+  }
+  .assets-page .asset-balance-card-heading > .mono {
+    overflow: clip;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .assets-page .asset-balance-card dl {
+    margin: var(--space-3) 0;
+  }
+  .assets-page .asset-balance-card dl > div[data-wide] {
+    grid-column: auto;
+  }
+  .assets-page .asset-balance-card dd {
+    display: -webkit-box;
+    overflow: clip;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.4;
+    min-height: calc(1.4em * 2);
+    max-height: calc(1.4em * 2);
+  }
+  .assets-page .asset-balance-skeleton-card {
+    display: grid;
+    align-content: center;
+    gap: var(--space-4);
   }
   .assets-page .asset-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

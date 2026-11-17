@@ -1,5 +1,5 @@
-import { Megaphone } from "lucide-react"
-import { useEffect, useEffectEvent, useRef, useState } from "react"
+import { Search, X } from "lucide-react"
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
 import {
   loadAnnouncements,
   markAllAnnouncementsRead,
@@ -21,7 +21,9 @@ import {
 export { AnnouncementSurfaces } from "./AnnouncementSurfaces"
 
 type Page = Awaited<ReturnType<typeof loadAnnouncements>>
-const PAGE_SIZE = 5
+const PAGE_SIZE = 12
+const CATEGORIES = ["ALL", "PRODUCT", "SECURITY", "GENERAL", "RISK", "MAINTENANCE"] as const
+type CategoryFilter = (typeof CATEGORIES)[number]
 export function AnnouncementsPage() {
   const locale = contentLocale(useLocale())
   const session = useSession()
@@ -46,6 +48,8 @@ function AnnouncementCenter({
 }) {
   const [page, setPage] = useState<Page | null>(null)
   const [selected, setSelected] = useState<ApiAnnouncement | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [paging, setPaging] = useState(false)
@@ -189,18 +193,71 @@ function AnnouncementCenter({
       if (!signal.aborted) setAllBusy(false)
     }
   }
-  const visible = unreadOnly
-    ? (page?.announcements.filter((row) => !row.readAt) ?? [])
-    : (page?.announcements ?? [])
+  const visible = useMemo(() => {
+    const items = page?.announcements ?? []
+    const needle = searchQuery.trim().toLowerCase()
+    return items.filter((row) => {
+      if (unreadOnly && row.readAt) return false
+      if (categoryFilter !== "ALL" && row.category !== categoryFilter) return false
+      if (!needle) return true
+      return (
+        row.title.toLowerCase().includes(needle) ||
+        row.summary.toLowerCase().includes(needle) ||
+        row.body.toLowerCase().includes(needle)
+      )
+    })
+  }, [page?.announcements, unreadOnly, categoryFilter, searchQuery])
+  const activeDetail =
+    selected && visible.some((item) => item.announcementId === selected.announcementId)
+      ? selected
+      : (visible[0] ?? null)
   return (
     <div className="container section announcements-page">
-      <div className="page-heading">
+      <div className="page-heading announcements-hero">
         <div>
+          <span className="eyebrow">AETERN · {t("Updates")}</span>
           <h1>{t("Announcements")}</h1>
+          <p className="muted">
+            {t("Platform updates, new listings, security advisories, and maintenance notices.")}
+          </p>
         </div>
-        <Megaphone size={28} aria-hidden="true" />
       </div>
       <Panel>
+        <div className="announcement-controls">
+          <fieldset className="announcement-filter-pills" aria-label={t("Category")}>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={`announcement-pill ${categoryFilter === cat ? "active" : ""}`}
+                aria-pressed={categoryFilter === cat}
+                onClick={() => setCategoryFilter(cat)}
+              >
+                {cat === "ALL" ? t("All") : t(announcementCategory(cat))}
+              </button>
+            ))}
+          </fieldset>
+          <div className="announcement-search">
+            <Search size={15} aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t("Search announcements…")}
+              aria-label={t("Search announcements…")}
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                className="announcement-search-clear"
+                aria-label={t("Clear")}
+                onClick={() => setSearchQuery("")}
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+        </div>
         {authenticated ? (
           <div className="announcement-toolbar">
             <span role="status">
@@ -245,84 +302,108 @@ function AnnouncementCenter({
           <StateView kind="error" message={error} retry={() => void load(0)} />
         ) : (
           <>
-            {visible.length === 0 && unreadOnly ? (
-              <StateView kind="empty" message="No unread announcements on this page." />
-            ) : null}
-            <div className="announcement-layout">
-              <ul
-                ref={list}
-                tabIndex={-1}
-                className={`announcement-list ${paging ? "paging" : ""}`}
-                aria-label={t("Announcements")}
-                aria-busy={paging || undefined}
-              >
-                {visible.map((row) => (
-                  <li key={row.announcementId}>
-                    <button
-                      type="button"
-                      disabled={allBusy}
-                      aria-current={
-                        selected?.announcementId === row.announcementId ? "true" : undefined
-                      }
-                      className={`announcement-list-item ${selected?.announcementId === row.announcementId ? "active" : ""} ${row.readAt || !authenticated ? "read" : "unread"}`}
-                      onClick={() => void open(row)}
-                    >
-                      <span className="eyebrow">{t(announcementCategory(row.category))}</span>
-                      <strong>{row.title}</strong>
-                      <span>{row.summary}</span>
-                      <small>
-                        <time dateTime={row.startsAt}>{announcementDate(row.startsAt)}</time>
-                        {reading.has(row.announcementId) ? " · " + t("Updating read status…") : ""}
-                      </small>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <article className="announcement-detail" data-empty={!selected || undefined}>
-                {selected ? (
-                  <>
-                    <span className="eyebrow">{t(announcementCategory(selected.category))}</span>
-                    <h2 ref={detailTitle} tabIndex={-1}>
-                      {selected.title}
-                    </h2>
-                    {selected.summary ? (
-                      <p className="announcement-summary">{selected.summary}</p>
-                    ) : null}
-                    <ArticleView
-                      html={selected.bodyHtml}
-                      text={selected.body}
-                      locale={selected.locale}
-                    />
-                    <small>
-                      <time dateTime={selected.startsAt}>
-                        {announcementDate(selected.startsAt)}
-                      </time>
-                    </small>
-                    <div className="announcement-detail-actions">
-                      {authenticated && !selected.readAt ? (
-                        <Button
-                          tone="outline"
-                          loading={reading.has(selected.announcementId)}
-                          disabled={allBusy}
-                          onClick={() => void open(selected)}
-                        >
-                          {t("Mark read")}
-                        </Button>
-                      ) : null}
-                      <Button
-                        tone="ghost"
-                        onClick={() => {
-                          setSelected(null)
-                          requestAnimationFrame(() => list.current?.focus())
-                        }}
+            {visible.length === 0 ? (
+              <StateView
+                kind="empty"
+                message={
+                  unreadOnly
+                    ? "No unread announcements on this page."
+                    : "No announcements match the current filter."
+                }
+              />
+            ) : (
+              <div className="announcement-layout">
+                <ul
+                  ref={list}
+                  tabIndex={-1}
+                  className={`announcement-list ${paging ? "paging" : ""}`}
+                  aria-label={t("Announcements")}
+                  aria-busy={paging || undefined}
+                >
+                  {visible.map((row) => (
+                    <li key={row.announcementId}>
+                      <button
+                        type="button"
+                        disabled={allBusy}
+                        aria-current={
+                          activeDetail?.announcementId === row.announcementId ? "true" : undefined
+                        }
+                        className={`announcement-list-item ${activeDetail?.announcementId === row.announcementId ? "active" : ""} ${row.readAt || !authenticated ? "read" : "unread"}`}
+                        onClick={() => void open(row)}
                       >
-                        {t("Back to announcements")}
-                      </Button>
-                    </div>
-                  </>
-                ) : null}
-              </article>
-            </div>
+                        <div className="announcement-item-meta">
+                          <span
+                            className="announcement-category-badge"
+                            data-category={row.category}
+                          >
+                            {t(announcementCategory(row.category))}
+                          </span>
+                          <small>
+                            <time dateTime={row.startsAt}>{announcementDate(row.startsAt)}</time>
+                          </small>
+                        </div>
+                        <strong>{row.title}</strong>
+                        <span>{row.summary}</span>
+                        {reading.has(row.announcementId) ? (
+                          <small>{t("Updating read status…")}</small>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <article className="announcement-detail" data-empty={!activeDetail || undefined}>
+                  {activeDetail ? (
+                    <>
+                      <div className="announcement-detail-meta">
+                        <span
+                          className="announcement-category-badge"
+                          data-category={activeDetail.category}
+                        >
+                          {t(announcementCategory(activeDetail.category))}
+                        </span>
+                        <small>
+                          <time dateTime={activeDetail.startsAt}>
+                            {announcementDate(activeDetail.startsAt)}
+                          </time>
+                        </small>
+                      </div>
+                      <h2 ref={detailTitle} tabIndex={-1}>
+                        {activeDetail.title}
+                      </h2>
+                      {activeDetail.summary ? (
+                        <p className="announcement-summary">{activeDetail.summary}</p>
+                      ) : null}
+                      <ArticleView
+                        html={activeDetail.bodyHtml}
+                        text={activeDetail.body}
+                        locale={activeDetail.locale}
+                      />
+                      <div className="announcement-detail-actions">
+                        {authenticated && !activeDetail.readAt ? (
+                          <Button
+                            tone="outline"
+                            loading={reading.has(activeDetail.announcementId)}
+                            disabled={allBusy}
+                            onClick={() => void open(activeDetail)}
+                          >
+                            {t("Mark read")}
+                          </Button>
+                        ) : null}
+                        <Button
+                          tone="ghost"
+                          onClick={() => {
+                            setSelected(null)
+                            requestAnimationFrame(() => list.current?.focus())
+                          }}
+                        >
+                          {t("Back to announcements")}
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
+                </article>
+              </div>
+            )}
             {page && (page.offset > 0 || page.hasMore) ? (
               <nav className="announcement-pagination" aria-label={t("Announcement pages")}>
                 <Button

@@ -10,6 +10,7 @@ import {
   updateApiKey,
 } from "../../api/endpoints"
 import type { ApiSecurityKey } from "../../api/types"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { Badge, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
@@ -35,6 +36,7 @@ export function DeveloperApiPage() {
   )
 }
 function AccountApiKeys() {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [keys, setKeys] = useState<ApiSecurityKey[] | null>(null)
   const [mfa, setMfa] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
@@ -216,11 +218,16 @@ function AccountApiKeys() {
     }
   }
   const dismissSecret = () => {
-    if (!window.confirm(t("The secret cannot be shown again after closing. Have you saved it?")))
-      return
-    setCreated(null)
-    setRevealed(false)
-    setCopyStatus("")
+    void confirm({
+      title: t("Close secret dialog?"),
+      description: t("The secret cannot be shown again after closing. Have you saved it?"),
+      confirmLabel: t("I have saved it"),
+    }).then((ok) => {
+      if (!ok) return
+      setCreated(null)
+      setRevealed(false)
+      setCopyStatus("")
+    })
   }
   const pages = Math.max(1, Math.ceil((keys?.length ?? 0) / 8)),
     current = Math.min(page, pages - 1)
@@ -570,6 +577,7 @@ function AccountApiKeys() {
           </Button>
         </SecurityActionDialog>
       ) : null}
+      {confirmDialog}
     </div>
   )
 }

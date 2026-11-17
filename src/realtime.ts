@@ -407,6 +407,21 @@ export function newerPublicEvent(event: WsEnvelope, previous?: WsEnvelope): bool
   // A newly subscribed book establishes a new baseline, even after a local Core reset.
   if (event.channel === "depth" && record(event.data)["updateType"] === "SNAPSHOT") return true
   if (!previous) return true
+  if (event.channel === "candles") {
+    const next = record(event.data)
+    const prev = record(previous.data)
+    const nextSeq = Number(next["lastSequence"] ?? next["tradeCount"] ?? NaN)
+    const prevSeq = Number(prev["lastSequence"] ?? prev["tradeCount"] ?? NaN)
+    if (
+      next["openTime"] &&
+      next["openTime"] === prev["openTime"] &&
+      Number.isFinite(nextSeq) &&
+      Number.isFinite(prevSeq) &&
+      nextSeq !== prevSeq
+    ) {
+      return nextSeq > prevSeq
+    }
+  }
   if (
     ["depth", "bookTicker", "trades"].includes(event.channel ?? "") &&
     event.version &&

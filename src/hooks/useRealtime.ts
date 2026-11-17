@@ -215,7 +215,14 @@ export function useRealtimeFeed(
           if (book === previous) return
           // Snapshot IDs must remain distinct even if Core restarts at a lower sequence.
           event = { ...book, id: `${book.id}:book:${++depthViewSerial.current}` }
-        } else if (!newerPublicEvent(event, latest.current.get(key))) return
+        } else {
+          if (!newerPublicEvent(event, latest.current.get(key))) return
+          if (event.channel === "candles" && event.data && typeof event.data === "object") {
+            const payload = event.data as Record<string, unknown>
+            const seq = payload["lastSequence"] ?? payload["tradeCount"]
+            if (seq !== undefined) event = { ...event, id: `${event.id}:c:${String(seq)}` }
+          }
+        }
         latest.current.set(key, event)
         if (
           retainTrades &&

@@ -33,6 +33,7 @@ import {
   tradeReceipt,
   type Verification,
 } from "../../api/c2cTrading"
+import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
 import { C2cAccountsTab } from "./C2cAccountsTab"
@@ -135,6 +136,7 @@ function TradingWorkspace({
   chat: (orderId: string) => Promise<void>
   onBusyChange: (busy: boolean) => void
 }) {
+  const { confirm, dialog } = useConfirmDialog()
   const [runtime, setRuntime] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true),
     [loadError, setLoadError] = useState("")
@@ -645,20 +647,22 @@ function TradingWorkspace({
             type="button"
             disabled={busy}
             onClick={() => {
-              if (
-                operation.current ||
-                !window.confirm(
-                  `确认停止尚未开始的原请求？\n请求：${pending.requestKey}\n该操作不会取消已经接收的交易。`,
-                )
-              )
-                return
-              void act(async () => {
-                await c2cWrite(owner, `/submissions/${pending.requestKey}/stop`, {
-                  kind: pending.kind,
-                  requestHash: pending.requestHash,
-                })
-                await confirmReceipt(pending)
-              }, "已查询并停止尚未开始的原请求")
+              if (operation.current) return
+              void confirm({
+                title: "确认停止尚未开始的原请求？",
+                description: `请求：${pending.requestKey}\n该操作不会取消已经接收的交易。`,
+                confirmLabel: t("停止未开始的请求"),
+                danger: true,
+              }).then((ok) => {
+                if (!ok) return
+                void act(async () => {
+                  await c2cWrite(owner, `/submissions/${pending.requestKey}/stop`, {
+                    kind: pending.kind,
+                    requestHash: pending.requestHash,
+                  })
+                  await confirmReceipt(pending)
+                }, "已查询并停止尚未开始的原请求")
+              })
             }}
           >
             {t("停止未开始的请求")}
@@ -828,6 +832,7 @@ function TradingWorkspace({
           />
         )}
       </fieldset>
+      {dialog}
     </section>
   )
 }

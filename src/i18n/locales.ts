@@ -1,16 +1,16 @@
 export const LOCALES = [
-  { code: "en", tag: "en-US", label: "English", compact: "EN" },
-  { code: "zh", tag: "zh-CN", label: "简体中文", compact: "简中" },
-  { code: "zh-TW", tag: "zh-TW", label: "繁體中文", compact: "繁中" },
-  { code: "es", tag: "es-ES", label: "Español", compact: "ES" },
-  { code: "fr", tag: "fr-FR", label: "Français", compact: "FR" },
-  { code: "de", tag: "de-DE", label: "Deutsch", compact: "DE" },
-  { code: "pt", tag: "pt-BR", label: "Português (Brasil)", compact: "PT" },
-  { code: "ru", tag: "ru-RU", label: "Русский", compact: "RU" },
-  { code: "ar", tag: "ar-SA", label: "العربية", compact: "ع" },
-  { code: "ja", tag: "ja-JP", label: "日本語", compact: "日本" },
-  { code: "ko", tag: "ko-KR", label: "한국어", compact: "한국" },
-  { code: "hi", tag: "hi-IN", label: "हिन्दी", compact: "हि" },
+  { code: "en", tag: "en-US", label: "English", compact: "EN", flag: "🇺🇸" },
+  { code: "zh", tag: "zh-CN", label: "简体中文", compact: "简中", flag: "🇨🇳" },
+  { code: "zh-TW", tag: "zh-TW", label: "繁體中文", compact: "繁中", flag: "🇭🇰" },
+  { code: "es", tag: "es-ES", label: "Español", compact: "ES", flag: "🇪🇸" },
+  { code: "fr", tag: "fr-FR", label: "Français", compact: "FR", flag: "🇫🇷" },
+  { code: "de", tag: "de-DE", label: "Deutsch", compact: "DE", flag: "🇩🇪" },
+  { code: "pt", tag: "pt-BR", label: "Português (Brasil)", compact: "PT", flag: "🇧🇷" },
+  { code: "ru", tag: "ru-RU", label: "Русский", compact: "RU", flag: "🇷🇺" },
+  { code: "ar", tag: "ar-SA", label: "العربية", compact: "ع", flag: "🇸🇦" },
+  { code: "ja", tag: "ja-JP", label: "日本語", compact: "日本", flag: "🇯🇵" },
+  { code: "ko", tag: "ko-KR", label: "한국어", compact: "한국", flag: "🇰🇷" },
+  { code: "hi", tag: "hi-IN", label: "हिन्दी", compact: "हि", flag: "🇮🇳" },
 ] as const
 export type Locale = (typeof LOCALES)[number]["code"]
 export function normalizeLocale(value: string | null | undefined): Locale {

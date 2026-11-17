@@ -1,4 +1,4 @@
-import { Copy, Download } from "lucide-react"
+import { Check, Copy, Download } from "lucide-react"
 import QRCode from "qrcode"
 import { useEffect, useState } from "react"
 import { loadDepositHistory } from "../../api/endpoints"
@@ -35,6 +35,7 @@ export function DepositPage() {
   const [qr, setQr] = useState({ key: "", url: "" })
   const [qrError, setQrError] = useState("")
   const [notice, setNotice] = useState("")
+  const [copiedField, setCopiedField] = useState<"" | "address" | "memo">("")
   const [historyRevision, setHistoryRevision] = useState(0)
   const [history, setHistory] = useState<{
     key: string
@@ -148,10 +149,12 @@ export function DepositPage() {
     }
   }, [key, token, assetCode, networkCode, historyRevision])
 
-  const copy = async (value: string) => {
+  const copy = async (value: string, field: "address" | "memo" = "address") => {
     try {
       await navigator.clipboard.writeText(value)
+      setCopiedField(field)
       setNotice(t("Copied"))
+      window.setTimeout(() => setCopiedField((prev) => (prev === field ? "" : prev)), 2000)
     } catch {
       setNotice(t("Copy failed. Please copy the address manually."))
     }
@@ -170,7 +173,10 @@ export function DepositPage() {
       ) : (
         <div className="stack">
           <Panel>
-            <h2>{t("1. Select asset & network")}</h2>
+            <div className="deposit-panel-title">
+              <span className="deposit-step">1</span>
+              <h2>{t("Select asset & network")}</h2>
+            </div>
             {catalogError ? (
               <div role="alert">
                 <p>{catalogError}</p>
@@ -227,7 +233,10 @@ export function DepositPage() {
           </Panel>
           {asset && network ? (
             <Panel>
-              <h2>{t("2. Deposit details")}</h2>
+              <div className="deposit-panel-title">
+                <span className="deposit-step">2</span>
+                <h2>{t("Deposit details")}</h2>
+              </div>
               {addressError ? (
                 <div role="alert">
                   <p>{addressError}</p>
@@ -237,14 +246,16 @@ export function DepositPage() {
                 <p role="status">{t("Loading deposit address…")}</p>
               ) : (
                 <div className="deposit-details">
-                  <div>
+                  <div className="deposit-qr-card">
                     {qr.key === key && qr.url ? (
                       <>
-                        <img
-                          className="deposit-qr"
-                          src={qr.url}
-                          alt={t("Deposit address QR code")}
-                        />
+                        <div className="deposit-qr-frame">
+                          <img
+                            className="deposit-qr"
+                            src={qr.url}
+                            alt={t("Deposit address QR code")}
+                          />
+                        </div>
                         <a
                           className="button button-outline"
                           download={`${assetCode}-${networkCode}-deposit.png`}
@@ -259,15 +270,15 @@ export function DepositPage() {
                     )}
                   </div>
                   <div className="deposit-info">
-                    <span>{t("Deposit address")}</span>
+                    <span className="deposit-label">{t("Deposit address")}</span>
                     <div className="deposit-copy">
                       <code>{address.address}</code>
                       <Button
                         tone="ghost"
                         aria-label={t("Copy deposit address")}
-                        onClick={() => void copy(address.address)}
+                        onClick={() => void copy(address.address, "address")}
                       >
-                        <Copy size={18} />
+                        {copiedField === "address" ? <Check size={18} /> : <Copy size={18} />}
                       </Button>
                     </div>
                     {address.memo ? (
@@ -278,9 +289,9 @@ export function DepositPage() {
                           <Button
                             tone="ghost"
                             aria-label={t("Copy memo/tag")}
-                            onClick={() => void copy(address.memo)}
+                            onClick={() => void copy(address.memo, "memo")}
                           >
-                            <Copy size={18} />
+                            {copiedField === "memo" ? <Check size={18} /> : <Copy size={18} />}
                           </Button>
                         </div>
                         <p>

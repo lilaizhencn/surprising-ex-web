@@ -11,10 +11,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(30, 30, 46, 0.5);
+  background: var(--color-surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-subtle);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -45,13 +45,13 @@
 .header-title {
   font-size: 26px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0 0 8px;
 }
 
 .header-desc {
   font-size: 14px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -74,10 +74,10 @@
 }
 
 .sub-account-card {
-  background: rgba(30, 30, 46, 0.5);
+  background: var(--color-surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -94,13 +94,13 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .action-btn-ghost {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #b0b0c0;
+  color: var(--text-secondary);
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12px;
@@ -116,7 +116,7 @@
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -138,7 +138,7 @@
 .sub-table th {
   text-align: left;
   padding: 12px 14px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   font-weight: 500;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -146,7 +146,7 @@
 .sub-table td {
   padding: 14px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .mono-cell {
@@ -176,7 +176,7 @@
 }
 
 .date-cell {
-  color: #8e8ea0;
+  color: var(--text-tertiary);
 }
 
 .action-buttons-group {
@@ -224,7 +224,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   padding: 28px;
   width: min(92vw, 440px);
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .modal-glass h2 {
@@ -235,7 +235,7 @@
 
 .modal-desc {
   font-size: 13px;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   margin: 0 0 20px;
 }
 
@@ -253,7 +253,7 @@
   background: rgba(10, 10, 18, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
@@ -277,7 +277,7 @@
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: #b0b0c0;
+  color: var(--text-secondary);
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -301,7 +301,7 @@
 .btn-cancel {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #b0b0c0;
+  color: var(--text-secondary);
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;

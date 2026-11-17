@@ -22,6 +22,22 @@ it("shows a real zero cash balance as zero", () => {
   const html = renderToStaticMarkup(<AssetsPage account="spot" />)
   expect(html.match(/<td class="number mono">0<\/td>/g)).toHaveLength(3)
 })
+it("keeps the overview size stable while snapshots are still syncing", () => {
+  vi.mocked(useRealtimeAssets).mockReturnValue({
+    ...vi.mocked(useRealtimeAssets)(null, {}),
+    balances: [],
+    ready: false,
+    products: [],
+    readyProducts: [],
+    error: "Valuation prices are unavailable or expired.",
+  })
+  const html = renderToStaticMarkup(<AssetsPage account={null} />)
+  expect(html).toContain("asset-value-skeleton")
+  expect(html).toContain("asset-distribution-skeleton")
+  expect(html).toContain("asset-table-skeleton")
+  expect(html).not.toContain("Valuation unavailable")
+  expect(html).not.toContain("Valuation prices are unavailable or expired.")
+})
 it("keeps errors visible when cash data already exists", () => {
   vi.mocked(useRealtimeAssets).mockReturnValue({
     ...vi.mocked(useRealtimeAssets)(null, {}),
@@ -31,5 +47,5 @@ it("keeps errors visible when cash data already exists", () => {
   const html = renderToStaticMarkup(<AssetsPage account="spot" />)
   expect(html).toContain("FX unavailable")
   expect(html).toContain("Valuation unavailable")
-  expect(html).toContain("Retry")
+  expect(html).not.toContain("Retry")
 })

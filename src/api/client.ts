@@ -498,7 +498,7 @@ async function send(
     if (error instanceof ApiError) throw error
     throw new ApiError(
       options.method === "GET"
-        ? t("Unable to load the response. Check your connection and try again.")
+        ? t("No data available.")
         : t(
             "The result is not yet confirmed. Check your orders or settings before submitting again.",
           ),

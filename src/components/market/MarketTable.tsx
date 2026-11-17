@@ -84,9 +84,6 @@ export function MarketTable({
   return (
     <div className="market-results">
       <div className="market-result-heading">
-        <span role="status">
-          {t("Markets shown")}: {sorted.length}
-        </span>
         <div className="market-mobile-sort">
           <DropdownSelect
             aria-label={t("Sort markets")}
@@ -110,9 +107,7 @@ export function MarketTable({
       </div>
       <div className="table-wrap market-desktop-table">
         <table className="data-table markets-table">
-          <caption className="sr-only">
-            {t("Markets shown")}: {sorted.length}
-          </caption>
+          <caption className="sr-only">{t("Market list")}</caption>
           <thead>
             <tr>
               <th scope="col" aria-label={t("Favorite")} />

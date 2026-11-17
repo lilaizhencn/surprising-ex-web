@@ -2,6 +2,7 @@ import { ArrowLeftRight, LogIn, MessageCircle, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadC2cStatus } from "../../api/c2c"
 import { type C2cAd, c2cDecimal, c2cPublicMarkets, c2cPublicOffers } from "../../api/c2cTrading"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { t } from "../../i18n"
 
 const login = "/auth/login?redirect=%2Fc2c"
@@ -166,9 +167,10 @@ export function C2cMarketPreview() {
               >
                 {t("我要卖")}
               </button>
-              <label>
-                {t("交易市场")}
-                <select
+              <div className="c2c-select-field">
+                <span>{t("交易市场")}</span>
+                <DropdownSelect
+                  aria-label={t("交易市场")}
                   value={marketId}
                   onChange={(event) => {
                     setMarketId(event.target.value)
@@ -179,11 +181,11 @@ export function C2cMarketPreview() {
                 >
                   {catalog.markets.map((row) => (
                     <option key={row.marketId} value={row.marketId}>
-                      {row.asset} / {row.fiat}
+                      {`${row.asset} / ${row.fiat}`}
                     </option>
                   ))}
-                </select>
-              </label>
+                </DropdownSelect>
+              </div>
               <label>
                 {t("法币金额筛选")}
                 {market ? `（${market.fiat}）` : ""}
@@ -198,9 +200,10 @@ export function C2cMarketPreview() {
                   }}
                 />
               </label>
-              <label>
-                {t("支付方式")}
-                <select
+              <div className="c2c-select-field">
+                <span>{t("支付方式")}</span>
+                <DropdownSelect
+                  aria-label={t("支付方式")}
                   value={methodCode}
                   onChange={(event) => {
                     setMethodCode(event.target.value)
@@ -215,8 +218,8 @@ export function C2cMarketPreview() {
                         {row.label}
                       </option>
                     ))}
-                </select>
-              </label>
+                </DropdownSelect>
+              </div>
             </div>
             {!validAmount ? (
               <p role="alert" className="c2c-error">

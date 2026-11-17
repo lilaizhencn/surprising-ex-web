@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "name": "Surprising Future Sci-Fi Design System",
+    "version": "1.0.0",
+    "baseGridPx": 4
+  },
+  "color": {
+    "background": {
+      "void": { "hex": "#05060F", "oklch": "oklch(0.115 0.025 275)" },
+      "elevated1": { "hex": "#0A0D1A", "oklch": "oklch(0.155 0.028 272)" },
+      "elevated2": { "hex": "#101426", "oklch": "oklch(0.195 0.032 270)" },
+      "elevated3": { "hex": "#171C33", "oklch": "oklch(0.235 0.036 268)" },
+      "elevated4": { "hex": "#1F2642", "oklch": "oklch(0.280 0.040 266)" }
+    },
+    "aurora": {
+      "cyan": { "hex": "#00E5FF", "oklch": "oklch(0.84 0.16 205)" },
+      "magenta": { "hex": "#FF2BD6", "oklch": "oklch(0.67 0.27 336)" },
+      "violet": { "hex": "#7C4DFF", "oklch": "oklch(0.56 0.25 283)" },
+      "acid": { "hex": "#B6FF3B", "oklch": "oklch(0.91 0.22 128)" },
+      "corona": { "hex": "#FF8A00", "oklch": "oklch(0.75 0.18 58)" }
+    },
+    "gradients": {
+      "auroraPrimary": ["#00E5FF", "#7C4DFF", "#FF2BD6"],
+      "auroraWarm": ["#FF8A00", "#FF2BD6", "#7C4DFF"],
+      "auroraCool": ["#00E5FF", "#7C4DFF", "#B6FF3B"]
+    },
+    "semantic": {
+      "up": {
+        "base": { "hex": "#00E699", "oklch": "oklch(0.81 0.19 162)" },
+        "softBg": { "hex": "#062921", "oklch": "oklch(0.23 0.06 165 / 0.45)" },
+        "glow": { "hex": "#00E699", "oklch": "oklch(0.81 0.19 162 / 0.30)" },
+        "textOn": { "hex": "#05060F", "oklch": "oklch(0.115 0.025 275)" }
+      },
+      "down": {
+        "base": { "hex": "#FF4D6D", "oklch": "oklch(0.67 0.22 14)" },
+        "softBg": { "hex": "#2E0C18", "oklch": "oklch(0.22 0.08 14 / 0.45)" },
+        "glow": { "hex": "#FF4D6D", "oklch": "oklch(0.67 0.22 14 / 0.30)" },
+        "textOn": { "hex": "#F4F6FF", "oklch": "oklch(0.97 0.01 268)" }
+      },
+      "warning": { "hex": "#FFB800", "oklch": "oklch(0.82 0.17 78)" },
+      "danger": { "hex": "#FF3B5C", "oklch": "oklch(0.64 0.23 16)" },
+      "info": { "hex": "#00E5FF", "oklch": "oklch(0.84 0.16 205)" },
+      "success": { "hex": "#00E699", "oklch": "oklch(0.81 0.19 162)" }
+    },
+    "text": {
+      "primary": { "hex": "#F4F6FF", "oklch": "oklch(0.97 0.01 268)", "contrastOnVoid": "18.5:1" },
+      "secondary": { "hex": "#B3BBE0", "oklch": "oklch(0.79 0.05 268)", "contrastOnVoid": "10.3:1" },
+      "tertiary": { "hex": "#7C86B2", "oklch": "oklch(0.62 0.06 268)", "contrastOnVoid": "5.4:1" },
+      "disabled": { "hex": "#4C547A", "oklch": "oklch(0.44 0.05 268)", "contrastOnVoid": "2.6:1" },
+      "inverse": { "hex": "#05060F", "oklch": "oklch(0.115 0.025 275)", "contrastOnVoid": "1.0:1" }
+    },
+    "border": {
+      "subtle": { "hex": "#1B213A", "oklch": "oklch(0.26 0.04 268 / 0.55)" },
+      "default": { "hex": "#283154", "oklch": "oklch(0.34 0.05 268 / 0.72)" },
+      "strong": { "hex": "#3C497A", "oklch": "oklch(0.45 0.07 268 / 0.90)" },
+      "focus": { "hex": "#00E5FF", "oklch": "oklch(0.84 0.16 205)" }
+    },
+    "assets": {
+      "btc": "#F7931A",
+      "eth": "#637EEA",
+      "sol": "#18D89D",
+      "usdt": "#26A17B"
+    }
+  },
+  "typography": {
+    "fontSans": "\"Space Grotesk\", \"Inter\", \"HarmonyOS Sans SC\", \"MiSans\", \"PingFang SC\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "fontMono": "\"JetBrains Mono\", \"Geist Mono\", ui-monospace, SFMono-Regular, Menlo, monospace",
+    "scale": [
+      { "name": "2xs", "sizePx": 11, "lineHeight": 1.35, "letterSpacingEm": 0.04 },
+      { "name": "xs", "sizePx": 12, "lineHeight": 1.35, "letterSpacingEm": 0.03 },
+      { "name": "sm", "sizePx": 13, "lineHeight": 1.45, "letterSpacingEm": 0.01 },
+      { "name": "md", "sizePx": 14, "lineHeight": 1.5, "letterSpacingEm": 0 },
+      { "name": "lg", "sizePx": 16, "lineHeight": 1.45, "letterSpacingEm": -0.005 },
+      { "name": "xl", "sizePx": 20, "lineHeight": 1.35, "letterSpacingEm": -0.015 },
+      { "name": "2xl", "sizePx": 24, "lineHeight": 1.25, "letterSpacingEm": -0.02 },
+      { "name": "3xl", "sizePx": 32, "lineHeight": 1.18, "letterSpacingEm": -0.025 },
+      { "name": "4xl", "sizePx": 48, "lineHeight": 1.1, "letterSpacingEm": -0.03 },
+      { "name": "5xl", "sizePx": 64, "lineHeight": 1.05, "letterSpacingEm": -0.035 }
+    ]
+  },
+  "spacing": {
+    "1": 4,
+    "2": 8,
+    "3": 12,
+    "4": 16,
+    "5": 20,
+    "6": 24,
+    "8": 32,
+    "10": 40,
+    "12": 48,
+    "16": 64
+  },
+  "radius": {
+    "2xs": 2,
+    "xs": 6,
+    "sm": 10,
+    "md": 16,
+    "lg": 24,
+    "pill": 9999
+  },
+  "glass": {
+    "level1": { "blurPx": 12, "bgAlpha": 0.72, "highlightAlpha": 0.10, "borderAlpha": 0.12 },
+    "level2": { "blurPx": 20, "bgAlpha": 0.80, "highlightAlpha": 0.14, "borderAlpha": 0.16 },
+    "level3": { "blurPx": 28, "bgAlpha": 0.88, "highlightAlpha": 0.18, "borderAlpha": 0.22 }
+  },
+  "motion": {
+    "durationMs": {
+      "instant": 80,
+      "fast": 140,
+      "base": 220,
+      "slow": 360,
+      "cinematic": 700
+    },
+    "easing": {
+      "standard": [0.22, 1.0, 0.36, 1.0],
+      "spring": [0.34, 1.56, 0.64, 1.0],
+      "linear": [0.0, 0.0, 1.0, 1.0]
+    }
+  }
+}

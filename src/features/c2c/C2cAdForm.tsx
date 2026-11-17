@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { C2cMarket, c2cAccounts, c2cMarkets } from "../../api/c2cTrading"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { t } from "../../i18n"
 
 export function AdForm({
@@ -22,6 +23,17 @@ export function AdForm({
   submit: (payload: Record<string, unknown>) => void
 }) {
   const [side, setSide] = useState("SELL")
+  const [accountId, setAccountId] = useState("")
+  const [methodCode, setMethodCode] = useState("")
+  const matchingMethods = paymentMethods.filter(
+    (method) => market && method.currencies.includes(market.fiat),
+  )
+  const activeMethod = matchingMethods.some((m) => m.code === methodCode)
+    ? methodCode
+    : (matchingMethods[0]?.code ?? "")
+  const approvedAccounts = accounts.filter(
+    (a) => a.status === "APPROVED" && a.fiat === market?.fiat,
+  )
   return (
     <form
       className="c2c-panel c2c-ad-form"
@@ -30,6 +42,7 @@ export function AdForm({
         if (!market || disabled) return
         const data = new FormData(event.currentTarget)
         const selected = accounts.find((a) => a.accountId === data.get("account"))
+        if (side === "SELL" && !selected) return
         submit({
           marketId: market.marketId,
           side,
@@ -48,26 +61,31 @@ export function AdForm({
       <h2>{t("发布广告")}</h2>
       <p className="c2c-muted">{t("商家审核与质押完成后，可发布当前市场的交易广告。")}</p>
       <fieldset className="c2c-fields c2c-ad-fields" disabled={disabled}>
-        <label>
-          {t("市场")}
-          <select
+        <div className="c2c-select-field">
+          <span>{t("市场")}</span>
+          <DropdownSelect
+            aria-label={t("市场")}
             value={market?.marketId || ""}
             onChange={(event) => selectMarket(event.target.value)}
           >
             {catalog.map((m) => (
               <option key={m.marketId} value={m.marketId}>
-                {m.asset} / {m.fiat}
+                {`${m.asset} / ${m.fiat}`}
               </option>
             ))}
-          </select>
-        </label>
-        <label>
-          {t("广告方向")}
-          <select value={side} onChange={(event) => setSide(event.target.value)}>
+          </DropdownSelect>
+        </div>
+        <div className="c2c-select-field">
+          <span>{t("广告方向")}</span>
+          <DropdownSelect
+            aria-label={t("广告方向")}
+            value={side}
+            onChange={(event) => setSide(event.target.value)}
+          >
             <option value="SELL">{t("商家出售")}</option>
             <option value="BUY">{t("商家购买")}</option>
-          </select>
-        </label>
+          </DropdownSelect>
+        </div>
         {[
           ["price", "单价"],
           ["quantity", "总数量"],
@@ -80,32 +98,38 @@ export function AdForm({
           </label>
         ))}
         {side === "SELL" ? (
-          <label>
-            {t("收款账户")}
-            <select name="account" aria-label={t("收款账户")} required>
+          <div className="c2c-select-field">
+            <span>{t("收款账户")}</span>
+            <input type="hidden" name="account" value={accountId} />
+            <DropdownSelect
+              aria-label={t("收款账户")}
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+            >
               <option value="">{t("请选择")}</option>
-              {accounts
-                .filter((a) => a.status === "APPROVED" && a.fiat === market?.fiat)
-                .map((a) => (
-                  <option key={a.accountId} value={a.accountId}>
-                    {a.methodCode} {a.maskedLabel}
-                  </option>
-                ))}
-            </select>
-          </label>
+              {approvedAccounts.map((a) => (
+                <option key={a.accountId} value={a.accountId}>
+                  {`${a.methodCode} ${a.maskedLabel}`}
+                </option>
+              ))}
+            </DropdownSelect>
+          </div>
         ) : (
-          <label>
-            {t("付款方式")}
-            <select name="method">
-              {paymentMethods
-                .filter((method) => market && method.currencies.includes(market.fiat))
-                .map((method) => (
-                  <option key={method.code} value={method.code}>
-                    {method.label}
-                  </option>
-                ))}
-            </select>
-          </label>
+          <div className="c2c-select-field">
+            <span>{t("付款方式")}</span>
+            <input type="hidden" name="method" value={activeMethod} />
+            <DropdownSelect
+              aria-label={t("付款方式")}
+              value={activeMethod}
+              onChange={(event) => setMethodCode(event.target.value)}
+            >
+              {matchingMethods.map((method) => (
+                <option key={method.code} value={method.code}>
+                  {method.label}
+                </option>
+              ))}
+            </DropdownSelect>
+          </div>
         )}
         <label className="c2c-ad-terms">
           {t("交易条款")}

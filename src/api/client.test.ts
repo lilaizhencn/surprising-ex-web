@@ -369,7 +369,7 @@ describe("complete response lifecycle", () => {
       }) as unknown as typeof ky)
       const operation = request("/private", z.unknown(), { method, idempotencyKey: "same-command" })
       const rejected = expect(operation).rejects.toThrow(
-        method === "POST" ? "result is not yet confirmed" : "Unable to load",
+        method === "POST" ? "result is not yet confirmed" : "No data available.",
       )
       await vi.advanceTimersByTimeAsync(10_001)
       await rejected

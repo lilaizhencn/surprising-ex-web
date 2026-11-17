@@ -359,9 +359,17 @@ export interface UserVipStatus {
   readonly volumeNeededForNextTier: number
 }
 
+const VipTierDefinitionSchema = z.object({
+  tierLevel: z.number(),
+  tierCode: z.string(),
+  min30DayVolumeUsd: z.number(),
+  minAssetBalanceUsd: z.number(),
+  makerFeeRatePpm: z.number(),
+  takerFeeRatePpm: z.number(),
+})
+
 export async function loadVipLevels(): Promise<readonly VipTierDefinition[]> {
-  const res = await request("/api/v1/trading/fees/vip/levels", GenericObjectSchema)
-  return Array.isArray(res) ? (res as unknown as readonly VipTierDefinition[]) : []
+  return request("/api/v1/trading/fees/vip/levels", z.array(VipTierDefinitionSchema))
 }
 
 export async function loadMyVipStatus(): Promise<UserVipStatus> {

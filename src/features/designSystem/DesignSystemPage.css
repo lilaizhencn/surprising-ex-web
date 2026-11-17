@@ -1,0 +1,187 @@
+@layer components {
+  .ds-page {
+    min-height: 100vh;
+    background:
+      radial-gradient(60% 40% at 15% 0%, oklch(0.84 0.16 205 / 0.08), transparent 70%),
+      radial-gradient(50% 35% at 85% 5%, oklch(0.67 0.27 336 / 0.07), transparent 70%),
+      var(--bg-void);
+    color: var(--text-primary);
+    padding: var(--space-8) var(--space-6) var(--space-16);
+  }
+
+  .ds-container {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .ds-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: var(--space-4);
+    padding-bottom: var(--space-6);
+    border-bottom: var(--hairline-width) solid var(--border-default);
+  }
+
+  .ds-eyebrow {
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    letter-spacing: var(--tracking-xs);
+    text-transform: uppercase;
+    color: var(--aurora-cyan);
+    font-weight: 600;
+  }
+
+  .ds-title {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-3xl);
+    line-height: var(--leading-3xl);
+    letter-spacing: var(--tracking-3xl);
+  }
+
+  .ds-subtitle {
+    margin: var(--space-2) 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-md);
+  }
+
+  .ds-section {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .ds-section-title {
+    margin: 0;
+    font-size: var(--text-xl);
+    line-height: var(--leading-xl);
+    letter-spacing: var(--tracking-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .ds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .ds-swatch {
+    background: var(--bg-elevated-1);
+    border: var(--hairline-width) solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .ds-swatch-chip {
+    height: 56px;
+    border-radius: var(--radius-xs);
+    border: var(--hairline-width) solid var(--border-subtle);
+  }
+
+  .ds-swatch-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .ds-mono {
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ds-glass-1 {
+    background: var(--glass-1-bg);
+    backdrop-filter: blur(var(--glass-1-blur));
+    border: var(--hairline-width) solid var(--glass-1-border);
+    box-shadow: var(--shadow-elevation-1), var(--glass-1-highlight);
+  }
+
+  .ds-glass-2 {
+    background: var(--glass-2-bg);
+    backdrop-filter: blur(var(--glass-2-blur));
+    border: var(--hairline-width) solid var(--glass-2-border);
+    box-shadow: var(--shadow-elevation-2), var(--glass-2-highlight);
+  }
+
+  .ds-glass-3 {
+    background: var(--glass-3-bg);
+    backdrop-filter: blur(var(--glass-3-blur));
+    border: var(--hairline-width) solid var(--glass-3-border);
+    box-shadow: var(--shadow-elevation-3), var(--glass-3-highlight);
+  }
+
+  .ds-glass-card {
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .ds-glow-card {
+    background: var(--bg-elevated-2);
+    border: var(--hairline-width) solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .ds-glow-0 {
+    box-shadow: var(--glow-0);
+  }
+  .ds-glow-1 {
+    box-shadow: var(--glow-1);
+  }
+  .ds-glow-2 {
+    box-shadow: var(--glow-2);
+  }
+  .ds-glow-3 {
+    box-shadow: var(--glow-3);
+  }
+
+  .ds-type-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-elevated-1);
+    border: var(--hairline-width) solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+  }
+
+  .ds-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--up-base);
+    box-shadow: var(--glow-2);
+    display: inline-block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-live-dot {
+      animation: ds-pulse 2.2s var(--ease-standard) infinite;
+    }
+  }
+
+  @keyframes ds-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(0.85);
+    }
+  }
+}
