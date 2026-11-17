@@ -1918,11 +1918,7 @@ button:disabled {
 }
 .auth-form .segment-control button.active {
   border-color: rgba(0, 229, 255, 0.42);
-  background: linear-gradient(
-    135deg,
-    rgba(0, 229, 255, 0.16) 0%,
-    rgba(124, 77, 255, 0.18) 100%
-  );
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.16) 0%, rgba(124, 77, 255, 0.18) 100%);
   color: #f8fafc;
   box-shadow:
     0 0 14px rgba(0, 229, 255, 0.18),
