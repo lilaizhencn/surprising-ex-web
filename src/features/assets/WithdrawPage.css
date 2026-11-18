@@ -159,6 +159,23 @@
   font-size: var(--font-body-small);
   line-height: 1.6;
 }
+.funding-callout {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.funding-callout-warn {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+.funding-callout-info {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--color-ink-muted);
+}
 .withdraw-code-action {
   display: flex;
   align-items: center;

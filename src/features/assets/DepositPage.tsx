@@ -10,12 +10,22 @@ import {
 } from "../../api/funding"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel } from "../../components/ui/Primitives"
-import { t } from "../../i18n"
+import { t, useLocale } from "../../i18n"
 import { useSession } from "../../state/session"
 import { FundingAssetSelect } from "./FundingAssetSelect"
 import "./DepositPage.css"
 
+function pickDefaultNetwork(networks: readonly FundingAsset["networks"][number][]): string {
+  if (!networks.length) return ""
+  const preferred = networks.find((row) => row.isDefault && !row.maintenanceMode)
+  if (preferred) return preferred.networkCode
+  if (networks.length === 1) return networks[0]?.networkCode ?? ""
+  return networks.find((row) => !row.maintenanceMode)?.networkCode ?? networks[0]?.networkCode ?? ""
+}
+
 export function DepositPage() {
+  const locale = useLocale()
+  const isZh = locale.startsWith("zh")
   const session = useSession()
   const [requestedAsset] = useState(
     () => new URLSearchParams(window.location.search).get("asset")?.toUpperCase() ?? "",
@@ -77,9 +87,7 @@ export function DepositPage() {
             asset: selected?.asset ?? code,
             network:
               selectedNetwork?.networkCode ??
-              (!current.network && selected?.networks.length === 1
-                ? (selected.networks[0]?.networkCode ?? "")
-                : ""),
+              (!current.network && selected ? pickDefaultNetwork(selected.networks) : ""),
           }
         })
       },
@@ -95,7 +103,7 @@ export function DepositPage() {
     setResult(null)
     setQr({ key: "", url: "" })
     setQrError("")
-    if (!token || !assetCode || !networkCode) return
+    if (!token || !assetCode || !networkCode || network?.maintenanceMode) return
     const abort = new AbortController()
     void getDepositAddress(assetCode, networkCode, abort.signal).then(
       (value) => {
@@ -202,10 +210,7 @@ export function DepositPage() {
                         const nextAsset = assets.find((row) => row.asset === value)
                         setSelection({
                           asset: value,
-                          network:
-                            nextAsset?.networks.length === 1
-                              ? (nextAsset.networks[0]?.networkCode ?? "")
-                              : "",
+                          network: nextAsset ? pickDefaultNetwork(nextAsset.networks) : "",
                         })
                       }}
                     />
@@ -220,10 +225,9 @@ export function DepositPage() {
                     >
                       <option value="">{t("Select network")}</option>
                       {asset?.networks.map((row) => (
-                        <option
-                          key={row.networkCode}
-                          value={row.networkCode}
-                        >{`${row.displayName} (${row.networkCode})`}</option>
+                        <option key={row.networkCode} value={row.networkCode}>
+                          {`${row.displayName} (${row.networkCode})${row.tokenStandard && row.tokenStandard !== "NATIVE" ? ` · ${row.tokenStandard}` : ""}${row.isDefault ? (isZh ? " · 推荐" : " · Recommended") : ""}${row.maintenanceMode ? (isZh ? " · 维护中" : " · Maintenance") : ""}`}
+                        </option>
                       ))}
                     </DropdownSelect>
                   </Field>
@@ -236,8 +240,21 @@ export function DepositPage() {
               <div className="deposit-panel-title">
                 <span className="deposit-step">2</span>
                 <h2>{t("Deposit details")}</h2>
+                {network.isDefault ? (
+                  <span className="funding-tag funding-tag-default">{isZh ? "推荐网络" : "Recommended"}</span>
+                ) : null}
+                {network.maintenanceMode ? (
+                  <span className="funding-tag funding-tag-warn">{isZh ? "暂停维护中" : "Under Maintenance"}</span>
+                ) : null}
               </div>
-              {addressError ? (
+              {network.maintenanceMode ? (
+                <div role="alert" className="funding-callout funding-callout-warn">
+                  <strong>{isZh ? "网络维护通知：" : "Network Maintenance: "}</strong>
+                  {isZh
+                    ? `${network.displayName} (${network.networkCode}) 当前处于维护挂起状态，充值入口已临时关闭，请切换其他可用网络。`
+                    : `${network.displayName} (${network.networkCode}) is currently under maintenance. Please select another network.`}
+                </div>
+              ) : addressError ? (
                 <div role="alert">
                   <p>{addressError}</p>
                   <Button onClick={() => setRetry((value) => value + 1)}>{t("Retry")}</Button>
@@ -312,9 +329,34 @@ export function DepositPage() {
                       </div>
                       <div>
                         <span>{t("Required confirmations")}</span>
-                        <strong>{network.confirmations}</strong>
+                        <strong>
+                          {network.unlockConfirmations && network.unlockConfirmations > network.confirmations
+                            ? `${network.confirmations} / ${network.unlockConfirmations}`
+                            : network.confirmations}
+                        </strong>
                       </div>
+                      {network.estimatedArrivalMinutes && network.estimatedArrivalMinutes > 0 ? (
+                        <div>
+                          <span>{isZh ? "预计到账" : "Est. arrival"}</span>
+                          <strong>{isZh ? `约 ${network.estimatedArrivalMinutes} 分钟` : `~${network.estimatedArrivalMinutes} min`}</strong>
+                        </div>
+                      ) : null}
+                      {!network.nativeAsset && network.contractAddress ? (
+                        <div>
+                          <span>{isZh ? "合约尾号" : "Contract"}</span>
+                          <strong title={network.contractAddress}>
+                            {network.contractAddress.length > 10
+                              ? `...${network.contractAddress.slice(-6)}`
+                              : network.contractAddress}
+                          </strong>
+                        </div>
+                      ) : null}
                     </div>
+                    {network.specialTips ? (
+                      <p className="funding-callout funding-callout-info" role="note">
+                        {network.specialTips}
+                      </p>
+                    ) : null}
                     {notice ? <p role="status">{notice}</p> : null}
                   </div>
                 </div>

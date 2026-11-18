@@ -493,15 +493,31 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [view.line, deliveryProduct, optionProduct])
   useEffect(() => {
     let cancelled = false
-    void loadAssetScales()
-      .then((scales) => {
-        if (!cancelled) setAssetScales(scales)
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(readError(reason))
-      })
+    let retryTimer: number | undefined
+    let scaleErrorMessage: string | null = null
+    const fetchScales = () => {
+      void loadAssetScales()
+        .then((scales) => {
+          if (cancelled) return
+          setAssetScales(scales)
+          if (scaleErrorMessage) {
+            const stale = scaleErrorMessage
+            scaleErrorMessage = null
+            setError((previous) => (previous === stale ? null : previous))
+          }
+        })
+        .catch((reason: unknown) => {
+          if (cancelled) return
+          const message = readError(reason)
+          scaleErrorMessage = message
+          setError(message)
+          retryTimer = window.setTimeout(fetchScales, 2000)
+        })
+    }
+    fetchScales()
     return () => {
       cancelled = true
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
     }
   }, [])
 

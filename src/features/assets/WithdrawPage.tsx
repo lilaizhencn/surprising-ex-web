@@ -23,7 +23,7 @@ import type { ApiWithdrawalSubmission, AuthSession } from "../../api/types"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { StandardDialog } from "../../components/ui/StandardDialog"
-import { t } from "../../i18n"
+import { t, useLocale } from "../../i18n"
 import { decimalToUnits, signedUnitsToDecimal } from "../../lib/units"
 import { loadSession, useSession } from "../../state/session"
 import { FundingAssetSelect } from "./FundingAssetSelect"
@@ -65,7 +65,35 @@ export function WithdrawPage() {
   )
 }
 
+function pickDefaultWithdrawNetwork(
+  networks: readonly FundingAsset["networks"][number][],
+): string {
+  if (!networks.length) return ""
+  const preferred = networks.find((row) => row.isDefault && !row.maintenanceMode)
+  if (preferred) return preferred.networkCode
+  if (networks.length === 1) return networks[0]?.networkCode ?? ""
+  return networks.find((row) => !row.maintenanceMode)?.networkCode ?? networks[0]?.networkCode ?? ""
+}
+
+function comparePositiveDecimals(left: string, right: string): number {
+  const split = (value: string) => {
+    const [whole = "0", frac = ""] = value.trim().split(".")
+    return [whole.replace(/^0+/, "") || "0", frac.replace(/0+$/, "")] as const
+  }
+  const [lw, lf] = split(left)
+  const [rw, rf] = split(right)
+  if (lw.length !== rw.length) return lw.length > rw.length ? 1 : -1
+  if (lw !== rw) return lw > rw ? 1 : -1
+  const maxLen = Math.max(lf.length, rf.length)
+  const lp = lf.padEnd(maxLen, "0")
+  const rp = rf.padEnd(maxLen, "0")
+  if (lp === rp) return 0
+  return lp > rp ? 1 : -1
+}
+
 function WithdrawalForm({ session }: { readonly session: AuthSession }) {
+  const locale = useLocale()
+  const isZh = locale.startsWith("zh")
   const userId = String(session.user.userId)
   const [requestedAsset] = useState(
     () => new URLSearchParams(window.location.search).get("asset")?.toUpperCase() ?? "",
@@ -160,9 +188,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
             asset: row?.asset ?? current.asset,
             network:
               currentNetwork?.networkCode ??
-              (!current.network && row?.networks.length === 1
-                ? (row.networks[0]?.networkCode ?? "")
-                : ""),
+              (!current.network && row ? pickDefaultWithdrawNetwork(row.networks) : ""),
           }
         })
       },
@@ -238,9 +264,29 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         recovery.error
       )
         throw new Error(t("Wait for the asset, network and available balance to load."))
+      if (network.maintenanceMode) {
+        throw new Error(
+          isZh
+            ? "当前所选网络正在节点维护中，暂不支持提现，请切换其他可用网络。"
+            : "Selected network is currently under maintenance. Please switch to another network.",
+        )
+      }
       const normalizedAddress = address.trim()
       if (!normalizedAddress || normalizedAddress.length > 160)
         throw new Error(t("Enter a recipient address of up to 160 characters."))
+      if (network.addressRegex) {
+        try {
+          if (!new RegExp(network.addressRegex).test(normalizedAddress)) {
+            throw new Error(
+              isZh
+                ? `提现地址格式与所选 ${network.displayName} (${network.networkCode}) 网络不匹配，请仔细核对。`
+                : `Address format does not match ${network.displayName} (${network.networkCode}) network rules.`,
+            )
+          }
+        } catch (err) {
+          if (err instanceof Error && !(err instanceof SyntaxError)) throw err
+        }
+      }
       if (!/^\d{6}$/.test(emailCode.trim()) || !/^\d{6}$/.test(totpCode.trim()))
         throw new Error(t("Enter the six-digit email and authenticator codes."))
       const normalizedAmount = withdrawalAmount(
@@ -249,6 +295,13 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         network.minWithdrawal,
         availableUnits,
       )
+      if (network.maxWithdrawal && comparePositiveDecimals(normalizedAmount, network.maxWithdrawal) > 0) {
+        throw new Error(
+          isZh
+            ? `超过当前网络单笔最大提现限额 (${network.maxWithdrawal} ${asset})。`
+            : `Amount exceeds maximum single withdrawal limit (${network.maxWithdrawal} ${asset}).`,
+        )
+      }
       const quote = await quoteWithdrawal(
         network.networkCode,
         asset,
@@ -586,10 +639,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                             const next = assets.find((row) => row.asset === value)
                             setSelection({
                               asset: value,
-                              network:
-                                next?.networks.length === 1
-                                  ? (next.networks[0]?.networkCode ?? "")
-                                  : "",
+                              network: next ? pickDefaultWithdrawNetwork(next.networks) : "",
                             })
                             setAmount("")
                             setAddress("")
@@ -609,7 +659,7 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                           <option value="">{t("Select network")}</option>
                           {selectedAsset?.networks.map((row) => (
                             <option key={row.networkCode} value={row.networkCode}>
-                              {`${row.displayName} (${row.networkCode})`}
+                              {`${row.displayName} (${row.networkCode})${row.tokenStandard && row.tokenStandard !== "NATIVE" ? ` · ${row.tokenStandard}` : ""}${row.isDefault ? (isZh ? " · 推荐" : " · Recommended") : ""}${row.maintenanceMode ? (isZh ? " · 维护中" : " · Maintenance") : ""}`}
                             </option>
                           ))}
                         </DropdownSelect>
@@ -622,10 +672,32 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                         aria-label={t("Recipient wallet address")}
                         placeholder={t("Enter or paste wallet address")}
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
                         spellCheck={false}
                         maxLength={160}
                       />
                     </Field>
+                    {network?.maintenanceMode ? (
+                      <p role="alert" className="funding-callout funding-callout-warn">
+                        {isZh
+                          ? `${network.displayName} (${network.networkCode}) 当前正处于维护挂起状态，请切换其他可用网络后再试。`
+                          : `${network.displayName} (${network.networkCode}) is currently under maintenance.`}
+                      </p>
+                    ) : null}
+                    {network?.specialTips ? (
+                      <p role="note" className="funding-callout funding-callout-info">
+                        {network.specialTips}
+                      </p>
+                    ) : null}
+                    {network?.memoRequired ? (
+                      <p className="withdraw-network-note">
+                        <CircleAlert size={16} aria-hidden="true" />
+                        {isZh
+                          ? "该网络在部分接收方地址可能要求附带 Memo / Tag，请确认目标平台要求。"
+                          : "Memo/Tag may be required by receiving venues on this network."}
+                      </p>
+                    ) : null}
                     <p className="withdraw-network-note">
                       <CircleAlert size={16} aria-hidden="true" />
                       {t(
@@ -700,6 +772,20 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
                     <dt>{t("Platform withdrawal fee")}</dt>
                     <dd className="mono">{network ? `${network.withdrawalFee} ${asset}` : "—"}</dd>
                   </div>
+                  {network?.maxWithdrawal ? (
+                    <div>
+                      <dt>{isZh ? "单笔提现上限" : "Single limit"}</dt>
+                      <dd className="mono">{`${network.maxWithdrawal} ${asset}`}</dd>
+                    </div>
+                  ) : null}
+                  {network?.estimatedArrivalMinutes && network.estimatedArrivalMinutes > 0 ? (
+                    <div>
+                      <dt>{isZh ? "预计到账耗时" : "Estimated arrival"}</dt>
+                      <dd className="mono">
+                        {isZh ? `约 ${network.estimatedArrivalMinutes} 分钟` : `~${network.estimatedArrivalMinutes} min`}
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
                 <p className="muted">
                   {t("Final fees, limits and withdrawal eligibility are confirmed by the service.")}
