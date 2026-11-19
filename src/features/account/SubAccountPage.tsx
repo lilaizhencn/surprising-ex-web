@@ -9,6 +9,7 @@ import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
+import { SubAccountManagementControls } from "./SubAccountManagementControls"
 import "./SubAccountPage.css"
 
 export function SubAccountPage() {
@@ -204,6 +205,16 @@ export function SubAccountPage() {
                           {t("Transfer Out")}
                         </button>
                       </div>
+                      <SubAccountManagementControls
+                        account={account}
+                        onStatusChange={(updated) =>
+                          setSubAccounts((current) =>
+                            current.map((row) =>
+                              row.subUserId === updated.subUserId ? { ...row, ...updated } : row,
+                            ),
+                          )
+                        }
+                      />
                     </td>
                   </tr>
                 ))}

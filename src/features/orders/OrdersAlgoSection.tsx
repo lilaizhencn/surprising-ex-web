@@ -14,7 +14,7 @@ import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Button, Field } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
-import { loadSession } from "../../state/session"
+import { currentAccountUserId, loadSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
 import { type RecordRow, readError, text } from "./ordersShared"
 
@@ -43,7 +43,7 @@ export function AdvancedTradingActions({
   const amendPayload = () => {
     const key = `web-amend-${crypto.randomUUID()}`
     return {
-      userId: session.user.userId,
+      userId: currentAccountUserId(session),
       orderId: toLong(orderId),
       instrumentId,
       newClientOrderId: key,
@@ -53,7 +53,7 @@ export function AdvancedTradingActions({
     }
   }
   const baseOrder = () => ({
-    userId: session.user.userId,
+    userId: currentAccountUserId(session),
     clientOrderId: `web-advanced-${crypto.randomUUID()}`,
     instrumentId: instrumentId.trim(),
     side,
@@ -210,7 +210,7 @@ export function AdvancedTradingActions({
                       .map((value) => value.trim())
                       .filter(Boolean)
                       .map((value) => ({
-                        userId: session.user.userId,
+                        userId: currentAccountUserId(session),
                         orderId: toLong(value),
                       })),
                   },
@@ -231,7 +231,7 @@ export function AdvancedTradingActions({
               () =>
                 closePosition(
                   {
-                    userId: session.user.userId,
+                    userId: currentAccountUserId(session),
                     clientOrderId: `web-close-${crypto.randomUUID()}`,
                     instrumentId: instrumentId.trim(),
                     marginMode: "CROSS",
@@ -274,7 +274,7 @@ export function AdvancedTradingActions({
               () =>
                 placeAlgoOrder(
                   {
-                    userId: session.user.userId,
+                    userId: currentAccountUserId(session),
                     clientAlgoOrderId: `web-algo-${crypto.randomUUID()}`,
                     instrumentId: instrumentId.trim(),
                     algoType,
@@ -409,7 +409,10 @@ function AlgoRow({
             }).then((ok) => {
               if (!ok) return
               setLoading(true)
-              void cancelAlgoOrder({ userId: session.user.userId, algoOrderId: id }, productLine)
+              void cancelAlgoOrder(
+                { userId: currentAccountUserId(session), algoOrderId: id },
+                productLine,
+              )
                 .then(
                   () => onDone(t("Algo order cancellation requested.")),
                   (reason: unknown) => onDone(readError(reason)),

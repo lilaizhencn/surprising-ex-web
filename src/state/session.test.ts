@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { storageKeys } from "../lib/config"
-import { loadSession, saveSession } from "./session"
+import { currentAccountUserId, isParentOperatingAccount, loadSession, saveSession } from "./session"
 
 afterEach(() => {
   saveSession(null)
@@ -60,5 +60,36 @@ describe("session storage boundary", () => {
     ).toThrow("invalid session")
     expect(convert).not.toHaveBeenCalled()
     convert.mockRestore()
+  })
+})
+
+describe("operating account helpers", () => {
+  it("uses the published operating account and can return to the parent", () => {
+    storage()
+    saveSession({ sessionKey: "current", user: { userId: "42" } })
+    expect(currentAccountUserId(loadSession())).toBe("42")
+    expect(isParentOperatingAccount(loadSession())).toBe(true)
+    saveSession({
+      sessionKey: "current",
+      user: { userId: "42", displayName: "Parent" },
+      operatingAccount: {
+        userId: "2001",
+        username: "sub_42_bot",
+        displayName: "bot",
+        status: "NORMAL",
+        subAccountStatus: "ACTIVE",
+        subAccountPermissions: "TRADE_SPOT",
+        parent: false,
+      },
+    })
+    expect(currentAccountUserId(loadSession())).toBe("2001")
+    expect(isParentOperatingAccount(loadSession())).toBe(false)
+    saveSession({
+      sessionKey: "current",
+      user: { userId: "42" },
+      operatingAccount: { userId: "42", parent: true },
+    })
+    expect(currentAccountUserId(loadSession())).toBe("42")
+    expect(isParentOperatingAccount(loadSession())).toBe(true)
   })
 })

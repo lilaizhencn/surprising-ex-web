@@ -5,7 +5,7 @@ import { Button, Field } from "../../components/ui/Primitives"
 import { StandardDialog } from "../../components/ui/StandardDialog"
 import { t } from "../../i18n"
 import { stepUnitsToDecimal } from "../../lib/units"
-import { loadSession, useSession } from "../../state/session"
+import { currentAccountUserId, loadSession, useSession } from "../../state/session"
 import type { Market } from "../../types/domain"
 import { spotAmendmentTerms } from "./orderCapacity"
 
@@ -38,7 +38,7 @@ export function SpotAmendOrderButton({
   useEffect(() => {
     setEditing(false)
     setError("")
-  }, [session?.user.userId, market?.instrumentId, row["orderId"]])
+  }, [currentAccountUserId(session), market?.instrumentId, row["orderId"]])
   if (
     market?.productLine !== "SPOT" ||
     row["orderType"] !== "LIMIT" ||
@@ -47,7 +47,7 @@ export function SpotAmendOrderButton({
     return null
   const save = async () => {
     if (!session || busy || disabled) return
-    const userId = String(session.user.userId)
+    const userId = String(currentAccountUserId(session))
     setError("")
     try {
       const terms = spotAmendmentTerms(market, scales, row, price, quantity)
@@ -55,7 +55,7 @@ export function SpotAmendOrderButton({
       setBusy(true)
       const result = await amendOrder(
         {
-          userId: session.user.userId,
+          userId: currentAccountUserId(session),
           orderId: String(row["orderId"]),
           instrumentId: market.instrumentId,
           newClientOrderId: key,
@@ -66,7 +66,7 @@ export function SpotAmendOrderButton({
         },
         "SPOT",
       )
-      if (!alive.current || String(loadSession()?.user.userId ?? "") !== userId) return
+      if (!alive.current || String(currentAccountUserId(loadSession()) ?? "") !== userId) return
       setEditing(false)
       const replacement = result["replacementOrder"] as Record<string, unknown>
       onNotice(
@@ -78,7 +78,7 @@ export function SpotAmendOrderButton({
         replacement["status"] === "REJECTED",
       )
     } catch (reason) {
-      if (!alive.current || String(loadSession()?.user.userId ?? "") !== userId) return
+      if (!alive.current || String(currentAccountUserId(loadSession()) ?? "") !== userId) return
       const message =
         reason instanceof Error
           ? reason.message

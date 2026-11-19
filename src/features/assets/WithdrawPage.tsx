@@ -25,7 +25,7 @@ import { Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { StandardDialog } from "../../components/ui/StandardDialog"
 import { t, useLocale } from "../../i18n"
 import { decimalToUnits, signedUnitsToDecimal } from "../../lib/units"
-import { loadSession, useSession } from "../../state/session"
+import { isParentOperatingAccount, loadSession, useSession } from "../../state/session"
 import { FundingAssetSelect } from "./FundingAssetSelect"
 import { WithdrawalHistory } from "./WithdrawalHistory"
 import { withdrawalAmount } from "./withdrawalAmount"
@@ -533,7 +533,17 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
         </div>
         <ShieldCheck size={26} aria-hidden="true" />
       </div>
-      <div className="withdraw-layout">
+      {!isParentOperatingAccount(session) ? (
+        <Panel>
+          <p>
+            {t(
+              "Switch back to the main account to withdraw on-chain. Sub-accounts cannot withdraw directly.",
+            )}
+          </p>
+        </Panel>
+      ) : (
+        <>
+          <div className="withdraw-layout">
         <div className="withdraw-main">
           {recovery.error ? (
             <Panel>
@@ -885,6 +895,8 @@ function WithdrawalForm({ session }: { readonly session: AuthSession }) {
           </div>
         </StandardDialog>
       ) : null}
+        </>
+      )}
     </div>
   )
 }

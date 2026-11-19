@@ -24,7 +24,7 @@ import {
   readPendingCommand,
   savePendingCommand,
 } from "../../state/pendingOrders"
-import { loadSession } from "../../state/session"
+import { currentAccountUserId, loadSession } from "../../state/session"
 import {
   type Market,
   type OrderSide,
@@ -109,7 +109,7 @@ export function TradingOrderTicket({
   const deliveryProduct =
     productLine === PRODUCT_LINES.usdMDelivery || productLine === PRODUCT_LINES.coinMDelivery
   const pendingForUser =
-    pendingCommand !== null && pendingCommand.userId === String(session?.user.userId ?? "")
+    pendingCommand !== null && pendingCommand.userId === String(currentAccountUserId(session) ?? "")
   const [side, setSide] = useState<OrderSide>("BUY")
   const [orderType, setOrderType] = useState<OrderType>("LIMIT")
   const [spotTimeInForce, setSpotTimeInForce] = useState<"GTC" | "IOC" | "FOK" | "GTX">("GTC")
@@ -154,7 +154,7 @@ export function TradingOrderTicket({
     let cancelled = false
     setUserFees(null)
     setSpotSlippagePpm(undefined)
-    const userId = session?.user.userId
+    const userId = currentAccountUserId(session)
     const instrumentId = current?.instrumentId
     if (!userId || !instrumentId) return
     const refresh = () =>
@@ -182,7 +182,7 @@ export function TradingOrderTicket({
       cancelled = true
       clearInterval(timer)
     }
-  }, [session?.user.userId, current?.instrumentId, current?.changeId, productLine])
+  }, [currentAccountUserId(session), current?.instrumentId, current?.changeId, productLine])
   const openingCapacity = (direction: OrderSide) => {
     if (!accountReady) return ""
     if (deliveryProduct && current?.status !== "TRADING") return "0"
@@ -310,7 +310,7 @@ export function TradingOrderTicket({
   }, [
     current?.instrumentId,
     productLine,
-    session?.user.userId,
+    currentAccountUserId(session),
     ticketAction,
     orderSettings.marginMode,
     orderSettings.positionSide,
@@ -391,7 +391,7 @@ export function TradingOrderTicket({
       !selectedBookPrice ||
       selectedBookPrice.instrumentId !== current?.instrumentId ||
       selectedBookPrice.productLine !== productLine ||
-      selectedBookPrice.userId !== String(session?.user.userId ?? "")
+      selectedBookPrice.userId !== String(currentAccountUserId(session) ?? "")
     )
       return
     if (orderType === "STOP") {
@@ -431,7 +431,7 @@ export function TradingOrderTicket({
           referencePrice: current ? marketQuote : null,
         },
         {
-          userId: session?.user.userId,
+          userId: currentAccountUserId(session),
           ready: accountReady,
           balance,
           positions,
@@ -488,7 +488,7 @@ export function TradingOrderTicket({
     } catch (reason: unknown) {
       if (!ownsCurrentSession()) return
       if (reason instanceof PendingTradingCommand) {
-        const userId = String(session.user.userId)
+        const userId = String(currentAccountUserId(session))
         if (!readPendingCommand(userId) && reason.commandId) {
           savePendingCommand({ commandId: reason.commandId, productLine: productLine, userId })
         }
@@ -607,8 +607,8 @@ export function TradingOrderTicket({
         productLine !== PRODUCT_LINES.spot &&
         current && (
           <TradingTicketControls
-            key={`${productLine}:${current.instrumentId}:${session?.user.userId ?? "guest"}`}
-            userId={session?.user.userId}
+            key={`${productLine}:${current.instrumentId}:${currentAccountUserId(session) ?? "guest"}`}
+            userId={currentAccountUserId(session)}
             instrumentId={current.instrumentId}
             productLine={productLine}
             canChangeLeverage={!(deliveryProduct && current?.status !== "TRADING")}

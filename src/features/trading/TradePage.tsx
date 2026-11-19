@@ -41,7 +41,7 @@ import {
   pendingOrderChanged,
   readPendingCommand,
 } from "../../state/pendingOrders"
-import { useSession } from "../../state/session"
+import { currentAccountUserId, useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import {
   FundingCountdown,
@@ -160,10 +160,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     positionSide: "NET",
   })
   const [pendingCommand, setPendingCommand] = useState<PendingOrderCommand | null>(() =>
-    readPendingCommand(String(session?.user.userId ?? "")),
+    readPendingCommand(String(currentAccountUserId(session) ?? "")),
   )
   useEffect(() => {
-    const update = () => setPendingCommand(readPendingCommand(String(session?.user.userId ?? "")))
+    const update = () => setPendingCommand(readPendingCommand(String(currentAccountUserId(session) ?? "")))
     update()
     window.addEventListener("storage", update)
     window.addEventListener(pendingOrderChanged, update)
@@ -171,9 +171,9 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
       window.removeEventListener("storage", update)
       window.removeEventListener(pendingOrderChanged, update)
     }
-  }, [session?.user.userId])
+  }, [currentAccountUserId(session)])
   const pendingForUser =
-    pendingCommand !== null && pendingCommand.userId === String(session?.user.userId ?? "")
+    pendingCommand !== null && pendingCommand.userId === String(currentAccountUserId(session) ?? "")
   const [notice, setNotice] = useState<{ id: number; message: string; error: boolean } | null>(null)
   const notify = useCallback((message: string, error = false) => {
     setNotice((previous) => (message ? { id: (previous?.id ?? 0) + 1, message, error } : null))
@@ -223,10 +223,10 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           price,
           instrumentId: current.instrumentId,
           productLine: view.line,
-          userId: String(session?.user.userId ?? ""),
+          userId: String(currentAccountUserId(session) ?? ""),
         })
     },
-    [current?.instrumentId, view.line, session?.user.userId],
+    [current?.instrumentId, view.line, currentAccountUserId(session)],
   )
   const realtime = useRealtime(
     session,
@@ -348,7 +348,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setPositions([])
     setOpenOrders([])
     setTriggerOrders([])
-  }, [session?.user.userId, view.line])
+  }, [currentAccountUserId(session), view.line])
 
   useEffect(() => {
     const account = privateAccount
@@ -562,7 +562,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     setFundingPaymentsError("")
     if (!current || !session || accountTab !== "fundingPayments" || !fundingProduct) return
     let cancelled = false
-    void loadFundingPayments(session.user.userId, current.instrumentId, view.line)
+    void loadFundingPayments(currentAccountUserId(session), current.instrumentId, view.line)
       .then((rows) => {
         if (!cancelled) setFundingPayments(rows)
       })
@@ -574,7 +574,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     return () => {
       cancelled = true
     }
-  }, [accountTab, current?.instrumentId, session?.user.userId, view.line, fundingProduct])
+  }, [accountTab, current?.instrumentId, currentAccountUserId(session), view.line, fundingProduct])
 
   return (
     <div className="trade-page">
@@ -958,7 +958,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               {accountTab === "settings" ? (
                 <TradingAccountControls
                   marginMode={orderSettings.marginMode}
-                  userId={session?.user.userId}
+                  userId={currentAccountUserId(session)}
                   instrumentId={current?.instrumentId ?? ""}
                   symbol={current?.symbol ?? ""}
                   productLine={view.line}
@@ -997,7 +997,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     events={realtime.events}
                     loggedIn={!!session}
                     commandPending={pendingForUser}
-                    userId={session?.user.userId}
+                    userId={currentAccountUserId(session)}
                     onNotice={(message, failed) => {
                       notify(message, failed)
                     }}
@@ -1010,7 +1010,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                     rows={triggerOrders}
                     pending={pendingForUser}
                     productLine={view.line}
-                    userId={session?.user.userId}
+                    userId={currentAccountUserId(session)}
                     market={current}
                     assetScales={assetScales}
                     onDone={(value) => {
@@ -1069,7 +1069,7 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
           </div>
           {ticketMode === "standard" ? (
             <TradingOrderTicket
-              key={`${view.line}:${current?.instrumentId ?? ""}:${session?.user.userId ?? "guest"}`}
+              key={`${view.line}:${current?.instrumentId ?? ""}:${currentAccountUserId(session) ?? "guest"}`}
               current={current}
               productLine={view.line}
               session={session}

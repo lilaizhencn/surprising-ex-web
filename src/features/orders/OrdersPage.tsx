@@ -26,7 +26,7 @@ import {
   pendingOrderChanged,
   readPendingCommand,
 } from "../../state/pendingOrders"
-import { loadSession, useSession } from "../../state/session"
+import { currentAccountUserId, loadSession, useSession } from "../../state/session"
 import { type Market, PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import {
   fillProgress,
@@ -54,11 +54,11 @@ import { TradeFillTable } from "./TradeFillTable"
 export function OrdersPage() {
   const session = useSession()
   const [pending, setPending] = useState(() =>
-    readPendingCommand(String(session?.user.userId ?? "")),
+    readPendingCommand(String(currentAccountUserId(session) ?? "")),
   )
   const [checking, setChecking] = useState(false)
   useEffect(() => {
-    const update = () => setPending(readPendingCommand(String(session?.user.userId ?? "")))
+    const update = () => setPending(readPendingCommand(String(currentAccountUserId(session) ?? "")))
     update()
     window.addEventListener("storage", update)
     window.addEventListener(pendingOrderChanged, update)
@@ -66,8 +66,8 @@ export function OrdersPage() {
       window.removeEventListener("storage", update)
       window.removeEventListener(pendingOrderChanged, update)
     }
-  }, [session?.user.userId])
-  const commandPending = pending !== null && pending.userId === String(session?.user.userId ?? "")
+  }, [currentAccountUserId(session)])
+  const commandPending = pending !== null && pending.userId === String(currentAccountUserId(session) ?? "")
   const [tab, setTab] = useState<Tab>("open")
   const [productLine, setProductLine] = useState<ProductLine>(PRODUCT_LINES.spot)
   const [instrumentId, setInstrumentId] = useState("")
@@ -88,7 +88,7 @@ export function OrdersPage() {
   }>({ scope: "", rows: [], nextCursor: null })
   const requestVersion = useRef(0)
   const queryScope = JSON.stringify([
-    session?.user.userId,
+    currentAccountUserId(session),
     session?.sessionKey,
     productLine,
     tab,
@@ -119,7 +119,7 @@ export function OrdersPage() {
     if (!more) setRecords({ scope: queryScope, rows: [], nextCursor: null })
     const task =
       tab === "fills"
-        ? loadMyTrades(session.user.userId, instrumentId, productLine, {
+        ? loadMyTrades(currentAccountUserId(session), instrumentId, productLine, {
             startTime: dateValue(from),
             endTime: dateValue(to, true),
             cursor: more ? (records.nextCursor ?? undefined) : undefined,
@@ -146,7 +146,7 @@ export function OrdersPage() {
                 : tab === "transfers"
                   ? loadTransferHistory(productLine, assetFilter)
                   : tab === "algo"
-                    ? loadOpenAlgoOrders(session.user.userId, instrumentId, productLine)
+                    ? loadOpenAlgoOrders(currentAccountUserId(session), instrumentId, productLine)
                     : Promise.resolve([])
             ).then((rows) => ({ rows: rows as readonly RecordRow[], nextCursor: null }))
     void task
@@ -346,7 +346,7 @@ export function OrdersPage() {
               setChecking(true)
               const task = original.cancelPlan
                 ? continueCancellationPlan(original).then((result) => {
-                    if (String(loadSession()?.user.userId ?? "") === original.userId) {
+                    if (String(currentAccountUserId(loadSession()) ?? "") === original.userId) {
                       setActionMessage(result.message)
                       realtime.refresh()
                     }
@@ -356,7 +356,7 @@ export function OrdersPage() {
               void task
                 .then((result) => {
                   if (result === "handled") return
-                  if (String(loadSession()?.user.userId ?? "") !== original.userId) return
+                  if (String(currentAccountUserId(loadSession()) ?? "") !== original.userId) return
                   if (result === "pending") return
                   clearPendingCommand(original)
                   setActionMessage(
@@ -377,7 +377,7 @@ export function OrdersPage() {
                   realtime.refresh()
                 })
                 .catch((reason: unknown) => {
-                  if (String(loadSession()?.user.userId ?? "") === original.userId)
+                  if (String(currentAccountUserId(loadSession()) ?? "") === original.userId)
                     setActionMessage(readError(reason))
                 })
                 .finally(() => setChecking(false))
@@ -413,7 +413,7 @@ export function OrdersPage() {
                 () =>
                   cancelAllAfter(
                     {
-                      userId: session.user.userId,
+                      userId: currentAccountUserId(session),
                       instrumentId: instrumentId || null,
                       countdownMs,
                     },
@@ -435,7 +435,7 @@ export function OrdersPage() {
             void runBulkAction(
               () =>
                 cancelOpenAlgoOrders(
-                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
+                  { userId: currentAccountUserId(session), instrumentId: instrumentId || null, limit: 1000 },
                   productLine,
                 ),
               t("Algo order batch cancellation requested."),
@@ -453,7 +453,7 @@ export function OrdersPage() {
             void runBulkAction(
               () =>
                 cancelOpenTriggerOrders(
-                  { userId: session.user.userId, instrumentId: instrumentId || null, limit: 1000 },
+                  { userId: currentAccountUserId(session), instrumentId: instrumentId || null, limit: 1000 },
                   productLine,
                 ),
               t("Trigger order batch cancellation requested."),

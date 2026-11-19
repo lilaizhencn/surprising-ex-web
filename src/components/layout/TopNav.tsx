@@ -1,4 +1,4 @@
-import { ChevronDown, CircleUserRound, Megaphone, Menu } from "lucide-react"
+import { ChevronDown, Megaphone, Menu } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { loadAnnouncements } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
@@ -6,6 +6,7 @@ import { navigateInApplication } from "../../hooks/useBrowserNavigation"
 import { t, useLocale } from "../../i18n"
 import { contentLocale } from "../../i18n/locales"
 import { IconButton } from "../ui/Primitives"
+import { AccountMenu } from "./AccountMenu"
 import { AeternMark } from "./AeternMark"
 import { LanguagePicker } from "./LanguagePicker"
 import { MobileNavigation } from "./MobileNavigation"
@@ -89,25 +90,7 @@ export function TopNav({
         </nav>
         <div className="nav-actions">
           {session ? (
-            <>
-              <a
-                className={
-                  session.user.displayName ? "nav-account nav-account-named" : "nav-account"
-                }
-                href="/assets"
-                aria-label={t("Overview")}
-              >
-                <CircleUserRound size={20} />
-                {session.user.displayName ? (
-                  <span className="nav-display-name" title={session.user.displayName}>
-                    {session.user.displayName}
-                  </span>
-                ) : null}
-              </a>
-              <button type="button" className="nav-logout" onClick={onLogout}>
-                {t("Sign out")}
-              </button>
-            </>
+            <AccountMenu session={session} pathname={pathname} onLogout={onLogout} />
           ) : (
             <div className="nav-auth-buttons">
               <a className="nav-login-link" href="/auth/login">

@@ -3,7 +3,7 @@ import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { Button } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { readPendingCommand } from "../../state/pendingOrders"
-import { loadSession } from "../../state/session"
+import { currentAccountUserId, loadSession } from "../../state/session"
 import type { ProductLine } from "../../types/domain"
 import { type RecordRow, readError, text } from "./ordersShared"
 
@@ -44,7 +44,7 @@ export function TriggerTable({
                   tone="negative"
                   disabled={
                     !session ||
-                    readPendingCommand(String(session.user.userId)) !== null ||
+                    readPendingCommand(String(currentAccountUserId(session))) !== null ||
                     text(row, "status") !== "PENDING"
                   }
                   onClick={() => {
@@ -56,7 +56,7 @@ export function TriggerTable({
                     }).then((ok) => {
                       if (!ok) return
                       void cancelTriggerOrder(
-                        session.user.userId,
+                        currentAccountUserId(session),
                         text(row, "triggerOrderId"),
                         productLine,
                         text(row, "instrumentId"),

@@ -8,7 +8,7 @@ import {
   tracksSingleOrderIntent,
   tracksTriggerIntent,
 } from "../state/pendingOrders"
-import { loadSession } from "../state/session"
+import { currentAccountUserId, loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
 import { cancelSpotBatchOrders, cancelSpotOpenOrders } from "./cancellation"
 import { ApiError, request } from "./client"
@@ -782,7 +782,7 @@ export async function loadOrderHistory(
   const session = loadSession()
   if (!session) throw new Error(t("Sign in required."))
   const query = new URLSearchParams({
-    userId: String(session.user.userId),
+    userId: String(currentAccountUserId(session)),
     limit: "100",
   })
   if (instrumentId.trim()) query.set("instrumentId", instrumentId.trim())
@@ -799,7 +799,7 @@ export async function loadOrderHistory(
     (response.hasMore && response.nextCursor === cursor) ||
     response.orders.some(
       (row) =>
-        String(row.userId) !== String(session.user.userId) ||
+        String(row.userId) !== String(currentAccountUserId(session)) ||
         (instrumentId.trim() && row.instrumentId !== instrumentId.trim()) ||
         (status && row.status !== status),
     )
@@ -847,7 +847,7 @@ export async function cancelOrder(_symbol: string, orderId: string, productLine:
   if (!session) throw new Error(t("Please sign in before canceling orders."))
   if (!/^[1-9]\d*$/.test(orderId)) throw new Error("Invalid order ID")
   const pendingMessage = t("Cancellation result is pending. Do not send it again.")
-  const userId = String(session.user.userId)
+  const userId = String(currentAccountUserId(session))
   const intent: PendingOrderCommand | null = tracksSingleOrderIntent(productLine)
     ? { userId, productLine, cancelOrderId: orderId }
     : null
@@ -866,7 +866,7 @@ export async function cancelOrder(_symbol: string, orderId: string, productLine:
       productLine,
       expectedUserId: userId,
       idempotencyKey: `cancel-${orderId}`,
-      body: { userId: session.user.userId, orderId },
+      body: { userId: currentAccountUserId(session), orderId },
     })
     if (["MATCHING_PENDING", "RESULT_UNKNOWN"].includes(String(response["outcome"]))) {
       if (intent && typeof response["commandId"] === "string" && response["commandId"])

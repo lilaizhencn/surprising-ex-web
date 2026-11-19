@@ -1,0 +1,25 @@
+.sub-account-manage {
+  display: grid;
+  gap: var(--space-2);
+}
+.sub-account-manage-error {
+  margin: 0;
+  font-size: var(--font-label);
+  color: var(--color-negative, #ef4444);
+}
+.sub-account-assets-empty {
+  margin: 0;
+  font-size: var(--font-label);
+  color: var(--color-ink-muted);
+}
+.sub-account-assets {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-label);
+}
+.sub-account-assets th,
+.sub-account-assets td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-soft);
+}

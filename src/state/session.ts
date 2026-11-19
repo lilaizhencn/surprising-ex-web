@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react"
-import type { AuthSession, AuthSessionPayload } from "../api/types"
+import type { AuthSession, AuthSessionPayload, OperatingAccount } from "../api/types"
 import { storageKeys } from "../lib/config"
 import { readStoredValue, writeStoredValue } from "../lib/storage"
 
@@ -75,4 +75,36 @@ export function saveSession(
 
 export function useSession(): AuthSession | null {
   return useSyncExternalStore(subscribeSession, loadSession, () => null)
+}
+
+/** 登录主体（主账号）用户 ID。安全、KYC、通知和会话校验用这个，不随切换改变。 */
+export function loginUserId(
+  session: AuthSession | null | undefined,
+): AuthSession["user"]["userId"] | undefined {
+  return session?.user.userId
+}
+
+/** 当前查看和交易的账户；未切换时等于主账号。 */
+export function currentAccountUserId(session: AuthSession): AuthSession["user"]["userId"]
+export function currentAccountUserId(
+  session: AuthSession | null | undefined,
+): AuthSession["user"]["userId"] | undefined
+export function currentAccountUserId(
+  session: AuthSession | null | undefined,
+): AuthSession["user"]["userId"] | undefined {
+  const operating = session?.operatingAccount
+  if (operating?.userId != null && String(operating.userId) !== "") return operating.userId
+  return loginUserId(session)
+}
+
+export function isParentOperatingAccount(session: AuthSession | null | undefined): boolean {
+  const operating = session?.operatingAccount
+  if (!operating) return true
+  return operating.parent || String(operating.userId) === String(session?.user.userId)
+}
+
+export function currentOperatingAccount(
+  session: AuthSession | null | undefined,
+): OperatingAccount | null {
+  return session?.operatingAccount ?? null
 }

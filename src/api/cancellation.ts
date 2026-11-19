@@ -6,7 +6,7 @@ import {
   readPendingCommand,
   savePendingCommand,
 } from "../state/pendingOrders"
-import { loadSession } from "../state/session"
+import { currentAccountUserId, loadSession } from "../state/session"
 import { ApiError, request } from "./client"
 import { isDefinitiveOrderRejection, PendingTradingCommand } from "./tradingCommand"
 import { GenericObjectSchema } from "./types"
@@ -23,7 +23,7 @@ const pendingMessage = () =>
 const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[1-9]\d*$/.test(value) && BigInt(value) <= 9223372036854775807n
 function requireUser(userId: string) {
-  if (String(loadSession()?.user.userId ?? "") !== userId)
+  if (String(currentAccountUserId(loadSession()) ?? "") !== userId)
     throw new Error(t("Sign in to the original account to continue cancellation."))
 }
 async function withLock<T>(userId: string, operation: () => Promise<T>): Promise<T> {
@@ -316,7 +316,7 @@ export async function cancelSpotBatchOrders(
 ): Promise<CancellationSummary> {
   const session = loadSession()
   if (!session) throw new Error(t("Sign in required."))
-  const userId = String(session.user.userId),
+  const userId = String(currentAccountUserId(session)),
     orders = body["orders"]
   if (
     !Array.isArray(orders) ||

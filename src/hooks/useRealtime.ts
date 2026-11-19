@@ -18,7 +18,7 @@ import {
   acquireRealtimeConnections,
   type RealtimeConnectionHandle,
 } from "../sharedRealtimeConnections"
-import { useSessionRefreshIssue } from "../state/session"
+import { currentAccountUserId, useSessionRefreshIssue } from "../state/session"
 import type { ProductLine } from "../types/domain"
 
 export type RealtimeState = "offline" | "connecting" | "live" | "degraded"
@@ -86,7 +86,7 @@ export function useRealtimeFeed(
   const depthViewSerial = useRef(0)
   const refreshIssue = useSessionRefreshIssue()
   const sessionKey = refreshIssue ? null : (session?.sessionKey ?? null)
-  const userId = session ? String(session.user.userId) : null
+  const userId = session ? String(currentAccountUserId(session)) : null
   const identity = `${userId ?? ""}:${sessionKey ?? ""}`
   const [owner, setOwner] = useState(identity)
   useEffect(() => {

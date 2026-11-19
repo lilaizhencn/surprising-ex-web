@@ -4,6 +4,7 @@ import { t } from "../i18n"
 import { config } from "../lib/config"
 import { clearLegalReview, legalAcceptanceHeader } from "../state/legalAcceptance"
 import {
+  currentAccountUserId,
   hasStoredSession,
   loadSession,
   saveSession,
@@ -152,6 +153,16 @@ function browserDeviceId(): string {
   }
 }
 
+function acceptsExpectedUser(
+  session: AuthSession | null,
+  expectedUserId: string | undefined,
+): boolean {
+  if (expectedUserId === undefined) return true
+  const login = String(session?.user.userId ?? "")
+  const operating = String(currentAccountUserId(session) ?? "")
+  return expectedUserId === login || expectedUserId === operating
+}
+
 export async function request<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -174,10 +185,7 @@ export async function request<T>(
     String(session?.user.userId) !== String(startingUserId)
   )
     throw new ApiError(t("Session changed. No order was sent."), 401, null, false)
-  if (
-    options.expectedUserId !== undefined &&
-    String(session?.user.userId ?? "") !== options.expectedUserId
-  )
+  if (!acceptsExpectedUser(session, options.expectedUserId))
     throw new ApiError(t("Session changed. No order was sent."), 401, null, false)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
@@ -254,10 +262,7 @@ export async function requestBlob(
     String(session?.user.userId) !== String(startingUserId)
   )
     throw new ApiError(t("Session changed. No request was sent."), 401, null, false)
-  if (
-    options.expectedUserId !== undefined &&
-    String(session?.user.userId ?? "") !== options.expectedUserId
-  )
+  if (!acceptsExpectedUser(session, options.expectedUserId))
     throw new ApiError(t("Session changed. No request was sent."), 401, null, false)
   const headers = new Headers(options.headers)
   headers.set("X-Device-Id", browserDeviceId())
@@ -335,9 +340,10 @@ function checkResponseOwner(
   session: AuthSession | null,
   expectedUserId: string | undefined,
 ): void {
-  const currentUserId = String(loadSession()?.user.userId ?? "")
+  const current = loadSession()
+  const currentUserId = String(current?.user.userId ?? "")
   if (
-    (expectedUserId !== undefined && currentUserId !== expectedUserId) ||
+    !acceptsExpectedUser(current, expectedUserId) ||
     (session && !credentialRequest(path) && currentUserId !== String(session.user.userId))
   )
     throw new ApiError(

@@ -17,7 +17,7 @@ import { DatePicker } from "../../components/ui/DatePicker"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { AssetIcon, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
-import { useSession } from "../../state/session"
+import { currentAccountUserId, useSession } from "../../state/session"
 import type { Market } from "../../types/domain"
 import { PRODUCT_LINES, type ProductLine } from "../../types/domain"
 import { OrderHistoryTable } from "../orders/OrderHistoryTable"
@@ -88,7 +88,7 @@ export function LedgerPage() {
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
   const queryScope = JSON.stringify([
-    session?.user.userId,
+    currentAccountUserId(session),
     session?.sessionKey,
     category,
     line,
@@ -159,7 +159,7 @@ export function LedgerPage() {
     if (category === "funding-payment") {
       if (!session) return { rows: [], nextCursor: null }
       const page = await loadFundingPaymentsPage(
-        session.user.userId,
+        currentAccountUserId(session),
         instrumentId.trim(),
         line,
         cursor,
@@ -167,7 +167,7 @@ export function LedgerPage() {
       return { rows: page.payments, nextCursor: page.nextCursor }
     }
     if (category === "trade" && session) {
-      const page = await loadMyTrades(session.user.userId, instrumentId, line, {
+      const page = await loadMyTrades(currentAccountUserId(session), instrumentId, line, {
         startTime: dateStart(from),
         endTime: dateEnd(to),
         cursor,

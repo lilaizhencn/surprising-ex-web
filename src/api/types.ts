@@ -91,6 +91,18 @@ export const UserSchema = z
   })
   .passthrough()
 
+export const OperatingAccountSchema = z
+  .object({
+    userId: UserIdSchema,
+    username: z.string().nullable().optional(),
+    displayName: z.string().nullable().optional(),
+    status: z.string().optional(),
+    subAccountStatus: z.string().nullable().optional(),
+    subAccountPermissions: z.string().nullable().optional(),
+    parent: z.boolean(),
+  })
+  .passthrough()
+
 /** 网关返回的登录结果。浏览器登录的令牌只放在 HttpOnly Cookie 里，响应体不带令牌。 */
 export const AuthSessionSchema = z
   .object({
@@ -98,6 +110,7 @@ export const AuthSessionSchema = z
     sessionExpiresAt: z.string().nullish(),
     requiresEmailVerification: z.boolean().optional(),
     user: UserSchema,
+    operatingAccount: OperatingAccountSchema.nullish(),
   })
   .passthrough()
 
@@ -849,6 +862,7 @@ export type ApiNotification = z.infer<typeof NotificationSchema>
 export type ApiAnnouncement = z.infer<typeof AnnouncementSchema>
 
 /** 网关返回的登录结果（不含页面内的 sessionKey）。 */
+export type OperatingAccount = z.infer<typeof OperatingAccountSchema>
 export type AuthSessionPayload = z.infer<typeof AuthSessionSchema>
 /** 当前页面里的登录状态；sessionKey 只在本页面内区分"哪一次登录"，不是网关令牌。 */
 export type AuthSession = AuthSessionPayload & { readonly sessionKey: string }

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { t } from "../i18n"
-import { loadSession } from "../state/session"
+import { currentAccountUserId, loadSession } from "../state/session"
 import type { ProductLine } from "../types/domain"
 import { request } from "./client"
 import type {
@@ -55,7 +55,8 @@ export async function loadBalances(
   const requestedAccountType =
     accountType ?? (productLine ? accountTypeForProductLine(productLine) : undefined)
   const query = new URLSearchParams()
-  if (session?.user.userId) query.set("userId", String(session.user.userId))
+  const owner = currentAccountUserId(session)
+  if (owner) query.set("userId", String(owner))
   if (requestedAccountType && requestedAccountType !== "FUNDING")
     query.set("accountType", requestedAccountType)
   const path = requestedAccountType === "FUNDING" ? "balances" : "product-balances"
@@ -86,7 +87,7 @@ export function createTransfer(
       "X-Security-TOTP-Code": totpCode,
     },
     body: {
-      userId: session.user.userId,
+      userId: currentAccountUserId(session),
       sourceAccountType,
       targetAccountType,
       asset,
