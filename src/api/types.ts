@@ -723,6 +723,7 @@ export const SecurityApiKeySchema = z.object({
   createdAt: z.iso.datetime({ offset: true }),
   lastUsedAt: z.iso.datetime({ offset: true }).nullable(),
   revokedAt: z.iso.datetime({ offset: true }).nullable(),
+  userId: z.union([z.number(), z.string()]).nullable().optional(),
 })
 export const SecurityApiKeyListSchema = z
   .array(SecurityApiKeySchema)

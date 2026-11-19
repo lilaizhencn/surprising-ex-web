@@ -50,6 +50,7 @@ import {
   text,
 } from "./ordersShared"
 import { TradeFillTable } from "./TradeFillTable"
+import "./TradeHistory.css"
 
 export function OrdersPage() {
   const session = useSession()

@@ -1,4 +1,4 @@
-import { Copy, Eye, EyeOff, KeyRound, RefreshCw } from "lucide-react"
+import { Copy, Eye, EyeOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ApiError } from "../../api/client"
 import {
@@ -6,11 +6,14 @@ import {
   issueSecurityChallenge,
   loadApiKeys,
   loadMfaStatus,
+  loadSubAccounts,
   revokeApiKey,
+  type SubAccountRecord,
   updateApiKey,
 } from "../../api/endpoints"
 import type { ApiSecurityKey } from "../../api/types"
 import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
+import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Badge, Button, Field, Panel, StateView } from "../../components/ui/Primitives"
 import { t } from "../../i18n"
 import { useSession } from "../../state/session"
@@ -38,6 +41,8 @@ export function DeveloperApiPage() {
 function AccountApiKeys() {
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [keys, setKeys] = useState<ApiSecurityKey[] | null>(null)
+  const [subAccounts, setSubAccounts] = useState<readonly SubAccountRecord[]>([])
+  const [selectedSubUserId, setSelectedSubUserId] = useState("")
   const [mfa, setMfa] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -74,18 +79,21 @@ function AccountApiKeys() {
     setMfa(null)
     setError("")
     setSecurityError("")
-    void Promise.allSettled([loadApiKeys(abort.signal), loadMfaStatus(abort.signal)]).then(
-      ([list, security]) => {
-        if (abort.signal.aborted) return
-        if (list.status === "fulfilled") {
-          setKeys(list.value)
-          setWriteBlocked(false)
-        } else setError(readError(list.reason))
-        if (security.status === "fulfilled") setMfa(security.value.enabled)
-        else setSecurityError(readError(security.reason))
-        setLoading(false)
-      },
-    )
+    void Promise.allSettled([
+      loadApiKeys(abort.signal),
+      loadMfaStatus(abort.signal),
+      loadSubAccounts(),
+    ]).then(([list, security, subs]) => {
+      if (abort.signal.aborted) return
+      if (list.status === "fulfilled") {
+        setKeys(list.value)
+        setWriteBlocked(false)
+      } else setError(readError(list.reason))
+      if (security.status === "fulfilled") setMfa(security.value.enabled)
+      else setSecurityError(readError(security.reason))
+      if (subs.status === "fulfilled") setSubAccounts(subs.value)
+      setLoading(false)
+    })
     return () => abort.abort()
   }, [reload])
   useEffect(() => {
@@ -102,6 +110,7 @@ function AccountApiKeys() {
   const begin = (next: Action) => {
     if (lock.current || created || writeBlocked || loading || mfa === null || !keys) return
     setAction(next)
+    setSelectedSubUserId("")
     setLabel(next.kind === "edit" ? next.key.label : "")
     setTrade(next.kind === "edit" && next.key.permissions.split(",").includes("TRADE"))
     setWithdraw(next.kind === "edit" && next.key.permissions.split(",").includes("WITHDRAW"))
@@ -169,6 +178,7 @@ function AccountApiKeys() {
           email.trim(),
           totp.trim(),
           signal,
+          selectedSubUserId ? Number(selectedSubUserId) : null,
         )
         if (signal.aborted) return
         setCreated(result)
@@ -233,13 +243,6 @@ function AccountApiKeys() {
     current = Math.min(page, pages - 1)
   return (
     <div className="account-content security-tools-page">
-      <div className="page-heading">
-        <div>
-          <h1>{t("Developer API")}</h1>
-          <p>{t("Create API keys, choose permissions, and manage IP allowlists.")}</p>
-        </div>
-        <KeyRound size={28} aria-hidden="true" />
-      </div>
       {notice ? (
         <p role="status" className="security-notice">
           {notice}
@@ -265,19 +268,11 @@ function AccountApiKeys() {
           </Button>
         </Panel>
       ) : null}
-      <div className="panel-heading">
+      <div className="panel-heading api-keys-heading">
         <h2>{t("API keys")}</h2>
         <div className="button-row">
           <Button
-            tone="outline"
-            loading={loading}
-            disabled={Boolean(busy)}
-            onClick={() => setReload((value) => value + 1)}
-          >
-            <RefreshCw size={15} aria-hidden="true" />
-            {t("Refresh")}
-          </Button>
-          <Button
+            className="api-create-btn"
             disabled={
               loading || mfa === null || !keys || writeBlocked || Boolean(created) || Boolean(busy)
             }
@@ -309,9 +304,19 @@ function AccountApiKeys() {
               <Panel className="api-key-card" key={key.apiKey}>
                 <div className="panel-heading">
                   <h3>{key.label}</h3>
-                  <Badge tone={key.status === "ACTIVE" ? "positive" : "neutral"}>
-                    {t(key.status === "ACTIVE" ? "Active" : "Revoked")}
-                  </Badge>
+                  <div className="button-row">
+                    {(() => {
+                      const sub = subAccounts.find(
+                        (s) => String(s.subUserId) === String(key.userId ?? ""),
+                      )
+                      return sub ? (
+                        <Badge tone="info">{`${t("Sub-Account")}: ${sub.subAccountName}`}</Badge>
+                      ) : null
+                    })()}
+                    <Badge tone={key.status === "ACTIVE" ? "positive" : "neutral"}>
+                      {t(key.status === "ACTIVE" ? "Active" : "Revoked")}
+                    </Badge>
+                  </div>
                 </div>
                 <span className="field-label">{t("API key")}</span>
                 <code className="api-key-identifier">{key.apiKey}</code>
@@ -424,6 +429,25 @@ function AccountApiKeys() {
             ) : null}
             {action.kind !== "revoke" ? (
               <>
+                {action.kind === "create" &&
+                subAccounts.some((s) => s.status === "ACTIVE") ? (
+                  <Field label={t("Account")}>
+                    <DropdownSelect
+                      aria-label={t("Account")}
+                      value={selectedSubUserId}
+                      onChange={(event) => setSelectedSubUserId(event.target.value)}
+                    >
+                      <option value="">{t("Master Account")}</option>
+                      {subAccounts
+                        .filter((s) => s.status === "ACTIVE")
+                        .map((s) => (
+                          <option key={s.subUserId} value={String(s.subUserId)}>
+                            {`${s.subAccountName} (UID ${s.subUserId})`}
+                          </option>
+                        ))}
+                    </DropdownSelect>
+                  </Field>
+                ) : null}
                 <Field label={t("Name")}>
                   <input
                     aria-label={t("Name")}

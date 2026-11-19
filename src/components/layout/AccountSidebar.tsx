@@ -55,14 +55,14 @@ export function AccountSidebar() {
           {assetsOpen ? (
             <div className="account-sidebar-children">
               {assetNavigation.map((item) => {
+                const itemUrl = new URL(item.href, window.location.origin)
+                const itemAccount = itemUrl.searchParams.get("account")
                 const active =
-                  item.href === "/assets/ledger"
-                    ? pathname === item.href
-                    : item.href === "/orders"
-                      ? pathname === item.href || pathname === "/assets/orders"
-                      : pathname === "/assets" &&
-                        account ===
-                          new URL(item.href, window.location.origin).searchParams.get("account")
+                  item.href === "/orders"
+                    ? pathname === item.href || pathname === "/assets/orders"
+                    : itemAccount
+                      ? pathname === "/assets" && account === itemAccount
+                      : pathname === itemUrl.pathname
                 return (
                   <a
                     className={`account-sidebar-child${active ? " active" : ""}`}

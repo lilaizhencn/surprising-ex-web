@@ -2,7 +2,6 @@ import {
   ArrowLeftRight,
   ClipboardList,
   MessageCircle,
-  RefreshCw,
   Store,
   Wallet,
 } from "lucide-react"
@@ -34,14 +33,14 @@ import {
   type Verification,
 } from "../../api/c2cTrading"
 import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { useSession } from "../../state/session"
 import { C2cAccountsTab } from "./C2cAccountsTab"
 import { C2cMarketPreview } from "./C2cMarketPreview"
 import { C2cMarketTab } from "./C2cMarketTab"
 import { C2cMerchantTab } from "./C2cMerchantTab"
 import { C2cOrderPanel } from "./C2cOrderPanel"
-import { C2cOrdersTab } from "./C2cOrdersTab"
+import { type C2cOrderScope, C2cOrdersTab } from "./C2cOrdersTab"
 import { C2cPage } from "./C2cPage"
 import "./c2c.css"
 
@@ -82,7 +81,7 @@ function C2cTradingHome({ owner }: { owner: string }) {
         setTab("messages")
       }
     } catch (failure) {
-      throw new Error("订单消息暂不可用，请稍后重试。", { cause: failure })
+      throw new Error(t("订单消息暂不可用，请稍后重试。"), { cause: failure })
     }
   }
   return (
@@ -107,7 +106,7 @@ function C2cTradingHome({ owner }: { owner: string }) {
             }}
           >
             <Icon size={17} aria-hidden="true" />
-            {title}
+            {t(title)}
           </button>
         ))}
       </nav>
@@ -118,6 +117,7 @@ function C2cTradingHome({ owner }: { owner: string }) {
           key={owner}
           owner={owner}
           tab={tab}
+          setTab={setTab}
           chat={chat}
           onBusyChange={changeBusy}
         />
@@ -128,11 +128,13 @@ function C2cTradingHome({ owner }: { owner: string }) {
 function TradingWorkspace({
   owner,
   tab,
+  setTab,
   chat,
   onBusyChange,
 }: {
   owner: string
   tab: Tab
+  setTab: (tab: Tab) => void
   chat: (orderId: string) => Promise<void>
   onBusyChange: (busy: boolean) => void
 }) {
@@ -149,6 +151,9 @@ function TradingWorkspace({
     [adMore, setAdMore] = useState(false)
   const [orderOffset, setOrderOffset] = useState(0),
     [orderMore, setOrderMore] = useState(false)
+  const [orderScope, setOrderScope] = useState<C2cOrderScope>("ONGOING")
+  const [unblockOpen, setUnblockOpen] = useState(false)
+  const [unblockReason, setUnblockReason] = useState("")
   const [available, setAvailable] = useState(false)
   const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof c2cMarkets>> | null>(null)
   const [accounts, setAccounts] = useState<Awaited<ReturnType<typeof c2cAccounts>>["items"]>([])
@@ -159,7 +164,8 @@ function TradingWorkspace({
     [orders, setOrders] = useState<C2cTradingOrder[]>([])
   const [marketId, setMarketId] = useState(""),
     [side, setSide] = useState<"BUY" | "SELL">("BUY")
-  const [amount, setAmount] = useState(""),
+  const [minAmount, setMinAmount] = useState(""),
+    [maxAmount, setMaxAmount] = useState(""),
     [method, setMethod] = useState("")
   const [revision, setRevision] = useState(0),
     [error, setError] = useState(""),
@@ -177,7 +183,7 @@ function TradingWorkspace({
     } catch {
       return {
         pending: null,
-        error: "本地原请求无法读取，请恢复存储后重新核对；确认前不能新建订单或广告。",
+        error: t("本地原请求无法读取，请恢复存储后重新核对；确认前不能新建订单或广告。"),
       }
     }
   })
@@ -234,7 +240,7 @@ function TradingWorkspace({
           c2cMe(owner, abort.signal),
           c2cBond(owner, abort.signal),
           c2cMyAds(owner, abort.signal),
-          c2cTradingOrders(owner, abort.signal, orderOffset),
+          c2cTradingOrders(owner, abort.signal, orderOffset, orderScope),
         ])
       })
       .then(async (values) => {
@@ -272,7 +278,7 @@ function TradingWorkspace({
               (row) => row.buyerUserId !== owner && row.sellerUserId !== owner,
             )
           )
-            throw Error("订单列表归属不匹配")
+            throw Error(t("订单列表归属不匹配"))
           setOrders(history.value.items)
           setOrderMore(history.value.hasMore)
         }
@@ -311,7 +317,7 @@ function TradingWorkspace({
       abort.abort()
       reading.current = false
     }
-  }, [owner, revision, orderOffset])
+  }, [owner, revision, orderOffset, orderScope])
   useEffect(() => {
     if (tab !== "market" || !marketId || !available) {
       setAds([])
@@ -328,7 +334,7 @@ function TradingWorkspace({
       side,
       limit: "20",
       offset: String(adOffset),
-      ...(amount ? { amount } : {}),
+      ...(minAmount && minAmount === maxAmount ? { amount: minAmount } : {}),
       ...(method ? { methodCode: method } : {}),
     })
     const timer = setTimeout(() => {
@@ -353,7 +359,7 @@ function TradingWorkspace({
                 row.market.marketId !== marketId || row.side !== (side === "BUY" ? "SELL" : "BUY"),
             )
           )
-            throw Error("广告响应与当前市场或方向不匹配，请重新查询")
+            throw Error(t("广告响应与当前市场或方向不匹配，请重新查询"))
           if (!abort.signal.aborted) {
             setAds(page.items)
             setAdMore(page.hasMore)
@@ -378,19 +384,7 @@ function TradingWorkspace({
       clearTimeout(timer)
       offersReading.current = false
     }
-  }, [owner, tab, marketId, side, amount, method, revision, available, adOffset])
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (
-        document.visibilityState === "visible" &&
-        !operation.current &&
-        !reading.current &&
-        !offersReading.current
-      )
-        refresh()
-    }, 4000)
-    return () => clearInterval(timer)
-  }, [refresh])
+  }, [owner, tab, marketId, side, minAmount, maxAmount, method, revision, available, adOffset])
   useEffect(() => {
     setError("")
     setNotice("")
@@ -411,7 +405,10 @@ function TradingWorkspace({
     )
     return () => clearTimeout(timer)
   }, [quoteDeadline])
-  const act = async (action: () => Promise<unknown>, success = "操作已提交，请刷新确认进度") => {
+  const act = async (
+    action: () => Promise<unknown>,
+    success = t("操作已提交，请刷新确认进度"),
+  ) => {
     if (operation.current) return
     operation.current = true
     onBusyChange(true)
@@ -443,12 +440,12 @@ function TradingWorkspace({
       clearTrade(owner)
       setPending(null)
       if (receipt.status === "REJECTED" && receipt.errorCode !== "REQUEST_STOPPED")
-        throw Error(receipt.message || "原请求未成交，请刷新后重新操作")
+        throw Error(receipt.message || t("原请求未成交，请刷新后重新操作"))
       if (original.kind === "ORDER_CREATE" && receipt.resultId) {
         if (live.current) {
-          setOrder(receipt.resultId)
           setSelected(null)
           setQuote(null)
+          void chat(receipt.resultId)
         }
       }
     }
@@ -467,7 +464,7 @@ function TradingWorkspace({
       kind === "ORDER_CREATE" &&
       (!quote?.valid || quoteDeadline === null || performance.now() >= quoteDeadline)
     )
-      throw Error("报价已失效，请重新获取报价后确认")
+      throw Error(t("报价已失效，请重新获取报价后确认"))
     if (kind === "ORDER_CREATE" && quote) {
       const current = await c2cRead(owner, `/quotes/${quote.quoteId}`, quoteSchema)
       if (
@@ -480,7 +477,7 @@ function TradingWorkspace({
         performance.now() >= (quoteDeadline ?? 0)
       ) {
         setQuote(null)
-        throw Error("报价或收款方式已变更，请重新获取报价")
+        throw Error(t("报价或收款方式已变更，请重新获取报价"))
       }
     }
     const original = await prepareTrade(owner, kind, input)
@@ -497,7 +494,7 @@ function TradingWorkspace({
       detail.market.marketId !== ad.market.marketId ||
       detail.side !== ad.side
     )
-      throw Error("广告详情归属不匹配，请重新选择")
+      throw Error(t("广告详情归属不匹配，请重新选择"))
     if (!live.current) return
     setSelected(detail)
     setQuote(null)
@@ -557,18 +554,18 @@ function TradingWorkspace({
       <button
         type="button"
         disabled={busy}
-        onClick={() => void act(() => challengeC2c(owner), "验证码已发送")}
+        onClick={() => void act(() => challengeC2c(owner), t("验证码已发送"))}
       >
         {t("获取资金验证码")}
       </button>
       {field(
-        "邮箱验证码",
+        t("邮箱验证码"),
         verification.emailCode,
         (emailCode) => setVerification({ ...verification, emailCode }),
         { autoComplete: "one-time-code", inputMode: "numeric" },
       )}
       {field(
-        "验证器验证码（已绑定时）",
+        t("验证器验证码（已绑定时）"),
         verification.totpCode,
         (totpCode) => setVerification({ ...verification, totpCode }),
         { inputMode: "numeric" },
@@ -577,32 +574,46 @@ function TradingWorkspace({
   )
   const title = (
     <>
-      <div className="c2c-trading-heading">
-        <div>
-          <h1 ref={pageHeading} tabIndex={-1}>
-            {t("C2C 交易")}
-          </h1>
-          <p>{t("核对交易对象、金额与收款资料，在订单内完成付款确认和售后沟通。")}</p>
+      {me?.blacklisted && (
+        <div className="c2c-reject-banner c2c-blacklist-banner" role="alert">
+          <div>
+            <strong>{t("C2C 下单已受限")}：</strong>
+            <span>
+              {me.blacklistReason ||
+                t("由于您累计超过一次 C2C 订单付款超时未确认，当前仅可查看，不可发起下单。")}
+            </span>
+            {me.unblockAppealStatus === "PENDING" && (
+              <span> {t("（解除申请审核中）")}</span>
+            )}
+            {me.unblockAppealStatus === "REJECTED" && me.unblockReviewNote && (
+              <span>
+                {" "}
+                {t("（上次申请未通过：")}
+                {me.unblockReviewNote}
+                {t("）")}
+              </span>
+            )}
+          </div>
+          {me.unblockAppealStatus !== "PENDING" && (
+            <button
+              type="button"
+              className="c2c-deposit-btn"
+              onClick={() => {
+                setUnblockReason("")
+                setUnblockOpen(true)
+              }}
+            >
+              {t("申请解除")}
+            </button>
+          )}
         </div>
-        <ArrowLeftRight size={28} aria-hidden="true" />
-      </div>
+      )}
       {error && (
         <p role="alert" className="c2c-error">
           {error}
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      <button
-        type="button"
-        disabled={busy || loading}
-        onClick={() => {
-          setError("")
-          refresh()
-        }}
-      >
-        <RefreshCw size={16} aria-hidden="true" />
-        {loading ? t("正在同步状态…") : t("刷新状态")}
-      </button>
       {loadError && (
         <p role="alert" className="c2c-error">
           {loadError}
@@ -621,7 +632,7 @@ function TradingWorkspace({
                 setPending(loadPendingTrade(owner))
                 setPendingError("")
               } catch {
-                setPendingError("本地原请求仍不可用，请先恢复存储后重试。")
+                setPendingError(t("本地原请求仍不可用，请先恢复存储后重试。"))
               }
             }}
           >
@@ -639,7 +650,7 @@ function TradingWorkspace({
           <button
             type="button"
             disabled={busy}
-            onClick={() => void act(() => confirmReceipt(pending), "已查询原请求")}
+            onClick={() => void act(() => confirmReceipt(pending), t("已查询原请求"))}
           >
             {t("查询原请求")}
           </button>
@@ -649,8 +660,10 @@ function TradingWorkspace({
             onClick={() => {
               if (operation.current) return
               void confirm({
-                title: "确认停止尚未开始的原请求？",
-                description: `请求：${pending.requestKey}\n该操作不会取消已经接收的交易。`,
+                title: t("确认停止尚未开始的原请求？"),
+                description: tf("请求：{p0}\n该操作不会取消已经接收的交易。", {
+                  p0: pending.requestKey,
+                }),
                 confirmLabel: t("停止未开始的请求"),
                 danger: true,
               }).then((ok) => {
@@ -661,7 +674,7 @@ function TradingWorkspace({
                     requestHash: pending.requestHash,
                   })
                   await confirmReceipt(pending)
-                }, "已查询并停止尚未开始的原请求")
+                }, t("已查询并停止尚未开始的原请求"))
               })
             }}
           >
@@ -686,14 +699,13 @@ function TradingWorkspace({
   if (runtime === false)
     return (
       <section>
-        <h1>{t("C2C 交易")}</h1>
         <p className="c2c-panel" role="status">
           {t("C2C 暂未开放")}
         </p>
       </section>
     )
   return (
-    <section className="c2c-trading-body">
+    <section className="c2c-trading-body" ref={pageHeading} tabIndex={-1}>
       {title}
       {!workspaceReady && (
         <div
@@ -738,8 +750,10 @@ function TradingWorkspace({
             setMarketId={setMarketId}
             catalog={catalog}
             market={market}
-            amount={amount}
-            setAmount={setAmount}
+            minAmount={minAmount}
+            setMinAmount={setMinAmount}
+            maxAmount={maxAmount}
+            setMaxAmount={setMaxAmount}
             method={method}
             setMethod={setMethod}
             adsLoading={adsLoading}
@@ -773,12 +787,16 @@ function TradingWorkspace({
             operation={operation}
             submit={submit}
             field={field}
+            me={me}
+            onGoAccounts={() => setTab("accounts")}
           />
         )}
         {workspaceReady && !order && tab === "orders" && (
           <C2cOrdersTab
             owner={owner}
             orders={orders}
+            orderScope={orderScope}
+            setOrderScope={setOrderScope}
             orderMore={orderMore}
             orderOffset={orderOffset}
             loading={loading}
@@ -832,10 +850,65 @@ function TradingWorkspace({
           />
         )}
       </fieldset>
+      {unblockOpen && (
+        <div
+          className="c2c-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("申请解除限制")}
+        >
+          <div className="c2c-panel c2c-modal">
+            <div className="c2c-modal-head">
+              <h2>{t("申请解除 C2C 下单限制")}</h2>
+              <button
+                type="button"
+                className="c2c-modal-close"
+                onClick={() => setUnblockOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <form
+              className="c2c-modal-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void act(async () => {
+                  await c2cWrite(owner, "/me/unblock-appeal", { reason: unblockReason.trim() })
+                  setUnblockOpen(false)
+                }, t("解除申请已提交，请等待管理员审核。"))
+              }}
+            >
+              <label className="c2c-modal-textarea">
+                <span>{t("说明与承诺")}</span>
+                <textarea
+                  value={unblockReason}
+                  onChange={(event) => setUnblockReason(event.target.value)}
+                  minLength={5}
+                  maxLength={1000}
+                  placeholder={t("请说明超时原因并承诺后续按时付款/确认（至少 5 字）")}
+                  required
+                />
+              </label>
+              <div className="c2c-modal-actions">
+                <button type="button" onClick={() => setUnblockOpen(false)}>
+                  {t("取消")}
+                </button>
+                <button
+                  type="submit"
+                  className="c2c-primary"
+                  disabled={busy || unblockReason.trim().length < 5}
+                >
+                  {t("提交申请")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {dialog}
     </section>
   )
 }
 function message(failure: unknown) {
-  return failure instanceof Error ? failure.message : "操作未完成，请查询后重试"
+  return failure instanceof Error ? failure.message : t("操作未完成，请查询后重试")
 }

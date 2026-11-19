@@ -19,6 +19,8 @@ body {
   color: var(--text-primary);
   font-family: var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 table,
 th,
@@ -635,18 +637,87 @@ button:disabled {
   gap: var(--space-1);
   margin-left: auto;
 }
+.nav-account-wrap {
+  position: relative;
+}
 .nav-account {
   display: inline-grid;
   width: 36px;
   height: 36px;
   place-items: center;
-  color: var(--color-ink-muted);
-}
-.nav-logout {
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+.nav-account:hover,
+.nav-account[aria-expanded="true"] {
   color: var(--color-primary);
+  background: var(--color-surface-active);
+}
+.nav-account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 220px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+.nav-account-header {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-border-soft);
+  margin-bottom: var(--space-1);
+}
+.nav-account-header strong {
   font-size: var(--font-body-small);
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-account-header small {
+  font-size: var(--font-label);
+  color: var(--color-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-account-menu a,
+.nav-account-signout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-ink-muted);
+  font: inherit;
+  font-size: var(--font-body-small);
+  text-align: left;
+  cursor: pointer;
+}
+.nav-account-menu a:hover,
+.nav-account-menu a[aria-current="page"] {
+  background: var(--color-surface-active);
+  color: var(--color-primary);
+}
+.nav-account-divider {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-border-soft);
+}
+.nav-account-signout:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-negative, #ef4444);
 }
 .mobile-nav-toggle {
   display: none;
@@ -1039,7 +1110,86 @@ button:disabled {
   margin: var(--space-5) 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  line-height: 1.75;
+}
+.announcement-body.article-rich {
+  white-space: normal;
+}
+.announcement-body.article-rich > :first-child {
+  margin-top: 0;
+}
+.announcement-body.article-rich > :last-child {
+  margin-bottom: 0;
+}
+.announcement-body.article-rich p {
+  margin: 0 0 1em;
+  line-height: 1.75;
+}
+.announcement-body.article-rich h1,
+.announcement-body.article-rich h2,
+.announcement-body.article-rich h3,
+.announcement-body.article-rich h4 {
+  margin: 1.5em 0 0.6em;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.announcement-body.article-rich h2 {
+  font-size: 18px;
+}
+.announcement-body.article-rich h3,
+.announcement-body.article-rich h4 {
+  font-size: 15px;
+}
+.announcement-body.article-rich ul,
+.announcement-body.article-rich ol {
+  margin: 0 0 1em;
+  padding-inline-start: 1.4em;
+  display: grid;
+  gap: 0.45em;
+}
+.announcement-body.article-rich li {
   line-height: 1.7;
+}
+.announcement-body.article-rich li > p {
+  margin: 0;
+}
+.announcement-body.article-rich blockquote {
+  margin: 1.25em 0;
+  padding: 0.75em 1em;
+  border-inline-start: 3px solid var(--color-primary);
+  background: rgba(56, 189, 248, 0.06);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--color-ink-muted);
+}
+.announcement-body.article-rich hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5em 0;
+}
+.announcement-body.article-rich a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.announcement-body.article-rich pre {
+  margin: 1.25em 0;
+  padding: 1em;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+.announcement-body.article-rich table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25em 0;
+}
+.announcement-body.article-rich th,
+.announcement-body.article-rich td {
+  padding: 0.6em 0.8em;
+  border: 1px solid var(--color-border);
+  text-align: left;
 }
 .announcement-banner {
   display: flex;
@@ -1716,9 +1866,42 @@ button:disabled {
 }
 .ledger-filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   align-items: end;
   gap: var(--space-4);
+}
+.ledger-filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-soft);
+}
+.ledger-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dropdown-select-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.dropdown-select-search:focus {
+  border-color: var(--color-primary);
 }
 .ledger-load-more {
   display: flex;
@@ -2644,6 +2827,15 @@ button:disabled {
 .ticket-sign-in:active {
   transform: scale(0.98);
 }
+.ticket-order-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.ticket-order-actions > .button {
+  width: 100%;
+  min-width: 0;
+}
 .ticket-login {
   display: block;
   text-align: center;
@@ -2704,12 +2896,14 @@ button:disabled {
   border-radius: var(--radius-sm);
 }
 .order-type-tabs button {
-  height: 30px;
+  height: 32px;
+  padding: 0 var(--space-2);
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1;
   color: var(--color-ink-muted);
   display: inline-flex;
   align-items: center;
@@ -3295,6 +3489,21 @@ button:disabled {
   display: grid;
   gap: var(--space-5);
 }
+.auth-card .form-message[role="alert"] {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: max-content;
+  max-width: min(92vw, 480px);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--color-negative) 45%, transparent);
+  box-shadow: var(--shadow-popover);
+}
 .password-input {
   display: flex;
   align-items: center;
@@ -3643,7 +3852,13 @@ button:disabled {
   height: 48px;
 }
 .trade-market-side > .trade-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 var(--space-2);
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.2;
 }
 .trade-side-panel,
 .trade-market-side > .order-book-panel {
@@ -3908,7 +4123,7 @@ button:disabled {
   text-overflow: ellipsis;
   font-size: 12px;
 }
-@media (max-width: 1200px) {
+@media (max-width: 960px) {
   .trade-shell {
     grid-template-columns: 250px minmax(0, 1fr);
   }
@@ -3964,7 +4179,7 @@ button:disabled {
 }
 
 /* Trading ticker spans the chart and depth column, leaving a taller chart below. */
-@media (min-width: 1201px) {
+@media (min-width: 961px) {
   .trade-market-header {
     grid-column: 2 / 4;
     grid-row: 1;
@@ -4045,7 +4260,7 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-@media (max-width: 1200px) and (min-width: 769px) {
+@media (max-width: 960px) and (min-width: 769px) {
   .trade-market-header {
     grid-column: 2;
     grid-row: 1;
@@ -4150,11 +4365,16 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
-@media (min-width: 1201px) {
+@media (min-width: 961px) and (max-width: 1200px) {
+  .trade-shell {
+    grid-template-columns: 256px minmax(0, 1fr) 300px;
+  }
+}
+@media (min-width: 961px) {
   .trade-shell {
     align-items: stretch;
     grid-template-rows: var(--trade-heading-height) max(
-        932px,
+        640px,
         calc(100vh - var(--top-nav-height) - var(--trade-heading-height))
       );
   }

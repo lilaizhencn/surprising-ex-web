@@ -311,7 +311,6 @@ export function LedgerPage() {
       <div className="page-heading">
         <div>
           <h1>{t("Ledger")}</h1>
-          <p>{t("Search account movements by product line, type, and time.")}</p>
         </div>
       </div>
       <Panel>
@@ -483,35 +482,37 @@ export function LedgerPage() {
               max={todayDate()}
             />
           </Field>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            {[
-              { label: "24H", days: 1 },
-              { label: "7D", days: 7 },
-              { label: "30D", days: 30 },
-              { label: t("All"), days: 0 },
-            ].map((preset) => (
-              <Button
-                key={preset.label}
-                tone="ghost"
-                onClick={() => {
-                  if (preset.days === 0) {
-                    setFrom("")
-                    setTo("")
-                    return
-                  }
-                  const end = new Date()
-                  const start = new Date(end.getTime() - preset.days * 86_400_000)
-                  setFrom(start.toISOString().slice(0, 10))
-                  setTo(end.toISOString().slice(0, 10))
-                }}
-              >
-                {preset.label}
-              </Button>
-            ))}
+          <div className="ledger-filter-actions">
+            <div className="ledger-presets">
+              {[
+                { label: "24H", days: 1 },
+                { label: "7D", days: 7 },
+                { label: "30D", days: 30 },
+                { label: t("All"), days: 0 },
+              ].map((preset) => (
+                <Button
+                  key={preset.label}
+                  tone="outline"
+                  onClick={() => {
+                    if (preset.days === 0) {
+                      setFrom("")
+                      setTo("")
+                      return
+                    }
+                    const end = new Date()
+                    const start = new Date(end.getTime() - preset.days * 86_400_000)
+                    setFrom(start.toISOString().slice(0, 10))
+                    setTo(end.toISOString().slice(0, 10))
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+            <Button loading={loading} onClick={() => setRevision((value) => value + 1)}>
+              {t("Search")}
+            </Button>
           </div>
-          <Button loading={loading} onClick={() => setRevision((value) => value + 1)}>
-            {t("Search")}
-          </Button>
         </div>
       </Panel>
       {error ? (
@@ -629,16 +630,6 @@ export function LedgerPage() {
             </Panel>
           ))}
         </div>
-      ) : null}
-      {!loading && !error && visible.length === 0 ? (
-        <Panel>
-          <StateView
-            kind="empty"
-            message={t(
-              settlementCash ? "No settlement cash movements." : "No records match these filters.",
-            )}
-          />
-        </Panel>
       ) : null}
       {nextCursor ? (
         <div className="ledger-load-more">

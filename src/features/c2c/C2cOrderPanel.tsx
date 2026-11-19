@@ -10,7 +10,7 @@ import {
   type Verification,
 } from "../../api/c2cTrading"
 import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 
 export const c2cStatusText: Record<string, string> = {
@@ -39,6 +39,10 @@ export const c2cStatusText: Record<string, string> = {
   OPEN: "待处理",
   REVIEWING: "处理中",
   RESOLVED: "已裁决",
+}
+export function c2cStatusLabel(status?: string | null, fallback = "") {
+  const key = (status && c2cStatusText[status]) || fallback || status || ""
+  return key ? t(key) : ""
 }
 export function responseDeadline(expiresAt: string, serverTime: string, startedAt: number) {
   return startedAt + Math.max(0, Date.parse(expiresAt) - Date.parse(serverTime))
@@ -98,7 +102,7 @@ export function C2cOrderPanel({
           ![value.buyerUserId, value.sellerUserId].includes(owner) ||
           value.payment.fiat !== value.market.fiat
         )
-          throw Error("订单或收款资料归属不匹配，请重新读取")
+          throw Error(t("订单或收款资料归属不匹配，请重新读取"))
         if (abort.signal.aborted) return
         setOrder(value)
         setDeadline(
@@ -112,7 +116,7 @@ export function C2cOrderPanel({
           setOrder(null)
           setReveal(false)
           setReceived(false)
-          setError(failure instanceof Error ? failure.message : "订单暂不可用，请重新读取")
+          setError(failure instanceof Error ? failure.message : t("订单暂不可用，请重新读取"))
         }
       })
       .finally(() => {
@@ -145,23 +149,30 @@ export function C2cOrderPanel({
   const confirm = (action: "paid" | "release" | "cancel" | "appeal") => {
     if (!order || busy || loading || deciding.current) return
     if (action === "paid" && (deadline === null || performance.now() >= deadline)) {
-      setError("付款窗口已结束，请刷新订单并通过申诉或消息核对，勿继续转账。")
+      setError(t("付款窗口已结束，请刷新订单并通过申诉或消息核对，勿继续转账。"))
       return
     }
     if (action === "release" && !received) {
-      setError("请先核对本订单款项实际到账。")
+      setError(t("请先核对本订单款项实际到账。"))
       return
     }
     if (action === "appeal" && reason.trim().length < 5) return
     const text = {
-      paid: "确认已经实际完成付款并通知卖家",
-      release: "确认已核实实际到账并放币",
-      cancel: "取消尚未付款的订单",
-      appeal: "提交订单申诉",
+      paid: t("确认已经实际完成付款并通知卖家"),
+      release: t("确认已核实实际到账并放币"),
+      cancel: t("取消尚未付款的订单"),
+      appeal: t("提交订单申诉"),
     }[action]
     void askConfirm({
       title: text,
-      description: `订单：${order.orderId}\n金额：${c2cDecimal(order.fiatAmount)} ${order.market.fiat}\n数量：${order.quantity} ${order.market.asset}${reason.trim() ? "\n原因：" + reason.trim() : ""}`,
+      description: tf("订单：{p0}\n金额：{p1} {p2}\n数量：{p3} {p4}{p5}", {
+        p0: order.orderId,
+        p1: c2cDecimal(order.fiatAmount),
+        p2: order.market.fiat,
+        p3: order.quantity,
+        p4: order.market.asset,
+        p5: reason.trim() ? tf("\n原因：{p0}", { p0: reason.trim() }) : "",
+      }),
       confirmLabel: t("确认"),
       danger: action === "cancel" || action === "appeal",
     }).then((ok) => {
@@ -171,7 +182,7 @@ export function C2cOrderPanel({
           ? { proofId: null }
           : action === "release"
             ? { ...verification }
-            : { reason: reason.trim() || "买家取消未付款订单" }
+            : { reason: reason.trim() || t("买家取消未付款订单") }
       deciding.current = true
       void act(async () => {
         try {
@@ -182,7 +193,7 @@ export function C2cOrderPanel({
             ![result.buyerUserId, result.sellerUserId].includes(owner) ||
             result.payment.fiat !== result.market.fiat
           )
-            throw Error("操作响应归属不匹配，请重新读取原订单")
+            throw Error(t("操作响应归属不匹配，请重新读取原订单"))
           if (alive.current) {
             setOrder(result)
             setReason("")
@@ -193,14 +204,14 @@ export function C2cOrderPanel({
           if (alive.current) {
             setOrder(null)
             setReveal(false)
-            setError("操作结果需要重新核对，请读取原订单，不要重复提交。")
+            setError(t("操作结果需要重新核对，请读取原订单，不要重复提交。"))
             setReceived(false)
           }
           throw failure
         } finally {
           if (alive.current) setVerification({ emailCode: "", totpCode: "" })
         }
-      }, "订单操作已提交，请核对最新状态").finally(() => {
+      }, t("订单操作已提交，请核对最新状态")).finally(() => {
         deciding.current = false
       })
     })
@@ -215,7 +226,7 @@ export function C2cOrderPanel({
       <div className="c2c-panel-heading">
         <div>
           <h2 ref={heading} tabIndex={-1}>
-            {order ? c2cStatusText[order.status] : t("交易订单")}
+            {order ? c2cStatusLabel(order.status, order.status) : t("交易订单")}
           </h2>
           <code>{orderId}</code>
         </div>
@@ -237,8 +248,8 @@ export function C2cOrderPanel({
           type="button"
           onClick={() =>
             void navigator.clipboard.writeText(orderId).then(
-              () => setCopied("订单编号已复制"),
-              () => setCopied("复制失败，请手动选取订单编号"),
+              () => setCopied(t("订单编号已复制")),
+              () => setCopied(t("复制失败，请手动选取订单编号")),
             )
           }
         >
@@ -320,15 +331,17 @@ export function C2cOrderPanel({
           )}
           {ongoing && reveal && (
             <dl className="c2c-payment-details">
-              {[
-                ["收款姓名", order.payment.holderName],
-                ["收款账号", order.payment.accountNumber],
-                ["开户银行", order.payment.bankName || "—"],
-                ["收款方式", order.payment.methodCode],
-                ["法币", order.payment.fiat],
-              ].map(([title, value]) => (
+              {(
+                [
+                  ["收款姓名", order.payment.holderName],
+                  ["收款账号", order.payment.accountNumber],
+                  ["开户银行", order.payment.bankName || "—"],
+                  ["收款方式", order.payment.methodCode],
+                  ["法币", order.payment.fiat],
+                ] as const
+              ).map(([title, value]) => (
                 <div key={title}>
-                  <dt>{title}</dt>
+                  <dt>{t(title)}</dt>
                   <dd>{value}</dd>
                 </div>
               ))}
@@ -391,7 +404,7 @@ export function C2cOrderPanel({
               <div className="c2c-action-row">
                 <button
                   type="button"
-                  onClick={() => void act(() => challengeC2c(owner), "验证码已发送")}
+                  onClick={() => void act(() => challengeC2c(owner), t("验证码已发送"))}
                 >
                   {t("获取资金验证码")}
                 </button>
@@ -434,7 +447,7 @@ export function C2cOrderPanel({
               {order.appeals.slice(-20).map((row) => (
                 <article key={row.appealId}>
                   <p>
-                    <strong>{c2cStatusText[row.status]}</strong> ·{" "}
+                    <strong>{c2cStatusLabel(row.status, row.status)}</strong> ·{" "}
                     {new Date(row.createdAt).toLocaleString()}
                   </p>
                   <p>{row.reason}</p>
@@ -458,7 +471,7 @@ export function C2cOrderPanel({
       <button
         type="button"
         disabled={busy}
-        onClick={() => void act(() => chat(orderId), "订单会话已打开")}
+        onClick={() => void act(() => chat(orderId), t("订单会话已打开"))}
       >
         <MessageCircle size={16} aria-hidden="true" />
         {t("进入订单消息")}

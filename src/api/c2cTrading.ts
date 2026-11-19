@@ -57,7 +57,13 @@ export const adSchema = z.object({
   status: adStatusSchema,
   methodCodes: z.array(z.string()),
   merchant: z
-    .object({ nickname: z.string(), completedTotal: id.optional(), completed30d: id.optional() })
+    .object({
+      nickname: z.string(),
+      completedTotal: id.optional(),
+      completed30d: id.optional(),
+      premiumVerified: z.boolean().optional(),
+      freezeCompensation: z.boolean().optional(),
+    })
     .passthrough()
     .optional(),
   paymentOptions: z
@@ -243,11 +249,23 @@ export const c2cMe = (owner: string, signal?: AbortSignal) =>
     "/me",
     z.object({
       kycVerified: z.boolean(),
+      timeoutStrikes: z.number().optional(),
+      blacklisted: z.boolean().optional(),
+      blacklistReason: z.string().nullable().optional(),
+      unblockAppealStatus: z.string().nullable().optional(),
+      unblockAppealReason: z.string().nullable().optional(),
+      unblockReviewNote: z.string().nullable().optional(),
       merchant: z
         .object({
           status: z.enum(["PENDING", "APPROVED", "REJECTED", "SUSPENDED", "WITHDRAWN"]),
           revision: positiveId,
           reviewReason: z.string().nullable(),
+          application: z.string().optional(),
+          targetFiat: z.string().nullable().optional(),
+          targetAsset: z.string().nullable().optional(),
+          premiumVerified: z.boolean().optional(),
+          freezeCompensation: z.boolean().optional(),
+          bdContact: z.string().nullable().optional(),
         })
         .nullable(),
     }),
@@ -255,10 +273,15 @@ export const c2cMe = (owner: string, signal?: AbortSignal) =>
   )
 export const c2cBond = (owner: string, signal?: AbortSignal) =>
   c2cRead(owner, "/me/merchant-bond", bondSchema, signal)
-export const c2cTradingOrders = (owner: string, signal?: AbortSignal, offset = 0) =>
+export const c2cTradingOrders = (
+  owner: string,
+  signal?: AbortSignal,
+  offset = 0,
+  state: "ONGOING" | "ENDED" | "APPEALED" | "ALL" = "ALL",
+) =>
   c2cRead(
     owner,
-    `/orders?state=ALL&limit=30&offset=${offset}`,
+    `/orders?state=${state}&limit=30&offset=${offset}`,
     z
       .object({
         items: z

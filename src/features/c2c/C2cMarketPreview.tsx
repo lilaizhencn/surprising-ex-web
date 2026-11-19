@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { loadC2cStatus } from "../../api/c2c"
 import { type C2cAd, c2cDecimal, c2cPublicMarkets, c2cPublicOffers } from "../../api/c2cTrading"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 
 const login = "/auth/login?redirect=%2Fc2c"
 export function C2cMarketPreview() {
@@ -46,7 +46,9 @@ export function C2cMarketPreview() {
     })()
       .catch((failure) => {
         if (!abort.signal.aborted)
-          setError(failure instanceof Error ? failure.message : "C2C 市场暂不可用，请重试。")
+          setError(
+            failure instanceof Error ? failure.message : t("C2C 市场暂不可用，请重试。"),
+          )
       })
       .finally(() => {
         if (!abort.signal.aborted) setLoading(false)
@@ -70,7 +72,9 @@ export function C2cMarketPreview() {
         })
         .catch((failure) => {
           if (!abort.signal.aborted)
-            setOffersError(failure instanceof Error ? failure.message : "广告暂不可用，请重试。")
+            setOffersError(
+              failure instanceof Error ? failure.message : t("广告暂不可用，请重试。"),
+            )
         })
         .finally(() => {
           if (!abort.signal.aborted) setOffersLoading(false)
@@ -147,27 +151,31 @@ export function C2cMarketPreview() {
         ) : (
           <>
             <div className="c2c-form-row">
-              <button
-                type="button"
-                aria-pressed={side === "BUY"}
-                onClick={() => {
-                  setSide("BUY")
-                  resetOffers()
-                }}
-              >
-                {t("我要买")}
-              </button>
-              <button
-                type="button"
-                aria-pressed={side === "SELL"}
-                onClick={() => {
-                  setSide("SELL")
-                  resetOffers()
-                }}
-              >
-                {t("我要卖")}
-              </button>
-              <div className="c2c-select-field">
+              <div className="c2c-side-switch" role="group" aria-label={t("交易方向")}>
+                <button
+                  type="button"
+                  className="c2c-side-buy"
+                  aria-pressed={side === "BUY"}
+                  onClick={() => {
+                    setSide("BUY")
+                    resetOffers()
+                  }}
+                >
+                  {t("我要买")}
+                </button>
+                <button
+                  type="button"
+                  className="c2c-side-sell"
+                  aria-pressed={side === "SELL"}
+                  onClick={() => {
+                    setSide("SELL")
+                    resetOffers()
+                  }}
+                >
+                  {t("我要卖")}
+                </button>
+              </div>
+              <div className="c2c-select-field c2c-market-field">
                 <span>{t("交易市场")}</span>
                 <DropdownSelect
                   aria-label={t("交易市场")}
@@ -186,7 +194,7 @@ export function C2cMarketPreview() {
                   ))}
                 </DropdownSelect>
               </div>
-              <label>
+              <label className="c2c-amount-range-field">
                 {t("法币金额筛选")}
                 {market ? `（${market.fiat}）` : ""}
                 <input
@@ -200,7 +208,7 @@ export function C2cMarketPreview() {
                   }}
                 />
               </label>
-              <div className="c2c-select-field">
+              <div className="c2c-select-field c2c-method-field">
                 <span>{t("支付方式")}</span>
                 <DropdownSelect
                   aria-label={t("支付方式")}
@@ -215,7 +223,7 @@ export function C2cMarketPreview() {
                     .filter((row) => row.currencies.includes(market?.fiat ?? ""))
                     .map((row) => (
                       <option key={row.code} value={row.code}>
-                        {row.label}
+                        {t(row.label)}
                       </option>
                     ))}
                 </DropdownSelect>
@@ -237,14 +245,14 @@ export function C2cMarketPreview() {
                 </button>
               </div>
             ) : offers && offers.items.length === 0 ? (
-              <p className="c2c-panel" role="status">
+              <p className="c2c-panel c2c-offers-empty" role="status">
                 {t("暂无符合条件的广告")}
               </p>
             ) : null}
             <div className="c2c-offers">
               {offers?.items.map((ad) => (
                 <article key={ad.adId} className="c2c-panel c2c-offer-card">
-                  <h2>{ad.merchant?.nickname || `商家 ${ad.makerUserId}`}</h2>
+                  <h2>{ad.merchant?.nickname || tf("商家 {p0}", { p0: ad.makerUserId })}</h2>
                   <strong className="c2c-offer-price">
                     {c2cDecimal(ad.price)} {ad.market.fiat}
                   </strong>
@@ -260,7 +268,9 @@ export function C2cMarketPreview() {
                     {ad.methodCodes
                       .map(
                         (code) =>
+                        t(
                           catalog.paymentMethods.find((row) => row.code === code)?.label || code,
+                        ),
                       )
                       .join(" · ")}
                   </p>

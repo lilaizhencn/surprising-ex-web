@@ -1,4 +1,3 @@
-import { MonitorSmartphone, ShieldBan } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
   changeDeviceBlock,
@@ -231,13 +230,7 @@ function AccountDevices() {
       <div className="page-heading">
         <div>
           <h1>{t("Device management")}</h1>
-          <p>
-            {t(
-              "Review signed-in devices and login IPs. Revoking a device ends its active sessions.",
-            )}
-          </p>
         </div>
-        <MonitorSmartphone size={28} />
       </div>
       {notice ? (
         <p role="status" className="security-notice">
@@ -288,11 +281,6 @@ function AccountDevices() {
                         <td>
                           <div className="device-table-identity">
                             <div className="device-table-title">
-                              {row.device ? (
-                                <MonitorSmartphone size={16} aria-hidden="true" />
-                              ) : (
-                                <ShieldBan size={16} aria-hidden="true" />
-                              )}
                               <strong>
                                 {row.device
                                   ? describeDevice(row.device.userAgent)

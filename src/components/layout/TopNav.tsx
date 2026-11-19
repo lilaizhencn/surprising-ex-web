@@ -1,10 +1,9 @@
-import { ChevronDown, Megaphone, Menu } from "lucide-react"
+import { Bell, ChevronDown, Menu } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { loadAnnouncements } from "../../api/endpoints"
+import { loadNotifications } from "../../api/endpoints"
 import type { AuthSession } from "../../api/types"
 import { navigateInApplication } from "../../hooks/useBrowserNavigation"
-import { t, useLocale } from "../../i18n"
-import { contentLocale } from "../../i18n/locales"
+import { t } from "../../i18n"
 import { IconButton } from "../ui/Primitives"
 import { AccountMenu } from "./AccountMenu"
 import { AeternMark } from "./AeternMark"
@@ -23,15 +22,12 @@ export function TopNav({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadSnapshot, setUnreadSnapshot] = useState<{
     owner: string
-    locale: string
     count: number
   } | null>(null)
   const closeNavigation = useCallback(() => setMobileOpen(false), [])
   const pathname = window.location.pathname
-  const locale = useLocale()
   const owner = String(session?.user.userId ?? "guest")
-  const unreadAnnouncements =
-    unreadSnapshot?.owner === owner && unreadSnapshot.locale === locale ? unreadSnapshot.count : 0
+  const unreadNotifications = unreadSnapshot?.owner === owner ? unreadSnapshot.count : 0
   useEffect(() => setMobileOpen(false), [pathname])
   useEffect(() => {
     let request: AbortController | null = null
@@ -44,18 +40,10 @@ export function TopNav({
       if (document.visibilityState !== "visible") return
       const abort = new AbortController()
       request = abort
-      void loadAnnouncements(
-        {
-          locale: contentLocale(locale),
-          productLine: "ALL",
-          platform: "WEB",
-          placement: "CENTER",
-          limit: 1,
-        },
-        abort.signal,
-      ).then(
-        (result) => {
-          if (!abort.signal.aborted) setUnreadSnapshot({ owner, locale, count: result.unreadCount })
+      void loadNotifications(true, abort.signal).then(
+        (rows) => {
+          if (!abort.signal.aborted)
+            setUnreadSnapshot({ owner, count: rows.filter((row) => !row.readAt).length })
         },
         () => {
           if (!abort.signal.aborted) setUnreadSnapshot(null)
@@ -65,14 +53,14 @@ export function TopNav({
     refreshUnread()
     const timer = window.setInterval(refreshUnread, 60_000)
     window.addEventListener("focus", refreshUnread)
-    window.addEventListener("surprising-announcements-updated", refreshUnread)
+    window.addEventListener("surprising-notifications-updated", refreshUnread)
     return () => {
       request?.abort()
       window.clearInterval(timer)
       window.removeEventListener("focus", refreshUnread)
-      window.removeEventListener("surprising-announcements-updated", refreshUnread)
+      window.removeEventListener("surprising-notifications-updated", refreshUnread)
     }
-  }, [session, owner, locale])
+  }, [session, owner])
   return (
     <header className="top-nav">
       <a className="skip-link" href="#main-content">
@@ -111,9 +99,9 @@ export function TopNav({
             }}
           >
             <span className="announcement-nav-icon">
-              <Megaphone size={18} />
-              {unreadAnnouncements > 0 ? (
-                <span>{unreadAnnouncements > 99 ? "99+" : unreadAnnouncements}</span>
+              <Bell size={18} />
+              {unreadNotifications > 0 ? (
+                <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
               ) : null}
             </span>
           </IconButton>

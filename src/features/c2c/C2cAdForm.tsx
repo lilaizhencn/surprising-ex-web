@@ -86,14 +86,15 @@ export function AdForm({
             <option value="BUY">{t("商家购买")}</option>
           </DropdownSelect>
         </div>
-        {[
-          ["price", "单价"],
+        {(
+          [
+            ["price", "单价"],
           ["quantity", "总数量"],
           ["min", "单笔最低法币金额"],
           ["max", "单笔最高法币金额"],
-        ].map(([name, label]) => (
+        ] as const).map(([name, label]) => (
           <label key={name}>
-            {label}
+            {t(label)}
             <input name={name} inputMode="decimal" required />
           </label>
         ))}
@@ -125,7 +126,7 @@ export function AdForm({
             >
               {matchingMethods.map((method) => (
                 <option key={method.code} value={method.code}>
-                  {method.label}
+                  {t(method.label)}
                 </option>
               ))}
             </DropdownSelect>

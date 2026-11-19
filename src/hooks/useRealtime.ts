@@ -104,6 +104,7 @@ export function useRealtimeFeed(
   useEffect(() => {
     let closed = false
     let cancelPublish: (() => void) | undefined
+    let staleTimer: number | undefined
     let receivedAt: string | null = null
     const current: Partial<Record<ProductLine, PrivateView>> = {}
     let tape: WsEnvelope[] = []
@@ -172,9 +173,21 @@ export function useRealtimeFeed(
           if (accepted || previousStatus !== view.status) {
             privateDirty = true
             if (view.status === "STALE") {
-              setError(t("Account data is invalid. Waiting for a fresh snapshot."))
+              if (staleTimer === undefined) {
+                staleTimer = window.setTimeout(() => {
+                  staleTimer = undefined
+                  if (!closed && view.status === "STALE")
+                    setError(t("Account data is invalid. Waiting for a fresh snapshot."))
+                }, 1500)
+              }
               manager.refresh()
-            } else if (view.ready()) setError(null)
+            } else if (view.ready()) {
+              if (staleTimer !== undefined) {
+                window.clearTimeout(staleTimer)
+                staleTimer = undefined
+              }
+              setError(null)
+            }
             publish()
           }
         }
@@ -264,6 +277,7 @@ export function useRealtimeFeed(
     publish()
     return () => {
       closed = true
+      if (staleTimer !== undefined) window.clearTimeout(staleTimer)
       cancelPublish?.()
       manager.close()
     }

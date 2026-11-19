@@ -115,16 +115,81 @@
   margin-top: 14px;
 }
 
-.leverage-dialog input[type="range"] {
+.leverage-dialog input[type="range"].leverage-range {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   padding: 0;
   height: 24px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  accent-color: #00c6ff;
   cursor: pointer;
   touch-action: pan-y;
+}
+
+.leverage-dialog input[type="range"].leverage-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #00e5ff 0%,
+    #6366f1 calc(var(--slider-pct, 0%) * 0.55),
+    #ec4899 var(--slider-pct, 0%),
+    rgba(255, 255, 255, 0.14) var(--slider-pct, 0%),
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.leverage-dialog input[type="range"].leverage-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #00e5ff;
+  box-shadow:
+    0 0 12px rgba(0, 229, 255, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.leverage-dialog input[type="range"].leverage-range:hover::-webkit-slider-thumb,
+.leverage-dialog input[type="range"].leverage-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.12);
+  border-color: #ec4899;
+  box-shadow:
+    0 0 16px rgba(236, 72, 153, 0.7),
+    0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.leverage-dialog input[type="range"].leverage-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.leverage-dialog input[type="range"].leverage-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00e5ff 0%, #6366f1 55%, #ec4899 100%);
+}
+
+.leverage-dialog input[type="range"].leverage-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #00e5ff;
+  box-shadow:
+    0 0 12px rgba(0, 229, 255, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 .leverage-slider-limits {

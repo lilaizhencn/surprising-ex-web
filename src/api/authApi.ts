@@ -294,6 +294,7 @@ export function createApiKey(
   emailCode: string,
   totpCode: string,
   signal?: AbortSignal,
+  subUserId?: number | null,
 ) {
   return request("/api/v1/security/api-keys", CreatedApiKeySchema, {
     method: "POST",
@@ -302,7 +303,12 @@ export function createApiKey(
       "X-Security-Email-Code": emailCode,
       "X-Security-TOTP-Code": totpCode,
     },
-    body: { label, permissions, ipAllowlist },
+    body: {
+      label,
+      permissions,
+      ipAllowlist,
+      ...(subUserId ? { subUserId } : {}),
+    },
   })
 }
 

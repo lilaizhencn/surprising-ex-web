@@ -170,7 +170,11 @@ export function GoogleLogin({
         },
         Math.max(0, expires - Date.now()),
       )
-    })().catch(report)
+    })().catch((error: unknown) => {
+      if (controller.signal.aborted) return
+      setMessage(verificationMessage(error))
+      setStatus("error")
+    })
     return () => {
       controller.abort()
       legalDecision.current?.(false)

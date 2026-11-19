@@ -32,7 +32,7 @@ import { eventPrice } from "../../hooks/useRealtimeAssets"
 import { t, tf } from "../../i18n"
 import { config } from "../../lib/config"
 import { demoMarkets } from "../../lib/demo"
-import { formatPercent, formatPrice } from "../../lib/format"
+import { formatCompactNumber, formatNumber, formatPercent, formatPrice } from "../../lib/format"
 import { isPositiveDecimal, stepUnitsToDecimal, unitsToDecimal } from "../../lib/units"
 import type { WsEnvelope } from "../../realtime"
 import { toggleFavoriteMarket, useFavoriteMarkets } from "../../state/favoriteMarkets"
@@ -58,6 +58,7 @@ import { ReferencePrice } from "./ReferencePrice"
 import { TradeMarketPanel } from "./TradeMarketPanel"
 import { TradingAccountControls, type TradingOrderSettings } from "./TradingAccountControls"
 import { TradingAccountTables } from "./TradingAccountTables"
+import { useDayStats } from "./useDayStats"
 import { TradingOrderTicket } from "./TradingOrderTicket"
 import type { LeverageSettings } from "./TradingTicketControls"
 import { TriggerOrders } from "./TriggerOrders"
@@ -233,12 +234,25 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
     current?.instrumentId ?? "",
     view.line,
     period,
-    markets.map((market) => ({
-      channel: "trades",
-      instrumentId: market.instrumentId,
-      productLine: view.line,
-    })),
+    [
+      ...markets.map((market) => ({
+        channel: "trades",
+        instrumentId: market.instrumentId,
+        productLine: view.line,
+      })),
+      ...(current?.instrumentId && period !== "1m"
+        ? [
+            {
+              channel: "candles",
+              instrumentId: current.instrumentId,
+              productLine: view.line,
+              period: "1m",
+            },
+          ]
+        : []),
+    ],
   )
+  const dayStats = useDayStats(current?.instrumentId, view.line, realtime.events, realtime.state)
   const privateAccount = realtime.views[view.line]
   const [accountProjectionReady, setAccountProjectionReady] = useState(false)
   const accountReady = Boolean(session && accountProjectionReady && privateAccount?.ready())
@@ -302,23 +316,26 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
   }, [])
   const displayedDayStats = useMemo(() => {
     if (!current) return null
-    const close = marketQuotes[current.instrumentId] ?? current.price
+    const close = marketQuotes[current.instrumentId] ?? dayStats?.close ?? current.price
     const initialClose = current.price
-    const change = current.change24h
+    const change = dayStats?.change ?? current.change24h
     const open =
-      initialClose !== null && change !== null && change > -100
-        ? initialClose / (1 + change / 100)
-        : null
+      dayStats?.open ??
+      (initialClose !== null && current.change24h !== null && current.change24h > -100
+        ? initialClose / (1 + current.change24h / 100)
+        : null)
+    const baseHigh = dayStats?.high ?? current.high24h
+    const baseLow = dayStats?.low ?? current.low24h
     return {
       open,
       close,
-      high: close === null ? current.high24h : Math.max(current.high24h ?? close, close),
-      low: close === null ? current.low24h : Math.min(current.low24h ?? close, close),
-      volume: current.volume24h,
-      quoteVolume: current.quoteVolume24h,
+      high: close === null ? baseHigh : Math.max(baseHigh ?? close, close),
+      low: close === null ? baseLow : Math.min(baseLow ?? close, close),
+      volume: dayStats ? dayStats.volume : current.volume24h,
+      quoteVolume: dayStats?.quoteVolume ?? current.quoteVolume24h,
       change: open && close ? ((close - open) / open) * 100 : change,
     }
-  }, [current, marketQuotes])
+  }, [current, dayStats, marketQuotes])
   const openInterestQuantity = useMemo(() => {
     if (!current || realtime.state !== "live") return ""
     const event = realtime.events.find(
@@ -765,6 +782,31 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
               />
             </strong>
           </div>
+          <div>
+            <small>
+              {t("24h Volume")} ({current?.baseAsset}
+              {t(")")}
+            </small>
+            <strong className="mono" title={String(displayedDayStats?.volume ?? "")}>
+              {formatTradeQuantity(displayedDayStats ? String(displayedDayStats.volume) : "")}
+            </strong>
+          </div>
+          <div>
+            <small>
+              {t("24h Turnover")} ({current?.quoteAsset}
+              {t(")")}
+            </small>
+            <strong
+              className="mono"
+              title={
+                displayedDayStats?.quoteVolume == null
+                  ? ""
+                  : formatNumber(displayedDayStats.quoteVolume, 2)
+              }
+            >
+              {formatCompactNumber(displayedDayStats?.quoteVolume)}
+            </strong>
+          </div>
           {view.line !== PRODUCT_LINES.spot && view.line !== PRODUCT_LINES.option ? (
             <>
               <div>
@@ -801,28 +843,6 @@ export function TradePage({ productKey }: { readonly productKey: string }) {
                       pricePrecision={priceDisplayPrecision(current, assetScales)}
                     />
                   </ReferencePrice>
-                </strong>
-              </div>
-              <div>
-                <small>
-                  {t("24h Volume")} ({current?.baseAsset}
-                  {t(")")}
-                </small>
-                <strong className="mono" title={String(displayedDayStats?.volume ?? "")}>
-                  {formatTradeQuantity(displayedDayStats ? String(displayedDayStats.volume) : "")}
-                </strong>
-              </div>
-              <div>
-                <small>
-                  {t("24h Turnover")} ({current?.quoteAsset}
-                  {t(")")}
-                </small>
-                <strong className="mono" title={String(displayedDayStats?.quoteVolume ?? "")}>
-                  {formatTradeQuantity(
-                    displayedDayStats?.quoteVolume == null
-                      ? ""
-                      : displayedDayStats.quoteVolume.toFixed(2),
-                  )}
                 </strong>
               </div>
               <div>

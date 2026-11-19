@@ -610,6 +610,7 @@ export function TradingOrderTicket({
             key={`${productLine}:${current.instrumentId}:${currentAccountUserId(session) ?? "guest"}`}
             userId={currentAccountUserId(session)}
             instrumentId={current.instrumentId}
+            symbol={current.symbol}
             productLine={productLine}
             canChangeLeverage={!(deliveryProduct && current?.status !== "TRADING")}
             onMarginModeChange={

@@ -1,19 +1,19 @@
-import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from "react"
-import {
-  type C2cAd,
-  type C2cMarket,
-  type C2cPendingTrade,
-  type C2cQuote,
-  type c2cAccounts,
-  c2cDecimal,
-  type c2cMarkets,
-  quoteSchema,
-  type Verification,
+import { type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction, useState } from "react"
+import type {
+  C2cAd,
+  C2cMarket,
+  C2cPendingTrade,
+  C2cQuote,
+  c2cAccounts,
+  c2cMarkets,
+  c2cMe,
+  Verification,
 } from "../../api/c2cTrading"
+import { c2cDecimal, quoteSchema } from "../../api/c2cTrading"
 import { request } from "../../api/client"
 import { useConfirmDialog } from "../../components/ui/ConfirmDialog"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
-import { t } from "../../i18n"
+import { t, tf } from "../../i18n"
 import { unitsToDecimal } from "../../lib/units"
 import { responseDeadline } from "./C2cOrderPanel"
 
@@ -34,8 +34,10 @@ export function C2cMarketTab({
   setMarketId,
   catalog,
   market,
-  amount,
-  setAmount,
+  minAmount,
+  setMinAmount,
+  maxAmount,
+  setMaxAmount,
   method,
   setMethod,
   adsLoading,
@@ -69,8 +71,12 @@ export function C2cMarketTab({
   operation,
   submit,
   field,
+  me,
+  onGoAccounts,
 }: {
   owner: string
+  me?: Awaited<ReturnType<typeof c2cMe>> | null | undefined
+  onGoAccounts?: () => void
   side: "BUY" | "SELL"
   setSide: (side: "BUY" | "SELL") => void
   busy: boolean
@@ -79,8 +85,10 @@ export function C2cMarketTab({
   setMarketId: (id: string) => void
   catalog: Awaited<ReturnType<typeof c2cMarkets>> | null | undefined
   market: C2cMarket | undefined
-  amount: string
-  setAmount: (v: string) => void
+  minAmount: string
+  setMinAmount: (v: string) => void
+  maxAmount: string
+  setMaxAmount: (v: string) => void
   method: string
   setMethod: (v: string) => void
   adsLoading: boolean
@@ -116,39 +124,64 @@ export function C2cMarketTab({
   field: FieldFn
 }) {
   const { confirm, dialog } = useConfirmDialog()
+  const [onlyPremium, setOnlyPremium] = useState(false)
+  const [onlyFreezeGuarantee, setOnlyFreezeGuarantee] = useState(false)
+  const [selectedMethods, setSelectedMethods] = useState<string[]>([])
+  const blacklisted = Boolean(me?.blacklisted)
+  const visibleAds = ads.filter((ad) => {
+    if (ad.market.marketId !== marketId || ad.side !== (side === "BUY" ? "SELL" : "BUY"))
+      return false
+    if (onlyPremium && !ad.merchant?.premiumVerified) return false
+    if (onlyFreezeGuarantee && !ad.merchant?.freezeCompensation) return false
+    if (
+      selectedMethods.length > 0 &&
+      !ad.methodCodes.some((code) => selectedMethods.includes(code))
+    )
+      return false
+    const minVal = minAmount.trim() ? Number(minAmount) : null
+    const maxVal = maxAmount.trim() ? Number(maxAmount) : null
+    if (minVal !== null && Number.isFinite(minVal) && Number(ad.maxFiat) < minVal) return false
+    if (maxVal !== null && Number.isFinite(maxVal) && Number(ad.minFiat) > maxVal) return false
+    return true
+  })
   return (
     <>
       <div className="c2c-form-row">
-        <button
-          type="button"
-          aria-pressed={side === "BUY"}
-          disabled={busy}
-          onClick={() => {
-            setSide("BUY")
-            clearOfferSelection()
-          }}
-        >
-          {t("我要买")}
-        </button>
-        <button
-          type="button"
-          aria-pressed={side === "SELL"}
-          disabled={busy}
-          onClick={() => {
-            setSide("SELL")
-            clearOfferSelection()
-          }}
-        >
-          {t("我要卖")}
-        </button>
-        <div className="c2c-select-field">
+        <div className="c2c-side-switch" role="group" aria-label={t("交易方向")}>
+          <button
+            type="button"
+            className="c2c-side-buy"
+            aria-pressed={side === "BUY"}
+            disabled={busy}
+            onClick={() => {
+              setSide("BUY")
+              clearOfferSelection()
+            }}
+          >
+            {t("我要买")}
+          </button>
+          <button
+            type="button"
+            className="c2c-side-sell"
+            aria-pressed={side === "SELL"}
+            disabled={busy}
+            onClick={() => {
+              setSide("SELL")
+              clearOfferSelection()
+            }}
+          >
+            {t("我要卖")}
+          </button>
+        </div>
+        <div className="c2c-select-field c2c-market-field">
           <span>{t("交易市场")}</span>
           <DropdownSelect
             aria-label={t("交易市场")}
             value={marketId}
             onChange={(event) => {
               setMarketId(event.target.value)
-              setAmount("")
+              setMinAmount("")
+              setMaxAmount("")
               setMethod("")
               clearOfferSelection()
             }}
@@ -160,59 +193,135 @@ export function C2cMarketTab({
             ))}
           </DropdownSelect>
         </div>
-        {field(
-          `法币金额筛选${market ? "（" + market.fiat + "）" : ""}`,
-          amount,
-          (value) => {
-            setAmount(value)
-            clearOfferSelection()
-          },
-          { inputMode: "decimal", maxLength: 80 },
-        )}
-        <div className="c2c-select-field">
-          <span>{t("支付方式")}</span>
-          <DropdownSelect
-            aria-label={t("支付方式")}
-            value={method}
-            onChange={(event) => {
-              setMethod(event.target.value)
+        <div className="c2c-select-field c2c-amount-range-field">
+          <span>{market ? tf("法币金额筛选（{p0}）", { p0: market.fiat }) : t("法币金额筛选")}</span>
+          <div className="c2c-amount-range">
+            <input
+              aria-label={t("最小金额")}
+              placeholder={t("最小金额")}
+              value={minAmount}
+              inputMode="decimal"
+              maxLength={40}
+              onChange={(event) => {
+                setMinAmount(event.target.value)
+                clearOfferSelection()
+              }}
+            />
+            <span className="c2c-range-sep" aria-hidden="true">
+              –
+            </span>
+            <input
+              aria-label={t("最大金额")}
+              placeholder={t("最大金额")}
+              value={maxAmount}
+              inputMode="decimal"
+              maxLength={40}
+              onChange={(event) => {
+                setMaxAmount(event.target.value)
+                clearOfferSelection()
+              }}
+            />
+          </div>
+        </div>
+        <div className="c2c-select-field c2c-method-multi">
+          <span>{t("支付方式（可多选）")}</span>
+          <div className="c2c-badge-filters" role="group" aria-label={t("支付方式")}>
+            <button
+              type="button"
+              className={`c2c-filter-pill ${selectedMethods.length === 0 ? "active" : ""}`}
+              aria-pressed={selectedMethods.length === 0}
+              onClick={() => {
+                setSelectedMethods([])
+                setMethod("")
+                clearOfferSelection()
+              }}
+            >
+              {t("全部方式")}
+            </button>
+            {catalog?.paymentMethods
+              .filter((m) => !market || m.currencies.includes(market.fiat))
+              .map((m) => {
+                const active = selectedMethods.includes(m.code)
+                return (
+                  <button
+                    type="button"
+                    key={m.code}
+                    className={`c2c-filter-pill ${active ? "active" : ""}`}
+                    aria-pressed={active}
+                    onClick={() => {
+                      const next = active
+                        ? selectedMethods.filter((c) => c !== m.code)
+                        : [...selectedMethods, m.code]
+                      setSelectedMethods(next)
+                      setMethod(next.length === 1 ? (next[0] ?? "") : "")
+                      clearOfferSelection()
+                    }}
+                  >
+                    {t(m.label)}
+                  </button>
+                )
+              })}
+          </div>
+        </div>
+        <div className="c2c-badge-filters" role="group" aria-label={t("商户认证筛选")}>
+          <button
+            type="button"
+            className={`c2c-filter-pill ${onlyPremium ? "active" : ""}`}
+            aria-pressed={onlyPremium}
+            onClick={() => {
+              setOnlyPremium((v) => !v)
               clearOfferSelection()
             }}
           >
-            <option value="">{t("全部方式")}</option>
-            {catalog?.paymentMethods
-              .filter((m) => !market || m.currencies.includes(market.fiat))
-              .map((m) => (
-                <option key={m.code} value={m.code}>
-                  {m.label}
-                </option>
-              ))}
-          </DropdownSelect>
+            {t("优质商户")}
+          </button>
+          <button
+            type="button"
+            className={`c2c-filter-pill ${onlyFreezeGuarantee ? "active" : ""}`}
+            aria-pressed={onlyFreezeGuarantee}
+            onClick={() => {
+              setOnlyFreezeGuarantee((v) => !v)
+              clearOfferSelection()
+            }}
+          >
+            {t("冻结必赔")}
+          </button>
         </div>
       </div>
       <div className="c2c-offers">
         {adsLoading && ads.length === 0 ? (
-          <p role="status" aria-busy="true">
+          <p className="c2c-offers-empty" role="status" aria-busy="true">
             {t("正在查询广告…")}
           </p>
         ) : adsError ? (
-          <div role="alert">
+          <div className="c2c-offers-empty" role="alert">
             <p>{adsError}</p>
             <button type="button" onClick={refresh}>
               {t("重新查询广告")}
             </button>
           </div>
         ) : (
-          ads.length === 0 && <p>{available ? t("暂无符合条件的广告") : t("C2C 市场暂未开放")}</p>
-        )}
-        {ads
-          .filter(
-            (ad) =>
-              ad.market.marketId === marketId && ad.side === (side === "BUY" ? "SELL" : "BUY"),
+          visibleAds.length === 0 && (
+            <p className="c2c-offers-empty" role="status">
+              {available ? t("暂无符合条件的广告") : t("C2C 市场暂未开放")}
+            </p>
           )
-          .map((ad) => (
+        )}
+        {visibleAds.map((ad) => (
             <article key={ad.adId} className="c2c-panel c2c-offer-card">
-              <h2>{ad.merchant?.nickname || `商家 ${ad.makerUserId}`}</h2>
+              <div className="c2c-offer-merchant-head">
+                <h2>{ad.merchant?.nickname || tf("商家 {p0}", { p0: ad.makerUserId })}</h2>
+                {(ad.merchant?.premiumVerified || ad.merchant?.freezeCompensation) && (
+                  <div className="c2c-merchant-badges">
+                    {ad.merchant?.premiumVerified && (
+                      <span className="c2c-badge c2c-badge-premium">{t("优质商户")}</span>
+                    )}
+                    {ad.merchant?.freezeCompensation && (
+                      <span className="c2c-badge c2c-badge-freeze">{t("冻结必赔")}</span>
+                    )}
+                  </div>
+                )}
+              </div>
               <strong className="c2c-offer-price">
                 {c2cDecimal(ad.price)} {ad.market.fiat}
               </strong>
@@ -227,7 +336,8 @@ export function C2cMarketTab({
               <p>
                 {ad.methodCodes
                   .map(
-                    (code) => catalog?.paymentMethods.find((m) => m.code === code)?.label || code,
+                    (code) =>
+                      t(catalog?.paymentMethods.find((m) => m.code === code)?.label || code),
                   )
                   .join(" · ")}
               </p>
@@ -236,13 +346,14 @@ export function C2cMarketTab({
                 className="c2c-primary"
                 disabled={
                   busy ||
+                  blacklisted ||
                   ad.makerUserId === owner ||
                   !!pending ||
                   !!pendingError ||
                   adsLoading ||
                   !available
                 }
-                onClick={() => void act(() => choose(ad), "请确认数量和收款方式")}
+                onClick={() => void act(() => choose(ad), t("请确认数量和收款方式"))}
               >
                 {ad.makerUserId === owner
                   ? t("本人广告")
@@ -310,7 +421,7 @@ export function C2cMarketTab({
             {t("取消本次选择")}
           </button>
           {field(
-            "交易数量",
+            t("交易数量"),
             quantity,
             (value) => {
               setQuantity(value)
@@ -348,6 +459,22 @@ export function C2cMarketTab({
                       </option>
                     ))}
             </DropdownSelect>
+            {selected.side === "BUY" &&
+              accounts.filter(
+                (a) =>
+                  a.status === "APPROVED" &&
+                  a.fiat === selected.market.fiat &&
+                  selected.methodCodes.includes(a.methodCode),
+              ).length === 0 && (
+                <div className="c2c-reject-banner" role="alert">
+                  <span>{t("您尚未设置并审核通过支持该交易方式的收款账户，请先设置。")}</span>
+                  {onGoAccounts && (
+                    <button type="button" className="c2c-deposit-btn" onClick={onGoAccounts}>
+                      {t("去设置收款方式")}
+                    </button>
+                  )}
+                </div>
+              )}
           </div>
           <button
             type="button"
@@ -363,7 +490,7 @@ export function C2cMarketTab({
             onClick={() =>
               void act(async () => {
                 if (!/^\d+(\.\d+)?$/.test(quantity) || !/[1-9]/.test(quantity))
-                  throw Error("请输入大于零的交易数量")
+                  throw Error(t("请输入大于零的交易数量"))
                 const started = performance.now()
                 const value = await request("/api/v1/c2c/quotes", quoteSchema, {
                   method: "POST",
@@ -381,12 +508,12 @@ export function C2cMarketTab({
                   value.paymentAccountId !== payment ||
                   value.market.marketId !== selected.market.marketId
                 )
-                  throw Error("报价与当前广告或收款方式不匹配")
+                  throw Error(t("报价与当前广告或收款方式不匹配"))
                 if (live.current) {
                   setQuote(value)
                   setQuoteDeadline(responseDeadline(value.expiresAt, value.serverTime, started))
                 }
-              }, "报价已生成，请核对费用和实收数量")
+              }, t("报价已生成，请核对费用和实收数量"))
             }
           >
             {t("获取报价")}
@@ -422,10 +549,36 @@ export function C2cMarketTab({
                 }
                 onClick={() => {
                   if (operation.current) return
+                  const chosenOption =
+                    selected.side === "SELL"
+                      ? selected.paymentOptions?.find((a) => a.accountId === payment)
+                      : accounts.find((a) => a.accountId === payment)
+                  const methodLabel = chosenOption
+                    ? `${chosenOption.methodCode} ${chosenOption.maskedLabel}`
+                    : payment
+                  const badges = [
+                    selected.merchant?.premiumVerified ? t("优质商户") : "",
+                    selected.merchant?.freezeCompensation ? t("冻结必赔") : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                  const windowMins = Math.max(1, Math.round(selected.market.paymentWindowSeconds / 60))
                   void confirm({
-                    title: "确认按本次报价下单？",
-                    description: `商家：${selected.merchant?.nickname || selected.makerUserId}\n金额：${quote.fiatAmount} ${quote.market.fiat}\n数量：${quote.quantity} ${quote.market.asset}\n报价：${quote.quoteId}`,
-                    confirmLabel: t("确认下单"),
+                    title: t("确认下单并遵守交易规则"),
+                    description: tf(
+                      "商户：{p0}{p1}\n收付款方式：{p2}\n金额：{p3} {p4}（数量：{p5} {p6}）\n付款有效期：{p7} 分钟\n\n重要提醒：请在有效期内完成付款并点击确认；未及时付款或未点击确认导致超时，将冻结相关币种；若累计超过一次超时违约，将被系统拉黑（禁止 C2C 下单，仅可查看）。",
+                      {
+                        p0: selected.merchant?.nickname || selected.makerUserId,
+                        p1: badges ? `（${badges}）` : "",
+                        p2: methodLabel,
+                        p3: quote.fiatAmount,
+                        p4: quote.market.fiat,
+                        p5: quote.quantity,
+                        p6: quote.market.asset,
+                        p7: String(windowMins),
+                      },
+                    ),
+                    confirmLabel: t("我已知晓，确认下单"),
                   }).then((ok) => {
                     if (ok) void act(() => submit("ORDER_CREATE", { quoteId: quote.quoteId }))
                   })

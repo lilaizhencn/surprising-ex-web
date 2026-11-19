@@ -1,3 +1,67 @@
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.history-actions .inline-form {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.history-actions .inline-form input {
+  width: 112px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 13px;
+}
+.orders-filter-panel {
+  margin-bottom: var(--space-4);
+}
+.orders-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  align-items: end;
+  gap: var(--space-4);
+}
+.orders-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.history-tabs.orders-history-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: var(--space-4);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.orders-history-tabs > button {
+  flex: 1 1 auto;
+  min-width: 110px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  white-space: nowrap;
+}
+.orders-history-tabs > button.active {
+  background: var(--gradient-brand);
+  color: #ffffff;
+  border-color: transparent;
+  font-weight: 600;
+}
 .trade-fill-history {
   min-width: 0;
 }

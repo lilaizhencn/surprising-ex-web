@@ -16,6 +16,7 @@ export type LeverageSettings = Readonly<{
 export function TradingTicketControls({
   userId,
   instrumentId,
+  symbol,
   productLine,
   marginMode,
   onChange,
@@ -24,6 +25,7 @@ export function TradingTicketControls({
 }: {
   readonly userId: string | number | undefined
   readonly instrumentId: string
+  readonly symbol?: string
   readonly productLine: ProductLine
   readonly marginMode: "CROSS" | "ISOLATED"
   readonly onChange: (value: LeverageSettings | null) => void
@@ -70,7 +72,11 @@ export function TradingTicketControls({
   }, [userId, instrumentId, productLine, mode, onChange, reload])
   const save = async () => {
     if (!userId || !setting || !canChangeLeverage) return
-    const ppm = Number(draft) * 1_000_000
+    if (!/^\d+$/.test(draft.trim())) {
+      setMessage(t("Please enter leverage within the allowed range."))
+      return
+    }
+    const ppm = Number(draft.trim()) * 1_000_000
     if (!Number.isSafeInteger(ppm) || ppm < 1_000_000 || ppm > setting.maxLeveragePpm) {
       setMessage(t("Please enter leverage within the allowed range."))
       return
@@ -157,7 +163,7 @@ export function TradingTicketControls({
           </button>
         </div>
         <p>
-          {instrumentId} · {t(mode === "CROSS" ? "Cross" : "Isolated")}
+          {symbol || instrumentId} · {t(mode === "CROSS" ? "Cross" : "Isolated")}
         </p>
         {!setting ? (
           <div className="leverage-unavailable">
@@ -183,32 +189,38 @@ export function TradingTicketControls({
               {t("Leverage")} (1–{(setting?.maxLeveragePpm ?? 0) / 1_000_000}×)
               <input
                 type="number"
+                inputMode="numeric"
                 aria-label={t("Leverage multiplier")}
                 min="1"
                 max={(setting?.maxLeveragePpm ?? 0) / 1_000_000}
-                step="0.01"
+                step="1"
                 value={draft}
                 disabled={saving}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
               />
             </label>
             <label className="leverage-slider-label">
               <span>{t("Drag to adjust leverage")}</span>
-              <input
-                type="range"
-                className="sf-slider ds-control"
-                aria-label={t("Leverage slider")}
-                aria-valuetext={`${Number(draft) || 1}×`}
-                min="1"
-                max={setting.maxLeveragePpm / 1_000_000}
-                step="0.01"
-                value={Math.min(
-                  setting.maxLeveragePpm / 1_000_000,
-                  Math.max(1, Number(draft) || 1),
-                )}
-                disabled={saving}
-                onChange={(event) => setDraft(event.target.value)}
-              />
+              {(() => {
+                const maxLeverage = Math.max(1, Math.floor(setting.maxLeveragePpm / 1_000_000))
+                const sliderValue = Math.min(maxLeverage, Math.max(1, Math.round(Number(draft) || 1)))
+                const pct = maxLeverage > 1 ? ((sliderValue - 1) / (maxLeverage - 1)) * 100 : 0
+                return (
+                  <input
+                    type="range"
+                    className="sf-slider ds-control leverage-range"
+                    aria-label={t("Leverage slider")}
+                    aria-valuetext={`${sliderValue}×`}
+                    min="1"
+                    max={maxLeverage}
+                    step="1"
+                    value={sliderValue}
+                    style={{ "--slider-pct": `${pct}%` } as React.CSSProperties}
+                    disabled={saving}
+                    onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
+                  />
+                )
+              })()}
               <span className="leverage-slider-limits" aria-hidden="true">
                 <span>1×</span>
                 <span>{setting.maxLeveragePpm / 1_000_000}×</span>

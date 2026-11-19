@@ -1,3 +1,4 @@
+import { Crown, ShieldCheck, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   evaluateMyVip,
@@ -69,19 +70,30 @@ export function VipTierPage() {
     <div className="container vip-page-container">
       <div className="vip-header-card">
         <div className="vip-header-content">
-          <span className="vip-eyebrow">{t("AETERN VIP Program")}</span>
           <h1 className="vip-title">{t("VIP Tier & Trading Fee Benefits")}</h1>
-          <p className="vip-subtitle">
-            {t(
-              "Enjoy dynamic fee discounts and market maker rebates based on your 30-day rolling trading volume.",
-            )}
-          </p>
+          <div className="vip-perks-row">
+            <div className="vip-perk-chip">
+              <Crown size={16} aria-hidden="true" />
+              <span>{t("Maker Fee")} · -0.0050%</span>
+            </div>
+            <div className="vip-perk-chip">
+              <Zap size={16} aria-hidden="true" />
+              <span>{t("Priority WebSocket")}</span>
+            </div>
+            <div className="vip-perk-chip">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span>{t("Dedicated Institutional API")}</span>
+            </div>
+          </div>
         </div>
 
-        {session && myStatus && (
+        {session && myStatus ? (
           <div className="my-vip-card">
             <div className="my-vip-badge-row">
-              <span className="current-level-badge">{myStatus.currentTierCode}</span>
+              <span className="current-level-badge">
+                <Crown size={16} aria-hidden="true" />
+                {myStatus.currentTierCode}
+              </span>
               <button
                 type="button"
                 className="evaluate-btn"
@@ -95,20 +107,20 @@ export function VipTierPage() {
             <div className="my-rates-grid">
               <div className="rate-item">
                 <span className="rate-label">{t("Maker Fee")}</span>
-                <span className="rate-value highlight">
+                <span className="rate-value highlight mono">
                   {formatFeeRate(myStatus.makerFeeRatePpm)}
                 </span>
               </div>
               <div className="rate-item">
                 <span className="rate-label">{t("Taker Fee")}</span>
-                <span className="rate-value">{formatFeeRate(myStatus.takerFeeRatePpm)}</span>
+                <span className="rate-value mono">{formatFeeRate(myStatus.takerFeeRatePpm)}</span>
               </div>
             </div>
 
             <div className="vip-progress-section">
               <div className="progress-labels">
                 <span>
-                  {t("30D Volume")}: {formatUsd(myStatus.rolling30DayVolumeUsd)}
+                  {t("30D Volume")}: <strong className="mono">{formatUsd(myStatus.rolling30DayVolumeUsd)}</strong>
                 </span>
                 <span>
                   {myStatus.nextTierMinVolumeUsd > 0
@@ -134,15 +146,21 @@ export function VipTierPage() {
                   }}
                 />
               </div>
-              {myStatus.volumeNeededForNextTier > 0 && (
-                <div className="progress-hint">
-                  {t("Trade another")} {formatUsd(myStatus.volumeNeededForNextTier)}{" "}
-                  {t("in the next 30 days to level up.")}
-                </div>
-              )}
             </div>
           </div>
-        )}
+        ) : !session ? (
+          <div className="my-vip-card my-vip-guest">
+            <div className="my-vip-badge-row">
+              <span className="current-level-badge">
+                <Crown size={16} aria-hidden="true" />
+                VIP 0
+              </span>
+            </div>
+            <a className="vip-login-btn" href="/auth/login?redirect=%2Fvip">
+              {t("Log in")}
+            </a>
+          </div>
+        ) : null}
       </div>
 
       {notice && <div className="vip-notice-banner">{notice}</div>}

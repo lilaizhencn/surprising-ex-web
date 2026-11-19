@@ -1,11 +1,15 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react"
 import { type C2cTradingOrder, c2cDecimal } from "../../api/c2cTrading"
 import { t } from "../../i18n"
-import { c2cStatusText as statusText } from "./C2cOrderPanel"
+import { c2cStatusLabel } from "./C2cOrderPanel"
+
+export type C2cOrderScope = "ONGOING" | "ENDED" | "APPEALED"
 
 export function C2cOrdersTab({
   owner,
   orders,
+  orderScope,
+  setOrderScope,
   orderMore,
   orderOffset,
   loading,
@@ -17,6 +21,8 @@ export function C2cOrdersTab({
 }: {
   owner: string
   orders: C2cTradingOrder[]
+  orderScope: C2cOrderScope
+  setOrderScope: (scope: C2cOrderScope) => void
   orderMore: boolean
   orderOffset: number
   loading: boolean
@@ -28,9 +34,33 @@ export function C2cOrdersTab({
 }) {
   return (
     <>
-      <p className="c2c-muted">{t("每页最多 30 条订单，点击后读取最新状态。")}</p>
+      <div className="c2c-badge-filters c2c-order-tabs" role="tablist" aria-label={t("订单分类")}>
+        {(
+          [
+            ["ONGOING", "实时订单"],
+            ["ENDED", "已结束"],
+            ["APPEALED", "争议单"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            type="button"
+            role="tab"
+            key={key}
+            className={`c2c-filter-pill ${orderScope === key ? "active" : ""}`}
+            aria-selected={orderScope === key}
+            onClick={() => {
+              if (orderScope === key) return
+              setOrders([])
+              setOrderOffset(0)
+              setReadReady((value) => ({ ...value, orders: false }))
+              setOrderScope(key)
+            }}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
       <div className="c2c-offers">
-        {orders.length === 0 && <p>{t("当前页暂无订单")}</p>}
         {orders.map((row) => (
           <button
             type="button"
@@ -44,7 +74,7 @@ export function C2cOrdersTab({
             {row.buyerUserId === owner ? t("购买") : t("出售")} {row.quantity} {row.market.asset} ·{" "}
             {c2cDecimal(row.fiatAmount)} {row.market.fiat}
             <br />
-            {statusText[row.status] || row.status}
+            {c2cStatusLabel(row.status, row.status)}
             <small>{row.orderId}</small>
           </button>
         ))}

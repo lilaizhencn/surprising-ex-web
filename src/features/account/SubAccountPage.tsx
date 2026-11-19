@@ -119,17 +119,8 @@ export function SubAccountPage() {
 
   return (
     <div className="container sub-account-container">
-      <div className="sub-account-header">
-        <div>
-          <span className="eyebrow-tech">{t("Institutional & API Operations")}</span>
-          <h1 className="header-title">{t("Sub-Account Management")}</h1>
-          <p className="header-desc">
-            {t(
-              "Organize multiple trading strategies, isolate risk, and execute zero-fee instant internal fund transfers.",
-            )}
-          </p>
-        </div>
-        <Button tone="positive" onClick={() => setShowCreateModal(true)}>
+      <div className="sub-actions-bar">
+        <Button className="sub-gradient-btn" onClick={() => setShowCreateModal(true)}>
           {t("+ Create Sub-Account")}
         </Button>
       </div>
@@ -141,41 +132,21 @@ export function SubAccountPage() {
       )}
 
       <div className="sub-account-card">
-        <div className="card-top-bar">
-          <h3>{t("Sub-Accounts List")}</h3>
-          <button
-            type="button"
-            className="action-btn-ghost"
-            onClick={() => void reloadSubAccounts()}
-            disabled={loading}
-          >
-            {loading ? t("Refreshing...") : t("Refresh")}
-          </button>
-        </div>
-
-        {subAccounts.length === 0 ? (
-          <div className="empty-state">
-            <p>
-              {t(
-                "No sub-accounts found. Create your first sub-account to isolate trading strategies.",
-              )}
-            </p>
-          </div>
-        ) : (
-          <div className="sub-table-wrapper">
-            <table className="sub-table">
-              <thead>
-                <tr>
-                  <th>{t("User ID")}</th>
-                  <th>{t("Account Name")}</th>
-                  <th>{t("Permissions")}</th>
-                  <th>{t("Status")}</th>
-                  <th>{t("Created At")}</th>
-                  <th>{t("Actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subAccounts.map((account) => (
+        <div className="sub-table-wrapper">
+          <table className="sub-table">
+            <thead>
+              <tr>
+                <th>{t("User ID")}</th>
+                <th>{t("Account Name")}</th>
+                <th>{t("Permissions")}</th>
+                <th>{t("Status")}</th>
+                <th>{t("Created At")}</th>
+                <th>{t("Actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subAccounts.length > 0 ? (
+                subAccounts.map((account) => (
                   <tr key={account.id}>
                     <td className="mono-cell">{account.subUserId}</td>
                     <td className="name-cell">{account.subAccountName}</td>
@@ -209,30 +180,27 @@ export function SubAccountPage() {
                         account={account}
                         onStatusChange={(updated) =>
                           setSubAccounts((current) =>
-                            current.map((row) =>
-                              row.subUserId === updated.subUserId ? { ...row, ...updated } : row,
-                            ),
+                            current.map((row) => (row.subUserId === updated.subUserId ? { ...row, ...updated } : row)),
                           )
                         }
                       />
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              ) : (
+                <tr className="sub-table-empty-row">
+                  <td colSpan={6} aria-hidden="true" />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showCreateModal && (
         <div className="modal-backdrop">
           <div className="modal-glass">
             <h2>{t("Create Sub-Account")}</h2>
-            <p className="modal-desc">
-              {t(
-                "A dedicated trading sub-account will be provisioned instantly with zero latency.",
-              )}
-            </p>
             <div className="modal-form">
               <Field label={t("Sub-Account Name")}>
                 <input
@@ -261,7 +229,7 @@ export function SubAccountPage() {
               >
                 {t("Cancel")}
               </button>
-              <Button tone="positive" loading={creating} onClick={() => void handleCreate()}>
+              <Button className="sub-gradient-btn" loading={creating} onClick={() => void handleCreate()}>
                 {t("Create Account")}
               </Button>
             </div>
@@ -273,9 +241,6 @@ export function SubAccountPage() {
         <div className="modal-backdrop">
           <div className="modal-glass">
             <h2>{t("Internal Asset Transfer")}</h2>
-            <p className="modal-desc">
-              {t("Zero-fee and instantaneous transfer between master and sub-accounts.")}
-            </p>
             <div className="modal-form">
               <div className="direction-tabs">
                 <button
@@ -328,7 +293,7 @@ export function SubAccountPage() {
               >
                 {t("Cancel")}
               </button>
-              <Button tone="positive" loading={transferring} onClick={() => void handleTransfer()}>
+              <Button className="sub-gradient-btn" loading={transferring} onClick={() => void handleTransfer()}>
                 {t("Confirm Transfer")}
               </Button>
             </div>

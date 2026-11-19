@@ -428,8 +428,8 @@ export async function createSubAccount(body: {
 }
 
 export async function loadSubAccounts(): Promise<readonly SubAccountRecord[]> {
-  const res = await request("/api/v1/sub-account/list", GenericObjectSchema)
-  return Array.isArray(res) ? (res as unknown as readonly SubAccountRecord[]) : []
+  const res = await request("/api/v1/sub-account/list", z.array(GenericObjectSchema))
+  return res as unknown as readonly SubAccountRecord[]
 }
 
 export async function transferSubAccount(

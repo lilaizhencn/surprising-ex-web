@@ -336,7 +336,9 @@ export function useRealtimeAssets(
         }
       })
       if (!equity.complete || !positionMarksCurrent) valuationUnavailable = true
-      ready = ready && view.ready()
+      ready =
+        ready &&
+        (realtime.state === "live" ? view.status === "READY" : view.ready(now))
       for (const row of equity.balances) {
         const parsed = BalanceSchema.safeParse({ ...row, accountType: accountTypes[product] })
         if (!parsed.success) {
@@ -381,14 +383,19 @@ export function useRealtimeAssets(
     realtime.views,
     realtime.events,
     realtime.products,
+    realtime.state,
     scales,
   ])
+  const isViewReady = (product: (typeof realtime.products)[number]) => {
+    const view = realtime.views[product]
+    if (!view) return false
+    return realtime.state === "live" ? view.status === "READY" : view.ready(now)
+  }
   return {
     ...result,
-    ready:
-      result.ready && realtime.products.every((product) => realtime.views[product]?.ready(now)),
+    ready: result.ready && realtime.products.every(isViewReady),
     products: realtime.products,
-    readyProducts: realtime.products.filter((product) => realtime.views[product]?.ready(now)),
+    readyProducts: realtime.products.filter(isViewReady),
     error:
       marketError ??
       fxError ??

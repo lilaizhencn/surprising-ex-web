@@ -10,6 +10,8 @@ import {
   loadC2cStatus,
   startC2cConversation,
 } from "../../api/c2c"
+import { c2cWrite } from "../../api/c2cTrading"
+import { c2cStatusLabel } from "./C2cOrderPanel"
 import { DropdownSelect } from "../../components/ui/DropdownSelect"
 import { Badge, Button, IconButton, SearchField, StateView } from "../../components/ui/Primitives"
 import { t, useLocale } from "../../i18n"
@@ -398,7 +400,25 @@ function ConversationPanel({
 }) {
   const chat = useC2cConversation(owner, token, conversation)
   const [showOrder, setShowOrder] = useState(false)
+  const [liveOrder, setLiveOrder] = useState<C2cOrder | null>(null)
+  const [orderBusy, setOrderBusy] = useState(false)
+  const [orderActionError, setOrderActionError] = useState("")
+  const [orderRev, setOrderRev] = useState(0)
   const [atBottom, setAtBottom] = useState(true)
+  useEffect(() => {
+    const orderId = conversation.orderId
+    if (!orderId) {
+      setLiveOrder(null)
+      return
+    }
+    const abort = new AbortController()
+    void loadC2cOrder(owner, orderId, abort.signal)
+      .then((value) => {
+        if (!abort.signal.aborted) setLiveOrder(value)
+      })
+      .catch(() => {})
+    return () => abort.abort()
+  }, [owner, conversation.orderId, chat.events.length, orderRev])
   const scroller = useRef<HTMLDivElement>(null)
   const anchor = useRef<{ top: number; height: number } | null>(null)
   const bottom = useRef(true)
@@ -471,6 +491,52 @@ function ConversationPanel({
             {t("Order")} {conversation.orderId}
           </span>
           <Badge>{orderStatus(chat.currentConversation.order?.status ?? "")}</Badge>
+        </div>
+      ) : null}
+      {liveOrder ? (
+        <div className="c2c-chat-order-bar">
+          <div className="c2c-chat-order-info">
+            <Badge tone={liveOrder.status === "COMPLETED" ? "positive" : liveOrder.status === "APPEALED" ? "negative" : "info"}>
+              {c2cStatusLabel(liveOrder.status, liveOrder.status)}
+            </Badge>
+            <span>
+              {liveOrder.buyerUserId === owner ? t("购买") : t("出售")}{" "}
+              {liveOrder.quantity}{" "}
+              {liveOrder.market.asset} · {liveOrder.fiatAmount} {liveOrder.market.fiat}
+            </span>
+          </div>
+          <div className="c2c-chat-order-actions">
+            {liveOrder.status === "PAYMENT_PENDING" && liveOrder.buyerUserId === owner && (
+              <Button
+                tone="primary"
+                loading={orderBusy}
+                onClick={() => {
+                  setOrderBusy(true)
+                  setOrderActionError("")
+                  void c2cWrite(owner, `/orders/${liveOrder.orderId}/paid`, {})
+                    .then(() => setOrderRev((v) => v + 1))
+                    .catch((err: unknown) =>
+                      setOrderActionError(err instanceof Error ? err.message : t("操作失败")),
+                    )
+                    .finally(() => setOrderBusy(false))
+                }}
+              >
+                {t("确认已打款")}
+              </Button>
+            )}
+            {liveOrder.status === "PAID" && liveOrder.sellerUserId === owner && (
+              <Button
+                tone="primary"
+                onClick={() => setShowOrder(true)}
+              >
+                {t("确认已收到并放币")}
+              </Button>
+            )}
+            <Button tone="outline" onClick={() => setShowOrder(true)}>
+              {t("订单与付款信息")}
+            </Button>
+          </div>
+          {orderActionError ? <p className="c2c-error">{orderActionError}</p> : null}
         </div>
       ) : null}
       {chat.error ? (

@@ -8,6 +8,18 @@ export function formatNumber(value: number | null, maximumFractionDigits = 2): s
   return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)
 }
 
+export function formatCompactNumber(
+  value: number | null | undefined,
+  maximumFractionDigits = 2,
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—"
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000_000) return `${formatNumber(value / 1_000_000_000_000, maximumFractionDigits)}T`
+  if (abs >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000, maximumFractionDigits)}B`
+  if (abs >= 1_000_000) return `${formatNumber(value / 1_000_000, maximumFractionDigits)}M`
+  return formatNumber(value, maximumFractionDigits)
+}
+
 /** Decimal places needed for a tick, including non-power-of-ten ticks such as 0.000025. */
 export function priceDecimalsForStep(step: number, declaredPrecision = 2): number {
   if (!Number.isFinite(step) || step <= 0) return Math.max(0, Math.min(20, declaredPrecision))

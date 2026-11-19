@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { formatNumber, formatPercent, formatPrice, priceDecimalsForStep } from "./format"
+import {
+  formatCompactNumber,
+  formatNumber,
+  formatPercent,
+  formatPrice,
+  priceDecimalsForStep,
+} from "./format"
 
 describe("instrument price precision", () => {
   it("keeps fixed and adaptive precision independent when reusing formatters", () => {
@@ -37,5 +43,13 @@ describe("financial formatters", () => {
   it("keeps positive and negative signs visible", () => {
     expect(formatPercent(1.25)).toBe("+1.25%")
     expect(formatPercent(-1.25)).toBe("-1.25%")
+  })
+
+  it("abbreviates large turnover values with M/B/T units", () => {
+    expect(formatCompactNumber(null)).toBe("—")
+    expect(formatCompactNumber(987654.321)).toBe("987,654.32")
+    expect(formatCompactNumber(1_250_000)).toBe("1.25M")
+    expect(formatCompactNumber(12_345_678_900)).toBe("12.35B")
+    expect(formatCompactNumber(1_500_000_000_000)).toBe("1.5T")
   })
 })

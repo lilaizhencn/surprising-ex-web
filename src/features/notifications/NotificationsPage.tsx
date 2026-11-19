@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, RefreshCw } from "lucide-react"
+import { Check, CheckCheck } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import {
   loadNotifications,
@@ -16,13 +16,6 @@ export function NotificationsPage() {
     <AccountNotifications key={String(session.user.userId)} />
   ) : (
     <div className="container section notifications-page">
-      <div className="page-heading">
-        <div>
-          <h1>{t("Notification Center")}</h1>
-          <p>{t("System and account messages are available after sign in.")}</p>
-        </div>
-        <Bell size={28} aria-hidden="true" />
-      </div>
       <Panel>
         <StateView kind="empty" message="Sign in to view account notifications." />
         <a className="button button-primary" href="/auth/login">
@@ -34,7 +27,6 @@ export function NotificationsPage() {
 }
 function AccountNotifications() {
   const [rows, setRows] = useState<ApiNotification[] | null>(null)
-  const [unreadOnly, setUnreadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [actionError, setActionError] = useState("")
@@ -54,7 +46,7 @@ function AccountNotifications() {
     setLoading(true)
     setError("")
     setActionError("")
-    void loadNotifications(unreadOnly, abort.signal)
+    void loadNotifications(false, abort.signal)
       .then(
         (value) => {
           if (!abort.signal.aborted) setRows(value)
@@ -67,7 +59,7 @@ function AccountNotifications() {
         if (!abort.signal.aborted) setLoading(false)
       })
     return () => abort.abort()
-  }, [unreadOnly, reload])
+  }, [reload])
   const unreadCount = rows?.filter((row) => !row.readAt).length
   const mark = async (id?: string) => {
     const signal = lifetime.current?.signal
@@ -82,6 +74,7 @@ function AccountNotifications() {
       if (!signal.aborted) {
         setNotice(t(id ? "Notification marked as read." : "All notifications marked as read."))
         setReload((value) => value + 1)
+        window.dispatchEvent(new Event("surprising-notifications-updated"))
       }
     } catch (reason) {
       if (!signal.aborted) setActionError(readError(reason))
@@ -92,41 +85,7 @@ function AccountNotifications() {
   }
   return (
     <div className="container section notifications-page">
-      <div className="page-heading">
-        <div>
-          <h1>{t("Notification Center")}</h1>
-          <p>{t("Read account updates, security alerts and service messages in one place.")}</p>
-        </div>
-        <Bell size={28} aria-hidden="true" />
-      </div>
       <div className="history-toolbar content-toolbar">
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={unreadOnly}
-            disabled={Boolean(busy)}
-            onChange={(event) => {
-              setUnreadOnly(event.target.checked)
-              setNotice("")
-            }}
-          />
-          {t("Unread only")}
-        </label>
-        <span className="muted" role="status">
-          {unreadCount ?? "—"} {t("unread in this view")}
-        </span>
-        <Button
-          tone="outline"
-          disabled={Boolean(busy)}
-          loading={loading}
-          onClick={() => {
-            setNotice("")
-            setReload((value) => value + 1)
-          }}
-        >
-          <RefreshCw size={16} aria-hidden="true" />
-          {t("Refresh")}
-        </Button>
         <Button
           tone="outline"
           disabled={loading || !unreadCount || Boolean(busy)}
@@ -156,10 +115,7 @@ function AccountNotifications() {
         ) : error ? (
           <StateView kind="error" message={error} retry={() => setReload((value) => value + 1)} />
         ) : !rows?.length ? (
-          <StateView
-            kind="empty"
-            message={unreadOnly ? "No unread notifications." : "No notifications yet."}
-          />
+          <StateView kind="empty" message="No notifications yet." />
         ) : (
           <>
             <div className="notification-list">

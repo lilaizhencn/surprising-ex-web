@@ -19,7 +19,29 @@
     0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 32px;
+  padding: 24px 28px;
+}
+
+.sub-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sub-table-empty-row td {
+  height: 180px;
+  border-bottom: 0;
+}
+
+.button.sub-gradient-btn {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.28);
+}
+.button.sub-gradient-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 
 @media (max-width: 768px) {
@@ -77,10 +99,12 @@
   background: var(--color-surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .card-top-bar {
