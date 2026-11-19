@@ -176,20 +176,59 @@ export function C2cMarketPreview() {
                 </button>
               </div>
               <div className="c2c-select-field c2c-market-field">
-                <span>{t("交易市场")}</span>
+                <span>{t("币种")}</span>
                 <DropdownSelect
-                  aria-label={t("交易市场")}
-                  value={marketId}
+                  aria-label={t("币种")}
+                  value={market?.asset ?? ""}
                   onChange={(event) => {
-                    setMarketId(event.target.value)
-                    setAmount("")
-                    setMethodCode("")
-                    resetOffers()
+                    const nextAsset = event.target.value
+                    const currentFiat = market?.fiat ?? ""
+                    const next =
+                      catalog.markets.find(
+                        (row) => row.asset === nextAsset && row.fiat === currentFiat,
+                      ) ?? catalog.markets.find((row) => row.asset === nextAsset)
+                    if (next) {
+                      setMarketId(next.marketId)
+                      setAmount("")
+                      setMethodCode("")
+                      resetOffers()
+                    }
                   }}
                 >
-                  {catalog.markets.map((row) => (
-                    <option key={row.marketId} value={row.marketId}>
-                      {`${row.asset} / ${row.fiat}`}
+                  {Array.from(new Set(catalog.markets.map((row) => row.asset))).map((asset) => (
+                    <option key={asset} value={asset}>
+                      {asset}
+                    </option>
+                  ))}
+                </DropdownSelect>
+              </div>
+              <div className="c2c-select-field c2c-market-field">
+                <span>{t("法币")}</span>
+                <DropdownSelect
+                  aria-label={t("法币")}
+                  value={market?.fiat ?? ""}
+                  onChange={(event) => {
+                    const nextFiat = event.target.value
+                    const next = catalog.markets.find(
+                      (row) => row.asset === (market?.asset ?? "") && row.fiat === nextFiat,
+                    )
+                    if (next) {
+                      setMarketId(next.marketId)
+                      setAmount("")
+                      setMethodCode("")
+                      resetOffers()
+                    }
+                  }}
+                >
+                  {Array.from(
+                    new Set(
+                      catalog.markets
+                        .filter((row) => !market || row.asset === market.asset)
+                        .map((row) => row.fiat),
+                    ),
+                  ).map((fiat) => (
+                    <option key={fiat} value={fiat}>
+                      {fiat}
                     </option>
                   ))}
                 </DropdownSelect>

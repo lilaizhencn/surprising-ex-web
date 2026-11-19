@@ -174,21 +174,60 @@ export function C2cMarketTab({
           </button>
         </div>
         <div className="c2c-select-field c2c-market-field">
-          <span>{t("交易市场")}</span>
+          <span>{t("币种")}</span>
           <DropdownSelect
-            aria-label={t("交易市场")}
-            value={marketId}
+            aria-label={t("币种")}
+            value={market?.asset ?? ""}
             onChange={(event) => {
-              setMarketId(event.target.value)
-              setMinAmount("")
-              setMaxAmount("")
-              setMethod("")
-              clearOfferSelection()
+              const nextAsset = event.target.value
+              const currentFiat = market?.fiat ?? ""
+              const next =
+                catalog?.markets.find((m) => m.asset === nextAsset && m.fiat === currentFiat) ??
+                catalog?.markets.find((m) => m.asset === nextAsset)
+              if (next) {
+                setMarketId(next.marketId)
+                setMinAmount("")
+                setMaxAmount("")
+                setMethod("")
+                clearOfferSelection()
+              }
             }}
           >
-            {catalog?.markets.map((m) => (
-              <option key={m.marketId} value={m.marketId}>
-                {`${m.asset} / ${m.fiat}`}
+            {Array.from(new Set(catalog?.markets.map((m) => m.asset) ?? [])).map((asset) => (
+              <option key={asset} value={asset}>
+                {asset}
+              </option>
+            ))}
+          </DropdownSelect>
+        </div>
+        <div className="c2c-select-field c2c-market-field">
+          <span>{t("法币")}</span>
+          <DropdownSelect
+            aria-label={t("法币")}
+            value={market?.fiat ?? ""}
+            onChange={(event) => {
+              const nextFiat = event.target.value
+              const next = catalog?.markets.find(
+                (m) => m.asset === (market?.asset ?? "") && m.fiat === nextFiat,
+              )
+              if (next) {
+                setMarketId(next.marketId)
+                setMinAmount("")
+                setMaxAmount("")
+                setMethod("")
+                clearOfferSelection()
+              }
+            }}
+          >
+            {Array.from(
+              new Set(
+                (catalog?.markets ?? [])
+                  .filter((m) => !market || m.asset === market.asset)
+                  .map((m) => m.fiat),
+              ),
+            ).map((fiat) => (
+              <option key={fiat} value={fiat}>
+                {fiat}
               </option>
             ))}
           </DropdownSelect>
